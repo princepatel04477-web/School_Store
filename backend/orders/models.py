@@ -1,3 +1,4 @@
+import uuid
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -6,14 +7,17 @@ from common.models import UUIDModel
 
 class Order(UUIDModel):
     class Status(models.TextChoices):
-        PENDING = "PENDING", "Pending"
+        PLACED = "PLACED", "Placed"
+        PENDING = "PENDING", "Pending"  # legacy value retained for existing data
         CONFIRMED = "CONFIRMED", "Confirmed"
         PROCESSING = "PROCESSING", "Processing"
         PACKED = "PACKED", "Packed"
-        SHIPPED = "SHIPPED", "Shipped"
+        DISPATCHED = "DISPATCHED", "Dispatched"
+        SHIPPED = "SHIPPED", "Shipped"  # legacy value retained for existing data
         DELIVERED = "DELIVERED", "Delivered"
         CANCELLED = "CANCELLED", "Cancelled"
-        REFUNDED = "REFUNDED", "Refunded"
+        RETURNED = "RETURNED", "Returned"
+        REFUNDED = "REFUNDED", "Refunded"  # legacy value retained for existing data
 
     class PaymentStatus(models.TextChoices):
         PENDING = "PENDING", "Pending"
@@ -23,6 +27,9 @@ class Order(UUIDModel):
         REFUNDED = "REFUNDED", "Refunded"
 
     order_number = models.CharField(max_length=40, unique=True)
+    # Client supplied checkout token. A database constraint makes retries safe even
+    # when two requests arrive concurrently.
+    idempotency_key = models.CharField(max_length=128, unique=True, db_index=True, default=uuid.uuid4)
     placed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -55,7 +62,7 @@ class Order(UUIDModel):
     status = models.CharField(
         max_length=24,
         choices=Status.choices,
-        default=Status.PENDING,
+        default=Status.PLACED,
     )
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
     total = models.DecimalField(max_digits=12, decimal_places=2)
