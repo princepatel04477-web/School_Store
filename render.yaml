@@ -1,0 +1,39 @@
+# Render Blueprint: Django API + Redis (Key Value). Database is Neon; frontend is Cloudflare.
+services:
+  - type: web
+    name: school-store-api
+    runtime: python
+    plan: free
+    region: singapore          # same region as the Neon project (aws-ap-southeast-1)
+    branch: main
+    buildCommand: ./build.sh
+    startCommand: gunicorn --chdir backend config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 60
+    healthCheckPath: /api/health/
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false            # Neon connection string, set in the Render dashboard
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: school-store-redis
+          property: connectionString
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false            # Cloudflare frontend origin, e.g. https://school-store.<account>.workers.dev
+      - key: DB_POOL_MAX_SIZE
+        value: "4"
+      # No paid Celery worker: run background jobs inline in the web process.
+      - key: CELERY_TASK_ALWAYS_EAGER
+        value: "1"
+
+  - type: keyvalue
+    name: school-store-redis
+    plan: free
+    region: singapore
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []            # internal access only

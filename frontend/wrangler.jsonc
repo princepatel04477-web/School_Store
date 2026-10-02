@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "school-store",
+  "compatibility_date": "2026-09-01",
+  // Static React (Vite) build served by Workers Assets; unknown paths fall back to index.html
+  // so react-router client-side routes work on refresh.
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}

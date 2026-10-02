@@ -24,6 +24,7 @@ import os
 import sys
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import parse_qs, unquote, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -34,9 +35,20 @@ SECRET_KEY = os.environ.get(
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 
-ALLOWED_HOSTS = ["*"]
 
-CORS_ALLOW_ALL_ORIGINS = True
+def _env_list(name):
+    return [v.strip() for v in os.environ.get(name, "").split(",") if v.strip()]
+
+
+ALLOWED_HOSTS = _env_list("DJANGO_ALLOWED_HOSTS") or ["*"]
+# Render injects the service's public hostname.
+if os.environ.get("RENDER_EXTERNAL_HOSTNAME") and ALLOWED_HOSTS != ["*"]:
+    ALLOWED_HOSTS.append(os.environ["RENDER_EXTERNAL_HOSTNAME"])
+
+# Production: set CORS_ALLOWED_ORIGINS to the frontend origin(s), comma separated.
+# Unset (local dev) keeps the old allow-all behaviour.
+CORS_ALLOWED_ORIGINS = _env_list("CORS_ALLOWED_ORIGINS")
+CORS_ALLOW_ALL_ORIGINS = not CORS_ALLOWED_ORIGINS
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     "https://*.e2b.app",
@@ -44,7 +56,14 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:8000",
+    *CORS_ALLOWED_ORIGINS,
 ]
+
+if not DEBUG:
+    # Render terminates TLS and forwards the original scheme.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -71,6 +90,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -112,6 +132,33 @@ USE_DB_POOL = (
     and "test" not in sys.argv
 )
 
+def _database_from_url(url):
+    """Parse DATABASE_URL (e.g. Neon's postgresql://user:pass@host/db?sslmode=require)."""
+    u = urlparse(url)
+    query = {k: v[0] for k, v in parse_qs(u.query).items()}
+    options = {"sslmode": query.get("sslmode", "require")}
+    return {
+        "NAME": unquote(u.path.lstrip("/")),
+        "USER": unquote(u.username or ""),
+        "PASSWORD": unquote(u.password or ""),
+        "HOST": u.hostname or "",
+        "PORT": str(u.port or 5432),
+        "OPTIONS": options,
+    }
+
+
+_pool_options = (
+    {
+        "min_size": DB_POOL_MIN_SIZE,
+        "max_size": DB_POOL_MAX_SIZE,
+        "timeout": 30,
+        # Neon suspends idle computes; drop idle connections before that happens.
+        "max_idle": int(os.environ.get("DB_POOL_MAX_IDLE", "120")),
+    }
+    if USE_DB_POOL
+    else None
+)
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -121,19 +168,13 @@ DATABASES = {
         "HOST": os.environ.get("POSTGRES_HOST", "127.0.0.1"),
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
         "CONN_HEALTH_CHECKS": True,
-        "OPTIONS": (
-            {
-                "pool": {
-                    "min_size": DB_POOL_MIN_SIZE,
-                    "max_size": DB_POOL_MAX_SIZE,
-                    "timeout": 30,
-                }
-            }
-            if USE_DB_POOL
-            else {}
-        ),
+        "OPTIONS": {},
     }
 }
+if os.environ.get("DATABASE_URL"):
+    DATABASES["default"].update(_database_from_url(os.environ["DATABASE_URL"]))
+if _pool_options:
+    DATABASES["default"]["OPTIONS"]["pool"] = _pool_options
 
 # Redis Cache (Rule P8 - catalogue and school lists with explicit invalidation)
 REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379")
@@ -214,6 +255,10 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
