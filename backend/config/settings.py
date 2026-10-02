@@ -137,6 +137,8 @@ DATABASES = {
 
 # Redis Cache (Rule P8 - catalogue and school lists with explicit invalidation)
 REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379")
+RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 
 CACHES = {
     "default": {
