@@ -74,6 +74,15 @@ class Student(UUIDModel):
         FEMALE = "FEMALE", "Female"
         OTHER = "OTHER", "Other"
 
+    class ApprovalStatus(models.TextChoices):
+        PENDING = "PENDING", "Pending School Admin approval"
+        APPROVED = "APPROVED", "Approved"
+
+    class Source(models.TextChoices):
+        STAFF = "STAFF", "Added by school staff"
+        IMPORT = "IMPORT", "Bulk import"
+        PARENT_MANUAL = "PARENT_MANUAL", "Added manually by parent"
+
     name = models.CharField(max_length=150)
     gr_number = models.CharField(max_length=50)
     class_name = models.CharField(max_length=30, db_column="class")
@@ -82,6 +91,11 @@ class Student(UUIDModel):
         max_length=16,
         choices=Gender.choices,
         default=Gender.MALE,
+    )
+    date_of_birth = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Optional. Used as the second check when a parent claims a child.",
     )
     school = models.ForeignKey(
         School,
@@ -102,6 +116,16 @@ class Student(UUIDModel):
         null=True,
         blank=True,
         related_name="children",
+    )
+    approval_status = models.CharField(
+        max_length=16,
+        choices=ApprovalStatus.choices,
+        default=ApprovalStatus.APPROVED,
+    )
+    source = models.CharField(
+        max_length=24,
+        choices=Source.choices,
+        default=Source.STAFF,
     )
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -127,6 +151,10 @@ class Student(UUIDModel):
             models.Index(
                 fields=["city", "school"],
                 name="idx_student_city_school",
+            ),
+            models.Index(
+                fields=["school", "approval_status"],
+                name="idx_student_school_approval",
             ),
         ]
 

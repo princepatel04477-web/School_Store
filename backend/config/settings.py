@@ -53,6 +53,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # Postgres features (trigram indexes powering indexed `?search=`)
+    "django.contrib.postgres",
     # Third-party
     "corsheaders",
     "rest_framework",
@@ -158,6 +160,11 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "Asia/Kolkata"
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 600
+# Tests run background jobs inline so HTTP + job behaviour can be asserted together.
+CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "0") == "1" or (
+    "test" in sys.argv
+)
+CELERY_TASK_EAGER_PROPAGATES = CELERY_TASK_ALWAYS_EAGER
 
 # Django REST Framework & JWT Authentication
 REST_FRAMEWORK = {
@@ -170,6 +177,14 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PAGINATION_CLASS": "common.pagination.BoundedPageNumberPagination",
     "PAGE_SIZE": 25,
+    # Keep `?format=` free for our own endpoints (?format=csv on the import
+    # template); DRF would otherwise treat it as a renderer override.
+    "URL_FORMAT_OVERRIDE": None,
+    # Rate limits for brute-force-sensitive endpoints (Prompt 4, requirement 6)
+    "DEFAULT_THROTTLE_RATES": {
+        "student_claim_user": os.environ.get("STUDENT_CLAIM_USER_RATE", "10/hour"),
+        "student_claim_ip": os.environ.get("STUDENT_CLAIM_IP_RATE", "30/hour"),
+    },
 }
 
 SIMPLE_JWT = {
@@ -199,5 +214,19 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# --------------------------------------------------------------------------- #
+# Bulk import limits (Prompt 4, requirement 3)
+#   - uploads capped at 5 MB and 5,000 rows
+#   - inserts run in batches of 500 with ON CONFLICT (school, gr_number) DO NOTHING
+# --------------------------------------------------------------------------- #
+STUDENT_IMPORT_MAX_BYTES = int(os.environ.get("STUDENT_IMPORT_MAX_BYTES", 5 * 1024 * 1024))
+STUDENT_IMPORT_MAX_ROWS = int(os.environ.get("STUDENT_IMPORT_MAX_ROWS", 5000))
+STUDENT_IMPORT_BATCH_SIZE = int(os.environ.get("STUDENT_IMPORT_BATCH_SIZE", 500))
+STUDENT_IMPORT_PREVIEW_LIMIT = int(os.environ.get("STUDENT_IMPORT_PREVIEW_LIMIT", 50))
+
+# Uploaded files must never be held in memory for a 5 MB spreadsheet cap.
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 6 * 1024 * 1024
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
