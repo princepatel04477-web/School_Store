@@ -227,6 +227,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "student_claim_user": os.environ.get("STUDENT_CLAIM_USER_RATE", "10/hour"),
         "student_claim_ip": os.environ.get("STUDENT_CLAIM_IP_RATE", "30/hour"),
+        "public_catalog": os.environ.get("PUBLIC_CATALOG_RATE", "120/min"),
     },
 }
 
