@@ -5,7 +5,8 @@ from django.utils import timezone
 
 from accounts.models import User
 from analytics.tasks import refresh_daily_sales_summary
-from catalog.models import Category, Product, ProductVariant, StockMovement
+from catalog.models import Category, Product, ProductVariant
+from inventory.models import StockBalance, StockMovement
 from orders.models import Order, OrderItem, OrderStatusEvent
 from schools.models import City, School, Student
 
@@ -383,24 +384,37 @@ class Command(BaseCommand):
                 },
             )
             for size, sku, stock_qty in p_spec["variants"]:
-                variant, created = ProductVariant.objects.update_or_create(
+                variant, _ = ProductVariant.objects.update_or_create(
                     sku=sku,
                     defaults={
                         "product": prod,
                         "size": size,
-                        "stock_quantity": stock_qty,
-                        "low_stock_threshold": 20,
                         "active": True,
                     },
                 )
                 all_variants.append(variant)
-                if created:
-                    StockMovement.objects.create(
+
+                # School items are stocked in their school's city; generic items
+                # receive independent city balances rather than one shared total.
+                stock_cities = [prod.school.city] if prod.school_id else [surat, ahmedabad]
+                for stock_city in stock_cities:
+                    balance, created = StockBalance.objects.get_or_create(
+                        city=stock_city,
                         variant=variant,
-                        quantity_change=stock_qty,
-                        reason=StockMovement.Reason.INITIAL_STOCK,
-                        created_by=created_users["boss"],
+                        defaults={
+                            "stock_quantity": stock_qty,
+                            "low_stock_threshold": 20,
+                        },
                     )
+                    if created:
+                        StockMovement.objects.create(
+                            city=stock_city,
+                            school_id=prod.school_id,
+                            variant=variant,
+                            quantity_change=stock_qty,
+                            reason=StockMovement.Reason.INITIAL_STOCK,
+                            created_by=created_users["boss"],
+                        )
 
         self.stdout.write(
             self.style.SUCCESS(

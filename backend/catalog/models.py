@@ -1,6 +1,4 @@
-from django.conf import settings
 from django.db import models
-from django.utils import timezone
 from common.models import UUIDModel
 from common.cache_utils import invalidate_catalog_cache
 
@@ -81,6 +79,10 @@ class Product(UUIDModel):
                 fields=["category", "active"],
                 name="idx_prod_cat_active",
             ),
+            models.Index(
+                fields=["active", "id"],
+                name="idx_product_active_id",
+            ),
         ]
 
     def save(self, *args, **kwargs):
@@ -106,7 +108,7 @@ class ProductVariant(UUIDModel):
         on_delete=models.CASCADE,
         related_name="variants",
     )
-    # Denormalised school_id and city_id for single-WHERE stock scoping
+    # Denormalised product scope for indexed city/school catalogue filtering.
     school = models.ForeignKey(
         "schools.School",
         on_delete=models.CASCADE,
@@ -123,8 +125,6 @@ class ProductVariant(UUIDModel):
     )
     size = models.CharField(max_length=50)
     sku = models.CharField(max_length=80, unique=True)
-    stock_quantity = models.IntegerField(default=0)
-    low_stock_threshold = models.IntegerField(default=10)
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -152,82 +152,3 @@ class ProductVariant(UUIDModel):
 
     def __str__(self) -> str:
         return f"{self.sku} ({self.product.name} - {self.size})"
-
-
-class StockMovement(UUIDModel):
-    class Reason(models.TextChoices):
-        INITIAL_STOCK = "INITIAL_STOCK", "Initial Stock"
-        RESTOCK = "RESTOCK", "Restock"
-        ORDER_PLACED = "ORDER_PLACED", "Order Placed"
-        ORDER_CANCELLED = "ORDER_CANCELLED", "Order Cancelled"
-        ADJUSTMENT = "ADJUSTMENT", "Manual Adjustment"
-        DAMAGE = "DAMAGE", "Damaged / Write-off"
-
-    variant = models.ForeignKey(
-        ProductVariant,
-        on_delete=models.CASCADE,
-        related_name="stock_movements",
-    )
-    # Denormalised school_id and city_id for single-WHERE stock movement scoping
-    school = models.ForeignKey(
-        "schools.School",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="stock_movements",
-    )
-    city = models.ForeignKey(
-        "schools.City",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="stock_movements",
-    )
-    quantity_change = models.IntegerField()
-    reason = models.CharField(
-        max_length=50,
-        choices=Reason.choices,
-        default=Reason.ADJUSTMENT,
-    )
-    reference_order = models.ForeignKey(
-        "orders.Order",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="stock_movements",
-    )
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="stock_movements",
-    )
-    created_at = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        ordering = ["-created_at"]
-        indexes = [
-            models.Index(
-                fields=["variant", "created_at"],
-                name="idx_stockmov_variant_created",
-            ),
-            models.Index(
-                fields=["city", "created_at"],
-                name="idx_stockmov_city_created",
-            ),
-            models.Index(
-                fields=["school", "created_at"],
-                name="idx_stockmov_school_created",
-            ),
-        ]
-
-    def save(self, *args, **kwargs):
-        if self.variant_id:
-            self.school_id = self.variant.school_id
-            self.city_id = self.variant.city_id
-        super().save(*args, **kwargs)
-
-    def __str__(self) -> str:
-        sign = "+" if self.quantity_change >= 0 else ""
-        return f"{self.variant.sku}: {sign}{self.quantity_change} ({self.reason})"

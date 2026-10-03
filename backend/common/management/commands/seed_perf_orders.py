@@ -114,14 +114,13 @@ class Command(BaseCommand):
         num_students = len(student_tuples)
         num_variants = len(variant_tuples)
         num_statuses = len(statuses)
-        delivery_json = '{"delivery_type":"school_counter"}'
         empty_json = "{}"
 
         order_copy_sql = """
             COPY orders_order (
-                id, order_number, placed_by_id, placed_by_role,
+                id, order_number, idempotency_key, placed_by_id, placed_by_role, payer_id,
                 student_id, parent_id, school_id, city_id, status,
-                subtotal, total, payment_status,
+                subtotal, total, payment_status, fulfillment_type,
                 razorpay_order_id, razorpay_payment_id, razorpay_signature,
                 delivery_details, created_at, updated_at
             ) FROM STDIN
@@ -165,13 +164,26 @@ class Command(BaseCommand):
                     # Spread orders across the last 90 days for realistic time-series queries
                     ts = (now - timedelta(days=seq % 90, seconds=seq % 86400)).isoformat()
                     ord_num = f"ORD-PERF-{seq:07d}"
+                    idempotency_key = f"perf-{uuid4().hex}"
+                    fulfillment_type = (
+                        Order.FulfillmentType.SCHOOL_PICKUP
+                        if seq % 2
+                        else Order.FulfillmentType.HOME_DELIVERY
+                    )
+                    delivery_details = (
+                        '{"pickup":"school"}'
+                        if fulfillment_type == Order.FulfillmentType.SCHOOL_PICKUP
+                        else '{"address":"Performance test address"}'
+                    )
 
                     order_rows.append(
                         (
                             order_id,
                             ord_num,
+                            idempotency_key,
                             placed_by_id,
                             placed_by_role,
+                            placed_by_id,
                             st_id,
                             par_id,
                             sch_id,
@@ -180,10 +192,11 @@ class Command(BaseCommand):
                             total_str,
                             total_str,
                             pay_status,
+                            fulfillment_type,
                             f"order_rzp_{seq:07d}",
                             f"pay_rzp_{seq:07d}" if pay_status == "PAID" else "",
                             "",
-                            delivery_json,
+                            delivery_details,
                             ts,
                             ts,
                         )

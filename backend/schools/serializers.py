@@ -28,6 +28,8 @@ class SchoolSerializer(serializers.ModelSerializer):
             "code",
             "active",
             "commission_rate",
+            "home_delivery_enabled",
+            "school_pickup_enabled",
             "address",
             "contact_email",
             "contact_phone",
@@ -37,6 +39,18 @@ class SchoolSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         user = self.context["request"].user
+        delivery_enabled = attrs.get(
+            "home_delivery_enabled",
+            getattr(self.instance, "home_delivery_enabled", True),
+        )
+        pickup_enabled = attrs.get(
+            "school_pickup_enabled",
+            getattr(self.instance, "school_pickup_enabled", True),
+        )
+        if not (delivery_enabled or pickup_enabled):
+            raise ValidationError(
+                "A school must offer home delivery, school pickup, or both."
+            )
         city = attrs.get("city") or getattr(self.instance, "city", None)
         if user.role == "ADMIN":
             if city and city.id != user.city_id:

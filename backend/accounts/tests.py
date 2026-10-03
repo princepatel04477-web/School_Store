@@ -10,6 +10,7 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from accounts.serializers import build_tokens_for_user
 from catalog.models import Category, Product, ProductVariant
+from inventory.models import StockBalance
 from common.scoping import apply_user_scope
 from orders.models import Order, OrderItem
 from schools.models import City, School, Student
@@ -309,6 +310,7 @@ class RolesPermissionsAndScopingTests(TestCase):
         self.assertEqual(res_admin.status_code, 201)
         self.assertEqual(res_admin.data["role"], "ADMIN")
         self.assertEqual(str(res_admin.data["city"]), str(self.surat.id))
+        self.assertTrue(res_admin.data["must_change_password"])
 
         # 2. Admin creates School Admin in their own city (Surat) -> 201
         admin_client = self._jwt_client(self.admin_surat)
@@ -326,6 +328,7 @@ class RolesPermissionsAndScopingTests(TestCase):
         self.assertEqual(res_sa.status_code, 201)
         self.assertEqual(res_sa.data["role"], "SCHOOL_ADMIN")
         self.assertEqual(str(res_sa.data["school"]), str(self.dps_surat.id))
+        self.assertTrue(res_sa.data["must_change_password"])
 
         # Admin CANNOT create a School Admin for a school in City B (Ahmedabad) -> 403
         res_sa_other_city = admin_client.post(
@@ -367,6 +370,7 @@ class RolesPermissionsAndScopingTests(TestCase):
         self.assertEqual(res_teacher.status_code, 201)
         self.assertEqual(res_teacher.data["role"], "TEACHER")
         self.assertEqual(str(res_teacher.data["school"]), str(self.dps_surat.id))
+        self.assertTrue(res_teacher.data["must_change_password"])
 
         # School Admin CANNOT create a Teacher for School B -> 403
         res_teacher_other = sa_client.post(
@@ -484,6 +488,10 @@ class RolesPermissionsAndScopingTests(TestCase):
                 city=self.surat,
                 size="M",
                 sku=f"SCALE-SKU-{i:03d}",
+            )
+            StockBalance.objects.create(
+                city=self.surat,
+                variant=var,
                 stock_quantity=100,
             )
             ord_obj = Order.objects.create(
