@@ -1,6 +1,7 @@
 export type Role='PARENT'|'TEACHER'|'SCHOOL_ADMIN'|'ADMIN'|'BOSS';
 export type User={id:string;username:string;role:Role;school?:{name:string};phone?:string};
-export type Product={id:string;name:string;category:string;price:number;image?:string;variants:{id:string;size:string;stock:number|null}[]};
+export type StockStatus='IN_STOCK'|'LOW_STOCK'|'OUT_OF_STOCK';
+export type Product={id:string;name:string;category:string;price:number;image?:string;thumbnail?:string|null;variants:{id:string;size:string;stock_status:StockStatus|null}[]};
 export type Order={id:string;order_number:string;student_name:string;status:string;payment_status:string;total:number;created_at:string;status_events?:{status:string;timestamp:string}[]};
 const API=import.meta.env.VITE_API_URL||'/api';
 let refreshing:Promise<string>|null=null;

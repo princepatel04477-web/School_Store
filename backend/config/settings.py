@@ -184,6 +184,25 @@ if _pool_options:
 
 # Redis Cache (Rule P8 - catalogue and school lists with explicit invalidation)
 REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379")
+
+# --------------------------------------------------------------------------- #
+# Catalogue read path (hottest endpoint)
+#   - Catalogue lists are cached in Redis keyed by (school, category) with a
+#     short TTL *and* explicit invalidation (version bump) whenever a product,
+#     variant, category, or price changes.
+#   - Stock is NEVER stored in that key: availability is returned as an
+#     in-stock / low / out flag fetched fresh on every request.
+# --------------------------------------------------------------------------- #
+CATALOG_CACHE_TTL = int(os.environ.get("CATALOG_CACHE_TTL", "60"))
+
+# Product images live in object storage behind a CDN. The API stores and
+# returns URLs only — Django never serves image bytes. Thumbnails are produced
+# by the CDN's on-the-fly resize parameters; the template receives the original
+# object URL ({url}) and the correct query separator ({sep}).
+# Works out of the box with Cloudflare Images / imgix / Supabase-style CDNs.
+CATALOG_THUMBNAIL_TEMPLATE = os.environ.get(
+    "CATALOG_THUMBNAIL_TEMPLATE", "{url}{sep}width=320&quality=70"
+)
 RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 

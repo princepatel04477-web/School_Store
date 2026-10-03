@@ -2,6 +2,8 @@ from datetime import timedelta
 
 from celery import shared_task
 from django.db import transaction
+from django.db.models import F
+from django.db.models.functions import Now
 from django.utils import timezone
 
 from inventory.models import StockBalance, StockMovement
@@ -38,23 +40,21 @@ def release_expired_reservation(order_id):
             return False
 
         items = list(order.items.only("variant_id", "quantity").order_by("variant_id"))
-        variant_ids = sorted({item.variant_id for item in items}, key=str)
-        balances = {
-            balance.variant_id: balance
-            for balance in StockBalance.objects.select_for_update()
-            .filter(city_id=order.city_id, variant_id__in=variant_ids)
-            .order_by("variant_id")
-        }
-        if len(balances) != len(variant_ids):
-            raise StockBalance.DoesNotExist(
-                "Cannot release reservation because a city stock balance is missing."
-            )
 
         movements = []
         for item in items:
-            balance = balances[item.variant_id]
-            balance.stock_quantity += item.quantity
-            balance.save(update_fields=["stock_quantity", "updated_at"])
+            # Atomic UPDATE ... SET stock_quantity = stock_quantity + qty;
+            # never read-modify-write in Python.
+            restored = StockBalance.objects.filter(
+                city_id=order.city_id, variant_id=item.variant_id
+            ).update(
+                stock_quantity=F("stock_quantity") + item.quantity,
+                updated_at=Now(),
+            )
+            if not restored:
+                raise StockBalance.DoesNotExist(
+                    "Cannot release reservation because a city stock balance is missing."
+                )
             movements.append(
                 StockMovement(
                     variant_id=item.variant_id,

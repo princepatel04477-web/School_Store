@@ -2,6 +2,8 @@ import uuid
 from decimal import Decimal
 
 from django.db import IntegrityError, transaction
+from django.db.models import F
+from django.db.models.functions import Now
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
@@ -232,14 +234,14 @@ class OrderCreateSerializer(serializers.Serializer):
                 item.get("customisation_data") or {},
             )
 
-        # Lock city/variant balances, not a global variant row. This permits two
-        # cities to sell the same generic SKU independently while serializing
-        # concurrent changes to one city's stock.
+        # Stock is debited with an atomic conditional UPDATE further down, so
+        # no row locks are taken here. This read exists purely for friendly,
+        # itemised error messages before the order row is created.
         balances = {
             balance.variant_id: balance
-            for balance in StockBalance.objects.select_for_update()
-            .filter(city_id=city_id, variant_id__in=variant_ids)
-            .order_by("variant_id")
+            for balance in StockBalance.objects.filter(
+                city_id=city_id, variant_id__in=variant_ids
+            ).order_by("variant_id")
         }
         # A retry may have waited behind the first request while it committed.
         existing = Order.objects.filter(idempotency_key=idempotency_key).first()
@@ -290,15 +292,35 @@ class OrderCreateSerializer(serializers.Serializer):
                 return self._existing_for_actor(existing, user)
             raise
 
+        # Debit stock per city/variant with an atomic conditional
+        # UPDATE ... SET stock_quantity = stock_quantity - qty
+        # WHERE stock_quantity >= qty  (never read-modify-write in Python).
+        # Zero rows updated means a concurrent order won the remaining stock;
+        # the surrounding transaction rolls the whole order back.
+        for variant_id in variant_ids:
+            quantity = quantities[variant_id]
+            debited = StockBalance.objects.filter(
+                city_id=city_id,
+                variant_id=variant_id,
+                stock_quantity__gte=quantity,
+            ).update(
+                stock_quantity=F("stock_quantity") - quantity,
+                updated_at=Now(),
+            )
+            if not debited:
+                raise serializers.ValidationError(
+                    {
+                        "items": f"Insufficient stock for SKU "
+                        f"{variants[variant_id].sku} in this city."
+                    }
+                )
+
         order_items = []
         movements = []
         for item in items_data:
             variant_id = item["variant"].id
             variant = variants[variant_id]
             quantity = item["quantity"]
-            balance = balances[variant_id]
-            balance.stock_quantity -= quantity
-            balance.save(update_fields=["stock_quantity", "updated_at"])
             order_items.append(
                 OrderItem(
                     order=order,
