@@ -27,9 +27,9 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
     - PARENT: `WHERE parent_id = user.id` (indexed by idx_order_parent_created)
     """
 
-    queryset = Order.objects.select_related("student", "school", "city").order_by(
-        "-created_at"
-    )
+    queryset = Order.objects.select_related(
+        "student", "school", "city", "placed_by", "payer"
+    ).order_by("-created_at")
     pagination_class = BoundedCursorPagination
     permission_classes = [RoleScopedPermission]
     read_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER", "PARENT")
@@ -73,7 +73,9 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
         order = (
-            Order.objects.select_related("student", "school", "city")
+            Order.objects.select_related(
+                "student", "school", "city", "placed_by", "payer"
+            )
             .prefetch_related("items__variant__product", "status_events")
             .get(pk=order.pk)
         )
@@ -85,6 +87,12 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="payment")
     def payment(self, request, pk=None):
         order = self.get_object()
+        if (
+            request.user.role != "BOSS"
+            and not getattr(request.user, "is_superuser", False)
+            and order.payer_id != request.user.id
+        ):
+            raise PermissionDenied("Only the assigned payer may start payment.")
         gateway = RazorpayGateway()
         razor_order = gateway.create_order(order)
         if not order.razorpay_order_id:
@@ -95,6 +103,12 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="verify-payment")
     def verify_payment(self, request, pk=None):
         order = self.get_object()
+        if (
+            request.user.role != "BOSS"
+            and not getattr(request.user, "is_superuser", False)
+            and order.payer_id != request.user.id
+        ):
+            raise PermissionDenied("Only the assigned payer may verify payment.")
         gateway = RazorpayGateway()
         if not gateway.verify_signature(request.data.get("razorpay_order_id", order.razorpay_order_id), request.data.get("razorpay_payment_id", ""), request.data.get("razorpay_signature", "")):
             return Response({"detail": "Invalid payment signature."}, status=status.HTTP_400_BAD_REQUEST)

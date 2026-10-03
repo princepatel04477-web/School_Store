@@ -20,8 +20,9 @@ backend/
   common/       UUIDModel, ImportJob, pagination, scoping layer, permissions, throttles, cache utils
   schools/      City, School, Student + student import engine, tasks, API
   accounts/     custom User, JWT auth (zero-query claims), account-creation hierarchy
-  catalog/      Category, Product, ProductVariant, StockMovement
-  orders/       Order, OrderItem, OrderStatusEvent
+  catalog/      Category, Product, ProductVariant
+  inventory/    per-city StockBalance + StockMovement ledger
+  orders/       Order, OrderItem, OrderStatusEvent (payer + fulfillment snapshots)
   analytics/    DailySalesSummary + Celery rollup task
 infra/pgbouncer.ini   transaction-pooling config + connection budget
 ```
@@ -37,7 +38,8 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python manage.py seed_perf_orders --count 200000   # perf dataset (optional)
 
 .venv/bin/python manage.py runserver 0.0.0.0:8000    # API
-.venv/bin/celery -A config worker -l info            # background jobs
+# In a second terminal, from the repository root:
+cd backend && DB_POOL_MAX_SIZE=2 ../.venv/bin/celery -A config worker -l info --concurrency=4
 ```
 
 Seeded logins (password `Password@123`): `boss`, `admin_surat`, `school_admin_dps`, `teacher_dps`, `parent_rahul`.
@@ -103,22 +105,25 @@ Flow: `PENDING → VALIDATING → PREVIEW_READY → IMPORTING → COMPLETED` (or
 ### Catalogue, orders & stock
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/categories/`, `/api/products/`, `/api/variants/` | scoped catalogue (products include school-specific and generic items) |
-| GET/POST | `/api/stock-movements/` | scoped stock ledger |
-| GET/POST | `/api/orders/` | scoped orders; creation is `@transaction.atomic` with row-locked stock |
+| GET | `/api/categories/`, `/api/products/`, `/api/variants/` | scoped catalogue (school-specific and generic items) |
+| GET | `/api/stock-balances/` | paginated city inventory; Boss sees all cities, Admin sees only their city |
+| GET/POST | `/api/stock-movements/` | append-only city stock ledger; adjustments and balance changes are atomic |
+| GET/POST | `/api/orders/` | scoped orders; checkout locks only the matching city + variant balance in one transaction |
 | GET | `/api/health/` | database + Redis health |
+
+Stock no longer lives on `ProductVariant`: `inventory.StockBalance` is unique on `(city, variant)`. A checkout uses the city of the student's school branch. Schools may enable home delivery, school pickup, or both; the selected type is stored on the order. `Order.payer` is separate from the student and placer so teacher-paid orders can still appear read-only to a linked parent.
 
 ## Performance rules in force
 
 | Rule | Implementation |
 |---|---|
 | P1 target load | ~500 concurrent users, 200 RPS headroom on one modest server |
-| P2 network first | `200 RPS × 30 KB × 8 = 48 Mbps`; every list paginated (max 50 rows), list payloads carry no nested arrays |
+| P2 network first | `200 RPS × 30 KB × 8 = 48 Mbps`; every list is paginated (max 50 rows), order/stock lists omit detail arrays, and catalogue variants are compact size/stock summaries |
 | P3 indexed lookups | composite indexes per spec + expression indexes for `?search=`; no full scans, no `ORDER BY random()`, no unindexed `COUNT(*)` |
 | P4 keys | every model uses application-generated `uuid.uuid4` primary keys |
-| P5 background jobs | student imports, rollups, exports/exports run in Celery |
+| P5 background jobs | student imports, rollups, exports, and notifications run in a dedicated Celery worker over Redis |
 | P6 transactions | orders, payments and stock changes are written synchronously in one transaction |
-| P7 bounded pool | `4 web workers × 10 + 4 job workers × 2 + 10 headroom = 58 < 100 max_connections` |
+| P7 bounded pool | PostgreSQL `max_connections=100`; `4 web workers × DB_POOL_MAX_SIZE 10 + 4 Celery processes × DB_POOL_MAX_SIZE 2 + 10 admin/maintenance headroom = 58`; keep the sum well below the server limit. Web and job services set `DB_POOL_MAX_SIZE` separately. Persistent connections default to 60 seconds (`DB_CONN_MAX_AGE`); psycopg pool bounds actual server connections. |
 | P8 caching | only read-heavy, rarely-changing data (catalogue, school lists) in Redis with explicit invalidation |
 
 ## Tests
@@ -131,4 +136,6 @@ Covers the data model and indexes, the JWT/zero-query permission path, school-vs
 city-vs-city isolation, parent isolation, constant query counts as rows grow (no N+1),
 student CRUD/search/filters, the full import pipeline (single-query duplicate detection,
 batched `ON CONFLICT` inserts, caps, template), parent claim verification, the one-parent
-rule plus admin override, pending approvals and claim rate limiting.
+rule plus admin override, pending approvals and claim rate limiting. Inventory tests cover
+city-specific balances and scopes, teacher payer attribution, fulfillment settings, and
+transactional stock debits.

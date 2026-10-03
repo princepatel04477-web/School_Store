@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
-from .models import Category, Product, ProductVariant, StockMovement
+
+from .models import Category, Product, ProductVariant
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -20,9 +21,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ProductVariantSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
-    category_name = serializers.CharField(
-        source="product.category.name", read_only=True
-    )
+    category_name = serializers.CharField(source="product.category.name", read_only=True)
 
     class Meta:
         model = ProductVariant
@@ -35,8 +34,6 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             "city",
             "size",
             "sku",
-            "stock_quantity",
-            "low_stock_threshold",
             "active",
             "created_at",
         )
@@ -52,9 +49,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
-    school_name = serializers.CharField(
-        source="school.name", read_only=True, default=None
-    )
+    school_name = serializers.CharField(source="school.name", read_only=True, default=None)
     variants = ProductVariantSerializer(many=True, read_only=True)
 
     class Meta:
@@ -88,7 +83,7 @@ class ProductSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         request = self.context.get("request")
-        # Hide cost_price from non-staff roles (Parents, Teachers, School Admins)
+        # Hide cost_price from non-staff roles (Parents, Teachers, School Admins).
         if request and request.user and request.user.role not in ("BOSS", "ADMIN"):
             data.pop("cost_price", None)
         return data
@@ -96,36 +91,8 @@ class ProductSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         user = self.context["request"].user
         school = attrs.get("school") or getattr(self.instance, "school", None)
-        if user.role == "ADMIN":
-            if school and school.city_id != user.city_id:
-                raise PermissionDenied(
-                    "Admins can only manage products for schools in their own city."
-                )
+        if user.role == "ADMIN" and school and school.city_id != user.city_id:
+            raise PermissionDenied(
+                "Admins can only manage products for schools in their own city."
+            )
         return attrs
-
-
-class StockMovementSerializer(serializers.ModelSerializer):
-    variant_sku = serializers.CharField(source="variant.sku", read_only=True)
-
-    class Meta:
-        model = StockMovement
-        fields = (
-            "id",
-            "variant",
-            "variant_sku",
-            "school",
-            "city",
-            "quantity_change",
-            "reason",
-            "reference_order",
-            "created_by",
-            "created_at",
-        )
-        read_only_fields = (
-            "id",
-            "variant_sku",
-            "school",
-            "city",
-            "created_by",
-            "created_at",
-        )

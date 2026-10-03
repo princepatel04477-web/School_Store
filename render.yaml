@@ -1,10 +1,11 @@
-# Render Blueprint: Django API + Redis (Key Value). Database is Neon; frontend is Cloudflare.
+# Render Blueprint: Django API + dedicated Celery worker + Redis (Key Value).
+# PostgreSQL is external (Neon); frontend is hosted separately.
 services:
   - type: web
     name: school-store-api
     runtime: python
     plan: free
-    region: singapore          # same region as the Neon project (aws-ap-southeast-1)
+    region: singapore
     branch: main
     buildCommand: ./build.sh
     startCommand: gunicorn --chdir backend config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 60
@@ -17,19 +18,49 @@ services:
       - key: DJANGO_SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        sync: false            # Neon connection string, set in the Render dashboard
+        sync: false            # Neon PostgreSQL connection string
       - key: REDIS_URL
         fromService:
           type: keyvalue
           name: school-store-redis
           property: connectionString
       - key: CORS_ALLOWED_ORIGINS
-        sync: false            # Cloudflare frontend origin, e.g. https://school-store.<account>.workers.dev
+        sync: false            # Cloudflare frontend origin
       - key: DB_POOL_MAX_SIZE
         value: "4"
-      # No paid Celery worker: run background jobs inline in the web process.
+      - key: DB_CONN_MAX_AGE
+        value: "60"
       - key: CELERY_TASK_ALWAYS_EAGER
-        value: "1"
+        value: "0"
+
+  - type: worker
+    name: school-store-celery-worker
+    runtime: python
+    plan: starter
+    region: singapore
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: cd backend && celery -A config worker --loglevel=info --concurrency=4
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false            # Same Neon PostgreSQL database as the API
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: school-store-redis
+          property: connectionString
+      - key: DB_POOL_MAX_SIZE
+        value: "2"
+      - key: DB_CONN_MAX_AGE
+        value: "60"
+      - key: CELERY_TASK_ALWAYS_EAGER
+        value: "0"
 
   - type: keyvalue
     name: school-store-redis

@@ -13,6 +13,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import User
+from common.cache_mixin import VersionedListCacheMixin
+from common.cache_utils import SCHOOL_LIST_CACHE_VERSION_KEY
 from common.models import ImportJob
 from common.pagination import BoundedPageNumberPagination
 from common.permissions import IsParent, IsSchoolAdmin, RoleScopedPermission
@@ -42,7 +44,13 @@ class StudentPagination(BoundedPageNumberPagination):
     max_page_size = 50
 
 
-class CityViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
+class CityViewSet(
+    VersionedListCacheMixin,
+    ScopedQuerysetMixin,
+    viewsets.ModelViewSet,
+):
+    cache_version_key = SCHOOL_LIST_CACHE_VERSION_KEY
+    cache_namespace = "schools:cities"
     queryset = City.objects.order_by("name")
     serializer_class = CitySerializer
     permission_classes = [RoleScopedPermission]
@@ -64,7 +72,13 @@ class CityViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         return qs.none()
 
 
-class SchoolViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
+class SchoolViewSet(
+    VersionedListCacheMixin,
+    ScopedQuerysetMixin,
+    viewsets.ModelViewSet,
+):
+    cache_version_key = SCHOOL_LIST_CACHE_VERSION_KEY
+    cache_namespace = "schools:schools"
     queryset = School.objects.select_related("city").order_by("name")
     serializer_class = SchoolSerializer
     permission_classes = [RoleScopedPermission]

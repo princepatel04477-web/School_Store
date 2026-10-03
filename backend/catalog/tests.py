@@ -16,8 +16,8 @@ class PublicCatalogTests(TestCase):
         shown = Product.objects.create(
             category=cat, name="White shirt", cost_price=Decimal("300"), selling_price=Decimal("650")
         )
-        ProductVariant.objects.create(product=shown, size="30", sku="SHIRT-30", stock_quantity=5)
-        ProductVariant.objects.create(product=shown, size="32", sku="SHIRT-32", stock_quantity=2, active=False)
+        ProductVariant.objects.create(product=shown, size="30", sku="SHIRT-30")
+        ProductVariant.objects.create(product=shown, size="32", sku="SHIRT-32", active=False)
         Product.objects.create(
             category=cat, name="Retired tie", cost_price=Decimal("1"), selling_price=Decimal("2"), active=False
         )
@@ -25,8 +25,8 @@ class PublicCatalogTests(TestCase):
     def test_anonymous_can_browse_without_sensitive_fields(self):
         res = APIClient().get("/api/public/products/")
         self.assertEqual(res.status_code, 200)
-        self.assertEqual([p["name"] for p in res.json()], ["White shirt"])
-        product = res.json()[0]
+        self.assertEqual([p["name"] for p in res.json()["results"]], ["White shirt"])
+        product = res.json()["results"][0]
         self.assertEqual(product["price"], 650.0)
         self.assertEqual([v["size"] for v in product["variants"]], ["30"])
         self.assertNotIn("cost_price", product)

@@ -16,7 +16,10 @@ Performance Architecture (P1–P8):
     Admin / maintenance headroom                          = 10 connections
     ----------------------------------------------------------------------
     Total maximum connections                             = 58 << 100 (max_connections)
-  Can also sit behind PgBouncer in transaction pooling mode (see infra/pgbouncer.ini).
+  Set DB_POOL_MAX_SIZE per process group (10 for web, 2 for Celery). Django's
+  persistent connection wrappers have a 60-second age; psycopg's bounded pool
+  limits the number of PostgreSQL connections. PgBouncer is an optional alternative
+  (see infra/pgbouncer.ini), not an additional pool to stack on top of this pool.
 - Redis caching (P8): Read-heavy catalogue & school lists cached in Redis with explicit invalidation.
 """
 
@@ -83,6 +86,7 @@ INSTALLED_APPS = [
     "schools",
     "accounts",
     "catalog",
+    "inventory",
     "orders",
     "analytics",
 ]
@@ -127,6 +131,7 @@ AUTH_USER_MODEL = "accounts.User"
 # Web workers (4) x Pool max_size (10) + Job workers (4) x Pool max_size (2) = 48 connections < 100 max_connections
 DB_POOL_MIN_SIZE = int(os.environ.get("DB_POOL_MIN_SIZE", "2"))
 DB_POOL_MAX_SIZE = int(os.environ.get("DB_POOL_MAX_SIZE", "10"))
+DB_CONN_MAX_AGE = int(os.environ.get("DB_CONN_MAX_AGE", "60"))
 USE_DB_POOL = (
     os.environ.get("USE_DB_POOL", "1") == "1"
     and "test" not in sys.argv
@@ -167,6 +172,7 @@ DATABASES = {
         "PASSWORD": os.environ.get("POSTGRES_PASSWORD", ""),
         "HOST": os.environ.get("POSTGRES_HOST", "127.0.0.1"),
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        "CONN_MAX_AGE": 0 if "test" in sys.argv else DB_CONN_MAX_AGE,
         "CONN_HEALTH_CHECKS": True,
         "OPTIONS": {},
     }

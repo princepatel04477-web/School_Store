@@ -12,8 +12,17 @@ class CityAdmin(admin.ModelAdmin):
 
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "city", "commission_rate", "active", "created_at")
-    list_filter = ("active", "city")
+    list_display = (
+        "name",
+        "code",
+        "city",
+        "commission_rate",
+        "home_delivery_enabled",
+        "school_pickup_enabled",
+        "active",
+        "created_at",
+    )
+    list_filter = ("active", "city", "home_delivery_enabled", "school_pickup_enabled")
     search_fields = ("name", "code")
     readonly_fields = ("id", "created_at", "updated_at")
     list_select_related = ("city",)

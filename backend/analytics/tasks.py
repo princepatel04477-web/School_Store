@@ -1,26 +1,30 @@
-from datetime import date
+import uuid
+from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
+
 from celery import shared_task
+from django.conf import settings
 from django.db import connection
+
+from .models import DailySalesSummary
 
 
 @shared_task
 def refresh_daily_sales_summary(target_date_iso: str | None = None) -> int:
-    """
-    Background job (Rule P5) to aggregate DailySalesSummary rows from Orders/OrderItems.
-    Uses a single indexed SQL UPSERT (ON CONFLICT DO UPDATE) for O(log N) speed.
-    """
+    """Refresh dashboard rollups off the request path using application UUIDs."""
     where_clause = ""
-    params = []
+    params = [settings.TIME_ZONE]
     if target_date_iso:
-        where_clause = "AND DATE(o.created_at) = %s"
-        params.append(date.fromisoformat(target_date_iso))
+        target_date = date.fromisoformat(target_date_iso)
+        local_tz = ZoneInfo(settings.TIME_ZONE)
+        start = datetime.combine(target_date, time.min, tzinfo=local_tz)
+        end = start + timedelta(days=1)
+        where_clause = "AND o.created_at >= %s AND o.created_at < %s"
+        params.extend([start, end])
 
     sql = f"""
-        INSERT INTO analytics_dailysalessummary
-            (id, date, city_id, school_id, category_id, orders, units, revenue, cost)
         SELECT
-            gen_random_uuid(),
-            DATE(o.created_at) AS sale_date,
+            (o.created_at AT TIME ZONE %s::text)::date AS sale_date,
             o.city_id,
             o.school_id,
             oi.category_id,
@@ -32,15 +36,41 @@ def refresh_daily_sales_summary(target_date_iso: str | None = None) -> int:
         INNER JOIN orders_orderitem oi ON oi.order_id = o.id
         WHERE o.status NOT IN ('CANCELLED', 'REFUNDED')
         {where_clause}
-        GROUP BY DATE(o.created_at), o.city_id, o.school_id, oi.category_id
-        ON CONFLICT (date, school_id, category_id)
-        DO UPDATE SET
-            city_id = EXCLUDED.city_id,
-            orders = EXCLUDED.orders,
-            units = EXCLUDED.units,
-            revenue = EXCLUDED.revenue,
-            cost = EXCLUDED.cost;
+        GROUP BY sale_date, o.city_id, o.school_id, oi.category_id
     """
     with connection.cursor() as cursor:
         cursor.execute(sql, params)
-        return cursor.rowcount
+        rows = cursor.fetchall()
+
+    summaries = [
+        DailySalesSummary(
+            id=uuid.uuid4(),
+            date=sale_date,
+            city_id=city_id,
+            school_id=school_id,
+            category_id=category_id,
+            orders=orders_count,
+            units=units_sum,
+            revenue=revenue_sum,
+            cost=cost_sum,
+        )
+        for (
+            sale_date,
+            city_id,
+            school_id,
+            category_id,
+            orders_count,
+            units_sum,
+            revenue_sum,
+            cost_sum,
+        ) in rows
+    ]
+    if summaries:
+        DailySalesSummary.objects.bulk_create(
+            summaries,
+            batch_size=500,
+            update_conflicts=True,
+            update_fields=("city", "orders", "units", "revenue", "cost"),
+            unique_fields=("date", "school", "category"),
+        )
+    return len(summaries)
