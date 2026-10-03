@@ -1,4 +1,3 @@
-from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
@@ -7,6 +6,7 @@ from orders.models import Order
 from schools.models import City
 
 from .models import StockBalance, StockMovement
+from .services import InsufficientStockError, apply_stock_movement
 
 
 class StockBalanceSerializer(serializers.ModelSerializer):
@@ -23,6 +23,7 @@ class StockBalanceSerializer(serializers.ModelSerializer):
             "product_name",
             "stock_quantity",
             "low_stock_threshold",
+            "is_low_stock",
             "updated_at",
         )
         read_only_fields = fields
@@ -58,8 +59,12 @@ class StockMovementCreateSerializer(serializers.Serializer):
     quantity_change = serializers.IntegerField()
     reason = serializers.ChoiceField(
         choices=(
+            # Stock-in
             StockMovement.Reason.INITIAL_STOCK,
             StockMovement.Reason.RESTOCK,
+            # Customer return (stock back in)
+            StockMovement.Reason.RETURN,
+            # Manual adjustments
             StockMovement.Reason.ADJUSTMENT,
             StockMovement.Reason.DAMAGE,
         )
@@ -100,37 +105,19 @@ class StockMovementCreateSerializer(serializers.Serializer):
             )
         return attrs
 
-    @transaction.atomic
     def create(self, validated_data):
-        variant = validated_data["variant"]
-        city = validated_data["city"]
-        quantity_change = validated_data["quantity_change"]
-        actor = self.context["request"].user
-
-        balance, _ = StockBalance.objects.get_or_create(
-            city=city,
-            variant=variant,
-            defaults={"stock_quantity": 0},
-        )
-        balance = StockBalance.objects.select_for_update().get(pk=balance.pk)
-        next_quantity = balance.stock_quantity + quantity_change
-        if next_quantity < 0:
+        """Every change goes through the stock service: a StockMovement row
+        plus an atomic conditional UPDATE (never read-modify-write)."""
+        try:
+            return apply_stock_movement(
+                variant=validated_data["variant"],
+                city_id=validated_data["city"].pk,
+                quantity_change=validated_data["quantity_change"],
+                reason=validated_data["reason"],
+                reference_order=validated_data.get("reference_order"),
+                created_by=self.context["request"].user,
+            )
+        except InsufficientStockError:
             raise serializers.ValidationError(
                 {"quantity_change": "This movement would make city stock negative."}
             )
-
-        balance.stock_quantity = next_quantity
-        balance.save(update_fields=["stock_quantity", "updated_at"])
-        reference_order = validated_data.get("reference_order")
-        school_id = variant.school_id or (
-            reference_order.school_id if reference_order else None
-        )
-        return StockMovement.objects.create(
-            city=city,
-            school_id=school_id,
-            variant=variant,
-            quantity_change=quantity_change,
-            reason=validated_data["reason"],
-            reference_order=validated_data.get("reference_order"),
-            created_by=actor,
-        )

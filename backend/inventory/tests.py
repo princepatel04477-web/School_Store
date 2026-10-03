@@ -9,6 +9,11 @@ from orders.models import Order
 from schools.models import City, Student
 
 from .models import StockBalance, StockMovement
+from .services import (
+    InsufficientStockError,
+    apply_stock_movement,
+    stock_flags,
+)
 
 
 class CityStockTests(TestCase):
@@ -41,7 +46,7 @@ class CityStockTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data["results"])
         self.assertEqual(
-            {row["city"] for row in response.data["results"]},
+            {str(row["city"]) for row in response.data["results"]},
             {str(self.surat.pk)},
         )
 
@@ -64,8 +69,8 @@ class CityStockTests(TestCase):
 
         self.assertEqual(response.status_code, 201, response.data)
         self.assertEqual(response.data["placed_by_role"], User.Role.TEACHER)
-        self.assertEqual(response.data["payer"], str(self.teacher.pk))
-        self.assertEqual(response.data["parent"], str(self.parent.pk))
+        self.assertEqual(str(response.data["payer"]), str(self.teacher.pk))
+        self.assertEqual(str(response.data["parent"]), str(self.parent.pk))
         self.assertEqual(response.data["fulfillment_type"], Order.FulfillmentType.SCHOOL_PICKUP)
 
         surat_balance.refresh_from_db()
@@ -99,3 +104,124 @@ class CityStockTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("fulfillment_type", response.data)
+
+
+class StockMovementLedgerTests(TestCase):
+    """Every stock change is a StockMovement applied as an atomic UPDATE."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_data")
+        cls.surat = City.objects.get(code="SUR")
+        cls.admin_surat = User.objects.get(username="admin_surat")
+        cls.variant = ProductVariant.objects.get(sku="SHOE-BLK-UK2")  # 400 in Surat
+
+    def jwt_client(self, user):
+        client = APIClient()
+        from accounts.serializers import build_tokens_for_user
+
+        token = build_tokens_for_user(user)["access"]
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        return client
+
+    def balance(self):
+        return StockBalance.objects.get(city=self.surat, variant=self.variant)
+
+    def test_restock_movement_increments_balance_and_writes_ledger(self):
+        before = self.balance().stock_quantity
+        response = self.jwt_client(self.admin_surat).post(
+            "/api/stock-movements/",
+            {
+                "variant": str(self.variant.pk),
+                "quantity_change": 50,
+                "reason": StockMovement.Reason.RESTOCK,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(self.balance().stock_quantity, before + 50)
+        self.assertTrue(
+            StockMovement.objects.filter(
+                variant=self.variant,
+                city=self.surat,
+                quantity_change=50,
+                reason=StockMovement.Reason.RESTOCK,
+                created_by=self.admin_surat,
+            ).exists()
+        )
+
+    def test_return_reason_is_accepted(self):
+        response = self.jwt_client(self.admin_surat).post(
+            "/api/stock-movements/",
+            {
+                "variant": str(self.variant.pk),
+                "quantity_change": 2,
+                "reason": StockMovement.Reason.RETURN,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+
+    def test_overdraw_is_rejected_and_nothing_is_written(self):
+        before = self.balance().stock_quantity
+        movements_before = StockMovement.objects.count()
+        response = self.jwt_client(self.admin_surat).post(
+            "/api/stock-movements/",
+            {
+                "variant": str(self.variant.pk),
+                "quantity_change": -(before + 1),
+                "reason": StockMovement.Reason.ADJUSTMENT,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.balance().stock_quantity, before)
+        self.assertEqual(StockMovement.objects.count(), movements_before)
+
+    def test_service_raises_on_insufficient_stock(self):
+        with self.assertRaises(InsufficientStockError):
+            apply_stock_movement(
+                variant=self.variant,
+                city_id=self.surat.pk,
+                quantity_change=-(self.balance().stock_quantity + 1),
+                reason=StockMovement.Reason.ADJUSTMENT,
+            )
+
+    def test_generated_low_stock_flag_and_stock_flags_helper(self):
+        quantity = self.balance().stock_quantity  # threshold is 20
+        apply_stock_movement(
+            variant=self.variant,
+            city_id=self.surat.pk,
+            quantity_change=-(quantity - 5),
+            reason=StockMovement.Reason.ADJUSTMENT,
+        )
+        balance = self.balance()
+        self.assertEqual(balance.stock_quantity, 5)
+        self.assertTrue(balance.is_low_stock)  # DB-maintained generated column
+
+        flags = stock_flags(self.surat.pk, [self.variant.pk])
+        self.assertEqual(flags[str(self.variant.pk)], "LOW_STOCK")
+
+        apply_stock_movement(
+            variant=self.variant,
+            city_id=self.surat.pk,
+            quantity_change=-5,
+            reason=StockMovement.Reason.ADJUSTMENT,
+        )
+        flags = stock_flags(self.surat.pk, [self.variant.pk])
+        self.assertEqual(flags[str(self.variant.pk)], "OUT_OF_STOCK")
+        self.assertTrue(self.balance().is_low_stock)
+
+    def test_low_stock_list_returns_only_low_rows(self):
+        apply_stock_movement(
+            variant=self.variant,
+            city_id=self.surat.pk,
+            quantity_change=-(self.balance().stock_quantity - 3),
+            reason=StockMovement.Reason.ADJUSTMENT,
+        )
+        response = self.jwt_client(self.admin_surat).get("/api/stock-balances/low/")
+        self.assertEqual(response.status_code, 200)
+        rows = response.data["results"]
+        self.assertTrue(rows)
+        self.assertEqual({row["variant_sku"] for row in rows}, {self.variant.sku})
+        self.assertTrue(all(row["is_low_stock"] for row in rows))

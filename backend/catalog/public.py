@@ -19,8 +19,10 @@ from common.cache_utils import (
 )
 from common.pagination import BoundedCursorPagination
 from inventory.models import StockBalance
+from inventory.services import stock_flag
 from schools.models import School
 
+from .images import product_thumbnail
 from .models import Product, ProductVariant
 
 
@@ -116,12 +118,18 @@ class PublicProductList(APIView):
                 "category": product.category.name,
                 "school": product.school.name if product.school else None,
                 "price": float(product.selling_price),
+                "thumbnail": product_thumbnail(product.images),
                 "variants": [
                     {
                         "id": str(variant.id),
                         "size": variant.size,
-                        "stock": (
-                            variant.selected_city_balances[0].stock_quantity
+                        # Availability flag, never a raw count. None when no
+                        # school was given (stock is per school city).
+                        "stock_status": (
+                            stock_flag(
+                                variant.selected_city_balances[0].stock_quantity,
+                                variant.selected_city_balances[0].low_stock_threshold,
+                            )
                             if variant.selected_city_balances
                             else None
                         ),

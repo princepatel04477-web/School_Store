@@ -21,6 +21,21 @@ class StockBalance(UUIDModel):
     )
     stock_quantity = models.PositiveIntegerField(default=0)
     low_stock_threshold = models.PositiveIntegerField(default=10)
+    # Stored (generated) flag maintained by the database on every write, so
+    # the low-stock dashboard is a partial-index lookup instead of a scan of
+    # every variant. See idx_stockbalance_low below.
+    is_low_stock = models.GeneratedField(
+        expression=models.Case(
+            models.When(
+                stock_quantity__lte=models.F("low_stock_threshold"),
+                then=models.Value(True),
+            ),
+            default=models.Value(False),
+            output_field=models.BooleanField(),
+        ),
+        output_field=models.BooleanField(),
+        db_persist=True,
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -44,6 +59,13 @@ class StockBalance(UUIDModel):
                 fields=["city", "updated_at"],
                 name="idx_stockbalance_city_updated",
             ),
+            # Partial index: the low-stock list only ever touches rows where
+            # is_low_stock is true, regardless of total variant count.
+            models.Index(
+                fields=["city", "variant"],
+                name="idx_stockbalance_low",
+                condition=Q(is_low_stock=True),
+            ),
         ]
 
     def __str__(self) -> str:
@@ -54,10 +76,15 @@ class StockMovement(UUIDModel):
     """Append-only audit ledger of stock changes for a city/variant balance."""
 
     class Reason(models.TextChoices):
+        # Stock-in
         INITIAL_STOCK = "INITIAL_STOCK", "Initial Stock"
         RESTOCK = "RESTOCK", "Restock"
+        # Sale (written by the checkout path)
         ORDER_PLACED = "ORDER_PLACED", "Order Placed"
+        # Stock back in
         ORDER_CANCELLED = "ORDER_CANCELLED", "Order Cancelled"
+        RETURN = "RETURN", "Customer Return"
+        # Manual adjustments
         ADJUSTMENT = "ADJUSTMENT", "Manual Adjustment"
         DAMAGE = "DAMAGE", "Damaged / Write-off"
 
@@ -105,15 +132,15 @@ class StockMovement(UUIDModel):
         indexes = [
             models.Index(
                 fields=["variant", "created_at"],
-                name="idx_stockmov_variant_created",
+                name="idx_invmov_variant_created",
             ),
             models.Index(
                 fields=["city", "created_at"],
-                name="idx_stockmov_city_created",
+                name="idx_invmov_city_created",
             ),
             models.Index(
                 fields=["school", "created_at"],
-                name="idx_stockmov_school_created",
+                name="idx_invmov_school_created",
             ),
         ]
 

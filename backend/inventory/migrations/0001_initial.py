@@ -194,9 +194,9 @@ class Migration(migrations.Migration):
             options={
                 "ordering": ["-created_at"],
                 "indexes": [
-                    models.Index(fields=["variant", "created_at"], name="idx_stockmov_variant_created"),
-                    models.Index(fields=["city", "created_at"], name="idx_stockmov_city_created"),
-                    models.Index(fields=["school", "created_at"], name="idx_stockmov_school_created"),
+                    models.Index(fields=["variant", "created_at"], name="idx_invmov_variant_created"),
+                    models.Index(fields=["city", "created_at"], name="idx_invmov_city_created"),
+                    models.Index(fields=["school", "created_at"], name="idx_invmov_school_created"),
                 ],
             },
         ),

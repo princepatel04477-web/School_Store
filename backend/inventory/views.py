@@ -1,4 +1,5 @@
 from rest_framework import mixins, viewsets
+from rest_framework.decorators import action
 
 from common.pagination import BoundedCursorPagination
 from common.permissions import RoleScopedPermission
@@ -28,6 +29,19 @@ class StockBalanceViewSet(ScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
     scope_city_field = "city_id"
     scope_school_field = None
     scope_parent_field = None
+
+    @action(detail=False, methods=["get"], url_path="low")
+    def low(self, request):
+        """Low-stock list.
+
+        `is_low_stock` is a stored generated column backed by a partial
+        index (idx_stockbalance_low), so this is an index lookup — never a
+        scan of all variants.
+        """
+        queryset = self.get_queryset().filter(is_low_stock=True)
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
 
 
 class StockMovementViewSet(
