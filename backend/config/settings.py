@@ -89,6 +89,7 @@ INSTALLED_APPS = [
     "inventory",
     "orders",
     "analytics",
+    "panel",
 ]
 
 MIDDLEWARE = [
@@ -297,6 +298,15 @@ STUDENT_IMPORT_MAX_BYTES = int(os.environ.get("STUDENT_IMPORT_MAX_BYTES", 5 * 10
 STUDENT_IMPORT_MAX_ROWS = int(os.environ.get("STUDENT_IMPORT_MAX_ROWS", 5000))
 STUDENT_IMPORT_BATCH_SIZE = int(os.environ.get("STUDENT_IMPORT_BATCH_SIZE", 500))
 STUDENT_IMPORT_PREVIEW_LIMIT = int(os.environ.get("STUDENT_IMPORT_PREVIEW_LIMIT", 50))
+
+# --------------------------------------------------------------------------- #
+# School Admin panel background exports (Prompt 5, requirement 4)
+#   - the workbook is built by a Celery worker in streaming (write-only) mode
+#   - the finished file is kept for EXPORT_FILE_TTL_DAYS days, then the link
+#     stops working (purge_expired_exports deletes the bytes)
+# --------------------------------------------------------------------------- #
+EXPORT_MAX_ROWS = int(os.environ.get("EXPORT_MAX_ROWS", 200_000))
+EXPORT_FILE_TTL_DAYS = int(os.environ.get("EXPORT_FILE_TTL_DAYS", 7))
 
 # Uploaded files must never be held in memory for a 5 MB spreadsheet cap.
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
