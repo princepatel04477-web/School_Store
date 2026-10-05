@@ -73,4 +73,8 @@ def release_expired_reservation(order_id):
             status=order.status,
             note="Payment reservation expired.",
         )
+        # Cancellation changes revenue: refresh the rollups for this order's
+        # day once the transaction commits.
+        order_id = str(order.id)
+        transaction.on_commit(lambda: refresh_order_summary.delay(order_id))
         return True

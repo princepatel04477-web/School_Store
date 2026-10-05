@@ -23,9 +23,12 @@ backend/
   catalog/      Category, Product, ProductVariant + cached storefront (catalogue.py, storefront.py, images.py)
   inventory/    per-city StockBalance + StockMovement ledger, atomic stock services (services.py)
   orders/       Order, OrderItem, OrderStatusEvent (payer + fulfillment snapshots)
-  analytics/    DailySalesSummary + DailySchoolTotal rollups, Celery rollup task
+  analytics/    DailySalesSummary + DailySchoolTotal + DailyProductSummary rollups,
+                incremental + nightly Celery rollup tasks, full-rebuild command
   panel/        School Admin panel: dashboard, orders table, per-student view,
                 background Excel exports, student + teacher management
+  boss/         Boss panel: whole-business KPI + chart endpoints over the rollups
+                (Redis-cached), admin management, benchmark command
 infra/pgbouncer.ini   transaction-pooling config + connection budget
 ```
 
@@ -39,6 +42,8 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python manage.py seed_data                 # 2 cities, 3 schools, catalogue, 1 user per role
 .venv/bin/python manage.py seed_perf_orders --count 200000   # perf dataset (optional)
 .venv/bin/python manage.py seed_panel_demo --orders 30000    # roster + orders for the School Admin panel
+.venv/bin/python manage.py backfill_sales_summaries --all    # rebuild all dashboard rollups from scratch
+.venv/bin/python manage.py benchmark_boss_dashboard          # prove < 200 ms + index-only plans (optional)
 
 .venv/bin/python manage.py runserver 0.0.0.0:8000    # API
 # In a second terminal, from the repository root:
@@ -53,7 +58,9 @@ cd frontend && npm install && npm run dev     # http://localhost:5173
 
 Vite proxies `/api` and `/media` to the Django server, so the browser only ever
 talks to one origin. Sign in as `school_admin_dps` to land on the School Admin
-panel at `/school` (Boss and City Admins get a school switcher).
+panel at `/school` (Boss and City Admins get a school switcher), or as `boss`
+to land on the whole-business Boss panel at `/boss` (KPI cards, six charts,
+admin management, and read-only "view as" for any city or school).
 
 Seeded logins (password `Password@123`): `boss`, `admin_surat`, `school_admin_dps`, `teacher_dps`, `parent_rahul`.
 
@@ -207,14 +214,26 @@ join):
 |---|---|---|
 | `DailySalesSummary` | `(date, school, category)` | the category breakdown |
 | `DailySchoolTotal` | `(date, school)` | headline orders / units / gross sales |
+| `DailyProductSummary` | `(date, product)` + city/school/category | Boss panel "top products by units" |
 
-Both are indexed on `(school, date)`, so the dashboard is three small
-aggregate queries over a handful of rollup rows regardless of how many orders
-the school has. The panel never scans `orders_order` to answer it — a test
-proves this by changing only the rollup and watching the dashboard follow.
+All three grains are produced by one SQL pass (`GROUPING SETS`, one scan of
+the order-item join) and served by **covering indexes** (`INCLUDE` the
+measures), so every dashboard aggregate is an index-only scan over a handful
+of rollup rows regardless of how many orders exist. Neither panel ever scans
+`orders_order` to answer — a test proves this by changing only the rollup and
+watching the dashboard follow.
+
+Update cadence:
+
+* **Incremental** — a Celery job fires after every order, return and
+  cancellation and recomputes that order's local day.
+* **Nightly** — `analytics.recompute_recent_days` (Celery beat, 02:00 IST)
+  rebuilds the last 7 days from the raw tables to correct any drift.
+* **Manual** — rebuild everything from scratch:
 
 ```bash
-.venv/bin/python manage.py backfill_sales_summaries --all     # rebuild both tables
+.venv/bin/python manage.py backfill_sales_summaries           # day by day (large histories)
+.venv/bin/python manage.py backfill_sales_summaries --all     # one SQL pass
 .venv/bin/python manage.py backfill_sales_summaries --date 2026-04-01
 ```
 
@@ -287,13 +306,54 @@ a `count` field. Headline numbers come from the rollup tables. The only
 `COUNT()` in the panel is the pending-approval counter, which is a handful of
 rows served by `idx_student_school_approval`.
 
+## Boss panel
+
+One screen for the owner covering the whole business — `/boss` in the
+frontend, `/api/boss/` in the API. Every number reads the rollups above;
+**no dashboard query touches `orders_order` or `orders_orderitem`**.
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/boss/kpis/` | all KPI cards in one small response: revenue, cost, gross profit, gross margin %, orders, units sold, current stock value |
+| `GET /api/boss/charts/revenue-trend/` | revenue + profit per day |
+| `GET /api/boss/charts/category-sales/` | sales by category |
+| `GET /api/boss/charts/city-sales/` | sales by city |
+| `GET /api/boss/charts/top-schools/` | top schools by revenue |
+| `GET /api/boss/charts/top-products/` | top products by units (reads `DailyProductSummary`) |
+| `GET /api/boss/charts/stock-by-category/` | current stock level by category |
+| `GET /api/boss/filters/` | cities / schools / categories for the filter dropdowns |
+| `GET/POST/PATCH /api/boss/admins/` | create Admins, assign them to cities, deactivate |
+
+* **Filters** — every card and chart takes `?city=&school=&category=&date_from=&date_to=`
+  and respects all of them (cities and schools combine, stock follows the
+  city).
+* **Definitions** — profit = Σ(`unit_price_snapshot` − `unit_cost_snapshot`) ×
+  quantity = `revenue − cost` from the rollups; gross margin = profit ÷
+  revenue.
+* **Caching** — every response is cached in Redis for 60 seconds
+  (`BOSS_DASHBOARD_CACHE_TTL`), keyed by the exact filter combination; the
+  stock-value aggregate (`SUM(stock × cost)` over the city/variant balances)
+  is cached separately for `BOSS_STOCK_VALUE_CACHE_TTL` seconds (180).
+* **Management** — cities and schools (including each school's
+  `commission_rate`) reuse the existing Boss-level CRUD at `/api/cities/` and
+  `/api/schools/`.
+* **View as** — the Boss opens the City Admin view for any city
+  (`/school?view_city=<id>`) or the School view for any school
+  (`/school?view_school=<id>`); both are **read-only by default** with an
+  explicit "enable editing" switch.
+* **Performance** — `manage.py benchmark_boss_dashboard` times every endpoint
+  (database layer and full HTTP) against the seeded volume and fails unless
+  each answers under 200 ms with EXPLAIN plans showing index scans only and
+  no access to the order tables. With 200,000 seeded orders every endpoint
+  answers in ~1–11 ms.
+
 ## Performance rules in force
 
 | Rule | Implementation |
 |---|---|
 | P1 target load | ~500 concurrent users, 200 RPS headroom on one modest server |
 | P2 network first | `200 RPS × 30 KB × 8 = 48 Mbps`; every list is paginated (max 50 rows), order/stock lists omit detail arrays, and catalogue variants are compact size/stock summaries |
-| P3 indexed lookups | composite indexes per spec + expression indexes for `?search=`; no full scans, no `ORDER BY random()`, no unindexed `COUNT(*)`. Panel additions: `idx_order_school_created_id`, `idx_order_sch_cls_created_id`, `idx_order_student_created_id`, `idx_dailyschooltotal_school_date`, `idx_dailysales_school_date`, `idx_student_school_roster` |
+| P3 indexed lookups | composite indexes per spec + expression indexes for `?search=`; no full scans, no `ORDER BY random()`, no unindexed `COUNT(*)`. Panel additions: `idx_order_school_created_id`, `idx_order_sch_cls_created_id`, `idx_order_student_created_id`, `idx_student_school_roster`, and covering indexes (`INCLUDE` the measures) on all three rollup tables — `idx_ds_cover_*`, `idx_dst_cover_*`, `idx_dp_cover_*` — so dashboards are index-only scans. Apply `infra/postgres_tuning.sql` (`random_page_cost = 1.1` for SSD) so the planner picks them. |
 | P4 keys | every model uses application-generated `uuid.uuid4` primary keys |
 | P5 background jobs | student imports, rollups, exports, and notifications run in a dedicated Celery worker over Redis |
 | P6 transactions | orders, payments and stock changes are written synchronously in one transaction |

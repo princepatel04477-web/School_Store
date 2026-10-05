@@ -619,6 +619,8 @@ class PanelSchoolsView(APIView):
                         "id": school.id,
                         "name": school.name,
                         "code": school.code,
+                        # Drives the Boss "view as city admin" school filter.
+                        "city_id": school.city_id,
                         "city_name": school.city.name,
                     }
                     for school in rows

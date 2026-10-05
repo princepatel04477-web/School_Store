@@ -7,10 +7,14 @@ const Login = lazy(() => import('./pages/Login'));
 const Parent = lazy(() => import('./pages/Parent'));
 const Teacher = lazy(() => import('./pages/Teacher'));
 const SchoolAdmin = lazy(() => import('./pages/SchoolAdmin'));
+const Boss = lazy(() => import('./pages/Boss'));
 
 /** Where each role lands after signing in. */
 export const homeFor = (role?: string) =>
-  role === 'PARENT' ? '/parent' : role === 'TEACHER' ? '/teacher' : '/school';
+  role === 'PARENT' ? '/parent'
+  : role === 'TEACHER' ? '/teacher'
+  : role === 'BOSS' ? '/boss'
+  : '/school';
 
 function Guard({ children, roles }: { children: ReactNode; roles?: string[] }) {
   const { user, loading } = useAuth();
@@ -25,6 +29,7 @@ export default function App() {
     <Suspense fallback={<div className="splash">Loading…</div>}>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/boss/*" element={<Guard roles={['BOSS']}><Boss /></Guard>} />
         <Route path="/school/*" element={<Guard roles={['SCHOOL_ADMIN', 'ADMIN', 'BOSS']}><SchoolAdmin /></Guard>} />
         <Route path="/parent/*" element={<Guard roles={['PARENT']}><Parent /></Guard>} />
         <Route path="/teacher/*" element={<Guard roles={['TEACHER', 'SCHOOL_ADMIN']}><Teacher /></Guard>} />

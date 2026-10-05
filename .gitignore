@@ -25,6 +25,7 @@ staticfiles/
 node_modules/
 dist/
 .vite/
+*.tsbuildinfo
 .env
 .env.local
 .env.*.local

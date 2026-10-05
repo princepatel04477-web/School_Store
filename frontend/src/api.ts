@@ -20,7 +20,7 @@ export const queryKey={catalog:['catalog'],orders:['orders'],students:['students
 /* ------------------------------------------------------------------ *
  * School Admin panel
  * ------------------------------------------------------------------ */
-export type PanelSchool={id:string;name:string;code:string;city_name:string};
+export type PanelSchool={id:string;name:string;code:string;city_id?:string;city_name:string};
 export type Money=string; // decimals come back as strings so nothing rounds twice
 export type DashboardTotals={orders:number;units:number;gross_sales:Money;cost:Money;margin:Money;average_order_value:Money};
 export type CategoryRow={category_id:string;category:string;orders:number;units:number;gross_sales:Money;share_pct:Money};
@@ -71,6 +71,36 @@ export const panel={
   importReportUrl:(school:string,id:string)=>`/panel/student-imports/${id}/report/?school=${school}`,
   importTemplateUrl:(school:string,fmt:'xlsx'|'csv')=>`/panel/student-imports/template/?school=${school}&format=${fmt}`,
 };
+/* ------------------------------------------------------------------ *
+ * Boss panel (whole-business dashboard + management)
+ * ------------------------------------------------------------------ */
+export type BossKpis={filters:Record<string,string|null>;revenue:Money;cost:Money;profit:Money;margin_pct:Money;orders:number;units:number;stock_value:Money};
+export type TrendPoint={date:string;revenue:Money;cost:Money;profit:Money};
+export type CategoryPoint={category_id:string;category:string;revenue:Money;cost:Money;profit:Money;units:number};
+export type CityPoint={city_id:string;city:string;revenue:Money;cost:Money;profit:Money;units:number};
+export type SchoolPoint={school_id:string;school:string;code:string;revenue:Money;units:number};
+export type ProductPoint={product_id:string;product:string;units:number;revenue:Money};
+export type StockPoint={category_id:string;category:string;units:number;value:Money};
+export type ChartResponse<T>={filters:Record<string,string|null>;points:T[]};
+export type BossFilterOptions={cities:{id:string;name:string}[];schools:{id:string;name:string;code:string;city_id:string}[];categories:{id:string;name:string}[];default_date_from:string;default_date_to:string};
+export type BossAdmin={id:string;username:string;first_name:string;last_name:string;email:string;phone:string;role:string;city:string|null;city_name:string;is_active:boolean;must_change_password:boolean;created_at:string};
+export type BossCityRow={id:string;name:string;code:string;state:string;active:boolean};
+export type BossSchoolRow={id:string;city:string;city_name:string;name:string;code:string;active:boolean;commission_rate:string|null};
+
+export const boss={
+  filters:()=>api<BossFilterOptions>('/boss/filters/'),
+  kpis:(p:Record<string,string>)=>api<BossKpis>(`/boss/kpis/?${new URLSearchParams(p)}`),
+  chart:<T>(name:string,p:Record<string,string>)=>api<ChartResponse<T>>(`/boss/charts/${name}/?${new URLSearchParams(p)}`),
+  admins:()=>api<{results:BossAdmin[]}>('/boss/admins/'),
+  createAdmin:(body:Record<string,unknown>)=>api<BossAdmin>('/boss/admins/',{method:'POST',body:JSON.stringify(body)}),
+  editAdmin:(id:string,body:Record<string,unknown>)=>api<BossAdmin>(`/boss/admins/${id}/`,{method:'PATCH',body:JSON.stringify(body)}),
+  cities:()=>api<{results:BossCityRow[]}>('/cities/'),
+  createCity:(body:Record<string,unknown>)=>api<BossCityRow>('/cities/',{method:'POST',body:JSON.stringify(body)}),
+  editCity:(id:string,body:Record<string,unknown>)=>api<BossCityRow>(`/cities/${id}/`,{method:'PATCH',body:JSON.stringify(body)}),
+  schools:()=>api<{results:BossSchoolRow[]}>('/schools/'),
+  editSchool:(id:string,body:Record<string,unknown>)=>api<BossSchoolRow>(`/schools/${id}/`,{method:'PATCH',body:JSON.stringify(body)}),
+};
+
 export const money=(v:Money|number|null|undefined)=>{
   if(v===null||v===undefined) return '—';
   const n=typeof v==='number'?v:Number(v);
