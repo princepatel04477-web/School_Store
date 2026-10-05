@@ -304,7 +304,14 @@ class StudentListTests(StudentManagementTestBase):
                 [str(self.school_a.id), "5", "A"],
             )
             plan = "\n".join(r[0] for r in cursor.fetchall())
-        self.assertIn("idx_student_school_cls_sec", plan)
+        # The (school, class, section) prefix is served by the composite index.
+        # `idx_student_school_roster` extends it with name + id so the admin
+        # roster's cursor ordering needs no sort; either one satisfies rule P3.
+        self.assertTrue(
+            "idx_student_school_cls_sec" in plan
+            or "idx_student_school_roster" in plan,
+            plan,
+        )
 
     def test_search_plan_uses_expression_index(self):
         Student.objects.bulk_create(

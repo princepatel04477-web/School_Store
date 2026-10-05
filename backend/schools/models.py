@@ -171,6 +171,12 @@ class Student(UUIDModel):
                 fields=["school", "approval_status"],
                 name="idx_student_school_approval",
             ),
+            # Admin roster: WHERE school_id = ? ORDER BY class, section, name, id
+            # (cursor pagination, no sort node, no COUNT(*) over the school).
+            models.Index(
+                fields=["school", "class_name", "section", "name", "id"],
+                name="idx_student_school_roster",
+            ),
         ]
 
     @property
@@ -193,14 +199,20 @@ class Student(UUIDModel):
         )
         with transaction.atomic():
             super().save(*args, **kwargs)
-            if self.pk and parent_may_have_changed:
-                # Parent-scoped order lists use a denormalized indexed FK. Keep
-                # earlier teacher orders visible if a parent link is added later.
+            if self.pk:
                 from orders.models import Order
 
+                if parent_may_have_changed:
+                    # Parent-scoped order lists use a denormalized indexed FK. Keep
+                    # earlier teacher orders visible if a parent link is added later.
+                    Order.objects.filter(student_id=self.pk).exclude(
+                        parent_id=self.parent_id
+                    ).update(parent_id=self.parent_id)
+                # Keep the denormalised class copy used by the admin orders
+                # filter in sync when a child is promoted to the next class.
                 Order.objects.filter(student_id=self.pk).exclude(
-                    parent_id=self.parent_id
-                ).update(parent_id=self.parent_id)
+                    student_class=self.class_name
+                ).update(student_class=self.class_name)
 
     def __str__(self) -> str:
         return f"{self.name} (GR: {self.gr_number} - {self.school.code})"

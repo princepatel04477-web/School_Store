@@ -53,6 +53,10 @@ class Order(UUIDModel):
         on_delete=models.PROTECT,
         related_name="orders",
     )
+    # Denormalised class of the beneficiary so the School Admin panel can
+    # filter orders by class with a single indexed WHERE (no join to Student),
+    # exactly like the school/city/parent copies below.
+    student_class = models.CharField(max_length=30, blank=True, default="")
     # Denormalised parent, school, and city so scoped queries never need a join or subquery
     parent = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -102,6 +106,17 @@ class Order(UUIDModel):
                 fields=["school", "created_at"],
                 name="idx_order_school_created",
             ),
+            # Cursor pagination orders by (-created_at, -id); carrying `id` in
+            # the index lets Postgres stream the admin orders table straight
+            # out of the index with no sort node.
+            models.Index(
+                fields=["school", "created_at", "id"],
+                name="idx_order_school_created_id",
+            ),
+            models.Index(
+                fields=["school", "student_class", "created_at", "id"],
+                name="idx_order_sch_cls_created_id",
+            ),
             models.Index(
                 fields=["city", "created_at"],
                 name="idx_order_city_created",
@@ -109,6 +124,10 @@ class Order(UUIDModel):
             models.Index(
                 fields=["student", "created_at"],
                 name="idx_order_student_created",
+            ),
+            models.Index(
+                fields=["student", "created_at", "id"],
+                name="idx_order_student_created_id",
             ),
             models.Index(
                 fields=["parent", "created_at"],
@@ -134,6 +153,7 @@ class Order(UUIDModel):
             student = self.student
             self.school_id = student.school_id
             self.city_id = student.city_id or student.school.city_id
+            self.student_class = student.class_name
             if not self.parent_id and student.parent_id:
                 self.parent_id = student.parent_id
         if self.placed_by_id and not self.placed_by_role:
