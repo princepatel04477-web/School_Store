@@ -4,6 +4,8 @@ from celery import shared_task
 
 from .services import refresh_sales_summary
 
+from .models import DailySalesSummary
+
 
 @shared_task(name="analytics.refresh_daily_sales_summary")
 def refresh_daily_sales_summary(target_date_iso: str | None = None) -> int:
