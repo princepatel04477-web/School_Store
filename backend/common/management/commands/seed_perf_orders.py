@@ -123,7 +123,7 @@ class Command(BaseCommand):
                 student_id, parent_id, school_id, city_id, status,
                 subtotal, total, payment_status,
                 razorpay_order_id, razorpay_payment_id, razorpay_signature,
-                delivery_details, created_at, updated_at
+                delivery_details, created_at, updated_at, idempotency_key
             ) FROM STDIN
         """
         item_copy_sql = """
@@ -186,6 +186,7 @@ class Command(BaseCommand):
                             delivery_json,
                             ts,
                             ts,
+                            f"perf-key-{order_id}",
                         )
                     )
                     item_rows.append(
