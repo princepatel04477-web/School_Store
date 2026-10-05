@@ -285,6 +285,13 @@ class PublicProductList(APIView):
             if gender_val in (Product.Gender.MALE, Product.Gender.FEMALE):
                 qs = qs.filter(Q(gender=gender_val) | Q(gender=Product.Gender.BOTH))
 
+        # Requirement 3: Filter by product_type through the API (e.g. SOCKS, BELT, TIE)
+        product_type = request.query_params.get("product_type")
+        if product_type:
+            pt_val = product_type.upper().strip()
+            if pt_val in (Product.ProductType.SOCKS, Product.ProductType.BELT, Product.ProductType.TIE):
+                qs = qs.filter(product_type=pt_val)
+
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(qs, request, view=self)
 
@@ -295,6 +302,7 @@ class PublicProductList(APIView):
                 "name": product.name,
                 "description": product.description[:300],
                 "category": product.category.name,
+                "product_type": product.product_type,
                 "gender": product.gender,
                 "school": product.school.name if product.school else None,
                 "price": float(product.selling_price),

@@ -284,8 +284,23 @@ function CityInventoryView() {
                 balances.map((b) => (
                   <tr key={b.id}>
                     <td>
-                      <b>{b.product_name}</b>
-                      <small className="gr mono">{b.variant_sku}</small>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <b>{b.product_name}</b>
+                        {b.product_category && (
+                          <span className="badge" style={{ fontSize: '10px', background: '#f0f4f1', color: '#275b4c' }}>
+                            {b.product_category}
+                          </span>
+                        )}
+                        {b.product_type && (
+                          <span className="badge" style={{ fontSize: '10px', background: '#e0ecf8', color: '#1d4ed8' }}>
+                            {b.product_type}
+                          </span>
+                        )}
+                      </div>
+                      <small className="gr mono">
+                        {b.variant_sku}
+                        {b.variant_size ? ` · Size: ${b.variant_size}` : ''}
+                      </small>
                     </td>
                     <td className="r mono" style={{ fontSize: '15px' }}>
                       <b style={{ color: b.is_low_stock ? '#a34235' : 'inherit' }}>{b.stock_quantity}</b>

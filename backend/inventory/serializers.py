@@ -12,6 +12,9 @@ from .services import InsufficientStockError, apply_stock_movement
 class StockBalanceSerializer(serializers.ModelSerializer):
     variant_sku = serializers.CharField(source="variant.sku", read_only=True)
     product_name = serializers.CharField(source="variant.product.name", read_only=True)
+    product_category = serializers.CharField(source="variant.product.category.name", read_only=True)
+    product_type = serializers.CharField(source="variant.product.product_type", read_only=True)
+    variant_size = serializers.CharField(source="variant.size", read_only=True)
 
     class Meta:
         model = StockBalance
@@ -21,6 +24,9 @@ class StockBalanceSerializer(serializers.ModelSerializer):
             "variant",
             "variant_sku",
             "product_name",
+            "product_category",
+            "product_type",
+            "variant_size",
             "stock_quantity",
             "low_stock_threshold",
             "is_low_stock",

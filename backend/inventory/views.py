@@ -19,7 +19,7 @@ class StockBalancePagination(BoundedCursorPagination):
 
 class StockBalanceViewSet(ScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
     queryset = StockBalance.objects.select_related(
-        "city", "variant", "variant__product"
+        "city", "variant", "variant__product", "variant__product__category"
     ).order_by("-updated_at")
     serializer_class = StockBalanceSerializer
     pagination_class = StockBalancePagination

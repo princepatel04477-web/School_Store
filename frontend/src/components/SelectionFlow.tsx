@@ -71,6 +71,7 @@ export function SelectionFlow({
 
   const [schoolSearch, setSchoolSearch] = useState('');
   const [genderFilter, setGenderFilter] = useState<'ALL' | 'MALE' | 'FEMALE'>('ALL');
+  const [productTypeFilter, setProductTypeFilter] = useState<'ALL' | 'SOCKS' | 'BELT' | 'TIE'>('ALL');
   const [showSizeGuide, setShowSizeGuide] = useState(false);
 
   // Product customisation modal state
@@ -81,6 +82,17 @@ export function SelectionFlow({
 
   const isShoeFlow = category.toLowerCase().includes('shoe');
   const isShoeProduct = selectedProduct?.category?.toLowerCase().includes('shoe') || isShoeFlow;
+  const isAccessoriesFlow = category.toLowerCase().includes('accessories');
+
+  const isTie = selectedProduct?.product_type === 'TIE' || (selectedProduct?.name?.toLowerCase().includes('tie') ?? false);
+  const isSocks = selectedProduct?.product_type === 'SOCKS' || (selectedProduct?.name?.toLowerCase().includes('sock') ?? false);
+  const isBelt = selectedProduct?.product_type === 'BELT' || (selectedProduct?.name?.toLowerCase().includes('belt') ?? false);
+
+  const tieHasNoSpecificSize = isTie && (
+    !selectedProduct?.variants?.length ||
+    selectedProduct.variants.length <= 1 ||
+    selectedProduct.variants.every((v) => !v.size || ['standard', 'one size', 'free size', 'no size', ''].includes(v.size.trim().toLowerCase()))
+  );
 
   // Persist selection to sessionStorage
   useEffect(() => {
@@ -128,6 +140,7 @@ export function SelectionFlow({
       selection.grade?.id,
       category,
       genderFilter,
+      productTypeFilter,
     ],
     queryFn: async () => {
       if (!selection.school?.id || !selection.city?.id || !selection.grade?.id) {
@@ -139,6 +152,9 @@ export function SelectionFlow({
       }
       if (genderFilter !== 'ALL') {
         url += `&gender=${genderFilter}`;
+      }
+      if (isAccessoriesFlow && productTypeFilter !== 'ALL') {
+        url += `&product_type=${productTypeFilter}`;
       }
       return api<{ results: Product[] }>(url);
     },
@@ -202,6 +218,8 @@ export function SelectionFlow({
     setSelection({ school: null, city: null, grade: null });
     setStep(1);
     setSchoolSearch('');
+    setProductTypeFilter('ALL');
+    setGenderFilter('ALL');
     try {
       sessionStorage.removeItem(SESSION_STORAGE_KEY);
     } catch {
@@ -242,7 +260,8 @@ export function SelectionFlow({
 
   const handleAddToCart = () => {
     if (!selectedProduct) return;
-    if (!selectedVariantId) {
+    const finalVariantId = selectedVariantId || (tieHasNoSpecificSize ? selectedProduct.variants[0]?.id : '');
+    if (!finalVariantId && !tieHasNoSpecificSize && selectedProduct.variants.length > 0) {
       setFormError('Please select a size/variant.');
       return;
     }
@@ -254,7 +273,7 @@ export function SelectionFlow({
     }
     onOrder?.({
       product: selectedProduct,
-      variantId: selectedVariantId,
+      variantId: finalVariantId || selectedProduct.variants[0]?.id || '',
       customisationData: customValues,
     });
     setSelectedProduct(null);
@@ -598,6 +617,60 @@ export function SelectionFlow({
             </button>
           </div>
 
+          {/* Requirement 3: Uniform Accessories Product Type Filter: Socks, Belt, Tie, All */}
+          {isAccessoriesFlow && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '20px',
+                padding: '8px 12px',
+                background: '#ffffff',
+                borderRadius: '10px',
+                border: '1px solid var(--line, #dfe5dd)',
+                width: 'fit-content',
+                flexWrap: 'wrap',
+              }}
+            >
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#4b5563', marginRight: '4px' }}>
+                Accessory Type:
+              </span>
+              <button
+                type="button"
+                onClick={() => setProductTypeFilter('ALL')}
+                className={productTypeFilter === 'ALL' ? 'chip active' : 'chip'}
+                style={{ padding: '6px 14px', fontSize: '12px' }}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setProductTypeFilter('SOCKS')}
+                className={productTypeFilter === 'SOCKS' ? 'chip active' : 'chip'}
+                style={{ padding: '6px 14px', fontSize: '12px' }}
+              >
+                🧦 Socks
+              </button>
+              <button
+                type="button"
+                onClick={() => setProductTypeFilter('BELT')}
+                className={productTypeFilter === 'BELT' ? 'chip active' : 'chip'}
+                style={{ padding: '6px 14px', fontSize: '12px' }}
+              >
+                🏷️ Belt
+              </button>
+              <button
+                type="button"
+                onClick={() => setProductTypeFilter('TIE')}
+                className={productTypeFilter === 'TIE' ? 'chip active' : 'chip'}
+                style={{ padding: '6px 14px', fontSize: '12px' }}
+              >
+                👔 Tie
+              </button>
+            </div>
+          )}
+
           {loadingProducts ? (
             <div className="empty">
               <h3>Loading matching products…</h3>
@@ -606,10 +679,19 @@ export function SelectionFlow({
             <div className="empty">
               <span>⌁</span>
               <h3>No matching {category.toLowerCase()} products found</h3>
-              <p>There are no products matching this school, grade, and gender filter.</p>
-              <button className="text-button" onClick={() => setGenderFilter('ALL')}>
-                Reset gender filter
-              </button>
+              <p>There are no products matching this school, grade, and filter criteria.</p>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '10px' }}>
+                {genderFilter !== 'ALL' && (
+                  <button className="text-button" onClick={() => setGenderFilter('ALL')}>
+                    Reset gender filter
+                  </button>
+                )}
+                {isAccessoriesFlow && productTypeFilter !== 'ALL' && (
+                  <button className="text-button" onClick={() => setProductTypeFilter('ALL')}>
+                    Show all accessories
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             <div className="product-grid">
@@ -623,11 +705,41 @@ export function SelectionFlow({
                 return (
                   <article className="product" key={p.id}>
                     <div className={'product-image ' + p.category.toLowerCase().replace(' ', '-')}>
-                      {p.category.toLowerCase().includes('shoe') ? '👞' : p.category === 'Stationery' ? '▤' : p.category === 'ID Cards' ? '▧' : '▥'}
+                      {p.category.toLowerCase().includes('shoe')
+                        ? '👞'
+                        : p.product_type === 'SOCKS'
+                        ? '🧦'
+                        : p.product_type === 'BELT'
+                        ? '🏷️'
+                        : p.product_type === 'TIE'
+                        ? '👔'
+                        : p.category.toLowerCase().includes('accessories')
+                        ? '🎀'
+                        : p.category === 'Stationery'
+                        ? '▤'
+                        : p.category === 'ID Cards'
+                        ? '▧'
+                        : '▥'}
                     </div>
                     <div className="product-body">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span className="tag">{p.category}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span className="tag">{p.category}</span>
+                          {p.product_type && (
+                            <span
+                              className="pill"
+                              style={{
+                                fontSize: '9px',
+                                padding: '2px 6px',
+                                background: '#edf6ef',
+                                color: '#275b4c',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {p.product_type}
+                            </span>
+                          )}
+                        </div>
                         {p.gender && p.gender !== 'BOTH' && (
                           <span className="pill" style={{ fontSize: '9px', padding: '2px 6px' }}>
                             {p.gender}
@@ -704,42 +816,82 @@ export function SelectionFlow({
               </button>
             </div>
 
-            <div style={{ marginBottom: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <span style={{ fontSize: '12px', color: '#5c6b61', fontWeight: 600 }}>
-                  {isShoeProduct ? 'Select Shoe Size (UK / India)' : 'Select Size / Variant'} <span style={{ color: '#a34235' }}>*</span>
-                </span>
-                {isShoeProduct && (
-                  <button
-                    type="button"
-                    onClick={() => setShowSizeGuide(true)}
-                    className="text-button"
-                    style={{ fontSize: '11px', textDecoration: 'underline', color: '#275b4c', padding: 0 }}
-                  >
-                    📏 View Size Guide
-                  </button>
-                )}
-              </div>
-              <select
-                value={selectedVariantId}
-                onChange={(e) => setSelectedVariantId(e.target.value)}
+            {tieHasNoSpecificSize ? (
+              <div
                 style={{
-                  width: '100%',
-                  border: '1px solid #c9d4c9',
+                  background: '#f4f6f4',
+                  border: '1px dashed #c9d4c9',
                   borderRadius: '8px',
-                  padding: '10px',
+                  padding: '10px 14px',
+                  marginBottom: '16px',
                   fontSize: '13px',
-                  background: '#fff',
+                  color: '#275b4c',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
                 }}
               >
-                <option value="">{isShoeProduct ? '-- Choose shoe size (UK) --' : '-- Choose size --'}</option>
-                {selectedProduct.variants.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {isShoeProduct && !v.size.toLowerCase().includes('size') ? `Shoe Size ${v.size}` : `Size: ${v.size}`} ({v.stock_status || 'In stock'})
+                <span>👔</span>
+                <span><strong>Standard School Tie</strong> · One Size (No size selection required)</span>
+              </div>
+            ) : (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '12px', color: '#5c6b61', fontWeight: 600 }}>
+                    {isShoeProduct
+                      ? 'Select Shoe Size (UK / India)'
+                      : isSocks
+                      ? 'Select Sock Size'
+                      : isBelt
+                      ? 'Select Belt Length / Size'
+                      : 'Select Size / Variant'}{' '}
+                    <span style={{ color: '#a34235' }}>*</span>
+                  </span>
+                  {isShoeProduct && (
+                    <button
+                      type="button"
+                      onClick={() => setShowSizeGuide(true)}
+                      className="text-button"
+                      style={{ fontSize: '11px', textDecoration: 'underline', color: '#275b4c', padding: 0 }}
+                    >
+                      📏 View Size Guide
+                    </button>
+                  )}
+                </div>
+                <select
+                  value={selectedVariantId}
+                  onChange={(e) => setSelectedVariantId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    border: '1px solid #c9d4c9',
+                    borderRadius: '8px',
+                    padding: '10px',
+                    fontSize: '13px',
+                    background: '#fff',
+                  }}
+                >
+                  <option value="">
+                    {isShoeProduct
+                      ? '-- Choose shoe size (UK) --'
+                      : isSocks
+                      ? '-- Choose sock size --'
+                      : isBelt
+                      ? '-- Choose belt length / size --'
+                      : '-- Choose size --'}
                   </option>
-                ))}
-              </select>
-            </div>
+                  {selectedProduct.variants.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {isShoeProduct && !v.size.toLowerCase().includes('size')
+                        ? `Shoe Size ${v.size}`
+                        : isBelt && !v.size.toLowerCase().includes('size') && !v.size.includes('"')
+                        ? `Belt Size ${v.size}`
+                        : `Size: ${v.size}`}{' '}
+                      ({v.stock_status || 'In stock'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {schemaList.length > 0 && (
               <CustomisationForm

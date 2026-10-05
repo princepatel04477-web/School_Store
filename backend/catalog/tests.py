@@ -129,6 +129,68 @@ class PublicCatalogTests(TestCase):
         self.assertNotIn("DPS Formal Black Oxford Shoes", female_shoe_names)
         self.assertIn("All-Weather Black Velcro School Shoes", female_shoe_names)
 
+    def test_uniform_accessories_section_and_product_types(self):
+        # 1. Base accessories query for DPS Surat
+        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}&category=Uniform Accessories"
+        res = APIClient().get(url)
+        self.assertEqual(res.status_code, 200)
+        prods = res.json()["results"]
+        prod_names = {p["name"] for p in prods}
+
+        # Should include both school-tied items (DPS) and generic items
+        self.assertIn("DPS Cotton Ribbed School Socks (Pack of 3)", prod_names)
+        self.assertIn("DPS Monogrammed Leatherette School Belt", prod_names)
+        self.assertIn("DPS Official Crest School Tie", prod_names)
+        self.assertIn("Standard Plain Navy School Socks (Pack of 2)", prod_names)
+        self.assertIn("Standard Elastic School Uniform Belt", prod_names)
+        self.assertIn("Standard Classic School Uniform Tie", prod_names)
+
+        # 2. Filter by product_type=SOCKS
+        res_socks = APIClient().get(url + "&product_type=SOCKS")
+        self.assertEqual(res_socks.status_code, 200)
+        sock_prods = res_socks.json()["results"]
+        self.assertTrue(all(p["product_type"] == "SOCKS" for p in sock_prods))
+        self.assertIn("DPS Cotton Ribbed School Socks (Pack of 3)", {p["name"] for p in sock_prods})
+        self.assertNotIn("DPS Official Crest School Tie", {p["name"] for p in sock_prods})
+        # Check sock size variants
+        dps_socks = next(p for p in sock_prods if p["name"] == "DPS Cotton Ribbed School Socks (Pack of 3)")
+        self.assertTrue(any("Junior" in v["size"] for v in dps_socks["variants"]))
+
+        # 3. Filter by product_type=BELT
+        res_belts = APIClient().get(url + "&product_type=BELT")
+        self.assertEqual(res_belts.status_code, 200)
+        belt_prods = res_belts.json()["results"]
+        self.assertTrue(all(p["product_type"] == "BELT" for p in belt_prods))
+        self.assertIn("DPS Monogrammed Leatherette School Belt", {p["name"] for p in belt_prods})
+        self.assertIn("Standard Elastic School Uniform Belt", {p["name"] for p in belt_prods})
+        # Check belt length variants
+        dps_belt = next(p for p in belt_prods if p["name"] == "DPS Monogrammed Leatherette School Belt")
+        self.assertTrue(any("Inch" in v["size"] for v in dps_belt["variants"]))
+
+        # 4. Filter by product_type=TIE
+        res_ties = APIClient().get(url + "&product_type=TIE")
+        self.assertEqual(res_ties.status_code, 200)
+        tie_prods = res_ties.json()["results"]
+        self.assertTrue(all(p["product_type"] == "TIE" for p in tie_prods))
+        self.assertIn("DPS Official Crest School Tie", {p["name"] for p in tie_prods})
+        self.assertIn("Standard Classic School Uniform Tie", {p["name"] for p in tie_prods})
+        # Tie may have no size / standard single size
+        dps_tie = next(p for p in tie_prods if p["name"] == "DPS Official Crest School Tie")
+        self.assertEqual(dps_tie["variants"][0]["size"], "Standard")
+
+        # 5. School scoping: Udgam Ahmedabad sees generic accessories + Udgam tie, but NOT DPS items
+        udgam = School.objects.get(code="UDG-AMD")
+        amd_city = City.objects.get(code="AMD")
+        udgam_url = f"/api/public/products/?school={udgam.id}&city={amd_city.id}&grade={self.grade5.id}&category=Uniform Accessories"
+        res_udgam = APIClient().get(udgam_url)
+        self.assertEqual(res_udgam.status_code, 200)
+        udgam_prod_names = {p["name"] for p in res_udgam.json()["results"]}
+        self.assertIn("Udgam Woven Crest School Tie", udgam_prod_names)
+        self.assertIn("Standard Plain Navy School Socks (Pack of 2)", udgam_prod_names)
+        self.assertIn("Standard Elastic School Uniform Belt", udgam_prod_names)
+        self.assertNotIn("DPS Cotton Ribbed School Socks (Pack of 3)", udgam_prod_names)
+        self.assertNotIn("DPS Official Crest School Tie", udgam_prod_names)
+
 
 @override_settings(CACHES=LOCMEM)
 class StudentCatalogueTests(TestCase):

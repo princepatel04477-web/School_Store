@@ -19,6 +19,7 @@ export type Product={
   name:string;
   category:string;
   category_slug?:string;
+  product_type?:'SOCKS'|'BELT'|'TIE'|string|null;
   price:number;
   gender?:'MALE'|'FEMALE'|'BOTH';
   school?:string|null;
@@ -166,6 +167,9 @@ export type StockBalance={
   variant:string;
   variant_sku:string;
   product_name:string;
+  product_category?:string;
+  product_type?:string|null;
+  variant_size?:string;
   stock_quantity:number;
   low_stock_threshold:number;
   is_low_stock:boolean;
