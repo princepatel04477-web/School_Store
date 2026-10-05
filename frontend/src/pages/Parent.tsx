@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, Route, Routes } from 'react-router-dom';
 import { Shell } from '../App';
 import { SelectionFlow } from '../components/SelectionFlow';
-import { Cart, Timeline } from '../components/Store';
+import { Cart, Timeline, type CartItem } from '../components/Store';
 import { api, Order, Product } from '../api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -75,11 +75,25 @@ function Dashboard() {
   const [selectedId, setSelectedId] = useState<string>(kids[0]?.id || '1');
   const selected = kids.find((k) => k.id === selectedId) || kids[0] || fallbackKids[0];
 
-  const [cartItem, setCartItem] = useState<{
-    product: Product;
-    variantId: string;
-    customisationData: Record<string, any>;
-  } | null>(null);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+
+  const handleAddItem = (item: { product: Product; variantId: string; customisationData: Record<string, any> }) => {
+    setCartItems((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        product: item.product,
+        variantId: item.variantId,
+        variantSize: item.product.variants.find((v) => v.id === item.variantId)?.size,
+        quantity: 1,
+        customisationData: item.customisationData,
+      },
+    ]);
+  };
+
+  const handleRemoveItem = (id: string) => {
+    setCartItems((prev) => prev.filter((it) => it.id !== id));
+  };
 
   const rawStudent = studentsData?.results?.find((s: any) => s.id === selectedId);
   const studentProfile = rawStudent
@@ -119,7 +133,7 @@ function Dashboard() {
             <button
               onClick={() => {
                 setSelectedId(k.id);
-                setCartItem(null);
+                setCartItems([]);
               }}
               className={selected?.id === k.id ? 'kid selected' : 'kid'}
               key={k.id}
@@ -266,15 +280,15 @@ function Dashboard() {
         key={`${activeCategory}-${selected?.id}`}
         category={activeCategory}
         studentProfile={studentProfile}
-        onOrder={(item) => setCartItem(item)}
+        onOrder={handleAddItem}
+        onNavigateCategory={(cat) => setActiveCategory(cat as any)}
       />
 
       <Cart
-        product={cartItem?.product ?? null}
-        variantId={cartItem?.variantId}
-        customisationData={cartItem?.customisationData}
+        items={cartItems}
         studentId={selected?.id}
-        onClear={() => setCartItem(null)}
+        onClear={() => setCartItems([])}
+        onRemoveItem={handleRemoveItem}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ['orders'] });
         }}

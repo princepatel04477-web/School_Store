@@ -90,7 +90,12 @@ function Shop() {
             </button>
           ))}
         </div>
-        <SelectionFlow key={activeCategory} publicView category={activeCategory} />
+        <SelectionFlow
+          key={activeCategory}
+          publicView
+          category={activeCategory}
+          onNavigateCategory={(cat) => setActiveCategory(cat as any)}
+        />
       </main>
     </div>
   );

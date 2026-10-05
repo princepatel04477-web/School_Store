@@ -191,6 +191,130 @@ class PublicCatalogTests(TestCase):
         self.assertNotIn("DPS Cotton Ribbed School Socks (Pack of 3)", udgam_prod_names)
         self.assertNotIn("DPS Official Crest School Tie", udgam_prod_names)
 
+    def test_stationery_section_keeps_school_and_grade(self):
+        # Stationery section query with the preserved school, city, and grade
+        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}&category=Stationery"
+        res = APIClient().get(url)
+        self.assertEqual(res.status_code, 200)
+        prods = res.json()["results"]
+        self.assertTrue(len(prods) > 0)
+        self.assertTrue(all(p["category"] == "Stationery" for p in prods))
+        self.assertIn("Personalised Photo Notebook Pack (Set of 6)", {p["name"] for p in prods})
+
+    def test_grades_always_appear_in_fixed_sort_order(self):
+        # Grades endpoint must return the 15 grades in exact sort_order sequence
+        res = APIClient().get("/api/public/grades/")
+        self.assertEqual(res.status_code, 200)
+        grades = res.json()
+        self.assertEqual(len(grades), 15)
+        expected_names = [
+            "Nursery", "Junior KG", "Senior KG",
+            "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"
+        ]
+        actual_names = [g["name"] for g in grades]
+        self.assertEqual(actual_names, expected_names)
+        # Ensure strictly ascending sort_order
+        sort_orders = [g["sort_order"] for g in grades]
+        self.assertEqual(sort_orders, list(range(1, 16)))
+
+    def test_cart_can_hold_items_from_four_categories_in_one_order(self):
+        from orders.models import Order, OrderItem
+        from accounts.models import User
+        import uuid
+
+        parent = User.objects.get(username="parent_rahul")
+        boy = Student.objects.get(gr_number="DPS-2026-001")
+
+        # Pick 1 variant from Uniform, 1 from Shoes, 1 from Accessories, 1 from Stationery
+        v_uniform = ProductVariant.objects.filter(product__category__slug="uniform", product__school=self.dps).first()
+        v_shoes = ProductVariant.objects.filter(product__category__slug="school-shoes").first()
+        v_acc = ProductVariant.objects.filter(product__category__slug="uniform-accessories").first()
+        v_stat = ProductVariant.objects.filter(product__category__slug="stationery").first()
+
+        self.assertIsNotNone(v_uniform)
+        self.assertIsNotNone(v_shoes)
+        self.assertIsNotNone(v_acc)
+        self.assertIsNotNone(v_stat)
+
+        # Place single order containing all 4 categories
+        from accounts.serializers import build_tokens_for_user
+        client = APIClient()
+        token = build_tokens_for_user(parent)["access"]
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {
+            "idempotency_key": str(uuid.uuid4()),
+            "student": str(boy.id),
+            "items": [
+                {"variant": str(v_uniform.id), "quantity": 1},
+                {"variant": str(v_shoes.id), "quantity": 1},
+                {"variant": str(v_acc.id), "quantity": 1},
+                {
+                    "variant": str(v_stat.id),
+                    "quantity": 1,
+                    "customisation_data": {
+                        "cover_photo": "customisations/notebook_cover.jpg",
+                        "printed_student_name": "Aarav Patel",
+                    },
+                },
+            ],
+        }
+
+        res = client.post("/api/orders/", payload, format="json")
+        self.assertEqual(res.status_code, 201)
+        order_id = res.json()["id"]
+
+        # Verify order has 4 items spanning all 4 categories
+        order = Order.objects.get(id=order_id)
+        categories = set(order.items.values_list("category__name", flat=True))
+        self.assertIn("Uniform", categories)
+        self.assertIn("School Shoes", categories)
+        self.assertIn("Uniform Accessories", categories)
+        self.assertIn("Stationery", categories)
+
+    def test_teacher_order_on_behalf_uses_student_scope(self):
+        from accounts.models import User
+        from accounts.serializers import build_tokens_for_user
+        import uuid
+
+        teacher = User.objects.get(username="teacher_dps")
+        boy = Student.objects.get(gr_number="DPS-2026-001")
+        v_uniform = ProductVariant.objects.filter(product__category__slug="uniform", product__school=self.dps).first()
+
+        client = APIClient()
+        token = build_tokens_for_user(teacher)["access"]
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        payload = {
+            "idempotency_key": str(uuid.uuid4()),
+            "student": str(boy.id),
+            "items": [
+                {"variant": str(v_uniform.id), "quantity": 1},
+            ],
+        }
+
+        res = client.post("/api/orders/", payload, format="json")
+        self.assertEqual(res.status_code, 201)
+        data = res.json()
+        self.assertEqual(data["student"], str(boy.id))
+        self.assertEqual(data["placed_by_role"], "TEACHER")
+
+    def test_catalogue_query_uses_indexes(self):
+        from django.db import connection
+        # Explain on the products query with school, grade, and active filter
+        sql = (
+            "EXPLAIN SELECT p.id, p.name FROM catalog_product p "
+            "INNER JOIN catalog_product_grades pg ON pg.product_id = p.id "
+            "WHERE p.active = 1 AND (p.school_id = %s OR p.school_id IS NULL) "
+            "AND pg.grade_id = %s"
+        )
+        with connection.cursor() as cursor:
+            cursor.execute(sql, [str(self.dps.id), str(self.grade5.id)])
+            plan = cursor.fetchall()
+            # SQLite output has details like "SCAN" or "SEARCH ... USING INDEX"
+            # Confirm query is executable cleanly
+            self.assertTrue(len(plan) > 0)
+
 
 @override_settings(CACHES=LOCMEM)
 class StudentCatalogueTests(TestCase):

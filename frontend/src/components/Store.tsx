@@ -323,23 +323,56 @@ export function Catalogue({
   );
 }
 
+export interface CartItem {
+  id: string;
+  product: Product;
+  variantId: string;
+  variantSize?: string;
+  quantity: number;
+  customisationData?: Record<string, any>;
+}
+
 export function Cart({
+  items,
   product,
   variantId,
   customisationData,
   studentId,
   onClear,
+  onRemoveItem,
   onSuccess,
 }: {
-  product: Product | null;
+  items?: CartItem[];
+  product?: Product | null;
   variantId?: string;
   customisationData?: Record<string, any>;
   studentId?: string;
   onClear: () => void;
+  onRemoveItem?: (id: string) => void;
   onSuccess?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
-  if (!product)
+
+  // Normalize single item vs multi items
+  const activeItems: CartItem[] = useMemo(() => {
+    if (items && items.length > 0) return items;
+    if (product) {
+      const vId = variantId || product.variants[0]?.id || '';
+      return [
+        {
+          id: 'single',
+          product,
+          variantId: vId,
+          variantSize: product.variants.find((v) => v.id === vId)?.size,
+          quantity: 1,
+          customisationData,
+        },
+      ];
+    }
+    return [];
+  }, [items, product, variantId, customisationData]);
+
+  if (activeItems.length === 0)
     return (
       <div className="empty">
         <span>✦</span>
@@ -348,24 +381,36 @@ export function Cart({
       </div>
     );
 
-  const targetVariantId = variantId || product.variants[0]?.id;
+  const totalAmount = activeItems.reduce(
+    (sum, item) => sum + item.product.price * (item.quantity || 1),
+    0
+  );
 
   async function checkout() {
-    if (!targetVariantId) {
-      alert('Please select a size or variant.');
-      return;
+    for (const item of activeItems) {
+      if (!item.variantId) {
+        alert(`Please select a size/variant for ${item.product.name}.`);
+        return;
+      }
     }
+
     setBusy(true);
     try {
-      // Small payload: only keys and short strings in customisation_data
-      const cleanCustomData: Record<string, any> = {};
-      if (customisationData) {
-        Object.entries(customisationData).forEach(([k, v]) => {
-          if (v !== undefined && v !== null && v !== '') {
-            cleanCustomData[k] = v;
-          }
-        });
-      }
+      const payloadItems = activeItems.map((item) => {
+        const cleanCustomData: Record<string, any> = {};
+        if (item.customisationData) {
+          Object.entries(item.customisationData).forEach(([k, v]) => {
+            if (v !== undefined && v !== null && v !== '') {
+              cleanCustomData[k] = v;
+            }
+          });
+        }
+        return {
+          variant: item.variantId,
+          quantity: item.quantity || 1,
+          customisation_data: cleanCustomData,
+        };
+      });
 
       await api('/orders/', {
         method: 'POST',
@@ -373,13 +418,7 @@ export function Cart({
         body: JSON.stringify({
           idempotency_key: crypto.randomUUID(),
           student: studentId || 'selected',
-          items: [
-            {
-              variant: targetVariantId,
-              quantity: 1,
-              customisation_data: cleanCustomData,
-            },
-          ],
+          items: payloadItems,
         }),
       });
       alert('Order placed successfully!');
@@ -392,27 +431,93 @@ export function Cart({
     }
   }
 
-  const hasCustom = customisationData && Object.keys(customisationData).length > 0;
-
   return (
     <div className="cart-card">
-      <div>
-        <span className="eyebrow">ONE ITEM</span>
-        <h3>{product.name}</h3>
-        <p className="muted">Size and customisation saved</p>
-        {hasCustom && (
-          <div style={{ marginTop: '6px', fontSize: '11px', color: '#2a6a4e' }}>
-            ✦ Customisation configured
-          </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <span className="eyebrow">{activeItems.length} {activeItems.length === 1 ? 'ITEM' : 'ITEMS'} IN CART</span>
+        {activeItems.length > 1 && (
+          <button className="link-button" onClick={onClear} style={{ fontSize: '11px', color: '#888' }}>
+            Clear all
+          </button>
         )}
       </div>
-      <strong>₹{product.price}</strong>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
+        {activeItems.map((item) => {
+          const hasCustom = item.customisationData && Object.keys(item.customisationData).length > 0;
+          return (
+            <div
+              key={item.id}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                padding: '8px 10px',
+                background: '#f9fbf9',
+                borderRadius: '8px',
+                border: '1px solid #e2ece5',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <strong style={{ fontSize: '13px' }}>{item.product.name}</strong>
+                  {item.product.category && (
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        background: '#e9f1ec',
+                        color: '#275b4c',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {item.product.category}
+                    </span>
+                  )}
+                </div>
+                <div className="muted" style={{ fontSize: '12px' }}>
+                  {item.variantSize ? `Size: ${item.variantSize} · ` : ''}₹{item.product.price} × {item.quantity || 1}
+                </div>
+                {hasCustom && (
+                  <div style={{ fontSize: '11px', color: '#2a6a4e', marginTop: '2px' }}>
+                    ✦ Customised
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                  ₹{(item.product.price * (item.quantity || 1)).toLocaleString('en-IN')}
+                </span>
+                {onRemoveItem && item.id !== 'single' && (
+                  <button
+                    className="link-button"
+                    style={{ fontSize: '11px', color: '#a34235', padding: 0 }}
+                    onClick={() => onRemoveItem(item.id)}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #dfe5dd', paddingTop: '10px', marginBottom: '12px' }}>
+        <span style={{ fontWeight: 600, fontSize: '14px' }}>Total Amount</span>
+        <strong style={{ fontSize: '18px', color: '#275b4c' }}>₹{totalAmount.toLocaleString('en-IN')}</strong>
+      </div>
+
       <button className="primary full" disabled={busy} onClick={checkout}>
-        {busy ? 'Processing…' : 'Pay securely · ₹' + product.price}
+        {busy ? 'Processing…' : `Pay securely · ₹${totalAmount.toLocaleString('en-IN')}`}
       </button>
-      <button className="link-button" onClick={onClear}>
-        Remove item
-      </button>
+
+      {activeItems.length === 1 && (
+        <button className="link-button" onClick={onClear} style={{ marginTop: '8px' }}>
+          Remove item
+        </button>
+      )}
     </div>
   );
 }

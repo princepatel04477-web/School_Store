@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, Product, StockStatus } from '../api';
 import { CustomisationForm } from './CustomisationForm';
+import { Popup } from './Popup';
 
 export interface SchoolItem {
   id: string;
@@ -37,16 +38,21 @@ interface SelectionFlowProps {
     grade_name?: string;
     gender?: string;
   } | null;
+  autoSelectStudentProfile?: boolean;
   onOrder?: (x: { product: Product; variantId: string; customisationData: Record<string, any> }) => void;
+  onNavigateCategory?: (category: string) => void;
   publicView?: boolean;
 }
 
 const SESSION_STORAGE_KEY = 'school_store_selection_flow';
+const STATIONERY_PROMPT_SESSION_KEY = 'school_store_stationery_prompt_dismissed';
 
 export function SelectionFlow({
   category = 'Uniform',
   studentProfile,
+  autoSelectStudentProfile = false,
   onOrder,
+  onNavigateCategory,
   publicView = false,
 }: SelectionFlowProps) {
   // Try restoring from sessionStorage
@@ -74,6 +80,10 @@ export function SelectionFlow({
   const [productTypeFilter, setProductTypeFilter] = useState<'ALL' | 'SOCKS' | 'BELT' | 'TIE'>('ALL');
   const [showSizeGuide, setShowSizeGuide] = useState(false);
 
+  // Requirement 1 & 4: Stationery prompt once per session
+  const [showStationeryPrompt, setShowStationeryPrompt] = useState<boolean>(false);
+  const endOfPageSentinelRef = useRef<HTMLDivElement | null>(null);
+
   // Product customisation modal state
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string>('');
@@ -83,6 +93,37 @@ export function SelectionFlow({
   const isShoeFlow = category.toLowerCase().includes('shoe');
   const isShoeProduct = selectedProduct?.category?.toLowerCase().includes('shoe') || isShoeFlow;
   const isAccessoriesFlow = category.toLowerCase().includes('accessories');
+
+  const triggerStationeryPrompt = useCallback(() => {
+    if (!isAccessoriesFlow) return;
+    try {
+      if (sessionStorage.getItem(STATIONERY_PROMPT_SESSION_KEY) === '1') {
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    setShowStationeryPrompt(true);
+  }, [isAccessoriesFlow]);
+
+  const handleStationeryConfirm = () => {
+    try {
+      sessionStorage.setItem(STATIONERY_PROMPT_SESSION_KEY, '1');
+    } catch {
+      // ignore
+    }
+    setShowStationeryPrompt(false);
+    onNavigateCategory?.('Stationery');
+  };
+
+  const handleStationeryDismiss = () => {
+    try {
+      sessionStorage.setItem(STATIONERY_PROMPT_SESSION_KEY, '1');
+    } catch {
+      // ignore
+    }
+    setShowStationeryPrompt(false);
+  };
 
   const isTie = selectedProduct?.product_type === 'TIE' || (selectedProduct?.name?.toLowerCase().includes('tie') ?? false);
   const isSocks = selectedProduct?.product_type === 'SOCKS' || (selectedProduct?.name?.toLowerCase().includes('sock') ?? false);
@@ -214,6 +255,33 @@ export function SelectionFlow({
     }
   };
 
+  // Auto-select when requested (e.g. Teacher ordering on behalf of student)
+  useEffect(() => {
+    if (!autoSelectStudentProfile || !studentProfile || schools.length === 0 || grades.length === 0) return;
+    if (step === 1 && !selection.school) {
+      handlePreFillConfirm();
+    }
+  }, [autoSelectStudentProfile, studentProfile, schools, grades, step, selection.school]);
+
+  // Requirement 1: Trigger stationery prompt when reaching end of Uniform Accessories page
+  useEffect(() => {
+    if (!isAccessoriesFlow || step !== 4) return;
+    const sentinel = endOfPageSentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          triggerStationeryPrompt();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [isAccessoriesFlow, step, triggerStationeryPrompt, productsList.length]);
+
   const handleReset = () => {
     setSelection({ school: null, city: null, grade: null });
     setStep(1);
@@ -277,6 +345,9 @@ export function SelectionFlow({
       customisationData: customValues,
     });
     setSelectedProduct(null);
+    if (isAccessoriesFlow) {
+      triggerStationeryPrompt();
+    }
   };
 
   return (
@@ -793,6 +864,10 @@ export function SelectionFlow({
               })}
             </div>
           )}
+          {/* Requirement 1: Sentinel to detect reaching end of accessories page */}
+          {isAccessoriesFlow && (
+            <div ref={endOfPageSentinelRef} style={{ height: '1px', marginTop: '20px' }} />
+          )}
         </div>
       )}
 
@@ -1027,6 +1102,18 @@ export function SelectionFlow({
           </div>
         </div>
       )}
+
+      {/* Requirement 1, 2, 3, 4: Shared Stationery Prompt Popup */}
+      <Popup
+        isOpen={showStationeryPrompt}
+        onClose={handleStationeryDismiss}
+        title="Looking for Stationery?"
+        message="Would you like to buy Stationery items?"
+        confirmLabel="Yes"
+        cancelLabel="No"
+        onConfirm={handleStationeryConfirm}
+        onCancel={handleStationeryDismiss}
+      />
     </div>
   );
 }
