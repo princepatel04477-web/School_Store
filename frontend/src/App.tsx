@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode } from 'react';
+import { lazy, Suspense, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes, Link } from 'react-router-dom';
 import { useAuth } from './auth';
 import { SelectionFlow } from './components/SelectionFlow';
@@ -57,6 +57,10 @@ function Home() {
 
 function Shop() {
   const { user } = useAuth();
+  const [activeCategory, setActiveCategory] = useState<
+    'Uniform' | 'School Shoes' | 'Uniform Accessories' | 'Stationery' | 'ID Cards'
+  >('Uniform');
+
   return (
     <div className="app">
       <header>
@@ -75,7 +79,18 @@ function Shop() {
       <main>
         <div className="eyebrow">STEP-BY-STEP SELECTION FLOW</div>
         <h1>School essentials, sorted.</h1>
-        <SelectionFlow publicView category="Uniform" />
+        <div className="chips" style={{ marginBottom: '1.5rem' }}>
+          {(['Uniform', 'School Shoes', 'Uniform Accessories', 'Stationery', 'ID Cards'] as const).map((cat) => (
+            <button
+              key={cat}
+              className={activeCategory === cat ? 'chip active' : 'chip'}
+              onClick={() => setActiveCategory(cat)}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+        <SelectionFlow key={activeCategory} publicView category={activeCategory} />
       </main>
     </div>
   );

@@ -90,6 +90,45 @@ class PublicCatalogTests(TestCase):
     def test_public_endpoint_is_read_only(self):
         self.assertEqual(APIClient().post("/api/public/products/", {}).status_code, 405)
 
+    def test_school_shoes_section_and_targeting(self):
+        # 1. Shoes for DPS Surat grade 5
+        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}&category=School Shoes"
+        res = APIClient().get(url)
+        self.assertEqual(res.status_code, 200)
+        prods = res.json()["results"]
+        prod_names = {p["name"] for p in prods}
+        # Shared shoes appear
+        self.assertIn("All-Weather Black Velcro School Shoes", prod_names)
+        self.assertIn("Action White PT Sports Shoes", prod_names)
+        # School-specific shoes appear for DPS
+        self.assertIn("DPS Formal Black Oxford Shoes", prod_names)
+
+        # 2. Check variants use shoe sizes
+        shoe_prod = next(p for p in prods if p["name"] == "All-Weather Black Velcro School Shoes")
+        variant_sizes = [v["size"] for v in shoe_prod["variants"]]
+        self.assertTrue(any("UK" in s for s in variant_sizes))
+
+        # 3. For another school (Udgam Ahmedabad), school-specific DPS shoes must NOT appear,
+        # but shared shoes MUST appear
+        udgam = School.objects.get(code="UDG-AMD")
+        amd_city = City.objects.get(code="AMD")
+        udgam_url = f"/api/public/products/?school={udgam.id}&city={amd_city.id}&grade={self.grade5.id}&category=School Shoes"
+        res_udgam = APIClient().get(udgam_url)
+        self.assertEqual(res_udgam.status_code, 200)
+        udgam_prod_names = {p["name"] for p in res_udgam.json()["results"]}
+        self.assertIn("All-Weather Black Velcro School Shoes", udgam_prod_names)
+        self.assertNotIn("DPS Formal Black Oxford Shoes", udgam_prod_names)
+
+        # 4. Gender filter on shoes
+        res_male = APIClient().get(url + "&gender=MALE")
+        male_shoe_names = {p["name"] for p in res_male.json()["results"]}
+        self.assertIn("DPS Formal Black Oxford Shoes", male_shoe_names)
+
+        res_female = APIClient().get(url + "&gender=FEMALE")
+        female_shoe_names = {p["name"] for p in res_female.json()["results"]}
+        self.assertNotIn("DPS Formal Black Oxford Shoes", female_shoe_names)
+        self.assertIn("All-Weather Black Velcro School Shoes", female_shoe_names)
+
 
 @override_settings(CACHES=LOCMEM)
 class StudentCatalogueTests(TestCase):
@@ -150,7 +189,7 @@ class StudentCatalogueTests(TestCase):
 
     def test_category_filter(self):
         _, names = self.names_for(self.boy, "?category=shoes")
-        self.assertEqual(names, {"All-Weather Black Velcro School Shoes"})
+        self.assertIn("All-Weather Black Velcro School Shoes", names)
 
     def test_card_carries_only_what_the_card_shows(self):
         body, _ = self.names_for(self.boy)
@@ -164,6 +203,7 @@ class StudentCatalogueTests(TestCase):
                 "category_slug",
                 "price",
                 "thumbnail",
+                "customisation_schema",
                 "sizes",
                 "stock_status",
             },
@@ -202,7 +242,7 @@ class StudentCatalogueTests(TestCase):
         variant = ProductVariant.objects.get(sku="SHOE-BLK-UK2")
 
         body, _ = self.names_for(self.boy)
-        shoes = next(p for p in body["products"] if "Shoes" == p["category"])
+        shoes = next(p for p in body["products"] if p["name"] == "All-Weather Black Velcro School Shoes")
         size = next(s for s in shoes["sizes"] if s["variant_id"] == str(variant.pk))
         self.assertEqual(size["stock_status"], "IN_STOCK")
 

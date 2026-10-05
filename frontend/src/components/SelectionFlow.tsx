@@ -71,12 +71,16 @@ export function SelectionFlow({
 
   const [schoolSearch, setSchoolSearch] = useState('');
   const [genderFilter, setGenderFilter] = useState<'ALL' | 'MALE' | 'FEMALE'>('ALL');
+  const [showSizeGuide, setShowSizeGuide] = useState(false);
 
   // Product customisation modal state
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string>('');
   const [customValues, setCustomValues] = useState<Record<string, any>>({});
   const [formError, setFormError] = useState<string>('');
+
+  const isShoeFlow = category.toLowerCase().includes('shoe');
+  const isShoeProduct = selectedProduct?.category?.toLowerCase().includes('shoe') || isShoeFlow;
 
   // Persist selection to sessionStorage
   useEffect(() => {
@@ -529,9 +533,29 @@ export function SelectionFlow({
                 {selection.school?.name} · {selection.city?.name}
               </small>
             </div>
-            <button className="text-button" onClick={handleReset}>
-              Edit selection ✎
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {isShoeFlow && (
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => setShowSizeGuide(true)}
+                  style={{
+                    fontSize: '13px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    textDecoration: 'underline',
+                    color: '#275b4c',
+                    fontWeight: 600,
+                  }}
+                >
+                  📏 Shoe Size Guide
+                </button>
+              )}
+              <button className="text-button" onClick={handleReset} style={{ fontSize: '13px', fontWeight: 600 }}>
+                Change ✎
+              </button>
+            </div>
           </div>
 
           {/* Gender Filter: Male, Female, All */}
@@ -599,7 +623,7 @@ export function SelectionFlow({
                 return (
                   <article className="product" key={p.id}>
                     <div className={'product-image ' + p.category.toLowerCase().replace(' ', '-')}>
-                      {p.category === 'Shoes' ? '◒' : p.category === 'Stationery' ? '▤' : p.category === 'ID Cards' ? '▧' : '▥'}
+                      {p.category.toLowerCase().includes('shoe') ? '👞' : p.category === 'Stationery' ? '▤' : p.category === 'ID Cards' ? '▧' : '▥'}
                     </div>
                     <div className="product-body">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -617,6 +641,22 @@ export function SelectionFlow({
                       </div>
                       <h3>{p.name}</h3>
                       <strong>₹{p.price.toLocaleString('en-IN')}</strong>
+
+                      {p.category.toLowerCase().includes('shoe') && (
+                        <div style={{ marginTop: '4px' }}>
+                          <button
+                            type="button"
+                            className="text-button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowSizeGuide(true);
+                            }}
+                            style={{ fontSize: '11px', color: '#275b4c', padding: 0, textDecoration: 'underline' }}
+                          >
+                            📏 Shoe Size Guide
+                          </button>
+                        </div>
+                      )}
 
                       {publicView ? (
                         <button
@@ -665,29 +705,40 @@ export function SelectionFlow({
             </div>
 
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'grid', gap: '6px', fontSize: '12px', color: '#5c6b61', fontWeight: 600 }}>
-                <span>
-                  Select Size / Variant <span style={{ color: '#a34235' }}>*</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <span style={{ fontSize: '12px', color: '#5c6b61', fontWeight: 600 }}>
+                  {isShoeProduct ? 'Select Shoe Size (UK / India)' : 'Select Size / Variant'} <span style={{ color: '#a34235' }}>*</span>
                 </span>
-                <select
-                  value={selectedVariantId}
-                  onChange={(e) => setSelectedVariantId(e.target.value)}
-                  style={{
-                    border: '1px solid #c9d4c9',
-                    borderRadius: '8px',
-                    padding: '10px',
-                    fontSize: '13px',
-                    background: '#fff',
-                  }}
-                >
-                  <option value="">-- Choose size --</option>
-                  {selectedProduct.variants.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      Size: {v.size} ({v.stock_status || 'In stock'})
-                    </option>
-                  ))}
-                </select>
-              </label>
+                {isShoeProduct && (
+                  <button
+                    type="button"
+                    onClick={() => setShowSizeGuide(true)}
+                    className="text-button"
+                    style={{ fontSize: '11px', textDecoration: 'underline', color: '#275b4c', padding: 0 }}
+                  >
+                    📏 View Size Guide
+                  </button>
+                )}
+              </div>
+              <select
+                value={selectedVariantId}
+                onChange={(e) => setSelectedVariantId(e.target.value)}
+                style={{
+                  width: '100%',
+                  border: '1px solid #c9d4c9',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  fontSize: '13px',
+                  background: '#fff',
+                }}
+              >
+                <option value="">{isShoeProduct ? '-- Choose shoe size (UK) --' : '-- Choose size --'}</option>
+                {selectedProduct.variants.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {isShoeProduct && !v.size.toLowerCase().includes('size') ? `Shoe Size ${v.size}` : `Size: ${v.size}`} ({v.stock_status || 'In stock'})
+                  </option>
+                ))}
+              </select>
             </div>
 
             {schemaList.length > 0 && (
@@ -723,6 +774,102 @@ export function SelectionFlow({
               </button>
               <button className="primary" onClick={handleAddToCart}>
                 Confirm & Add
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shoe Size Guide Modal */}
+      {showSizeGuide && (
+        <div className="modal-backdrop" onClick={() => setShowSizeGuide(false)} style={{ zIndex: 1100 }}>
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: 'min(640px, 95vw)', padding: '24px', maxHeight: '90vh', overflowY: 'auto' }}
+          >
+            <div className="card-head" style={{ marginBottom: '16px' }}>
+              <div>
+                <span className="eyebrow">FIT & SIZING</span>
+                <h2 style={{ margin: '4px 0 0' }}>School Shoe Size Guide (UK / India)</h2>
+                <div className="muted" style={{ fontSize: '12px' }}>
+                  Standard Indian School Shoe Sizing (Bata, Action, Liberty, Campus standards)
+                </div>
+              </div>
+              <button className="icon-btn" onClick={() => setShowSizeGuide(false)}>
+                ✕
+              </button>
+            </div>
+
+            <div
+              style={{
+                background: '#f4f8f5',
+                border: '1px solid #d2e4d8',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                fontSize: '12px',
+                color: '#275b4c',
+                lineHeight: 1.5,
+                marginBottom: '16px',
+              }}
+            >
+              <strong>💡 How to measure your child's feet:</strong>
+              <ol style={{ margin: '6px 0 0 18px', padding: 0 }}>
+                <li>Place a sheet of paper on the floor against a flat wall.</li>
+                <li>Have your child stand on the paper wearing their normal school socks with their heel against the wall.</li>
+                <li>Mark the longest toe on the paper and measure the distance from the heel in centimetres.</li>
+                <li><strong>Add 5mm to 10mm (approx. half a size)</strong> for growth room and comfortable movement.</li>
+              </ol>
+            </div>
+
+            <div style={{ overflowX: 'auto', marginBottom: '16px' }}>
+              <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ background: '#f8faf9', borderBottom: '2px solid #dfe5dd' }}>
+                    <th style={{ padding: '8px 10px', color: '#17221f' }}>UK / India Size</th>
+                    <th style={{ padding: '8px 10px', color: '#17221f' }}>Foot Length</th>
+                    <th style={{ padding: '8px 10px', color: '#17221f' }}>Euro (EU)</th>
+                    <th style={{ padding: '8px 10px', color: '#17221f' }}>Recommended Grades</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { uk: 'UK 9 (Kids)', len: '16.5 cm', eu: '27', grades: 'Nursery' },
+                    { uk: 'UK 10 (Kids)', len: '17.3 cm', eu: '28', grades: 'Junior KG' },
+                    { uk: 'UK 11 (Kids)', len: '18.1 cm', eu: '29', grades: 'Senior KG' },
+                    { uk: 'UK 12 (Kids)', len: '18.9 cm', eu: '31', grades: 'Grade 1' },
+                    { uk: 'UK 13 (Kids)', len: '19.7 cm', eu: '32', grades: 'Grade 2' },
+                    { uk: 'UK 1', len: '20.5 cm', eu: '33', grades: 'Grade 3' },
+                    { uk: 'UK 2', len: '21.4 cm', eu: '34', grades: 'Grade 4' },
+                    { uk: 'UK 3', len: '22.2 cm', eu: '35', grades: 'Grade 5' },
+                    { uk: 'UK 4', len: '23.0 cm', eu: '37', grades: 'Grade 6' },
+                    { uk: 'UK 5', len: '23.8 cm', eu: '38', grades: 'Grade 7' },
+                    { uk: 'UK 6', len: '24.6 cm', eu: '39', grades: 'Grade 8 - 9' },
+                    { uk: 'UK 7', len: '25.4 cm', eu: '40', grades: 'Grade 9 - 10' },
+                    { uk: 'UK 8', len: '26.2 cm', eu: '42', grades: 'Grade 11' },
+                    { uk: 'UK 9', len: '27.0 cm', eu: '43', grades: 'Grade 12' },
+                    { uk: 'UK 10', len: '27.8 cm', eu: '44', grades: 'Senior / High School' },
+                  ].map((row, i) => (
+                    <tr
+                      key={row.uk}
+                      style={{
+                        borderBottom: '1px solid #edf1ee',
+                        background: i % 2 === 0 ? '#ffffff' : '#fafbf8',
+                      }}
+                    >
+                      <td style={{ padding: '8px 10px', fontWeight: 600, color: '#275b4c' }}>{row.uk}</td>
+                      <td style={{ padding: '8px 10px', color: '#4b5563' }}>{row.len}</td>
+                      <td style={{ padding: '8px 10px', color: '#4b5563' }}>{row.eu}</td>
+                      <td style={{ padding: '8px 10px', color: '#6b7280' }}>{row.grades}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="primary" onClick={() => setShowSizeGuide(false)} style={{ padding: '8px 18px', fontSize: '13px' }}>
+                Close Size Guide
               </button>
             </div>
           </div>

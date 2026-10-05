@@ -94,8 +94,12 @@ def build_school_catalogue(school_id, category=None) -> list[dict]:
     else:
         qs = qs.filter(school__isnull=True)
     if category:
+        cat_str = str(category).strip()
         qs = qs.filter(
-            Q(category__slug__iexact=str(category)) | Q(category__name__iexact=str(category))
+            Q(category__slug__iexact=cat_str)
+            | Q(category__name__iexact=cat_str)
+            | Q(category__slug__icontains=cat_str)
+            | Q(category__name__icontains=cat_str)
         )
 
     return [
@@ -145,7 +149,7 @@ def get_school_catalogue(school_id, category=None) -> list[dict]:
 
 def entry_matches_student(entry: dict, class_number, gender) -> bool:
     """Class-range and gender targeting for one cached catalogue entry."""
-    if entry["gender"] != Product.Gender.UNISEX and entry["gender"] != gender:
+    if entry["gender"] not in (Product.Gender.BOTH, "BOTH", "UNISEX") and entry["gender"] != gender:
         return False
     class_from = entry.get("class_from")
     class_to = entry.get("class_to")
