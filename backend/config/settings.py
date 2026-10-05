@@ -178,7 +178,11 @@ DATABASES = {
         "OPTIONS": {},
     }
 }
-if os.environ.get("USE_SQLITE") == "1":
+USE_SQLITE_MODE = os.environ.get("USE_SQLITE") == "1" or (
+    not os.environ.get("DATABASE_URL") and not os.environ.get("POSTGRES_HOST")
+)
+
+if USE_SQLITE_MODE and "test" not in sys.argv:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -194,7 +198,7 @@ elif "test" in sys.argv and not os.environ.get("USE_POSTGRES_FOR_TESTS"):
     }
 elif os.environ.get("DATABASE_URL"):
     DATABASES["default"].update(_database_from_url(os.environ["DATABASE_URL"]))
-if _pool_options and "test" not in sys.argv and os.environ.get("USE_SQLITE") != "1":
+if _pool_options and "test" not in sys.argv and not USE_SQLITE_MODE:
     DATABASES["default"]["OPTIONS"]["pool"] = _pool_options
 
 # Redis Cache (Rule P8 - catalogue and school lists with explicit invalidation)
@@ -221,7 +225,11 @@ CATALOG_THUMBNAIL_TEMPLATE = os.environ.get(
 RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 
-if "test" in sys.argv or os.environ.get("USE_LOCMEM_CACHE") == "1":
+if (
+    "test" in sys.argv
+    or os.environ.get("USE_LOCMEM_CACHE") == "1"
+    or (USE_SQLITE_MODE and not os.environ.get("REDIS_URL"))
+):
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
@@ -252,8 +260,10 @@ CELERY_TIMEZONE = "Asia/Kolkata"
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 600
 # Tests run background jobs inline so HTTP + job behaviour can be asserted together.
-CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "0") == "1" or (
-    "test" in sys.argv
+CELERY_TASK_ALWAYS_EAGER = (
+    os.environ.get("CELERY_TASK_ALWAYS_EAGER", "0") == "1"
+    or ("test" in sys.argv)
+    or (USE_SQLITE_MODE and not os.environ.get("REDIS_URL"))
 )
 CELERY_TASK_EAGER_PROPAGATES = CELERY_TASK_ALWAYS_EAGER
 

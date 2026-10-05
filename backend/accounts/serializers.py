@@ -263,6 +263,18 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
+        login_ident = (attrs.get(self.username_field) or "").strip()
+        if login_ident:
+            digits_only = "".join(ch for ch in login_ident if ch.isdigit())
+            user = (
+                User.objects.filter(username__iexact=login_ident).first()
+                or User.objects.filter(phone=login_ident).first()
+                or (User.objects.filter(phone=digits_only).first() if digits_only else None)
+                or (User.objects.filter(phone=digits_only[-10:]).first() if len(digits_only) >= 10 else None)
+            )
+            if user:
+                attrs[self.username_field] = user.username
+
         data = super().validate(attrs)
         data["user"] = UserSerializer(self.user).data
         return data
