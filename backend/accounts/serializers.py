@@ -56,7 +56,7 @@ class ManagedUserWriteSerializer(serializers.ModelSerializer):
     - School Admins create Teacher logins for their own school.
     """
 
-    password = serializers.CharField(write_only=True, required=True, min_length=6)
+    password = serializers.CharField(write_only=True, required=False, min_length=6, allow_blank=True)
     role = serializers.ChoiceField(choices=User.Role.choices, required=False)
     city = serializers.PrimaryKeyRelatedField(
         queryset=City.objects.all(), required=False, allow_null=True
@@ -144,7 +144,9 @@ class ManagedUserWriteSerializer(serializers.ModelSerializer):
         raise PermissionDenied("You do not have permission to create staff accounts.")
 
     def create(self, validated_data):
-        password = validated_data.pop("password")
+        password = validated_data.pop("password", None)
+        if not password:
+            raise serializers.ValidationError({"password": "Password is required when creating an account."})
         role = validated_data.get("role")
         validated_data["is_staff"] = role in (User.Role.BOSS, User.Role.ADMIN)
         validated_data["is_superuser"] = role == User.Role.BOSS
@@ -153,6 +155,16 @@ class ManagedUserWriteSerializer(serializers.ModelSerializer):
         user.must_change_password = True
         user.save()
         return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop("password", None)
+        for attr, val in validated_data.items():
+            setattr(instance, attr, val)
+        if password:
+            instance.set_password(password)
+            instance.must_change_password = True
+        instance.save()
+        return instance
 
 
 class ParentRegistrationSerializer(serializers.Serializer):

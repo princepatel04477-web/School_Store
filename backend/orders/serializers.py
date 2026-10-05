@@ -18,6 +18,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     variant_sku = serializers.CharField(source="variant.sku", read_only=True)
     variant_size = serializers.CharField(source="variant.size", read_only=True)
     product_name = serializers.CharField(source="variant.product.name", read_only=True)
+    customisation_display = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
@@ -31,6 +32,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "quantity",
             "unit_price_snapshot",
             "customisation_data",
+            "customisation_display",
         )
         read_only_fields = (
             "id",
@@ -39,7 +41,50 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "product_name",
             "category",
             "unit_price_snapshot",
+            "customisation_display",
         )
+
+    def get_customisation_display(self, obj):
+        """
+        Returns customisation details formatted for viewing with signed expiring URLs
+        for private images. Only authorized actors (order's parent, student, or staff)
+        can receive signed URLs.
+        """
+        if not obj.customisation_data:
+            return {}
+
+        from .storage import generate_presigned_download
+
+        display = {}
+        schema_fields = []
+        schema = getattr(obj.variant.product, "customisation_schema", None)
+        if isinstance(schema, list):
+            schema_fields = schema
+        elif isinstance(schema, dict) and "fields" in schema:
+            schema_fields = schema["fields"]
+
+        field_types = {f["key"]: f.get("type", "text") for f in schema_fields if isinstance(f, dict) and "key" in f}
+
+        for k, v in obj.customisation_data.items():
+            if k.endswith(("_print", "_thumb", "_status", "_error", "_width", "_height")):
+                continue
+            ftype = field_types.get(k, "image" if ("photo" in k or "image" in k or "cover" in k) else "text")
+            if ftype in ("image", "image_url") and isinstance(v, str) and v.startswith("customisations/"):
+                # Generate signed expiring download URL
+                thumb_key = obj.customisation_data.get(f"{k}_thumb") or v
+                print_key = obj.customisation_data.get(f"{k}_print") or v
+                display[k] = {
+                    "type": "image",
+                    "file_key": v,
+                    "url": generate_presigned_download(thumb_key),
+                    "full_url": generate_presigned_download(print_key),
+                    "original_url": generate_presigned_download(v),
+                    "status": obj.customisation_data.get(f"{k}_status", "PENDING"),
+                }
+            else:
+                display[k] = {"type": ftype, "value": v}
+
+        return display
 
 
 class OrderStatusEventSerializer(serializers.ModelSerializer):
@@ -352,6 +397,16 @@ class OrderCreateSerializer(serializers.Serializer):
             note="Order placed.",
         )
 
+        # Dispatch image processing tasks for items with uploaded images
+        from .image_tasks import process_customisation_image
+        for oi in order_items:
+            cdata = oi.customisation_data or {}
+            for f_key, f_val in cdata.items():
+                if isinstance(f_val, str) and f_val.startswith("customisations/"):
+                    transaction.on_commit(
+                        lambda item_id=str(oi.id), key=f_key: process_customisation_image.delay(item_id, key)
+                    )
+
         # Slow side effects are dispatched after the transaction commits.
         from .tasks import (
             refresh_order_summary,
@@ -377,41 +432,104 @@ class OrderCreateSerializer(serializers.Serializer):
     @staticmethod
     def _validate_customisation(schema, data):
         if not data:
-            if schema and schema.get("required"):
+            if not schema:
+                return
+            # Check if required in schema list or dict
+            if isinstance(schema, list):
+                if any(f.get("required") for f in schema if isinstance(f, dict)):
+                    raise serializers.ValidationError(
+                        {"customisation_data": "Required customisation is missing."}
+                    )
+            elif isinstance(schema, dict) and schema.get("required"):
                 raise serializers.ValidationError(
                     {"customisation_data": "Required customisation is missing."}
                 )
             return
-        if schema.get("type") == "object" and not isinstance(data, dict):
+
+        if not isinstance(data, dict):
             raise serializers.ValidationError(
                 {"customisation_data": "Must be an object."}
             )
-        required = schema.get("required", [])
-        missing = [key for key in required if key not in data]
-        if missing:
-            raise serializers.ValidationError(
-                {"customisation_data": f"Missing fields: {', '.join(missing)}"}
-            )
-        properties = schema.get("properties", {})
-        if schema.get("additionalProperties") is False:
-            unknown = set(data) - set(properties)
-            if unknown:
+
+        # Enforce small payload size (keys and short text only, no raw bytes or base64)
+        for key, val in data.items():
+            if isinstance(val, str) and (val.startswith("data:image") or len(val) > 2000):
                 raise serializers.ValidationError(
-                    {"customisation_data": f"Unknown fields: {', '.join(unknown)}"}
+                    {"customisation_data": f"Field '{key}' is too large or contains base64 image data. Upload image via object storage URL."}
                 )
-        for key, rules in properties.items():
-            if key not in data:
-                continue
-            expected = rules.get("type")
-            valid = {
-                "string": isinstance(data[key], str),
-                "number": isinstance(data[key], (int, float)),
-                "integer": isinstance(data[key], int) and not isinstance(data[key], bool),
-                "boolean": isinstance(data[key], bool),
-                "array": isinstance(data[key], list),
-                "object": isinstance(data[key], dict),
-            }
-            if expected in valid and not valid[expected]:
+
+        if not schema:
+            return
+
+        # Handle list format schema: [ { "key": "...", "label": "...", "type": "text"|"select"|"image", "required": true, ... } ]
+        if isinstance(schema, list):
+            fields_by_key = {f["key"]: f for f in schema if isinstance(f, dict) and "key" in f}
+            # Check required fields
+            missing = [
+                f["key"]
+                for f in schema
+                if isinstance(f, dict) and f.get("required") and (f["key"] not in data or data[f["key"]] in (None, ""))
+            ]
+            if missing:
                 raise serializers.ValidationError(
-                    {"customisation_data": f"Invalid type for {key}."}
+                    {"customisation_data": f"Missing required fields: {', '.join(missing)}"}
                 )
+
+            # Validate each field type and limits
+            for key, val in data.items():
+                rule = fields_by_key.get(key)
+                if not rule:
+                    continue
+                ftype = rule.get("type", "text")
+                if ftype == "text":
+                    if not isinstance(val, str):
+                        raise serializers.ValidationError({"customisation_data": f"Field '{key}' must be text."})
+                    max_len = rule.get("max_length", 200)
+                    if len(val) > max_len:
+                        raise serializers.ValidationError({"customisation_data": f"Field '{key}' exceeds max length {max_len}."})
+                elif ftype == "select":
+                    options = rule.get("options", [])
+                    if options and str(val) not in [str(o) for o in options]:
+                        raise serializers.ValidationError({"customisation_data": f"Invalid option '{val}' for '{key}'. Valid options: {options}"})
+                elif ftype in ("image", "image_url"):
+                    if not isinstance(val, str) or not val.strip():
+                        raise serializers.ValidationError({"customisation_data": f"Field '{key}' must be a valid image file key."})
+                    if not val.startswith("customisations/"):
+                        raise serializers.ValidationError({"customisation_data": f"Field '{key}' must be an uploaded object storage key."})
+            return
+
+        # Traditional JSON Schema format: { "type": "object", "properties": {...}, "required": [...] }
+        if isinstance(schema, dict):
+            if "fields" in schema and isinstance(schema["fields"], list):
+                # Wrapped list format
+                return OrderCreateSerializer._validate_customisation(schema["fields"], data)
+
+            required = schema.get("required", [])
+            missing = [key for key in required if key not in data or data[key] in (None, "")]
+            if missing:
+                raise serializers.ValidationError(
+                    {"customisation_data": f"Missing fields: {', '.join(missing)}"}
+                )
+            properties = schema.get("properties", {})
+            if schema.get("additionalProperties") is False:
+                unknown = set(data) - set(properties)
+                if unknown:
+                    raise serializers.ValidationError(
+                        {"customisation_data": f"Unknown fields: {', '.join(unknown)}"}
+                    )
+            for key, rules in properties.items():
+                if key not in data:
+                    continue
+                expected = rules.get("type")
+                valid = {
+                    "string": isinstance(data[key], str),
+                    "number": isinstance(data[key], (int, float)),
+                    "integer": isinstance(data[key], int) and not isinstance(data[key], bool),
+                    "boolean": isinstance(data[key], bool),
+                    "array": isinstance(data[key], list),
+                    "object": isinstance(data[key], dict),
+                }
+                if expected in valid and not valid[expected]:
+                    raise serializers.ValidationError(
+                        {"customisation_data": f"Invalid type for {key}."}
+                    )

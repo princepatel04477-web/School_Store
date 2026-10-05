@@ -23,17 +23,17 @@ class ProductAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "category",
+        "product_type",
         "school",
         "gender",
-        "class_from",
-        "class_to",
         "cost_price",
         "selling_price",
         "active",
         "created_at",
     )
-    list_filter = ("active", "category", "school", "gender")
+    list_filter = ("active", "category", "product_type", "school", "gender")
     search_fields = ("name", "description")
+    filter_horizontal = ("grades",)
     readonly_fields = ("id", "created_at", "updated_at")
     list_select_related = ("category", "school")
     inlines = [ProductVariantInline]

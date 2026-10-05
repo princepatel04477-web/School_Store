@@ -31,14 +31,20 @@ class Migration(migrations.Migration):
             index=models.Index(fields=['student', 'created_at', 'id'], name='idx_order_student_created_id'),
         ),
         # Backfill the denormalised class with ONE set-based UPDATE, never row by row.
-        migrations.RunSQL(
-            sql="""
-                UPDATE orders_order AS o
-                   SET student_class = s."class"
-                  FROM schools_student AS s
-                 WHERE s.id = o.student_id
-                   AND o.student_class <> s."class";
-            """,
-            reverse_sql=migrations.RunSQL.noop,
+        migrations.RunPython(
+            code=lambda apps, schema_editor: (
+                schema_editor.execute(
+                    """
+                    UPDATE orders_order AS o
+                       SET student_class = s."class"
+                      FROM schools_student AS s
+                     WHERE s.id = o.student_id
+                       AND o.student_class <> s."class";
+                    """
+                )
+                if schema_editor.connection.vendor == "postgresql"
+                else None
+            ),
+            reverse_code=lambda apps, schema_editor: None,
         ),
     ]

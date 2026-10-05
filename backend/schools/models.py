@@ -29,10 +29,28 @@ class City(UUIDModel):
         return f"{self.name} ({self.code})"
 
 
+class Grade(UUIDModel):
+    """
+    Fixed, ordered list of grades (sort_order):
+    Nursery, Junior KG, Senior KG, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12.
+    Always sorted by sort_order, never alphabetically.
+    """
+    name = models.CharField(max_length=50, unique=True)
+    sort_order = models.PositiveSmallIntegerField(unique=True, db_index=True)
+
+    class Meta:
+        ordering = ["sort_order"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class School(UUIDModel):
     city = models.ForeignKey(
         City,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name="schools",
     )
     name = models.CharField(max_length=200)
@@ -83,11 +101,46 @@ class School(UUIDModel):
         return f"{self.name} [{self.code}]"
 
 
+class SchoolBranch(UUIDModel):
+    """
+    Branch linking a school to a city:
+    School unique (school, city) and indexed on (city).
+    """
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="branches",
+    )
+    city = models.ForeignKey(
+        City,
+        on_delete=models.PROTECT,
+        related_name="school_branches",
+    )
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "School Branches"
+        ordering = ["school", "city"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "city"],
+                name="uniq_schoolbranch_school_city",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["city"], name="idx_schoolbranch_city"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.school.name} - {self.city.name}"
+
+
 class Student(UUIDModel):
     class Gender(models.TextChoices):
         MALE = "MALE", "Male"
         FEMALE = "FEMALE", "Female"
-        OTHER = "OTHER", "Other"
 
     class ApprovalStatus(models.TextChoices):
         PENDING = "PENDING", "Pending School Admin approval"
@@ -100,7 +153,14 @@ class Student(UUIDModel):
 
     name = models.CharField(max_length=150)
     gr_number = models.CharField(max_length=50)
-    class_name = models.CharField(max_length=30, db_column="class")
+    grade = models.ForeignKey(
+        Grade,
+        on_delete=models.PROTECT,
+        related_name="students",
+        null=True,
+        blank=True,
+    )
+    class_name = models.CharField(max_length=30, db_column="class", blank=True, default="")
     section = models.CharField(max_length=20)
     gender = models.CharField(
         max_length=16,
@@ -115,6 +175,13 @@ class Student(UUIDModel):
     school = models.ForeignKey(
         School,
         on_delete=models.CASCADE,
+        related_name="students",
+    )
+    branch = models.ForeignKey(
+        SchoolBranch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="students",
     )
     # Denormalised city_id so Admin scope filter is a single WHERE on Student.city_id
@@ -147,7 +214,7 @@ class Student(UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["school_id", "class_name", "section", "name"]
+        ordering = ["school_id", "grade__sort_order", "section", "name"]
         constraints = [
             models.UniqueConstraint(
                 fields=["school", "gr_number"],
@@ -156,8 +223,8 @@ class Student(UUIDModel):
         ]
         indexes = [
             models.Index(
-                fields=["school", "class_name", "section"],
-                name="idx_student_school_cls_sec",
+                fields=["school", "grade", "section"],
+                name="idx_student_school_grd_sec",
             ),
             models.Index(
                 fields=["parent"],
@@ -171,16 +238,16 @@ class Student(UUIDModel):
                 fields=["school", "approval_status"],
                 name="idx_student_school_approval",
             ),
-            # Admin roster: WHERE school_id = ? ORDER BY class, section, name, id
-            # (cursor pagination, no sort node, no COUNT(*) over the school).
             models.Index(
-                fields=["school", "class_name", "section", "name", "id"],
-                name="idx_student_school_roster",
+                fields=["branch"],
+                name="idx_student_branch",
             ),
         ]
 
     @property
     def student_class(self) -> str:
+        if self.grade:
+            return self.grade.name
         return self.class_name
 
     @student_class.setter
@@ -188,10 +255,19 @@ class Student(UUIDModel):
         self.class_name = value
 
     def save(self, *args, **kwargs):
-        if self.school_id:
+        if self.branch_id:
+            self.city_id = self.branch.city_id
+            self.school_id = self.branch.school_id
+        elif self.school_id and not self.city_id:
             self.city_id = self.school.city_id
-            if kwargs.get("update_fields") is not None:
-                kwargs["update_fields"] = set(kwargs["update_fields"]) | {"city"}
+
+        if self.grade and not self.class_name:
+            self.class_name = self.grade.name
+        elif self.class_name and not self.grade_id:
+            # Match existing grade by name if available
+            gr = Grade.objects.filter(name__iexact=self.class_name).first()
+            if gr:
+                self.grade = gr
 
         update_fields = kwargs.get("update_fields")
         parent_may_have_changed = update_fields is None or bool(
@@ -203,16 +279,13 @@ class Student(UUIDModel):
                 from orders.models import Order
 
                 if parent_may_have_changed:
-                    # Parent-scoped order lists use a denormalized indexed FK. Keep
-                    # earlier teacher orders visible if a parent link is added later.
                     Order.objects.filter(student_id=self.pk).exclude(
                         parent_id=self.parent_id
                     ).update(parent_id=self.parent_id)
-                # Keep the denormalised class copy used by the admin orders
-                # filter in sync when a child is promoted to the next class.
+                effective_class = self.grade.name if self.grade else self.class_name
                 Order.objects.filter(student_id=self.pk).exclude(
-                    student_class=self.class_name
-                ).update(student_class=self.class_name)
+                    student_class=effective_class
+                ).update(student_class=effective_class)
 
     def __str__(self) -> str:
         return f"{self.name} (GR: {self.gr_number} - {self.school.code})"

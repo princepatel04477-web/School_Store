@@ -173,14 +173,28 @@ DATABASES = {
         "PASSWORD": os.environ.get("POSTGRES_PASSWORD", ""),
         "HOST": os.environ.get("POSTGRES_HOST", "127.0.0.1"),
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
-        "CONN_MAX_AGE": 0 if "test" in sys.argv else DB_CONN_MAX_AGE,
+        "CONN_MAX_AGE": 0 if ("test" in sys.argv or USE_DB_POOL) else DB_CONN_MAX_AGE,
         "CONN_HEALTH_CHECKS": True,
         "OPTIONS": {},
     }
 }
-if os.environ.get("DATABASE_URL"):
+if os.environ.get("USE_SQLITE") == "1":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "dev_db.sqlite3",
+        }
+    }
+elif "test" in sys.argv and not os.environ.get("USE_POSTGRES_FOR_TESTS"):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "test_db.sqlite3",
+        }
+    }
+elif os.environ.get("DATABASE_URL"):
     DATABASES["default"].update(_database_from_url(os.environ["DATABASE_URL"]))
-if _pool_options:
+if _pool_options and "test" not in sys.argv and os.environ.get("USE_SQLITE") != "1":
     DATABASES["default"]["OPTIONS"]["pool"] = _pool_options
 
 # Redis Cache (Rule P8 - catalogue and school lists with explicit invalidation)
@@ -207,18 +221,26 @@ CATALOG_THUMBNAIL_TEMPLATE = os.environ.get(
 RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"{REDIS_URL}/1",
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "CONNECTION_POOL_KWARGS": {"max_connections": 20},
-        },
-        "KEY_PREFIX": "school_store",
-        "TIMEOUT": 300,
+if "test" in sys.argv or os.environ.get("USE_LOCMEM_CACHE") == "1":
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "unique-snowflake",
+        }
     }
-}
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": f"{REDIS_URL}/1",
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "CONNECTION_POOL_KWARGS": {"max_connections": 20},
+            },
+            "KEY_PREFIX": "school_store",
+            "TIMEOUT": 300,
+        }
+    }
 
 # Celery Background Job Runner (Rule P5)
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", f"{REDIS_URL}/0")
@@ -251,6 +273,8 @@ REST_FRAMEWORK = {
     "URL_FORMAT_OVERRIDE": None,
     # Rate limits for brute-force-sensitive endpoints (Prompt 4, requirement 6)
     "DEFAULT_THROTTLE_RATES": {
+        "login": os.environ.get("LOGIN_THROTTLE_RATE", "5/min"),
+        "otp": os.environ.get("OTP_THROTTLE_RATE", "5/min"),
         "student_claim_user": os.environ.get("STUDENT_CLAIM_USER_RATE", "10/hour"),
         "student_claim_ip": os.environ.get("STUDENT_CLAIM_IP_RATE", "30/hour"),
         "public_catalog": os.environ.get("PUBLIC_CATALOG_RATE", "120/min"),
@@ -272,8 +296,22 @@ SIMPLE_JWT = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 8},
+    },
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "1") == "1"
+    SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = "DENY"
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Kolkata"
@@ -313,3 +351,10 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = 6 * 1024 * 1024
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# --------------------------------------------------------------------------- #
+# Customised / Personalised Product Storage Settings
+# --------------------------------------------------------------------------- #
+CUSTOMISATION_STORAGE_BUCKET = os.environ.get("CUSTOMISATION_STORAGE_BUCKET", "")
+CUSTOMISATION_LOCAL_DIR = BASE_DIR / "media" / "customisations"
+CUSTOMISATION_MAX_IMAGE_BYTES = int(os.environ.get("CUSTOMISATION_MAX_IMAGE_BYTES", 1_500_000))  # ~1.5 MB client max

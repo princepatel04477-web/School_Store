@@ -22,6 +22,7 @@ class OrderAdmin(admin.ModelAdmin):
         "order_number",
         "student",
         "school",
+        "branch",
         "city",
         "placed_by",
         "placed_by_role",
@@ -32,11 +33,11 @@ class OrderAdmin(admin.ModelAdmin):
         "total",
         "created_at",
     )
-    list_filter = ("status", "payment_status", "placed_by_role", "city", "school")
+    list_filter = ("status", "payment_status", "placed_by_role", "city", "school", "branch")
     search_fields = ("order_number", "student__name", "student__gr_number")
     readonly_fields = ("id", "created_at", "updated_at")
-    raw_id_fields = ("placed_by", "payer", "student", "school", "city")
-    list_select_related = ("student", "school", "city", "placed_by", "payer")
+    raw_id_fields = ("placed_by", "payer", "student", "school", "branch", "city")
+    list_select_related = ("student", "school", "branch", "city", "placed_by", "payer")
     show_full_result_count = False
     inlines = [OrderItemInline, OrderStatusEventInline]
 

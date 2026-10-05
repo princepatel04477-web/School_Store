@@ -163,6 +163,47 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             qs = qs.filter(approval_status=Student.ApprovalStatus.PENDING)
         return qs
 
+    def check_permissions(self, request):
+        if request.user.is_authenticated and request.user.role == User.Role.PARENT:
+            if request.method not in ("GET", "HEAD", "OPTIONS") and self.action not in ("claim", "manual_add"):
+                raise PermissionDenied("Student details are view-only for parents. Contact your school to correct this.")
+        super().check_permissions(request)
+
+    def create(self, request, *args, **kwargs):
+        if request.user.role == User.Role.PARENT:
+            raise PermissionDenied("Parents cannot create students directly. Contact your school to correct this.")
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        if request.user.role == User.Role.PARENT:
+            raise PermissionDenied("Student details are view-only for parents. Contact your school to correct this.")
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        if request.user.role == User.Role.PARENT:
+            raise PermissionDenied("Student details are view-only for parents. Contact your school to correct this.")
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if request.user.role == User.Role.PARENT:
+            raise PermissionDenied("Parents cannot delete students. Contact your school to correct this.")
+        return super().destroy(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        if self.request.user.role == User.Role.PARENT:
+            raise PermissionDenied("Parents cannot create students directly. Contact your school to correct this.")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        if self.request.user.role == User.Role.PARENT:
+            raise PermissionDenied("Student details are view-only for parents. Contact your school to correct this.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if self.request.user.role == User.Role.PARENT:
+            raise PermissionDenied("Parents cannot delete students. Contact your school to correct this.")
+        instance.delete()
+
     # ------------------------------------------------------------------ #
     # Permissions / throttles for the parent-facing actions
     # ------------------------------------------------------------------ #

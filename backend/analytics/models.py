@@ -52,6 +52,15 @@ class DailySalesSummary(UUIDModel):
                 fields=["school", "date"],
                 name="idx_dailysales_school_date",
             ),
+            # Boss panel composite filters: (date, city, school, category)
+            models.Index(
+                fields=["date", "school", "category"],
+                name="idx_dailysales_dt_sch_cat",
+            ),
+            models.Index(
+                fields=["date", "category"],
+                name="idx_dailysales_dt_cat",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -108,3 +117,72 @@ class DailySchoolTotal(UUIDModel):
 
     def __str__(self) -> str:
         return f"{self.date} | {self.school.code} | {self.orders} orders | ₹{self.revenue}"
+
+
+class DailyProductTotal(UUIDModel):
+    """
+    Requirement 5: Top products summary table keyed by (date, product).
+    Maintained incrementally by order/cancel events, nightly 7-day rebuild,
+    and the full backfill command.
+    """
+
+    date = models.DateField()
+    product = models.ForeignKey(
+        "catalog.Product",
+        on_delete=models.CASCADE,
+        related_name="daily_totals",
+    )
+    category = models.ForeignKey(
+        "catalog.Category",
+        on_delete=models.CASCADE,
+        related_name="daily_product_totals",
+    )
+    school = models.ForeignKey(
+        "schools.School",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="daily_product_totals",
+    )
+    city = models.ForeignKey(
+        "schools.City",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="daily_product_totals",
+    )
+    units = models.PositiveIntegerField(default=0)
+    revenue = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    cost = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+
+    class Meta:
+        verbose_name_plural = "Daily Product Totals"
+        ordering = ["-date"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["date", "product"],
+                name="uniq_dailyprodtotal_date_prod",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["date", "product"],
+                name="idx_dailyprod_date_prod",
+            ),
+            models.Index(
+                fields=["date", "category"],
+                name="idx_dailyprod_date_cat",
+            ),
+            models.Index(
+                fields=["date", "city"],
+                name="idx_dailyprod_date_city",
+            ),
+            models.Index(
+                fields=["date", "school"],
+                name="idx_dailyprod_date_school",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.date} | {self.product.name} | {self.units} units | ₹{self.revenue}"
+

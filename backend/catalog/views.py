@@ -65,6 +65,29 @@ class ProductViewSet(
             qs = qs.filter(school_id=school_id)
         return qs
 
+    def perform_update(self, serializer):
+        old_price = serializer.instance.selling_price
+        old_cost = serializer.instance.cost_price
+        prod = serializer.save()
+        if prod.selling_price != old_price or prod.cost_price != old_cost:
+            from common.audit import log_audit_event
+            from common.models import AuditLog
+            log_audit_event(
+                action=AuditLog.Action.PRICE_CHANGED,
+                target_type="Product",
+                target_id=prod.pk,
+                actor=self.request.user,
+                details={
+                    "name": prod.name,
+                    "old_price": str(old_price),
+                    "new_price": str(prod.selling_price),
+                    "old_cost_price": str(old_cost),
+                    "new_cost_price": str(prod.cost_price),
+                },
+                request=self.request,
+            )
+
+
 
 class ProductVariantViewSet(
     VersionedListCacheMixin,
@@ -86,3 +109,26 @@ class ProductVariantViewSet(
     scope_school_field = "school_id"
     scope_parent_field = None
     include_null_scope_for_catalog = False
+
+    def perform_update(self, serializer):
+        old_price = serializer.instance.price
+        old_cost = serializer.instance.cost_price
+        variant = serializer.save()
+        if variant.price != old_price or variant.cost_price != old_cost:
+            from common.audit import log_audit_event
+            from common.models import AuditLog
+            log_audit_event(
+                action=AuditLog.Action.PRICE_CHANGED,
+                target_type="ProductVariant",
+                target_id=variant.pk,
+                actor=self.request.user,
+                details={
+                    "sku": variant.sku,
+                    "old_price": str(old_price),
+                    "new_price": str(variant.price),
+                    "old_cost_price": str(old_cost),
+                    "new_cost_price": str(variant.cost_price),
+                },
+                request=self.request,
+            )
+

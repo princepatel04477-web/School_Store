@@ -393,7 +393,14 @@ function OrderRow({ order }: { order: PanelOrder }) {
       <td>{order.student_class}{order.student_section ? ` ${order.student_section}` : ''}</td>
       <td className="items-cell">
         {order.items.map((it, i) => (
-          <span key={i} className="item-line">{it.quantity}× {it.product}{it.variant ? ` · ${it.variant}` : ''}</span>
+          <span key={i} className="item-line">
+            {it.quantity}× {it.product}{it.variant ? ` · ${it.variant}` : ''}
+            {it.has_customisation && (
+              <small style={{ display: 'block', color: '#2a6a4e', fontWeight: 600, fontSize: '11px' }}>
+                ✦ {it.customisation_summary || 'Customised'}
+              </small>
+            )}
+          </span>
         ))}
         {extra > 0 && <small className="gr">+{extra} more</small>}
       </td>

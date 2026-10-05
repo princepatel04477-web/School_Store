@@ -8,13 +8,14 @@ from analytics.tasks import refresh_daily_sales_summary
 from catalog.models import Category, Product, ProductVariant
 from inventory.models import StockBalance, StockMovement
 from orders.models import Order, OrderItem, OrderStatusEvent
-from schools.models import City, School, Student
+from schools.models import City, Grade, School, SchoolBranch, Student
 
 
 class Command(BaseCommand):
     help = (
-        "Seed baseline data: 2 cities, 3 schools, 4 categories, sample products "
-        "with variants, one user per role, sample students, and initial orders."
+        "Seed baseline data: 2 cities, 3 schools with branches, 15 grades, "
+        "5 updated categories, sample products with variants and accessories, "
+        "one user per role, sample students, and initial orders."
     )
 
     def add_arguments(self, parser):
@@ -40,7 +41,7 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.SUCCESS(f"Seeded 2 cities: {surat}, {ahmedabad}"))
 
-        # 2. Three Schools
+        # 2. Three Schools and Branches
         dps_surat, _ = School.objects.update_or_create(
             code="DPS-SUR",
             defaults={
@@ -78,13 +79,66 @@ class Command(BaseCommand):
             },
         )
         schools = [dps_surat, fhs_surat, udgam_amd]
+
+        # Seed SchoolBranches
+        branch_dps_surat, _ = SchoolBranch.objects.update_or_create(
+            school=dps_surat,
+            city=surat,
+            defaults={"active": True},
+        )
+        branch_fhs_surat, _ = SchoolBranch.objects.update_or_create(
+            school=fhs_surat,
+            city=surat,
+            defaults={"active": True},
+        )
+        branch_udgam_amd, _ = SchoolBranch.objects.update_or_create(
+            school=udgam_amd,
+            city=ahmedabad,
+            defaults={"active": True},
+        )
+        # Udgam also has an expansion branch in Surat
+        branch_udgam_surat, _ = SchoolBranch.objects.update_or_create(
+            school=udgam_amd,
+            city=surat,
+            defaults={"active": True},
+        )
         self.stdout.write(
             self.style.SUCCESS(
-                f"Seeded 3 schools: {', '.join(s.code for s in schools)}"
+                f"Seeded 3 schools and branches: {', '.join(s.code for s in schools)}"
             )
         )
 
-        # 3. One User per Role (plus extra parents for multi-school testing)
+        # 3. 15 Fixed Ordered Grades (Nursery, Junior KG, Senior KG, 1..12)
+        grade_names = [
+            "Nursery",
+            "Junior KG",
+            "Senior KG",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "11",
+            "12",
+        ]
+        grades_by_name = {}
+        for idx, gname in enumerate(grade_names, start=1):
+            g_obj, _ = Grade.objects.update_or_create(
+                name=gname,
+                defaults={"sort_order": idx},
+            )
+            grades_by_name[gname] = g_obj
+
+        self.stdout.write(
+            self.style.SUCCESS(f"Seeded all 15 grades with sort_order 1 to 15.")
+        )
+
+        # 4. One User per Role (plus extra parents for multi-school testing)
         users_spec = [
             {
                 "username": "boss",
@@ -95,6 +149,7 @@ class Command(BaseCommand):
                 "phone": "9800000001",
                 "city": None,
                 "school": None,
+                "branch": None,
                 "is_staff": True,
                 "is_superuser": True,
             },
@@ -107,6 +162,7 @@ class Command(BaseCommand):
                 "phone": "9800000002",
                 "city": surat,
                 "school": None,
+                "branch": None,
                 "is_staff": True,
                 "is_superuser": False,
             },
@@ -119,6 +175,7 @@ class Command(BaseCommand):
                 "phone": "9800000003",
                 "city": surat,
                 "school": dps_surat,
+                "branch": branch_dps_surat,
                 "is_staff": False,
                 "is_superuser": False,
             },
@@ -131,6 +188,7 @@ class Command(BaseCommand):
                 "phone": "9800000004",
                 "city": surat,
                 "school": dps_surat,
+                "branch": branch_dps_surat,
                 "is_staff": False,
                 "is_superuser": False,
             },
@@ -143,6 +201,7 @@ class Command(BaseCommand):
                 "phone": "9800000005",
                 "city": surat,
                 "school": dps_surat,
+                "branch": branch_dps_surat,
                 "is_staff": False,
                 "is_superuser": False,
             },
@@ -155,6 +214,7 @@ class Command(BaseCommand):
                 "phone": "9800000006",
                 "city": ahmedabad,
                 "school": udgam_amd,
+                "branch": branch_udgam_amd,
                 "is_staff": False,
                 "is_superuser": False,
             },
@@ -173,6 +233,7 @@ class Command(BaseCommand):
                     "phone": spec["phone"],
                     "city": spec["city"],
                     "school": spec["school"],
+                    "branch": spec.get("branch"),
                     "is_staff": spec["is_staff"],
                     "is_superuser": spec["is_superuser"],
                     "is_active": True,
@@ -188,24 +249,26 @@ class Command(BaseCommand):
             )
         )
 
-        # 4. Students across the 3 schools
+        # 5. Students across schools with grade, branch, and gender (Male/Female)
         students_spec = [
-            ("Aarav Patel", "DPS-2026-001", "5", "A", Student.Gender.MALE, dps_surat, created_users["parent_rahul"]),
-            ("Diya Patel", "DPS-2026-002", "8", "B", Student.Gender.FEMALE, dps_surat, created_users["parent_rahul"]),
-            ("Kabir Verma", "DPS-2026-003", "5", "A", Student.Gender.MALE, dps_surat, None),
-            ("Ananya Nair", "FHS-2026-001", "6", "A", Student.Gender.FEMALE, fhs_surat, created_users["parent_rahul"]),
-            ("Vivaan Modi", "FHS-2026-002", "4", "C", Student.Gender.MALE, fhs_surat, None),
-            ("Ishaan Shah", "UDG-2026-001", "7", "B", Student.Gender.MALE, udgam_amd, created_users["parent_priya"]),
-            ("Meera Shah", "UDG-2026-002", "3", "A", Student.Gender.FEMALE, udgam_amd, created_users["parent_priya"]),
+            ("Aarav Patel", "DPS-2026-001", grades_by_name["5"], "A", Student.Gender.MALE, dps_surat, branch_dps_surat, created_users["parent_rahul"]),
+            ("Diya Patel", "DPS-2026-002", grades_by_name["8"], "B", Student.Gender.FEMALE, dps_surat, branch_dps_surat, created_users["parent_rahul"]),
+            ("Kabir Verma", "DPS-2026-003", grades_by_name["5"], "A", Student.Gender.MALE, dps_surat, branch_dps_surat, None),
+            ("Ananya Nair", "FHS-2026-001", grades_by_name["6"], "A", Student.Gender.FEMALE, fhs_surat, branch_fhs_surat, created_users["parent_rahul"]),
+            ("Vivaan Modi", "FHS-2026-002", grades_by_name["4"], "C", Student.Gender.MALE, fhs_surat, branch_fhs_surat, None),
+            ("Ishaan Shah", "UDG-2026-001", grades_by_name["7"], "B", Student.Gender.MALE, udgam_amd, branch_udgam_amd, created_users["parent_priya"]),
+            ("Meera Shah", "UDG-2026-002", grades_by_name["3"], "A", Student.Gender.FEMALE, udgam_amd, branch_udgam_amd, created_users["parent_priya"]),
         ]
         seeded_students = []
-        for name, gr, cls, sec, gender, school, parent in students_spec:
+        for name, gr, grd, sec, gender, school, branch, parent in students_spec:
             st, _ = Student.objects.update_or_create(
                 school=school,
                 gr_number=gr,
                 defaults={
                     "name": name,
-                    "class_name": cls,
+                    "grade": grd,
+                    "class_name": grd.name,
+                    "branch": branch,
                     "section": sec,
                     "gender": gender,
                     "parent": parent,
@@ -214,12 +277,13 @@ class Command(BaseCommand):
             )
             seeded_students.append(st)
 
-        # 5. Four Core Categories
+        # 6. Categories: Uniform, School Shoes, Uniform Accessories, Stationery, ID Cards
         categories_spec = [
-            ("Uniforms", "uniforms", "Official school uniforms, shirts, trousers, skirts, and blazers.", 1),
-            ("Shoes", "shoes", "Formal black school shoes and white PT canvas/sports shoes.", 2),
-            ("Stationery", "stationery", "Notebooks, custom photo notebook covers, geometry boxes, and pens.", 3),
-            ("ID Cards", "id-cards", "Personalised student PVC ID cards, lanyards, and badge holders.", 4),
+            ("Uniform", "uniform", "Official school uniforms, shirts, trousers, skirts, and blazers.", 1),
+            ("School Shoes", "school-shoes", "Formal black school shoes and white PT canvas/sports shoes.", 2),
+            ("Uniform Accessories", "uniform-accessories", "Socks, belts, and ties.", 3),
+            ("Stationery", "stationery", "Notebooks, custom photo notebook covers, geometry boxes, and pens.", 4),
+            ("ID Cards", "id-cards", "Personalised student PVC ID cards, lanyards, and badge holders.", 5),
         ]
         categories = {}
         for name, slug, desc, order in categories_spec:
@@ -234,12 +298,16 @@ class Command(BaseCommand):
             )
             categories[slug] = cat
 
-        # 6. Products & ProductVariants (including customisation_schema for personalised products)
+        # 7. Products & ProductVariants across all 5 categories
+        # Categories: Uniform, School Shoes, Uniform Accessories, Stationery, ID Cards
+        # Uniform Accessories includes: Socks, Belt, Tie with product_type.
         products_spec = [
             {
                 "name": "DPS Everyday Formal Half-Sleeve Shirt",
-                "category": categories["uniforms"],
+                "category": categories["uniform"],
                 "school": dps_surat,
+                "gender": Product.Gender.MALE,
+                "grades": [grades_by_name[str(i)] for i in range(1, 13)],
                 "description": "Breathable cotton-blend formal shirt with embroidered DPS crest.",
                 "cost_price": Decimal("280.00"),
                 "selling_price": Decimal("450.00"),
@@ -262,9 +330,26 @@ class Command(BaseCommand):
                 ],
             },
             {
+                "name": "DPS Girls Pleated Pinafore",
+                "category": categories["uniform"],
+                "school": dps_surat,
+                "gender": Product.Gender.FEMALE,
+                "grades": [grades_by_name[str(i)] for i in range(1, 6)],
+                "description": "Navy pleated pinafore with DPS crest, for junior girls.",
+                "cost_price": Decimal("360.00"),
+                "selling_price": Decimal("590.00"),
+                "customisation_schema": {},
+                "variants": [
+                    ("22", "DPS-PIN-22", 160),
+                    ("24", "DPS-PIN-24", 180),
+                ],
+            },
+            {
                 "name": "Fountainhead Signature Polo Tee",
-                "category": categories["uniforms"],
+                "category": categories["uniform"],
                 "school": fhs_surat,
+                "gender": Product.Gender.BOTH,
+                "grades": [grades_by_name[str(i)] for i in range(1, 13)],
                 "description": "Pique cotton polo t-shirt with Fountainhead logo.",
                 "cost_price": Decimal("260.00"),
                 "selling_price": Decimal("420.00"),
@@ -277,8 +362,10 @@ class Command(BaseCommand):
             },
             {
                 "name": "Udgam Ceremonial Winter Blazer",
-                "category": categories["uniforms"],
+                "category": categories["uniform"],
                 "school": udgam_amd,
+                "gender": Product.Gender.BOTH,
+                "grades": [grades_by_name[str(i)] for i in range(5, 13)],
                 "description": "Tailored navy blazer with Udgam School crest.",
                 "cost_price": Decimal("850.00"),
                 "selling_price": Decimal("1350.00"),
@@ -289,26 +376,13 @@ class Command(BaseCommand):
                     ("34", "UDG-BLZ-34", 140),
                 ],
             },
+            # Category 2: School Shoes
             {
-                "name": "DPS Girls Pleated Pinafore (Class 1-5)",
-                "category": categories["uniforms"],
-                "school": dps_surat,
-                "gender": Product.Gender.FEMALE,
-                "class_from": 1,
-                "class_to": 5,
-                "description": "Navy pleated pinafore with DPS crest, for junior girls.",
-                "cost_price": Decimal("360.00"),
-                "selling_price": Decimal("590.00"),
-                "customisation_schema": {},
-                "variants": [
-                    ("22", "DPS-PIN-22", 160),
-                    ("24", "DPS-PIN-24", 180),
-                ],
-            },
-            {
-                "name": "All-Weather Black Velcro School Shoes",
-                "category": categories["shoes"],
+                "name": "All-Weather Black School Shoes",
+                "category": categories["school-shoes"],
                 "school": None,
+                "gender": Product.Gender.BOTH,
+                "grades": [grades_by_name[str(i)] for i in range(1, 13)],
                 "description": "Durable anti-skid black school shoes suitable for daily wear.",
                 "cost_price": Decimal("420.00"),
                 "selling_price": Decimal("699.00"),
@@ -320,64 +394,131 @@ class Command(BaseCommand):
                     ("UK-5", "SHOE-BLK-UK5", 390),
                 ],
             },
+            # Category 3: Uniform Accessories (Socks, Belt, Tie)
+            {
+                "name": "DPS Cotton Ribbed School Socks (Pack of 3)",
+                "category": categories["uniform-accessories"],
+                "product_type": Product.ProductType.SOCKS,
+                "school": dps_surat,
+                "gender": Product.Gender.BOTH,
+                "grades": [grades_by_name[g] for g in grade_names],
+                "description": "Cushioned cotton crew socks with bottle green DPS school stripes.",
+                "cost_price": Decimal("110.00"),
+                "selling_price": Decimal("220.00"),
+                "customisation_schema": {},
+                "variants": [
+                    ("Regular (Junior)", "DPS-SOCK-JR", 600),
+                    ("Regular (Senior)", "DPS-SOCK-SR", 600),
+                ],
+            },
+            {
+                "name": "Standard Elastic School Uniform Belt",
+                "category": categories["uniform-accessories"],
+                "product_type": Product.ProductType.BELT,
+                "school": None,
+                "gender": Product.Gender.BOTH,
+                "grades": [grades_by_name[str(i)] for i in range(1, 13)],
+                "description": "Adjustable elastic woven uniform belt with metal slide buckle.",
+                "cost_price": Decimal("75.00"),
+                "selling_price": Decimal("160.00"),
+                "customisation_schema": {},
+                "variants": [
+                    ("Free Size", "ACC-BELT-FS", 800),
+                ],
+            },
+            {
+                "name": "Udgam Woven Crest School Tie",
+                "category": categories["uniform-accessories"],
+                "product_type": Product.ProductType.TIE,
+                "school": udgam_amd,
+                "gender": Product.Gender.BOTH,
+                "grades": [grades_by_name[str(i)] for i in range(1, 13)],
+                "description": "Microfiber woven school tie with embroidered crest.",
+                "cost_price": Decimal("60.00"),
+                "selling_price": Decimal("140.00"),
+                "customisation_schema": {},
+                "variants": [
+                    ("Standard", "UDG-TIE-STD", 500),
+                ],
+            },
+            # Category 4: Stationery
             {
                 "name": "Personalised Photo Notebook Pack (Set of 6)",
                 "category": categories["stationery"],
                 "school": None,
+                "gender": Product.Gender.BOTH,
+                "grades": [grades_by_name[g] for g in grade_names],
                 "description": "172-page A4 single-line notebooks with custom student photo & name cover print.",
                 "cost_price": Decimal("210.00"),
                 "selling_price": Decimal("360.00"),
-                "customisation_schema": {
-                    "fields": [
-                        {
-                            "key": "cover_photo_url",
-                            "label": "Cover Photo URL",
-                            "type": "image_url",
-                            "required": True,
-                        },
-                        {
-                            "key": "printed_student_name",
-                            "label": "Name to Print on Cover",
-                            "type": "text",
-                            "required": True,
-                        },
-                    ]
-                },
+                "customisation_schema": [
+                    {
+                        "key": "cover_photo",
+                        "label": "Front Cover Photo",
+                        "type": "image",
+                        "required": True,
+                        "limits": {"max_bytes": 1048576, "accept": ["image/jpeg", "image/png", "image/webp"]},
+                    },
+                    {
+                        "key": "printed_student_name",
+                        "label": "Name to Print on Cover",
+                        "type": "text",
+                        "required": True,
+                        "max_length": 60,
+                    },
+                ],
                 "variants": [
                     ("A4 Single Line (Pack of 6)", "STAT-NB-PHOTO-A4", 800),
                     ("A4 Unruled (Pack of 6)", "STAT-NB-PHOTO-UNR", 450),
                 ],
             },
+            # Category 5: ID Cards
             {
                 "name": "Smart RFID PVC Student ID Card with Lanyard",
                 "category": categories["id-cards"],
                 "school": None,
-                "description": "CR80 glossy PVC ID card printed with student photo, GR number, and emergency contact.",
+                "gender": Product.Gender.BOTH,
+                "grades": [grades_by_name[g] for g in grade_names],
+                "description": "CR80 glossy PVC ID card printed with student photo, name, class and emergency contact.",
                 "cost_price": Decimal("45.00"),
                 "selling_price": Decimal("120.00"),
-                "customisation_schema": {
-                    "fields": [
-                        {
-                            "key": "id_photo_url",
-                            "label": "Passport Photo URL",
-                            "type": "image_url",
-                            "required": True,
-                        },
-                        {
-                            "key": "blood_group",
-                            "label": "Blood Group",
-                            "type": "select",
-                            "required": True,
-                            "options": ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"],
-                        },
-                        {
-                            "key": "emergency_phone",
-                            "label": "Emergency Contact Phone",
-                            "type": "text",
-                            "required": True,
-                        },
-                    ]
-                },
+                "customisation_schema": [
+                    {
+                        "key": "student_photo",
+                        "label": "Student Passport Photo",
+                        "type": "image",
+                        "required": True,
+                        "limits": {"max_bytes": 1048576, "accept": ["image/jpeg", "image/png", "image/webp"]},
+                    },
+                    {
+                        "key": "student_name",
+                        "label": "Full Name (on ID)",
+                        "type": "text",
+                        "required": True,
+                        "max_length": 60,
+                    },
+                    {
+                        "key": "student_class",
+                        "label": "Class & Section",
+                        "type": "text",
+                        "required": True,
+                        "max_length": 20,
+                    },
+                    {
+                        "key": "blood_group",
+                        "label": "Blood Group",
+                        "type": "select",
+                        "required": True,
+                        "options": ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"],
+                    },
+                    {
+                        "key": "emergency_phone",
+                        "label": "Emergency Contact Phone",
+                        "type": "text",
+                        "required": False,
+                        "max_length": 15,
+                    },
+                ],
                 "variants": [
                     ("Standard CR80 + Lanyard", "IDCARD-STD-CR80", 2000),
                 ],
@@ -391,17 +532,18 @@ class Command(BaseCommand):
                 school=p_spec["school"],
                 defaults={
                     "category": p_spec["category"],
+                    "product_type": p_spec.get("product_type"),
                     "description": p_spec["description"],
                     "cost_price": p_spec["cost_price"],
                     "selling_price": p_spec["selling_price"],
-                    "gender": p_spec.get("gender", Product.Gender.UNISEX),
-                    "class_from": p_spec.get("class_from"),
-                    "class_to": p_spec.get("class_to"),
+                    "gender": p_spec.get("gender", Product.Gender.BOTH),
                     "customisation_schema": p_spec["customisation_schema"],
                     "images": [f"https://placehold.co/600x600?text={p_spec['name'][:18].replace(' ', '+')}"],
                     "active": True,
                 },
             )
+            if "grades" in p_spec:
+                prod.grades.set(p_spec["grades"])
             for size, sku, stock_qty in p_spec["variants"]:
                 variant, _ = ProductVariant.objects.update_or_create(
                     sku=sku,
@@ -437,11 +579,11 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Seeded {len(products_spec)} products and {len(all_variants)} variants across 4 categories."
+                f"Seeded {len(products_spec)} products and {len(all_variants)} variants across 5 categories."
             )
         )
 
-        # 7. Seed a couple of sample orders if none exist yet
+        # 8. Seed a couple of sample orders if none exist yet
         if not Order.objects.filter(order_number__startswith="ORD-SEED-").exists():
             sample_student = seeded_students[0]
             v_shirt = ProductVariant.objects.get(sku="DPS-SHIRT-30")
@@ -453,6 +595,7 @@ class Command(BaseCommand):
                 placed_by_role=User.Role.PARENT,
                 student=sample_student,
                 school=sample_student.school,
+                branch=sample_student.branch,
                 city=sample_student.school.city,
                 status=Order.Status.CONFIRMED,
                 subtotal=subtotal,

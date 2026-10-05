@@ -80,6 +80,7 @@ def build_school_catalogue(school_id, category=None) -> list[dict]:
             "gender",
             "class_from",
             "class_to",
+            "customisation_schema",
             "school_id",
             "category_id",
             "category__name",
@@ -105,6 +106,7 @@ def build_school_catalogue(school_id, category=None) -> list[dict]:
             "category_slug": product.category.slug,
             "price": str(product.selling_price),
             "thumbnail": product_thumbnail(product.images),
+            "customisation_schema": product.customisation_schema,
             # Targeting metadata (filtered out of API responses; used to
             # narrow the shared school cache down to one student).
             "school": str(product.school_id) if product.school_id else None,

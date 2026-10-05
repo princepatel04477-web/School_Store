@@ -32,6 +32,13 @@ class User(AbstractUser):
         blank=True,
         related_name="users",
     )
+    branch = models.ForeignKey(
+        "schools.SchoolBranch",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="users",
+    )
     phone = models.CharField(max_length=20, blank=True, default="", db_index=True)
     must_change_password = models.BooleanField(
         default=False,
@@ -45,6 +52,7 @@ class User(AbstractUser):
         indexes = [
             models.Index(fields=["role", "city"], name="idx_user_role_city"),
             models.Index(fields=["role", "school"], name="idx_user_role_school"),
+            models.Index(fields=["role", "branch"], name="idx_user_role_branch"),
         ]
 
     def __str__(self) -> str:

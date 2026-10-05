@@ -32,14 +32,26 @@ class Category(UUIDModel):
 
 class Product(UUIDModel):
     class Gender(models.TextChoices):
-        UNISEX = "UNISEX", "Unisex"
-        MALE = "MALE", "Boys"
-        FEMALE = "FEMALE", "Girls"
+        MALE = "MALE", "Male"
+        FEMALE = "FEMALE", "Female"
+        BOTH = "BOTH", "Both"
+
+    class ProductType(models.TextChoices):
+        SOCKS = "SOCKS", "Socks"
+        BELT = "BELT", "Belt"
+        TIE = "TIE", "Tie"
 
     category = models.ForeignKey(
         Category,
         on_delete=models.PROTECT,
         related_name="products",
+    )
+    product_type = models.CharField(
+        max_length=20,
+        choices=ProductType.choices,
+        blank=True,
+        null=True,
+        help_text="Subtype for Uniform Accessories (Socks, Belt, Tie).",
     )
     school = models.ForeignKey(
         "schools.School",
@@ -57,6 +69,13 @@ class Product(UUIDModel):
         blank=True,
         related_name="products",
     )
+    grades = models.ManyToManyField(
+        "schools.Grade",
+        blank=True,
+        related_name="products",
+        db_table="catalog_product_grades",
+        help_text="Grades this product is designated for.",
+    )
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, default="")
     # Absolute object-storage/CDN URLs only. Django never serves image bytes;
@@ -67,24 +86,21 @@ class Product(UUIDModel):
     # at the moment of sale.
     cost_price = models.DecimalField(max_digits=10, decimal_places=2)
     selling_price = models.DecimalField(max_digits=10, decimal_places=2)
-    # Targeting for school-specific items (e.g. uniforms): optional class
-    # range and gender. Shared items (shoes, stationery, ID cards) leave the
-    # school null and are visible to every student.
     gender = models.CharField(
         max_length=16,
         choices=Gender.choices,
-        default=Gender.UNISEX,
-        help_text="Restrict to boys/girls, or UNISEX for everyone.",
+        default=Gender.BOTH,
+        help_text="Restrict to Male/Female, or Both for unisex items.",
     )
     class_from = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
-        help_text="Lowest class this item applies to (school items only).",
+        help_text="Lowest class this item applies to (legacy / school items only).",
     )
     class_to = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
-        help_text="Highest class this item applies to (school items only).",
+        help_text="Highest class this item applies to (legacy / school items only).",
     )
     customisation_schema = models.JSONField(
         default=dict,
@@ -97,20 +113,11 @@ class Product(UUIDModel):
 
     class Meta:
         ordering = ["name"]
-        constraints = [
-            models.CheckConstraint(
-                condition=Q(class_from__isnull=True)
-                | Q(class_to__isnull=True)
-                | Q(class_to__gte=models.F("class_from")),
-                name="product_class_range_valid",
-            ),
-            models.CheckConstraint(
-                condition=Q(school__isnull=False)
-                | (Q(class_from__isnull=True) & Q(class_to__isnull=True)),
-                name="product_class_range_needs_school",
-            ),
-        ]
         indexes = [
+            models.Index(
+                fields=["school", "category", "gender", "active"],
+                name="idx_prod_sch_cat_gen_act",
+            ),
             models.Index(
                 fields=["school", "category", "active"],
                 name="idx_prod_school_cat_active",

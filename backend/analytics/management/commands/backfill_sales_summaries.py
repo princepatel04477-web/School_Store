@@ -9,10 +9,10 @@ from orders.models import Order
 
 class Command(BaseCommand):
     help = (
-        "Rebuild DailySalesSummary + DailySchoolTotal from the orders table. "
-        "Use once after deploying the school-day rollup, or to repair drift. "
+        "Rebuild DailySalesSummary + DailySchoolTotal + DailyProductTotal from the orders table. "
+        "Use once after deploying rollups, or to repair drift. "
         "Each day is rebuilt in turn so a large history never becomes one "
-        "long-running transaction."
+        "long-running transaction. Use --scratch to drop everything first."
     )
 
     def add_arguments(self, parser):
@@ -22,15 +22,26 @@ class Command(BaseCommand):
             action="store_true",
             help="Rebuild every day in one SQL pass (fastest for small datasets).",
         )
+        parser.add_argument(
+            "--scratch",
+            action="store_true",
+            help="Delete all summary tables before rebuilding from scratch.",
+        )
 
     def handle(self, *args, **options):
+        if options.get("scratch"):
+            from analytics.services import delete_summaries
+            self.stdout.write("Dropping all summary rows for clean rebuild...")
+            delete_summaries(None)
+
         if options["date"]:
             target = date.fromisoformat(options["date"])
             result = refresh_sales_summary(target)
             self.stdout.write(
                 self.style.SUCCESS(
                     f"{target}: {result['category_rows']} category rows, "
-                    f"{result['school_rows']} school-day rows."
+                    f"{result['school_rows']} school-day rows, "
+                    f"{result.get('product_rows', 0)} product rows."
                 )
             )
             return
@@ -39,8 +50,9 @@ class Command(BaseCommand):
             result = refresh_sales_summary(None)
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"Rebuilt {result['category_rows']} category rows and "
-                    f"{result['school_rows']} school-day rows."
+                    f"Rebuilt {result['category_rows']} category rows, "
+                    f"{result['school_rows']} school-day rows, and "
+                    f"{result.get('product_rows', 0)} product rows."
                 )
             )
             return

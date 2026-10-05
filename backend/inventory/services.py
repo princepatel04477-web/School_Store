@@ -107,7 +107,7 @@ def apply_stock_movement(
                 f"below zero (requested change {quantity_change})."
             )
 
-        return StockMovement.objects.create(
+        movement = StockMovement.objects.create(
             variant_id=variant.pk,
             city_id=city_id,
             school_id=school_id
@@ -118,3 +118,24 @@ def apply_stock_movement(
             reference_order=reference_order,
             created_by=created_by,
         )
+
+        try:
+            from common.audit import log_audit_event
+            from common.models import AuditLog
+            log_audit_event(
+                action=AuditLog.Action.STOCK_CHANGED,
+                target_type="ProductVariant",
+                target_id=variant.pk,
+                actor=created_by,
+                details={
+                    "quantity_change": quantity_change,
+                    "reason": reason,
+                    "city_id": str(city_id),
+                    "movement_id": str(movement.id),
+                    "sku": getattr(variant, "sku", ""),
+                },
+            )
+        except Exception:
+            pass
+
+        return movement

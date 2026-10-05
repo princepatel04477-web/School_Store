@@ -61,6 +61,13 @@ class StockMovementViewSet(
     scope_school_field = None
     scope_parent_field = None
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        variant_param = self.request.query_params.get("variant")
+        if variant_param:
+            qs = qs.filter(variant_id=variant_param)
+        return qs
+
     def get_serializer_class(self):
         if self.action == "create":
             return StockMovementCreateSerializer

@@ -1,16 +1,26 @@
 import { lazy, Suspense, type ReactNode } from 'react';
 import { Navigate, Route, Routes, Link } from 'react-router-dom';
 import { useAuth } from './auth';
-import { Catalogue } from './components/Store';
+import { SelectionFlow } from './components/SelectionFlow';
 
 const Login = lazy(() => import('./pages/Login'));
 const Parent = lazy(() => import('./pages/Parent'));
 const Teacher = lazy(() => import('./pages/Teacher'));
 const SchoolAdmin = lazy(() => import('./pages/SchoolAdmin'));
+const CityAdmin = lazy(() => import('./pages/CityAdmin'));
+const BossPanel = lazy(() => import('./pages/BossPanel'));
 
 /** Where each role lands after signing in. */
 export const homeFor = (role?: string) =>
-  role === 'PARENT' ? '/parent' : role === 'TEACHER' ? '/teacher' : '/school';
+  role === 'BOSS'
+    ? '/boss'
+    : role === 'PARENT'
+    ? '/parent'
+    : role === 'TEACHER'
+    ? '/teacher'
+    : role === 'ADMIN'
+    ? '/city'
+    : '/school';
 
 function Guard({ children, roles }: { children: ReactNode; roles?: string[] }) {
   const { user, loading } = useAuth();
@@ -25,10 +35,14 @@ export default function App() {
     <Suspense fallback={<div className="splash">Loading…</div>}>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/boss/*" element={<Guard roles={['BOSS']}><BossPanel /></Guard>} />
+        <Route path="/city/*" element={<Guard roles={['ADMIN', 'BOSS']}><CityAdmin /></Guard>} />
         <Route path="/school/*" element={<Guard roles={['SCHOOL_ADMIN', 'ADMIN', 'BOSS']}><SchoolAdmin /></Guard>} />
         <Route path="/parent/*" element={<Guard roles={['PARENT']}><Parent /></Guard>} />
         <Route path="/teacher/*" element={<Guard roles={['TEACHER', 'SCHOOL_ADMIN']}><Teacher /></Guard>} />
         <Route path="/shop" element={<Shop />} />
+        <Route path="/products/*" element={<Navigate to="/shop" replace />} />
+        <Route path="/product/*" element={<Navigate to="/shop" replace />} />
         <Route path="*" element={<Home />} />
       </Routes>
     </Suspense>
@@ -59,9 +73,9 @@ function Shop() {
         </div>
       </header>
       <main>
-        <div className="eyebrow">WELCOME</div>
+        <div className="eyebrow">STEP-BY-STEP SELECTION FLOW</div>
         <h1>School essentials, sorted.</h1>
-        <Catalogue publicView />
+        <SelectionFlow publicView category="Uniform" />
       </main>
     </div>
   );

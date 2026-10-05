@@ -106,8 +106,8 @@ class ProductSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         request = self.context.get("request")
-        # Hide cost_price from non-staff roles (Parents, Teachers, School Admins).
-        if request and request.user and request.user.role not in ("BOSS", "ADMIN"):
+        # Boss-only: Admins, School Admins, Teachers, Parents must NOT see cost_price.
+        if not (request and request.user and (request.user.role == "BOSS" or getattr(request.user, "is_superuser", False))):
             data.pop("cost_price", None)
         return data
 

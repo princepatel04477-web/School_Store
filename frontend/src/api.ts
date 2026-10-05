@@ -1,7 +1,32 @@
 export type Role='PARENT'|'TEACHER'|'SCHOOL_ADMIN'|'ADMIN'|'BOSS';
-export type User={id:string;username:string;role:Role;school?:{name:string};phone?:string};
+export type User={id:string;username:string;role:Role;city?:string|null;city_name?:string|null;school?:{name:string}|string|null;school_name?:string|null;school_code?:string|null;phone?:string;email?:string;first_name?:string;last_name?:string;is_active?:boolean;created_at?:string};
+export type CustomisationField = {
+  key: string;
+  label: string;
+  type: 'text' | 'select' | 'image' | 'image_url';
+  required?: boolean;
+  options?: string[];
+  max_length?: number;
+  limits?: {
+    max_bytes?: number;
+    accept?: string[];
+  };
+};
+
 export type StockStatus='IN_STOCK'|'LOW_STOCK'|'OUT_OF_STOCK';
-export type Product={id:string;name:string;category:string;price:number;image?:string;thumbnail?:string|null;variants:{id:string;size:string;stock_status:StockStatus|null}[]};
+export type Product={
+  id:string;
+  name:string;
+  category:string;
+  category_slug?:string;
+  price:number;
+  gender?:'MALE'|'FEMALE'|'BOTH';
+  school?:string|null;
+  image?:string;
+  thumbnail?:string|null;
+  customisation_schema?:CustomisationField[] | {fields?: CustomisationField[]};
+  variants:{id:string;size:string;stock_status:StockStatus|null}[];
+};
 export type Order={id:string;order_number:string;student_name:string;status:string;payment_status:string;total:number;created_at:string;status_events?:{status:string;timestamp:string}[]};
 const API=import.meta.env.VITE_API_URL||'/api';
 let refreshing:Promise<string>|null=null;
@@ -17,6 +42,51 @@ export function logout(){localStorage.removeItem('access');localStorage.removeIt
 export const auth={login:(username:string,password:string)=>api<{access:string;refresh:string;user:User}>('/auth/token/',{method:'POST',body:JSON.stringify({username,password})}),register:(body:unknown)=>api<{access:string;refresh:string;user:User}>('/auth/register/',{method:'POST',body:JSON.stringify(body)}),me:()=>api<User>('/auth/me/')};
 export const queryKey={catalog:['catalog'],orders:['orders'],students:['students']};
 
+/** Request a presigned URL to upload a private file directly to object storage. */
+export async function getUploadPresignedUrl(body: { content_type: string; file_size: number; filename?: string }) {
+  return api<{
+    upload_url: string;
+    method: 'POST' | 'PUT';
+    fields: Record<string, string>;
+    file_key: string;
+    expires_in: number;
+  }>('/orders/customisation-upload-url/', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+/** Directly upload a blob/file to object storage without touching Django workers. */
+export async function uploadDirectToObjectStorage(
+  presigned: { upload_url: string; method: 'POST' | 'PUT'; fields?: Record<string, string> },
+  fileBlob: Blob,
+  contentType: string
+) {
+  if (presigned.method === 'POST') {
+    // S3 form upload
+    const formData = new FormData();
+    if (presigned.fields) {
+      Object.entries(presigned.fields).forEach(([k, v]) => formData.append(k, v));
+    }
+    formData.append('file', fileBlob);
+    const res = await fetch(presigned.upload_url, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) throw new Error(`Direct upload failed with status ${res.status}`);
+  } else {
+    // S3 PUT or local emulation upload
+    const res = await fetch(toUrl(presigned.upload_url), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': contentType,
+      },
+      body: fileBlob,
+    });
+    if (!res.ok) throw new Error(`Direct upload failed with status ${res.status}`);
+  }
+}
+
 /* ------------------------------------------------------------------ *
  * School Admin panel
  * ------------------------------------------------------------------ */
@@ -27,7 +97,14 @@ export type CategoryRow={category_id:string;category:string;orders:number;units:
 export type DailyPoint={date:string;orders:number;units:number;gross_sales:Money};
 export type Commission={rate_set:boolean;rate:string|null;rate_display:string;basis:string;gross_sales:Money;commission_amount:Money|null;currency:string;note:string|null};
 export type Dashboard={school:PanelSchool&{commission_rate:string|null};date_from:string;date_to:string;days:number;totals:DashboardTotals;categories:CategoryRow[];daily:DailyPoint[];commission:Commission;pending_students:number;notes:string[]};
-export type PanelOrderItem={product:string;variant:string;quantity:number;category:string};
+export type PanelOrderItem={
+  product:string;
+  variant:string;
+  quantity:number;
+  category:string;
+  has_customisation?:boolean;
+  customisation_summary?:string;
+};
 export type PanelOrder={id:string;order_number:string;student:string;student_name:string;student_gr:string;student_class:string;student_section:string;items:PanelOrderItem[];item_count:number;units:number;amount:Money;status:string;payment_status:string;fulfillment_type:string;created_at:string;placed_by:string|null;placed_by_name:string;placed_by_role:string;placed_by_role_label:string};
 export type PanelStudent={id:string;name:string;gr_number:string;class_name:string;section:string;gender:string;date_of_birth:string|null;school:string;school_name:string;school_code:string;parent:string|null;parent_name:string;parent_phone:string;approval_status:'PENDING'|'APPROVED';source:string;active:boolean;created_at:string};
 export type PanelTeacher={id:string;username:string;email:string;first_name:string;last_name:string;phone:string;role:Role;school:string;school_name:string;is_active:boolean;must_change_password:boolean;created_at:string;temporary_password?:string};
@@ -70,6 +147,226 @@ export const panel={
   confirmImport:(school:string,id:string)=>api<ImportJob>(`/panel/student-imports/${id}/confirm/?school=${school}`,{method:'POST'}),
   importReportUrl:(school:string,id:string)=>`/panel/student-imports/${id}/report/?school=${school}`,
   importTemplateUrl:(school:string,fmt:'xlsx'|'csv')=>`/panel/student-imports/template/?school=${school}&format=${fmt}`,
+};
+
+/* ------------------------------------------------------------------ *
+ * City Admin panel (scoped to city)
+ * ------------------------------------------------------------------ */
+export type CityDailySales={
+  date:string;
+  city:{id:string;name:string;code:string};
+  totals:{orders:number;units:number;revenue:Money};
+  categories:{category_id:string;category_name:string;orders:number;units:number;revenue:Money}[];
+  schools:{school_id:string;school_name:string;school_code:string;orders:number;units:number;revenue:Money}[];
+};
+
+export type StockBalance={
+  id:string;
+  city:string;
+  variant:string;
+  variant_sku:string;
+  product_name:string;
+  stock_quantity:number;
+  low_stock_threshold:number;
+  is_low_stock:boolean;
+  updated_at:string;
+};
+
+export type StockMovement={
+  id:string;
+  city:string;
+  school:string|null;
+  variant:string;
+  variant_sku:string;
+  quantity_change:number;
+  reason:string;
+  reference_order:string|null;
+  created_by:string|null;
+  created_at:string;
+};
+
+export type CitySchool={
+  id:string;
+  city:string;
+  city_name:string;
+  name:string;
+  code:string;
+  active:boolean;
+  commission_rate:string|null;
+  home_delivery_enabled:boolean;
+  school_pickup_enabled:boolean;
+  address:string;
+  contact_email:string;
+  contact_phone:string;
+  created_at:string;
+};
+
+export type CityOrderDetail={
+  id:string;
+  order_number:string;
+  placed_by:string|null;
+  placed_by_role:string;
+  payer:string|null;
+  student:string;
+  student_name:string;
+  student_gr:string;
+  parent:string|null;
+  school:string;
+  school_name:string;
+  school_code:string;
+  city:string;
+  city_name:string;
+  status:string;
+  payment_status:string;
+  fulfillment_type:string;
+  subtotal:Money;
+  total:Money;
+  delivery_details:Record<string,any>;
+  items:{
+    id:string;
+    variant:string;
+    variant_sku:string;
+    variant_size:string;
+    product_name:string;
+    category:string;
+    quantity:number;
+    unit_price_snapshot:Money;
+    customisation_data:Record<string,any>;
+    customisation_display?:Record<string, {
+      type: string;
+      value?: any;
+      file_key?: string;
+      url?: string;
+      full_url?: string;
+      original_url?: string;
+      status?: string;
+    }>;
+  }[];
+  status_events:{
+    id:string;
+    status:string;
+    timestamp:string;
+    changed_by:string|null;
+    note:string;
+  }[];
+  created_at:string;
+  updated_at:string;
+};
+
+export const cityAdmin={
+  dailySales:(date?:string,city?:string)=>api<CityDailySales>(`/panel/city-daily-sales/?${new URLSearchParams({...(date?{date}:{}),...(city?{city}:{})})}`),
+  stockBalances:(p:Record<string,string>={})=>api<Page<StockBalance>>(`/stock-balances/?${new URLSearchParams(p)}`),
+  lowStock:(p:Record<string,string>={})=>api<Page<StockBalance>>(`/stock-balances/low/?${new URLSearchParams(p)}`),
+  stockMovements:(variantId?:string,p:Record<string,string>={})=>api<Page<StockMovement>>(`/stock-movements/?${new URLSearchParams({...(variantId?{variant:variantId}:{}),...p})}`),
+  addStockMovement:(body:{variant:string;quantity_change:number;reason:string;city?:string;reference_order?:string|null})=>api<StockMovement>('/stock-movements/',{method:'POST',body:JSON.stringify(body)}),
+  orders:(p:Record<string,string>={})=>api<Page<CityOrderDetail>>(`/orders/?${new URLSearchParams(p)}`),
+  orderDetail:(id:string)=>api<CityOrderDetail>(`/orders/${id}/`),
+  updateOrderStatus:(id:string,status:string)=>api<CityOrderDetail>(`/orders/${id}/`,{method:'PATCH',body:JSON.stringify({status})}),
+  bulkStatus:(order_ids:string[],status:string,note?:string)=>api<{updated_count:number;status:string;order_ids:string[]}>('/orders/bulk-status/',{method:'POST',body:JSON.stringify({order_ids,status,note})}),
+  schools:(p:Record<string,string>={})=>api<Page<CitySchool>>(`/schools/?${new URLSearchParams(p)}`),
+  addSchool:(body:Partial<CitySchool>)=>api<CitySchool>('/schools/',{method:'POST',body:JSON.stringify(body)}),
+  updateSchool:(id:string,body:Partial<CitySchool>)=>api<CitySchool>(`/schools/${id}/`,{method:'PATCH',body:JSON.stringify(body)}),
+  users:(p:Record<string,string>={})=>api<Page<User>>(`/accounts/users/?${new URLSearchParams(p)}`),
+  createSchoolAdmin:(body:{username:string;password:string;school:string;email?:string;first_name?:string;last_name?:string;phone?:string})=>api<User>('/accounts/users/',{method:'POST',body:JSON.stringify(body)}),
+  resetPassword:(userId:string,password:string)=>api<{detail:string}>(`/accounts/users/${userId}/reset-password/`,{method:'POST',body:JSON.stringify({password})}),
+};
+
+/* ------------------------------------------------------------------ *
+ * Boss Executive Panel
+ * ------------------------------------------------------------------ */
+export type BossKpis={
+  date_from:string;
+  date_to:string;
+  revenue:Money;
+  cost:Money;
+  gross_profit:Money;
+  gross_margin_pct:string;
+  orders:number;
+  units_sold:number;
+  current_stock_value:Money;
+};
+
+export type BossRevProfitPoint={
+  date:string;
+  revenue:Money;
+  cost:Money;
+  profit:Money;
+  orders:number;
+  units:number;
+};
+
+export type BossCategoryPoint={
+  category_id:string;
+  name:string;
+  revenue:Money;
+  cost:Money;
+  profit:Money;
+  units:number;
+  orders:number;
+};
+
+export type BossCityPoint={
+  city_id:string;
+  name:string;
+  code:string;
+  revenue:Money;
+  cost:Money;
+  profit:Money;
+  units:number;
+  orders:number;
+};
+
+export type BossSchoolPoint={
+  school_id:string;
+  name:string;
+  code:string;
+  revenue:Money;
+  cost:Money;
+  profit:Money;
+  units:number;
+  orders:number;
+};
+
+export type BossProductPoint={
+  product_id:string;
+  name:string;
+  category:string;
+  units:number;
+  revenue:Money;
+  profit:Money;
+};
+
+export type BossStockCatPoint={
+  category_id:string;
+  name:string;
+  units:number;
+  stock_value:Money;
+};
+
+export type BossFilterOptions={
+  cities:{id:string;name:string;code:string}[];
+  schools:{id:string;name:string;code:string;city_id:string}[];
+  categories:{id:string;name:string;slug:string}[];
+  default_from:string;
+  default_to:string;
+};
+
+export const bossPanel={
+  filters:()=>api<BossFilterOptions>('/panel/boss/filters/'),
+  kpis:(p:Record<string,string>={})=>api<BossKpis>(`/panel/boss/kpis/?${new URLSearchParams(p)}`),
+  revenueProfit:(p:Record<string,string>={})=>api<BossRevProfitPoint[]>(`/panel/boss/charts/revenue-profit/?${new URLSearchParams(p)}`),
+  categories:(p:Record<string,string>={})=>api<BossCategoryPoint[]>(`/panel/boss/charts/categories/?${new URLSearchParams(p)}`),
+  cities:(p:Record<string,string>={})=>api<BossCityPoint[]>(`/panel/boss/charts/cities/?${new URLSearchParams(p)}`),
+  topSchools:(p:Record<string,string>={})=>api<BossSchoolPoint[]>(`/panel/boss/charts/top-schools/?${new URLSearchParams(p)}`),
+  topProducts:(p:Record<string,string>={})=>api<BossProductPoint[]>(`/panel/boss/charts/top-products/?${new URLSearchParams(p)}`),
+  stockCategories:(p:Record<string,string>={})=>api<BossStockCatPoint[]>(`/panel/boss/charts/stock-categories/?${new URLSearchParams(p)}`),
+  // Boss management operations
+  citiesList:()=>api<Page<{id:string;name:string;code:string;state:string;active:boolean}>>('/cities/'),
+  createCity:(body:{name:string;code:string;state:string})=>api<{id:string;name:string;code:string}>('/cities/',{method:'POST',body:JSON.stringify(body)}),
+  updateCity:(id:string,body:Partial<{name:string;code:string;state:string;active:boolean}>)=>api<any>(`/cities/${id}/`,{method:'PATCH',body:JSON.stringify(body)}),
+  createAdmin:(body:{username:string;password:string;city:string;email?:string;first_name?:string;last_name?:string;phone?:string})=>api<User>('/accounts/users/',{method:'POST',body:JSON.stringify({role:'ADMIN',...body})}),
+  adminsList:()=>api<Page<User>>('/accounts/users/?role=ADMIN'),
+  updateSchoolCommission:(schoolId:string,commission_rate:string|null)=>api<CitySchool>(`/schools/${schoolId}/`,{method:'PATCH',body:JSON.stringify({commission_rate})}),
 };
 export const money=(v:Money|number|null|undefined)=>{
   if(v===null||v===undefined) return '—';

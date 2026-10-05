@@ -28,6 +28,8 @@ class PanelOrderItemSerializer(serializers.Serializer):
     variant = serializers.CharField()
     quantity = serializers.IntegerField()
     category = serializers.CharField()
+    has_customisation = serializers.BooleanField(default=False)
+    customisation_summary = serializers.CharField(default="")
 
 
 class PanelOrderSerializer(serializers.ModelSerializer):
@@ -96,12 +98,24 @@ class PanelOrderSerializer(serializers.ModelSerializer):
         for item in obj.items.all():
             variant = item.variant
             product = getattr(variant, "product", None)
+            cdata = item.customisation_data or {}
+            has_custom = bool(cdata and any(not k.endswith(("_print", "_thumb", "_status", "_error", "_width", "_height")) for k in cdata))
+            summary_parts = [
+                f"{k.replace('_', ' ')}: {v}"
+                for k, v in cdata.items()
+                if not k.endswith(("_print", "_thumb", "_status", "_error", "_width", "_height"))
+                and not str(v).startswith("customisations/")
+            ]
+            if any(str(v).startswith("customisations/") for v in cdata.values()):
+                summary_parts.append("Photo attached")
             lines.append(
                 {
                     "product": getattr(product, "name", "") if product else "",
                     "variant": getattr(variant, "size", "") or "",
                     "quantity": item.quantity,
                     "category": getattr(item.category, "name", "") if item.category_id else "",
+                    "has_customisation": has_custom,
+                    "customisation_summary": ", ".join(summary_parts) if summary_parts else "",
                 }
             )
         lines.sort(key=lambda row: (-row["quantity"], row["product"]))
@@ -130,6 +144,14 @@ class DashboardTotalsSerializer(serializers.Serializer):
     cost = serializers.DecimalField(max_digits=16, decimal_places=2)
     margin = serializers.DecimalField(max_digits=16, decimal_places=2)
     average_order_value = serializers.DecimalField(max_digits=16, decimal_places=2)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if not (request and request.user and (request.user.role == "BOSS" or getattr(request.user, "is_superuser", False))):
+            data.pop("cost", None)
+            data.pop("margin", None)
+        return data
 
 
 class CategoryBreakdownSerializer(serializers.Serializer):
@@ -185,6 +207,14 @@ class CommissionSerializer(serializers.Serializer):
     cost = serializers.DecimalField(max_digits=16, decimal_places=2)
     margin = serializers.DecimalField(max_digits=16, decimal_places=2)
     commission = CommissionSectionSerializer()
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if not (request and request.user and (request.user.role == "BOSS" or getattr(request.user, "is_superuser", False))):
+            data.pop("cost", None)
+            data.pop("margin", None)
+        return data
 
 
 class StudentOrderTotalsSerializer(serializers.Serializer):

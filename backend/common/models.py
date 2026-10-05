@@ -123,3 +123,43 @@ class ImportJob(UUIDModel):
 
     def __str__(self) -> str:
         return f"{self.job_type} {self.status} ({self.original_filename})"
+
+
+class AuditLog(UUIDModel):
+    """
+    Append-only production audit trail.
+    Records who created logins, changed stock, changed order status, and changed prices.
+    """
+
+    class Action(models.TextChoices):
+        LOGIN_CREATED = "LOGIN_CREATED", "Login Created"
+        STOCK_CHANGED = "STOCK_CHANGED", "Stock Changed"
+        ORDER_STATUS_CHANGED = "ORDER_STATUS_CHANGED", "Order Status Changed"
+        PRICE_CHANGED = "PRICE_CHANGED", "Price Changed"
+
+    action = models.CharField(max_length=40, choices=Action.choices)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_logs",
+    )
+    actor_username = models.CharField(max_length=150, blank=True, default="")
+    target_type = models.CharField(max_length=80)
+    target_id = models.CharField(max_length=64)
+    details = models.JSONField(default=dict, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["action", "created_at"], name="idx_audit_action_created"),
+            models.Index(fields=["actor", "created_at"], name="idx_audit_actor_created"),
+            models.Index(fields=["target_type", "target_id"], name="idx_audit_target"),
+        ]
+
+    def __str__(self) -> str:
+        return f"[{self.created_at}] {self.actor_username or 'system'} - {self.action} on {self.target_type}:{self.target_id}"
+

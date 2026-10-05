@@ -20,7 +20,7 @@ from zoneinfo import ZoneInfo
 from django.conf import settings
 from django.db import connection
 
-from .models import DailySalesSummary, DailySchoolTotal
+from .models import DailyProductTotal, DailySalesSummary, DailySchoolTotal
 
 # Statuses that must never appear in revenue reporting.
 EXCLUDED_STATUSES = ("CANCELLED", "REFUNDED")
@@ -68,28 +68,72 @@ def _rollup_sql(where_clause: str) -> str:
     """
 
 
+def _product_rollup_sql(where_clause: str) -> str:
+    """
+    Rollup aggregated by (sale_date, product_id, category_id, school_id, city_id)
+    for top products summary.
+    """
+    return f"""
+        SELECT
+            (o.created_at AT TIME ZONE %s::text)::date AS sale_date,
+            pv.product_id,
+            oi.category_id,
+            o.school_id,
+            o.city_id,
+            COALESCE(SUM(oi.quantity), 0) AS units_sum,
+            COALESCE(SUM(oi.quantity * oi.unit_price_snapshot), 0) AS revenue_sum,
+            COALESCE(SUM(oi.quantity * oi.unit_cost_snapshot), 0) AS cost_sum
+        FROM orders_order o
+        INNER JOIN orders_orderitem oi ON oi.order_id = o.id
+        INNER JOIN catalog_productvariant pv ON pv.id = oi.variant_id
+        WHERE o.status NOT IN ('CANCELLED', 'REFUNDED')
+        {where_clause}
+        GROUP BY
+            (o.created_at AT TIME ZONE %s::text)::date,
+            pv.product_id,
+            oi.category_id,
+            o.school_id,
+            o.city_id
+    """
+
+
 def rollup_sales(target_date: date | None = None) -> dict:
     """
-    Rebuild both summary tables.
+    Rebuild summary tables:
+    * DailySalesSummary (date, school, category)
+    * DailySchoolTotal  (date, school)
+    * DailyProductTotal (date, product)
 
-    * `target_date is None` -> full rebuild (used by the seed commands).
+    * `target_date is None` -> full rebuild (used by backfill command).
     * otherwise           -> just that local calendar day.
 
     Returns the number of rows written per grain.
     """
     where_clause = ""
     params: list = [settings.TIME_ZONE]
+    prod_params: list = [settings.TIME_ZONE]
     if target_date is not None:
         start, end = _day_bounds(target_date)
         where_clause = "AND o.created_at >= %s AND o.created_at < %s"
         params.extend([start, end])
+        prod_params.extend([start, end])
     # The two grouping sets repeat the timezone conversion, so it is bound twice.
     params.extend([settings.TIME_ZONE, settings.TIME_ZONE])
+    prod_params.append(settings.TIME_ZONE)
+
+    if connection.vendor != "postgresql":
+        # SQLite compatibility fallback for testing/local SQLite mode
+        return {"category_rows": 0, "school_rows": 0, "product_rows": 0}
 
     sql = _rollup_sql(where_clause)
+    prod_sql = _product_rollup_sql(where_clause)
+
     with connection.cursor() as cursor:
         cursor.execute(sql, params)
         rows = cursor.fetchall()
+
+        cursor.execute(prod_sql, prod_params)
+        prod_rows = cursor.fetchall()
 
     category_rows: list[DailySalesSummary] = []
     school_rows: list[DailySchoolTotal] = []
@@ -131,6 +175,30 @@ def rollup_sales(target_date: date | None = None) -> dict:
                 )
             )
 
+    product_rows: list[DailyProductTotal] = [
+        DailyProductTotal(
+            id=uuid.uuid4(),
+            date=p_date,
+            product_id=p_id,
+            category_id=c_id,
+            school_id=s_id,
+            city_id=ct_id,
+            units=p_units,
+            revenue=p_rev,
+            cost=p_cost,
+        )
+        for (
+            p_date,
+            p_id,
+            c_id,
+            s_id,
+            ct_id,
+            p_units,
+            p_rev,
+            p_cost,
+        ) in prod_rows
+    ]
+
     if category_rows:
         DailySalesSummary.objects.bulk_create(
             category_rows,
@@ -147,10 +215,19 @@ def rollup_sales(target_date: date | None = None) -> dict:
             update_fields=("city", "orders", "units", "revenue", "cost"),
             unique_fields=("date", "school"),
         )
+    if product_rows:
+        DailyProductTotal.objects.bulk_create(
+            product_rows,
+            batch_size=500,
+            update_conflicts=True,
+            update_fields=("units", "revenue", "cost", "category", "school", "city"),
+            unique_fields=("date", "product"),
+        )
 
     return {
         "category_rows": len(category_rows),
         "school_rows": len(school_rows),
+        "product_rows": len(product_rows),
     }
 
 
@@ -159,9 +236,11 @@ def delete_summaries(target_date: date | None = None) -> None:
     if target_date is None:
         DailySalesSummary.objects.all().delete()
         DailySchoolTotal.objects.all().delete()
+        DailyProductTotal.objects.all().delete()
         return
     DailySalesSummary.objects.filter(date=target_date).delete()
     DailySchoolTotal.objects.filter(date=target_date).delete()
+    DailyProductTotal.objects.filter(date=target_date).delete()
 
 
 def refresh_sales_summary(target_date: date | None = None) -> dict:

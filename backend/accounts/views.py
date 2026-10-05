@@ -2,6 +2,7 @@ import secrets
 from django.conf import settings
 from django.core.cache import cache
 from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -18,8 +19,20 @@ from .serializers import (
 )
 
 
+from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle
+
+
+class LoginRateThrottle(AnonRateThrottle):
+    scope = "login"
+
+
+class OTPRateThrottle(AnonRateThrottle):
+    scope = "otp"
+
+
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+    throttle_classes = [LoginRateThrottle]
 
 
 class MeView(APIView):
@@ -32,6 +45,7 @@ class MeView(APIView):
 
 class SendOTPView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [OTPRateThrottle]
 
     def post(self, request):
         phone = (request.data.get("phone") or "").strip()
@@ -102,4 +116,42 @@ class UserViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         user = User.objects.select_related("city", "school").get(pk=user.pk)
+        from common.audit import log_audit_event
+        from common.models import AuditLog
+        log_audit_event(
+            action=AuditLog.Action.LOGIN_CREATED,
+            target_type="User",
+            target_id=user.id,
+            request=request,
+            details={"username": user.username, "role": user.role, "school_id": str(user.school_id) if user.school_id else None},
+        )
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="reset-password")
+    def reset_password(self, request, pk=None):
+        target_user = self.get_object()
+        actor = request.user
+
+        # Scope permissions check
+        if actor.role == User.Role.BOSS or getattr(actor, "is_superuser", False):
+            pass
+        elif actor.role == User.Role.ADMIN:
+            if target_user.city_id != actor.city_id or target_user.role != User.Role.SCHOOL_ADMIN:
+                raise PermissionDenied("Admins can only reset passwords for School Admins in their city.")
+        elif actor.role == User.Role.SCHOOL_ADMIN:
+            if target_user.school_id != actor.school_id or target_user.role != User.Role.TEACHER:
+                raise PermissionDenied("School Admins can only reset passwords for Teachers in their school.")
+        else:
+            raise PermissionDenied("You do not have permission to reset passwords.")
+
+        new_password = request.data.get("password")
+        if not new_password or len(str(new_password).strip()) < 6:
+            return Response(
+                {"password": ["Password must be at least 6 characters long."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        target_user.set_password(str(new_password).strip())
+        target_user.must_change_password = True
+        target_user.save(update_fields=["password", "must_change_password", "updated_at"])
+        return Response({"detail": f"Password reset successfully for {target_user.username}."})

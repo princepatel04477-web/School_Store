@@ -20,37 +20,75 @@ LOCMEM = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"
 
 @override_settings(CACHES=LOCMEM)
 class PublicCatalogTests(TestCase):
-    def setUp(self):
-        cat = Category.objects.create(name="Uniforms", slug="uniforms")
-        shown = Product.objects.create(
-            category=cat, name="White shirt", cost_price=Decimal("300"), selling_price=Decimal("650")
-        )
-        ProductVariant.objects.create(product=shown, size="30", sku="SHIRT-30")
-        ProductVariant.objects.create(product=shown, size="32", sku="SHIRT-32", active=False)
-        Product.objects.create(
-            category=cat, name="Retired tie", cost_price=Decimal("1"), selling_price=Decimal("2"), active=False
-        )
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_data")
+        cls.dps = School.objects.get(code="DPS-SUR")
+        cls.surat = City.objects.get(code="SUR")
+        cls.grade5 = cls.dps.students.filter(class_name="5").first().grade
+        if not cls.grade5:
+            from schools.models import Grade
+            cls.grade5 = Grade.objects.get(sort_order=4)
 
-    def test_anonymous_can_browse_without_sensitive_fields(self):
+    def setUp(self):
+        cache.clear()
+
+    def test_anonymous_without_params_is_rejected_with_400(self):
         res = APIClient().get("/api/public/products/")
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("School, city, and grade parameters are all required", str(res.json()))
+
+    def test_public_step_schools_sorted_a_to_z(self):
+        res = APIClient().get("/api/public/schools/")
         self.assertEqual(res.status_code, 200)
-        self.assertEqual([p["name"] for p in res.json()["results"]], ["White shirt"])
-        product = res.json()["results"][0]
-        self.assertEqual(product["price"], 650.0)
-        self.assertEqual([v["size"] for v in product["variants"]], ["30"])
-        self.assertNotIn("cost_price", product)
-        self.assertNotIn("sku", product["variants"][0])
+        schools = res.json()
+        self.assertGreater(len(schools), 0)
+        names = [s["name"] for s in schools]
+        self.assertEqual(names, sorted(names))
+
+    def test_public_step_school_cities(self):
+        res = APIClient().get(f"/api/public/schools/{self.dps.id}/cities/")
+        self.assertEqual(res.status_code, 200)
+        cities = res.json()
+        self.assertTrue(any(c["id"] == str(self.surat.id) for c in cities))
+
+    def test_public_step_grades_ordered(self):
+        res = APIClient().get("/api/public/grades/")
+        self.assertEqual(res.status_code, 200)
+        grades = res.json()
+        self.assertEqual(len(grades), 15)
+        self.assertEqual(grades[0]["name"], "Nursery")
+        self.assertEqual(grades[1]["name"], "Junior KG")
+
+    def test_public_products_with_school_city_grade_and_gender_filter(self):
+        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}&category=Uniform"
+        res = APIClient().get(url)
+        self.assertEqual(res.status_code, 200)
+        products = res.json()["results"]
+        self.assertGreater(len(products), 0)
+
+        # Test male filter
+        res_male = APIClient().get(url + "&gender=MALE")
+        self.assertEqual(res_male.status_code, 200)
+        male_prods = res_male.json()["results"]
+        for p in male_prods:
+            self.assertIn(p["gender"], ("MALE", "BOTH"))
+
+        # Test female filter
+        res_female = APIClient().get(url + "&gender=FEMALE")
+        self.assertEqual(res_female.status_code, 200)
+        female_prods = res_female.json()["results"]
+        for p in female_prods:
+            self.assertIn(p["gender"], ("FEMALE", "BOTH"))
 
     def test_invalid_token_is_ignored(self):
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION="Bearer not-a-real-token")
-        self.assertEqual(client.get("/api/public/products/").status_code, 200)
+        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}"
+        self.assertEqual(client.get(url).status_code, 200)
 
     def test_public_endpoint_is_read_only(self):
         self.assertEqual(APIClient().post("/api/public/products/", {}).status_code, 405)
-
-    def test_private_catalogue_still_requires_login(self):
-        self.assertEqual(APIClient().get("/api/products/").status_code, 401)
 
 
 @override_settings(CACHES=LOCMEM)

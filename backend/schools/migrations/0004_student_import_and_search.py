@@ -59,18 +59,24 @@ class Migration(migrations.Migration):
         ),
         # `?search=` compiles to UPPER(name) LIKE UPPER('term%'); these
         # expression indexes let Postgres serve it with a bitmap/range scan.
-        migrations.RunSQL(
-            sql=(
-                "CREATE INDEX IF NOT EXISTS idx_student_name_upper "
-                "ON schools_student (UPPER(name) varchar_pattern_ops);"
-                "\n"
-                "CREATE INDEX IF NOT EXISTS idx_student_gr_upper "
-                "ON schools_student (UPPER(gr_number) varchar_pattern_ops);"
+        migrations.RunPython(
+            code=lambda apps, schema_editor: (
+                schema_editor.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_student_name_upper "
+                    "ON schools_student (UPPER(name) varchar_pattern_ops);\n"
+                    "CREATE INDEX IF NOT EXISTS idx_student_gr_upper "
+                    "ON schools_student (UPPER(gr_number) varchar_pattern_ops);"
+                )
+                if schema_editor.connection.vendor == "postgresql"
+                else None
             ),
-            reverse_sql=(
-                "DROP INDEX IF EXISTS idx_student_name_upper;"
-                "\n"
-                "DROP INDEX IF EXISTS idx_student_gr_upper;"
+            reverse_code=lambda apps, schema_editor: (
+                schema_editor.execute(
+                    "DROP INDEX IF EXISTS idx_student_name_upper;\n"
+                    "DROP INDEX IF EXISTS idx_student_gr_upper;"
+                )
+                if schema_editor.connection.vendor == "postgresql"
+                else None
             ),
         ),
     ]

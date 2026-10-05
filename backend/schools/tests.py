@@ -835,3 +835,115 @@ class ParentManualAddAndApprovalTests(StudentManagementTestBase):
             other.post(f"/api/students/{student.id}/approve/", {}, format="json").status_code,
             404,
         )
+
+
+class ParentWriteRestrictionTests(StudentManagementTestBase):
+    """
+    Test suite proving every write request from a Parent to student, school,
+    or order data is rejected with HTTP 403.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.parent_client = login(self.parent_a)
+        self.student = Student.objects.filter(parent=self.parent_a).first()
+        if not self.student:
+            self.student = Student.objects.filter(school=self.school_a).first()
+
+    def test_parent_cannot_create_student_via_standard_endpoint(self):
+        res = self.parent_client.post(
+            "/api/students/",
+            {
+                "name": "Intruder Kid",
+                "gr_number": "GR-99999",
+                "class_name": "5",
+                "section": "A",
+                "gender": "MALE",
+                "school": str(self.school_a.id),
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, 403)
+
+    def test_parent_cannot_update_student_via_put(self):
+        res = self.parent_client.put(
+            f"/api/students/{self.student.id}/",
+            {
+                "name": "Modified Child Name",
+                "gr_number": self.student.gr_number,
+                "class_name": "6",
+                "section": "B",
+                "gender": "MALE",
+                "school": str(self.school_a.id),
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, 403)
+        self.assertIn("Contact your school to correct this", str(res.data))
+
+    def test_parent_cannot_patch_student(self):
+        res = self.parent_client.patch(
+            f"/api/students/{self.student.id}/",
+            {"name": "Hacked Child Name"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 403)
+        self.assertIn("Contact your school to correct this", str(res.data))
+
+    def test_parent_cannot_delete_student(self):
+        res = self.parent_client.delete(f"/api/students/{self.student.id}/")
+        self.assertEqual(res.status_code, 403)
+        self.assertIn("Contact your school to correct this", str(res.data))
+
+    def test_parent_cannot_create_or_modify_school(self):
+        # Create school
+        res_create = self.parent_client.post(
+            "/api/schools/",
+            {
+                "name": "Parent School",
+                "code": "PS-1",
+                "city": str(self.school_a.city_id),
+            },
+            format="json",
+        )
+        self.assertEqual(res_create.status_code, 403)
+
+        # Update school
+        res_patch = self.parent_client.patch(
+            f"/api/schools/{self.school_a.id}/",
+            {"commission_rate": "0.50"},
+            format="json",
+        )
+        self.assertEqual(res_patch.status_code, 403)
+
+        # Delete school
+        res_delete = self.parent_client.delete(f"/api/schools/{self.school_a.id}/")
+        self.assertEqual(res_delete.status_code, 403)
+
+    def test_parent_cannot_update_or_delete_placed_order(self):
+        # Pick or create an order placed by this parent
+        order = Order.objects.filter(parent=self.parent_a).first()
+        if not order:
+            from products.models import ProductVariant
+            variant = ProductVariant.objects.first()
+            order = Order.objects.create(
+                parent=self.parent_a,
+                student=self.student,
+                school=self.school_a,
+                city=self.school_a.city,
+                subtotal=500,
+                total=500,
+            )
+
+        res_patch = self.parent_client.patch(
+            f"/api/orders/{order.id}/",
+            {"status": "DELIVERED"},
+            format="json",
+        )
+        self.assertEqual(res_patch.status_code, 403)
+        self.assertIn("cannot edit or cancel an order", str(res_patch.data).lower())
+
+        res_delete = self.parent_client.delete(f"/api/orders/{order.id}/")
+        self.assertEqual(res_delete.status_code, 403)
+        self.assertIn("cannot edit or cancel an order", str(res_delete.data).lower())
+

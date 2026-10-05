@@ -12,11 +12,12 @@ class UserAdmin(BaseUserAdmin):
         "phone",
         "city",
         "school",
+        "branch",
         "must_change_password",
         "is_active",
         "is_staff",
     )
-    list_filter = ("role", "city", "school", "must_change_password", "is_active", "is_staff")
+    list_filter = ("role", "city", "school", "branch", "must_change_password", "is_active", "is_staff")
     search_fields = ("username", "email", "phone", "first_name", "last_name")
     readonly_fields = ("id", "created_at", "updated_at")
     fieldsets = BaseUserAdmin.fieldsets + (
@@ -29,6 +30,7 @@ class UserAdmin(BaseUserAdmin):
                     "phone",
                     "city",
                     "school",
+                    "branch",
                     "must_change_password",
                     "created_at",
                     "updated_at",
@@ -45,6 +47,7 @@ class UserAdmin(BaseUserAdmin):
                     "phone",
                     "city",
                     "school",
+                    "branch",
                     "must_change_password",
                 )
             },

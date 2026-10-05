@@ -70,6 +70,13 @@ class Order(UUIDModel):
         on_delete=models.PROTECT,
         related_name="orders",
     )
+    branch = models.ForeignKey(
+        "schools.SchoolBranch",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orders",
+    )
     city = models.ForeignKey(
         "schools.City",
         on_delete=models.PROTECT,
@@ -145,6 +152,10 @@ class Order(UUIDModel):
                 fields=["payer", "created_at"],
                 name="idx_order_payer_created",
             ),
+            models.Index(
+                fields=["branch", "created_at"],
+                name="idx_order_branch_created",
+            ),
         ]
 
     def save(self, *args, **kwargs):
@@ -152,8 +163,10 @@ class Order(UUIDModel):
             # Keep denormalised scope columns in sync with the beneficiary's school.
             student = self.student
             self.school_id = student.school_id
+            if student.branch_id:
+                self.branch_id = student.branch_id
             self.city_id = student.city_id or student.school.city_id
-            self.student_class = student.class_name
+            self.student_class = student.student_class
             if not self.parent_id and student.parent_id:
                 self.parent_id = student.parent_id
         if self.placed_by_id and not self.placed_by_role:

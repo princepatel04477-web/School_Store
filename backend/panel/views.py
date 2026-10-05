@@ -14,6 +14,7 @@ School Admin panel API - everything is scoped to ONE school.
 """
 
 import datetime as dt
+from decimal import Decimal
 
 from django.db.models import Count, DecimalField, F, IntegerField, Q, Sum
 from django.db.models.functions import Coalesce
@@ -146,7 +147,7 @@ class DashboardView(SchoolScopedMixin, APIView):
             "date_from": start.isoformat(),
             "date_to": end.isoformat(),
             "days": (end - start).days + 1,
-            "totals": DashboardTotalsSerializer(totals).data,
+            "totals": DashboardTotalsSerializer(totals, context={"request": request}).data,
             "categories": CategoryBreakdownSerializer(
                 category_breakdown(school, start, end), many=True
             ).data,
@@ -193,7 +194,8 @@ class CommissionView(SchoolScopedMixin, APIView):
                     "cost": totals["cost"],
                     "margin": totals["margin"],
                     "commission": commission_payload(school, totals["gross_sales"]),
-                }
+                },
+                context={"request": request},
             ).data
         )
 
@@ -656,3 +658,116 @@ class PanelFilterOptionsView(SchoolScopedMixin, APIView):
                 "default_date_to": end.isoformat(),
             }
         )
+
+
+class CityDailySalesView(APIView):
+    """
+    Requirement 2: Daily sales for staff admin scoped to one city.
+    Today's orders, units and revenue for the city, with a date picker.
+    Read from DailySalesSummary / DailySchoolTotal through the (date, city) index.
+    Admin must not see profit, cost price, or margin.
+    """
+
+    permission_classes = [RoleScopedPermission]
+
+    def get(self, request):
+        user = request.user
+        if not (user and user.is_authenticated and user.role in ("BOSS", "ADMIN")):
+            raise PermissionDenied("Only Boss or Admin can access city daily sales.")
+
+        city_id = request.query_params.get("city")
+        if user.role == "ADMIN":
+            if not user.city_id:
+                raise PermissionDenied("Admin has no assigned city.")
+            city_id = user.city_id
+        elif not city_id:
+            # BOSS without city param defaults to first city or error
+            first_city = City.objects.filter(active=True).first()
+            city_id = first_city.id if first_city else None
+
+        if not city_id:
+            return Response({"detail": "City is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        date_str = request.query_params.get("date")
+        if date_str:
+            try:
+                target_date = dt.date.fromisoformat(date_str)
+            except ValueError:
+                raise ValidationError({"date": "Invalid date format. Use YYYY-MM-DD."})
+        else:
+            target_date = timezone.localdate()
+
+        # Query via idx_dailyschooltotal_date_city on (date, city) for headline figures:
+        # distinct orders count is exact on DailySchoolTotal
+        from analytics.models import DailySchoolTotal, DailySalesSummary
+        from schools.models import City
+
+        city = City.objects.filter(id=city_id).first()
+        if not city:
+            raise NotFound("City not found.")
+
+        totals = DailySchoolTotal.objects.filter(date=target_date, city_id=city_id).aggregate(
+            orders=Sum("orders"),
+            units=Sum("units"),
+            revenue=Sum("revenue"),
+        )
+        orders_count = totals["orders"] or 0
+        units_count = totals["units"] or 0
+        revenue_sum = totals["revenue"] or Decimal("0.00")
+
+        # Category breakdown via idx_dailysales_date_city on (date, city)
+        cat_summaries = (
+            DailySalesSummary.objects.filter(date=target_date, city_id=city_id)
+            .values("category_id", "category__name")
+            .annotate(
+                orders=Sum("orders"),
+                units=Sum("units"),
+                revenue=Sum("revenue"),
+            )
+            .order_by("-revenue")
+        )
+
+        categories = [
+            {
+                "category_id": str(cs["category_id"]),
+                "category_name": cs["category__name"],
+                "orders": cs["orders"] or 0,
+                "units": cs["units"] or 0,
+                "revenue": str(cs["revenue"] or Decimal("0.00")),
+            }
+            for cs in cat_summaries
+        ]
+
+        # School breakdown for the city on that date
+        school_summaries = (
+            DailySchoolTotal.objects.filter(date=target_date, city_id=city_id)
+            .select_related("school")
+            .order_by("-revenue")
+        )
+        schools_data = [
+            {
+                "school_id": str(st.school_id),
+                "school_name": st.school.name,
+                "school_code": st.school.code,
+                "orders": st.orders,
+                "units": st.units,
+                "revenue": str(st.revenue),
+            }
+            for st in school_summaries
+        ]
+
+        return Response({
+            "date": target_date.isoformat(),
+            "city": {
+                "id": str(city.id),
+                "name": city.name,
+                "code": city.code,
+            },
+            "totals": {
+                "orders": orders_count,
+                "units": units_count,
+                "revenue": str(revenue_sum),
+            },
+            "categories": categories,
+            "schools": schools_data,
+        })

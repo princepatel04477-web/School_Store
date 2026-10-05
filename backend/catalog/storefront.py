@@ -81,6 +81,7 @@ def _card(entry: dict, flags: dict) -> dict:
         "category_slug": entry["category_slug"],
         "price": entry["price"],
         "thumbnail": entry["thumbnail"],
+        "customisation_schema": entry.get("customisation_schema") or [],
         "sizes": sizes,
         "stock_status": best_flag(size["stock_status"] for size in sizes)
         if sizes
