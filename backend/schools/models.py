@@ -1,5 +1,6 @@
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
+from django.db.models import Q
 from common.models import UUIDModel
 from common.cache_utils import invalidate_school_cache
 
@@ -44,6 +45,14 @@ class School(UUIDModel):
         blank=True,
         help_text="Optional commission percentage for the school (e.g. 10.00)",
     )
+    home_delivery_enabled = models.BooleanField(
+        default=True,
+        help_text="Whether parents may choose home delivery at checkout.",
+    )
+    school_pickup_enabled = models.BooleanField(
+        default=True,
+        help_text="Whether parents may choose pickup at this school at checkout.",
+    )
     address = models.TextField(blank=True, default="")
     contact_email = models.EmailField(blank=True, default="")
     contact_phone = models.CharField(max_length=20, blank=True, default="")
@@ -52,6 +61,12 @@ class School(UUIDModel):
 
     class Meta:
         ordering = ["name"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(home_delivery_enabled=True) | Q(school_pickup_enabled=True),
+                name="school_has_fulfillment_option",
+            ),
+        ]
         indexes = [
             models.Index(fields=["city", "active"], name="idx_school_city_active"),
         ]
@@ -156,6 +171,12 @@ class Student(UUIDModel):
                 fields=["school", "approval_status"],
                 name="idx_student_school_approval",
             ),
+            # Admin roster: WHERE school_id = ? ORDER BY class, section, name, id
+            # (cursor pagination, no sort node, no COUNT(*) over the school).
+            models.Index(
+                fields=["school", "class_name", "section", "name", "id"],
+                name="idx_student_school_roster",
+            ),
         ]
 
     @property
@@ -167,9 +188,31 @@ class Student(UUIDModel):
         self.class_name = value
 
     def save(self, *args, **kwargs):
-        if self.school_id and not self.city_id:
+        if self.school_id:
             self.city_id = self.school.city_id
-        super().save(*args, **kwargs)
+            if kwargs.get("update_fields") is not None:
+                kwargs["update_fields"] = set(kwargs["update_fields"]) | {"city"}
+
+        update_fields = kwargs.get("update_fields")
+        parent_may_have_changed = update_fields is None or bool(
+            {"parent", "parent_id"} & set(update_fields)
+        )
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            if self.pk:
+                from orders.models import Order
+
+                if parent_may_have_changed:
+                    # Parent-scoped order lists use a denormalized indexed FK. Keep
+                    # earlier teacher orders visible if a parent link is added later.
+                    Order.objects.filter(student_id=self.pk).exclude(
+                        parent_id=self.parent_id
+                    ).update(parent_id=self.parent_id)
+                # Keep the denormalised class copy used by the admin orders
+                # filter in sync when a child is promoted to the next class.
+                Order.objects.filter(student_id=self.pk).exclude(
+                    student_class=self.class_name
+                ).update(student_class=self.class_name)
 
     def __str__(self) -> str:
         return f"{self.name} (GR: {self.gr_number} - {self.school.code})"

@@ -16,7 +16,10 @@ Performance Architecture (P1–P8):
     Admin / maintenance headroom                          = 10 connections
     ----------------------------------------------------------------------
     Total maximum connections                             = 58 << 100 (max_connections)
-  Can also sit behind PgBouncer in transaction pooling mode (see infra/pgbouncer.ini).
+  Set DB_POOL_MAX_SIZE per process group (10 for web, 2 for Celery). Django's
+  persistent connection wrappers have a 60-second age; psycopg's bounded pool
+  limits the number of PostgreSQL connections. PgBouncer is an optional alternative
+  (see infra/pgbouncer.ini), not an additional pool to stack on top of this pool.
 - Redis caching (P8): Read-heavy catalogue & school lists cached in Redis with explicit invalidation.
 """
 
@@ -83,8 +86,10 @@ INSTALLED_APPS = [
     "schools",
     "accounts",
     "catalog",
+    "inventory",
     "orders",
     "analytics",
+    "panel",
 ]
 
 MIDDLEWARE = [
@@ -127,6 +132,7 @@ AUTH_USER_MODEL = "accounts.User"
 # Web workers (4) x Pool max_size (10) + Job workers (4) x Pool max_size (2) = 48 connections < 100 max_connections
 DB_POOL_MIN_SIZE = int(os.environ.get("DB_POOL_MIN_SIZE", "2"))
 DB_POOL_MAX_SIZE = int(os.environ.get("DB_POOL_MAX_SIZE", "10"))
+DB_CONN_MAX_AGE = int(os.environ.get("DB_CONN_MAX_AGE", "60"))
 USE_DB_POOL = (
     os.environ.get("USE_DB_POOL", "1") == "1"
     and "test" not in sys.argv
@@ -167,6 +173,7 @@ DATABASES = {
         "PASSWORD": os.environ.get("POSTGRES_PASSWORD", ""),
         "HOST": os.environ.get("POSTGRES_HOST", "127.0.0.1"),
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        "CONN_MAX_AGE": 0 if "test" in sys.argv else DB_CONN_MAX_AGE,
         "CONN_HEALTH_CHECKS": True,
         "OPTIONS": {},
     }
@@ -178,6 +185,25 @@ if _pool_options:
 
 # Redis Cache (Rule P8 - catalogue and school lists with explicit invalidation)
 REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379")
+
+# --------------------------------------------------------------------------- #
+# Catalogue read path (hottest endpoint)
+#   - Catalogue lists are cached in Redis keyed by (school, category) with a
+#     short TTL *and* explicit invalidation (version bump) whenever a product,
+#     variant, category, or price changes.
+#   - Stock is NEVER stored in that key: availability is returned as an
+#     in-stock / low / out flag fetched fresh on every request.
+# --------------------------------------------------------------------------- #
+CATALOG_CACHE_TTL = int(os.environ.get("CATALOG_CACHE_TTL", "60"))
+
+# Product images live in object storage behind a CDN. The API stores and
+# returns URLs only — Django never serves image bytes. Thumbnails are produced
+# by the CDN's on-the-fly resize parameters; the template receives the original
+# object URL ({url}) and the correct query separator ({sep}).
+# Works out of the box with Cloudflare Images / imgix / Supabase-style CDNs.
+CATALOG_THUMBNAIL_TEMPLATE = os.environ.get(
+    "CATALOG_THUMBNAIL_TEMPLATE", "{url}{sep}width=320&quality=70"
+)
 RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 
@@ -272,6 +298,15 @@ STUDENT_IMPORT_MAX_BYTES = int(os.environ.get("STUDENT_IMPORT_MAX_BYTES", 5 * 10
 STUDENT_IMPORT_MAX_ROWS = int(os.environ.get("STUDENT_IMPORT_MAX_ROWS", 5000))
 STUDENT_IMPORT_BATCH_SIZE = int(os.environ.get("STUDENT_IMPORT_BATCH_SIZE", 500))
 STUDENT_IMPORT_PREVIEW_LIMIT = int(os.environ.get("STUDENT_IMPORT_PREVIEW_LIMIT", 50))
+
+# --------------------------------------------------------------------------- #
+# School Admin panel background exports (Prompt 5, requirement 4)
+#   - the workbook is built by a Celery worker in streaming (write-only) mode
+#   - the finished file is kept for EXPORT_FILE_TTL_DAYS days, then the link
+#     stops working (purge_expired_exports deletes the bytes)
+# --------------------------------------------------------------------------- #
+EXPORT_MAX_ROWS = int(os.environ.get("EXPORT_MAX_ROWS", 200_000))
+EXPORT_FILE_TTL_DAYS = int(os.environ.get("EXPORT_FILE_TTL_DAYS", 7))
 
 # Uploaded files must never be held in memory for a 5 MB spreadsheet cap.
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024

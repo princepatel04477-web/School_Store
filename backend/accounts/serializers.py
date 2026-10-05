@@ -29,6 +29,7 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name",
             "role",
             "phone",
+            "must_change_password",
             "city",
             "city_name",
             "school",
@@ -39,6 +40,7 @@ class UserSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
+            "must_change_password",
             "city_name",
             "school_name",
             "school_code",
@@ -148,6 +150,7 @@ class ManagedUserWriteSerializer(serializers.ModelSerializer):
         validated_data["is_superuser"] = role == User.Role.BOSS
         user = User(**validated_data)
         user.set_password(password)
+        user.must_change_password = True
         user.save()
         return user
 
@@ -244,6 +247,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token["role"] = user.role
         token["city_id"] = str(user.city_id) if user.city_id else None
         token["school_id"] = str(user.school_id) if user.school_id else None
+        token["must_change_password"] = bool(user.must_change_password)
         return token
 
     def validate(self, attrs):

@@ -26,14 +26,26 @@ class Order(UUIDModel):
         FAILED = "FAILED", "Failed"
         REFUNDED = "REFUNDED", "Refunded"
 
+    class FulfillmentType(models.TextChoices):
+        HOME_DELIVERY = "HOME_DELIVERY", "Home delivery"
+        SCHOOL_PICKUP = "SCHOOL_PICKUP", "School pickup"
+
     order_number = models.CharField(max_length=40, unique=True)
     # Client supplied checkout token. A database constraint makes retries safe even
     # when two requests arrive concurrently.
-    idempotency_key = models.CharField(max_length=128, unique=True, db_index=True, default=uuid.uuid4)
+    idempotency_key = models.CharField(max_length=128, unique=True, default=uuid.uuid4)
     placed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="placed_orders",
+    )
+    # Kept separate from student and placer because the payer is whoever completes checkout.
+    payer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="paid_orders",
     )
     placed_by_role = models.CharField(max_length=20)
     student = models.ForeignKey(
@@ -41,6 +53,10 @@ class Order(UUIDModel):
         on_delete=models.PROTECT,
         related_name="orders",
     )
+    # Denormalised class of the beneficiary so the School Admin panel can
+    # filter orders by class with a single indexed WHERE (no join to Student),
+    # exactly like the school/city/parent copies below.
+    student_class = models.CharField(max_length=30, blank=True, default="")
     # Denormalised parent, school, and city so scoped queries never need a join or subquery
     parent = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -71,6 +87,11 @@ class Order(UUIDModel):
         choices=PaymentStatus.choices,
         default=PaymentStatus.PENDING,
     )
+    fulfillment_type = models.CharField(
+        max_length=24,
+        choices=FulfillmentType.choices,
+        default=FulfillmentType.HOME_DELIVERY,
+    )
     razorpay_order_id = models.CharField(max_length=80, blank=True, default="")
     razorpay_payment_id = models.CharField(max_length=80, blank=True, default="")
     razorpay_signature = models.CharField(max_length=200, blank=True, default="")
@@ -85,6 +106,17 @@ class Order(UUIDModel):
                 fields=["school", "created_at"],
                 name="idx_order_school_created",
             ),
+            # Cursor pagination orders by (-created_at, -id); carrying `id` in
+            # the index lets Postgres stream the admin orders table straight
+            # out of the index with no sort node.
+            models.Index(
+                fields=["school", "created_at", "id"],
+                name="idx_order_school_created_id",
+            ),
+            models.Index(
+                fields=["school", "student_class", "created_at", "id"],
+                name="idx_order_sch_cls_created_id",
+            ),
             models.Index(
                 fields=["city", "created_at"],
                 name="idx_order_city_created",
@@ -94,6 +126,10 @@ class Order(UUIDModel):
                 name="idx_order_student_created",
             ),
             models.Index(
+                fields=["student", "created_at", "id"],
+                name="idx_order_student_created_id",
+            ),
+            models.Index(
                 fields=["parent", "created_at"],
                 name="idx_order_parent_created",
             ),
@@ -101,20 +137,31 @@ class Order(UUIDModel):
                 fields=["status", "created_at"],
                 name="idx_order_status_created",
             ),
+            models.Index(
+                fields=["placed_by", "created_at"],
+                name="idx_order_placer_created",
+            ),
+            models.Index(
+                fields=["payer", "created_at"],
+                name="idx_order_payer_created",
+            ),
         ]
 
     def save(self, *args, **kwargs):
         if self.student_id:
-            if not self.school_id:
-                self.school_id = self.student.school_id
-            if not self.parent_id and self.student.parent_id:
-                self.parent_id = self.student.parent_id
-        if self.school_id and not self.city_id:
-            self.city_id = self.school.city_id
+            # Keep denormalised scope columns in sync with the beneficiary's school.
+            student = self.student
+            self.school_id = student.school_id
+            self.city_id = student.city_id or student.school.city_id
+            self.student_class = student.class_name
+            if not self.parent_id and student.parent_id:
+                self.parent_id = student.parent_id
         if self.placed_by_id and not self.placed_by_role:
             self.placed_by_role = self.placed_by.role
         if not self.parent_id and self.placed_by_role == "PARENT":
             self.parent_id = self.placed_by_id
+        if not self.payer_id and self.placed_by_id:
+            self.payer_id = self.placed_by_id
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:

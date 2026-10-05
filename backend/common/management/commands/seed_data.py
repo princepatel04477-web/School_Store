@@ -5,7 +5,8 @@ from django.utils import timezone
 
 from accounts.models import User
 from analytics.tasks import refresh_daily_sales_summary
-from catalog.models import Category, Product, ProductVariant, StockMovement
+from catalog.models import Category, Product, ProductVariant
+from inventory.models import StockBalance, StockMovement
 from orders.models import Order, OrderItem, OrderStatusEvent
 from schools.models import City, School, Student
 
@@ -289,6 +290,22 @@ class Command(BaseCommand):
                 ],
             },
             {
+                "name": "DPS Girls Pleated Pinafore (Class 1-5)",
+                "category": categories["uniforms"],
+                "school": dps_surat,
+                "gender": Product.Gender.FEMALE,
+                "class_from": 1,
+                "class_to": 5,
+                "description": "Navy pleated pinafore with DPS crest, for junior girls.",
+                "cost_price": Decimal("360.00"),
+                "selling_price": Decimal("590.00"),
+                "customisation_schema": {},
+                "variants": [
+                    ("22", "DPS-PIN-22", 160),
+                    ("24", "DPS-PIN-24", 180),
+                ],
+            },
+            {
                 "name": "All-Weather Black Velcro School Shoes",
                 "category": categories["shoes"],
                 "school": None,
@@ -377,30 +394,46 @@ class Command(BaseCommand):
                     "description": p_spec["description"],
                     "cost_price": p_spec["cost_price"],
                     "selling_price": p_spec["selling_price"],
+                    "gender": p_spec.get("gender", Product.Gender.UNISEX),
+                    "class_from": p_spec.get("class_from"),
+                    "class_to": p_spec.get("class_to"),
                     "customisation_schema": p_spec["customisation_schema"],
                     "images": [f"https://placehold.co/600x600?text={p_spec['name'][:18].replace(' ', '+')}"],
                     "active": True,
                 },
             )
             for size, sku, stock_qty in p_spec["variants"]:
-                variant, created = ProductVariant.objects.update_or_create(
+                variant, _ = ProductVariant.objects.update_or_create(
                     sku=sku,
                     defaults={
                         "product": prod,
                         "size": size,
-                        "stock_quantity": stock_qty,
-                        "low_stock_threshold": 20,
                         "active": True,
                     },
                 )
                 all_variants.append(variant)
-                if created:
-                    StockMovement.objects.create(
+
+                # School items are stocked in their school's city; generic items
+                # receive independent city balances rather than one shared total.
+                stock_cities = [prod.school.city] if prod.school_id else [surat, ahmedabad]
+                for stock_city in stock_cities:
+                    balance, created = StockBalance.objects.get_or_create(
+                        city=stock_city,
                         variant=variant,
-                        quantity_change=stock_qty,
-                        reason=StockMovement.Reason.INITIAL_STOCK,
-                        created_by=created_users["boss"],
+                        defaults={
+                            "stock_quantity": stock_qty,
+                            "low_stock_threshold": 20,
+                        },
                     )
+                    if created:
+                        StockMovement.objects.create(
+                            city=stock_city,
+                            school_id=prod.school_id,
+                            variant=variant,
+                            quantity_change=stock_qty,
+                            reason=StockMovement.Reason.INITIAL_STOCK,
+                            created_by=created_users["boss"],
+                        )
 
         self.stdout.write(
             self.style.SUCCESS(

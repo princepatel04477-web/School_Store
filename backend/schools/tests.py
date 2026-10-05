@@ -13,6 +13,8 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from accounts.serializers import build_tokens_for_user
 from common.models import ImportJob
+from orders.models import Order
+
 from .import_service import TEMPLATE_COLUMNS, commit_import, validate_import
 from .models import School, Student
 
@@ -302,7 +304,14 @@ class StudentListTests(StudentManagementTestBase):
                 [str(self.school_a.id), "5", "A"],
             )
             plan = "\n".join(r[0] for r in cursor.fetchall())
-        self.assertIn("idx_student_school_cls_sec", plan)
+        # The (school, class, section) prefix is served by the composite index.
+        # `idx_student_school_roster` extends it with name + id so the admin
+        # roster's cursor ordering needs no sort; either one satisfies rule P3.
+        self.assertTrue(
+            "idx_student_school_cls_sec" in plan
+            or "idx_student_school_roster" in plan,
+            plan,
+        )
 
     def test_search_plan_uses_expression_index(self):
         Student.objects.bulk_create(
@@ -658,8 +667,22 @@ class ParentChildLinkingTests(StudentManagementTestBase):
         self.assertEqual(self.roster_child.parent_id, self.parent_a.id)
 
     def test_school_admin_override_reassigns_the_parent_link(self):
+        teacher_order = Order.objects.create(
+            order_number="ORD-PARENT-LINK-TEST",
+            placed_by=self.teacher_a,
+            placed_by_role=User.Role.TEACHER,
+            student=self.roster_child,
+            school=self.school_a,
+            city=self.school_a.city,
+            subtotal="0.00",
+            total="0.00",
+        )
+        self.assertIsNone(teacher_order.parent_id)
+
         self.roster_child.parent = self.parent_a
         self.roster_child.save(update_fields=["parent"])
+        teacher_order.refresh_from_db()
+        self.assertEqual(teacher_order.parent_id, self.parent_a.id)
 
         client = login(self.school_admin_a)
         res = client.post(

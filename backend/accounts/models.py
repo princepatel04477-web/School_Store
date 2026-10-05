@@ -33,6 +33,10 @@ class User(AbstractUser):
         related_name="users",
     )
     phone = models.CharField(max_length=20, blank=True, default="", db_index=True)
+    must_change_password = models.BooleanField(
+        default=False,
+        help_text="Set for staff accounts created by another staff member; cleared after first-login password change.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

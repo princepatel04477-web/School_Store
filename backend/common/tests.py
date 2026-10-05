@@ -8,7 +8,8 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from analytics.models import DailySalesSummary
-from catalog.models import Category, Product, ProductVariant, StockMovement
+from catalog.models import Category, Product, ProductVariant
+from inventory.models import StockBalance, StockMovement
 from common.cache_utils import (
     CATALOG_CACHE_VERSION_KEY,
     SCHOOL_LIST_CACHE_VERSION_KEY,
@@ -32,6 +33,7 @@ class FoundationAndDataModelTests(TestCase):
             Category,
             Product,
             ProductVariant,
+            StockBalance,
             Order,
             OrderItem,
             OrderStatusEvent,
@@ -53,6 +55,7 @@ class FoundationAndDataModelTests(TestCase):
             Category,
             Product,
             ProductVariant,
+            StockBalance,
             Order,
             OrderItem,
             OrderStatusEvent,
@@ -88,14 +91,26 @@ class FoundationAndDataModelTests(TestCase):
             "idx_order_school_created",
             "idx_order_city_created",
             "idx_order_student_created",
+            "idx_order_parent_created",
             "idx_order_status_created",
             "uniq_student_school_gr",
             "idx_student_school_cls_sec",
             "idx_student_parent",
             "idx_variant_product",
             "idx_prod_school_cat_active",
+            "idx_prod_city_cat_active",
             "idx_prod_cat_active",
-            "idx_stockmov_variant_created",
+            "idx_product_active_id",
+            "idx_invmov_variant_created",
+            "idx_invmov_city_created",
+            "idx_invmov_school_created",
+            "uniq_stockbalance_city_variant",
+            "idx_stockbalance_city_qty",
+            "idx_stockbalance_city_updated",
+            # Partial index backing the low-stock list (index lookup, no scan)
+            "idx_stockbalance_low",
+            "idx_order_placer_created",
+            "idx_order_payer_created",
             "uniq_dailysales_date_sch_cat",
             "idx_dailysales_date_city",
         }

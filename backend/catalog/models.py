@@ -1,6 +1,6 @@
-from django.conf import settings
 from django.db import models
-from django.utils import timezone
+from django.db.models import Q
+
 from common.models import UUIDModel
 from common.cache_utils import invalidate_catalog_cache
 
@@ -31,6 +31,11 @@ class Category(UUIDModel):
 
 
 class Product(UUIDModel):
+    class Gender(models.TextChoices):
+        UNISEX = "UNISEX", "Unisex"
+        MALE = "MALE", "Boys"
+        FEMALE = "FEMALE", "Girls"
+
     category = models.ForeignKey(
         Category,
         on_delete=models.PROTECT,
@@ -54,9 +59,33 @@ class Product(UUIDModel):
     )
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, default="")
+    # Absolute object-storage/CDN URLs only. Django never serves image bytes;
+    # list responses expose one resized thumbnail, detail exposes all URLs.
     images = models.JSONField(default=list, blank=True)
+    # Required so profit/margin can always be computed; both prices are
+    # snapshotted onto OrderItem (unit_cost_snapshot / unit_price_snapshot)
+    # at the moment of sale.
     cost_price = models.DecimalField(max_digits=10, decimal_places=2)
     selling_price = models.DecimalField(max_digits=10, decimal_places=2)
+    # Targeting for school-specific items (e.g. uniforms): optional class
+    # range and gender. Shared items (shoes, stationery, ID cards) leave the
+    # school null and are visible to every student.
+    gender = models.CharField(
+        max_length=16,
+        choices=Gender.choices,
+        default=Gender.UNISEX,
+        help_text="Restrict to boys/girls, or UNISEX for everyone.",
+    )
+    class_from = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Lowest class this item applies to (school items only).",
+    )
+    class_to = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Highest class this item applies to (school items only).",
+    )
     customisation_schema = models.JSONField(
         default=dict,
         blank=True,
@@ -68,6 +97,19 @@ class Product(UUIDModel):
 
     class Meta:
         ordering = ["name"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(class_from__isnull=True)
+                | Q(class_to__isnull=True)
+                | Q(class_to__gte=models.F("class_from")),
+                name="product_class_range_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(school__isnull=False)
+                | (Q(class_from__isnull=True) & Q(class_to__isnull=True)),
+                name="product_class_range_needs_school",
+            ),
+        ]
         indexes = [
             models.Index(
                 fields=["school", "category", "active"],
@@ -80,6 +122,10 @@ class Product(UUIDModel):
             models.Index(
                 fields=["category", "active"],
                 name="idx_prod_cat_active",
+            ),
+            models.Index(
+                fields=["active", "id"],
+                name="idx_product_active_id",
             ),
         ]
 
@@ -95,6 +141,12 @@ class Product(UUIDModel):
         super().delete(*args, **kwargs)
         invalidate_catalog_cache()
 
+    @property
+    def thumbnail(self) -> str | None:
+        from .images import product_thumbnail
+
+        return product_thumbnail(self.images)
+
     def __str__(self) -> str:
         scope = self.school.code if self.school_id else "ALL"
         return f"{self.name} ({scope})"
@@ -106,7 +158,7 @@ class ProductVariant(UUIDModel):
         on_delete=models.CASCADE,
         related_name="variants",
     )
-    # Denormalised school_id and city_id for single-WHERE stock scoping
+    # Denormalised product scope for indexed city/school catalogue filtering.
     school = models.ForeignKey(
         "schools.School",
         on_delete=models.CASCADE,
@@ -123,8 +175,6 @@ class ProductVariant(UUIDModel):
     )
     size = models.CharField(max_length=50)
     sku = models.CharField(max_length=80, unique=True)
-    stock_quantity = models.IntegerField(default=0)
-    low_stock_threshold = models.IntegerField(default=10)
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -152,82 +202,3 @@ class ProductVariant(UUIDModel):
 
     def __str__(self) -> str:
         return f"{self.sku} ({self.product.name} - {self.size})"
-
-
-class StockMovement(UUIDModel):
-    class Reason(models.TextChoices):
-        INITIAL_STOCK = "INITIAL_STOCK", "Initial Stock"
-        RESTOCK = "RESTOCK", "Restock"
-        ORDER_PLACED = "ORDER_PLACED", "Order Placed"
-        ORDER_CANCELLED = "ORDER_CANCELLED", "Order Cancelled"
-        ADJUSTMENT = "ADJUSTMENT", "Manual Adjustment"
-        DAMAGE = "DAMAGE", "Damaged / Write-off"
-
-    variant = models.ForeignKey(
-        ProductVariant,
-        on_delete=models.CASCADE,
-        related_name="stock_movements",
-    )
-    # Denormalised school_id and city_id for single-WHERE stock movement scoping
-    school = models.ForeignKey(
-        "schools.School",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="stock_movements",
-    )
-    city = models.ForeignKey(
-        "schools.City",
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="stock_movements",
-    )
-    quantity_change = models.IntegerField()
-    reason = models.CharField(
-        max_length=50,
-        choices=Reason.choices,
-        default=Reason.ADJUSTMENT,
-    )
-    reference_order = models.ForeignKey(
-        "orders.Order",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="stock_movements",
-    )
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="stock_movements",
-    )
-    created_at = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        ordering = ["-created_at"]
-        indexes = [
-            models.Index(
-                fields=["variant", "created_at"],
-                name="idx_stockmov_variant_created",
-            ),
-            models.Index(
-                fields=["city", "created_at"],
-                name="idx_stockmov_city_created",
-            ),
-            models.Index(
-                fields=["school", "created_at"],
-                name="idx_stockmov_school_created",
-            ),
-        ]
-
-    def save(self, *args, **kwargs):
-        if self.variant_id:
-            self.school_id = self.variant.school_id
-            self.city_id = self.variant.city_id
-        super().save(*args, **kwargs)
-
-    def __str__(self) -> str:
-        sign = "+" if self.quantity_change >= 0 else ""
-        return f"{self.variant.sku}: {sign}{self.quantity_change} ({self.reason})"

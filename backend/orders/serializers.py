@@ -1,11 +1,16 @@
 import uuid
 from decimal import Decimal
-from django.db import transaction, IntegrityError
+
+from django.db import IntegrityError, transaction
+from django.db.models import F
+from django.db.models.functions import Now
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
-from catalog.models import ProductVariant, StockMovement
+from catalog.models import ProductVariant
+from inventory.models import StockBalance, StockMovement
 from schools.models import Student
+
 from .models import Order, OrderItem, OrderStatusEvent
 
 
@@ -45,11 +50,7 @@ class OrderStatusEventSerializer(serializers.ModelSerializer):
 
 
 class OrderListSerializer(serializers.ModelSerializer):
-    """
-    Lightweight list serializer.
-    Rule P2: no nested arrays in list payloads and no redundant raw FK UUIDs —
-    50 rows stay comfortably under the ~30 KB budget.
-    """
+    """Lightweight order list payload without nested arrays."""
 
     student_name = serializers.CharField(source="student.name", read_only=True)
     student_gr = serializers.CharField(source="student.gr_number", read_only=True)
@@ -70,6 +71,7 @@ class OrderListSerializer(serializers.ModelSerializer):
             "placed_by_role",
             "status",
             "payment_status",
+            "fulfillment_type",
             "subtotal",
             "total",
             "created_at",
@@ -95,6 +97,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "order_number",
             "placed_by",
             "placed_by_role",
+            "payer",
             "student",
             "student_name",
             "student_gr",
@@ -106,6 +109,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "city_name",
             "status",
             "payment_status",
+            "fulfillment_type",
             "subtotal",
             "total",
             "delivery_details",
@@ -131,6 +135,10 @@ class OrderCreateSerializer(serializers.Serializer):
     idempotency_key = serializers.CharField(max_length=128, write_only=True)
     student = serializers.PrimaryKeyRelatedField(
         queryset=Student.objects.select_related("school", "school__city").all()
+    )
+    fulfillment_type = serializers.ChoiceField(
+        choices=Order.FulfillmentType.choices,
+        default=Order.FulfillmentType.HOME_DELIVERY,
     )
     delivery_details = serializers.JSONField(required=False, default=dict)
     items = OrderCreateItemInputSerializer(many=True, allow_empty=False)
@@ -159,113 +167,251 @@ class OrderCreateSerializer(serializers.Serializer):
             return student
         raise PermissionDenied("Invalid role for placing orders.")
 
+    def validate(self, attrs):
+        student = attrs["student"]
+        school = student.school
+        fulfillment_type = attrs["fulfillment_type"]
+        if (
+            fulfillment_type == Order.FulfillmentType.HOME_DELIVERY
+            and not school.home_delivery_enabled
+        ):
+            raise serializers.ValidationError(
+                {"fulfillment_type": "This school does not offer home delivery."}
+            )
+        if (
+            fulfillment_type == Order.FulfillmentType.SCHOOL_PICKUP
+            and not school.school_pickup_enabled
+        ):
+            raise serializers.ValidationError(
+                {"fulfillment_type": "This school does not offer school pickup."}
+            )
+        return attrs
+
     @transaction.atomic
     def create(self, validated_data):
         user = self.context["request"].user
         student = validated_data["student"]
         items_data = validated_data["items"]
         delivery_details = validated_data.get("delivery_details", {})
-        idem = validated_data["idempotency_key"]
+        fulfillment_type = validated_data["fulfillment_type"]
+        idempotency_key = validated_data["idempotency_key"]
+        city_id = student.city_id or student.school.city_id
 
-        # This check is also repeated under the transaction; the unique index is
-        # the final arbiter for concurrent retries.
-        existing = Order.objects.filter(idempotency_key=idem).first()
+        existing = Order.objects.filter(idempotency_key=idempotency_key).first()
         if existing:
-            return existing
+            return self._existing_for_actor(existing, user)
 
-        # Lock in deterministic UUID order. Never use request/cart order here.
         variant_ids = sorted({item["variant"].id for item in items_data}, key=str)
-        locked_variants = {
-            v.id: v
-            for v in ProductVariant.objects.select_for_update()
-            .select_related("product", "product__category")
-            .filter(id__in=variant_ids).order_by("id")
+        variants = {
+            variant.id: variant
+            for variant in ProductVariant.objects.select_related(
+                "product", "product__category"
+            )
+            .filter(id__in=variant_ids)
+            .order_by("id")
         }
-        if len(locked_variants) != len(variant_ids):
-            raise serializers.ValidationError({"items": "One or more variants do not exist."})
+        if len(variants) != len(variant_ids):
+            raise serializers.ValidationError(
+                {"items": "One or more variants do not exist."}
+            )
+
+        for variant in variants.values():
+            if not variant.active:
+                raise serializers.ValidationError(
+                    {"items": f"SKU {variant.sku} is not available."}
+                )
+            if variant.product.school_id and variant.product.school_id != student.school_id:
+                raise serializers.ValidationError(
+                    {"items": f"SKU {variant.sku} is not available for this school."}
+                )
 
         quantities = {}
         for item in items_data:
-            quantities[item["variant"].id] = quantities.get(item["variant"].id, 0) + item["quantity"]
+            variant_id = item["variant"].id
+            quantities[variant_id] = quantities.get(variant_id, 0) + item["quantity"]
+            self._validate_customisation(
+                variants[variant_id].product.customisation_schema,
+                item.get("customisation_data") or {},
+            )
+
+        # Stock is debited with an atomic conditional UPDATE further down, so
+        # no row locks are taken here. This read exists purely for friendly,
+        # itemised error messages before the order row is created.
+        balances = {
+            balance.variant_id: balance
+            for balance in StockBalance.objects.filter(
+                city_id=city_id, variant_id__in=variant_ids
+            ).order_by("variant_id")
+        }
+        # A retry may have waited behind the first request while it committed.
+        existing = Order.objects.filter(idempotency_key=idempotency_key).first()
+        if existing:
+            return self._existing_for_actor(existing, user)
+
+        if len(balances) != len(variant_ids):
+            missing = [str(variant_id) for variant_id in variant_ids if variant_id not in balances]
+            raise serializers.ValidationError(
+                {"items": f"No stock balance is configured for this city's variant(s): {', '.join(missing)}."}
+            )
 
         subtotal = Decimal("0.00")
         for variant_id in variant_ids:
-            v = locked_variants[variant_id]
-            qty = quantities[variant_id]
-            if v.stock_quantity < qty:
-                raise serializers.ValidationError({"items": f"Insufficient stock for SKU {v.sku}."})
-            subtotal += v.product.selling_price * qty
-            self._validate_customisation(v.product.customisation_schema, next(
-                i["customisation_data"] for i in items_data if i["variant"].id == variant_id
-            ))
+            variant = variants[variant_id]
+            balance = balances[variant_id]
+            quantity = quantities[variant_id]
+            if balance.stock_quantity < quantity:
+                raise serializers.ValidationError(
+                    {"items": f"Insufficient stock for SKU {variant.sku} in this city."}
+                )
+            subtotal += variant.product.selling_price * quantity
 
-        short_token = uuid.uuid4().hex[:8].upper()
-        # Savepoint lets a concurrent retry recover from the unique-key race.
+        order_number = f"ORD-{uuid.uuid4().hex[:16].upper()}"
         try:
+            # Savepoint lets an idempotent retry recover from a unique-key race.
             with transaction.atomic():
                 order = Order.objects.create(
-                    idempotency_key=idem, order_number=f"ORD-{short_token}",
-                    placed_by_id=user.id, placed_by_role=user.role, student=student,
+                    idempotency_key=idempotency_key,
+                    order_number=order_number,
+                    placed_by_id=user.id,
+                    placed_by_role=user.role,
+                    payer_id=user.id,
+                    student=student,
                     parent_id=student.parent_id or (user.id if user.role == "PARENT" else None),
-                    school_id=student.school_id, city_id=student.city_id or student.school.city_id,
-                    status=Order.Status.PLACED, payment_status=Order.PaymentStatus.PENDING,
-                    subtotal=subtotal, total=subtotal, delivery_details=delivery_details,
+                    school_id=student.school_id,
+                    city_id=city_id,
+                    fulfillment_type=fulfillment_type,
+                    status=Order.Status.PLACED,
+                    payment_status=Order.PaymentStatus.PENDING,
+                    subtotal=subtotal,
+                    total=subtotal,
+                    delivery_details=delivery_details,
                 )
         except IntegrityError:
-            return Order.objects.get(idempotency_key=idem)
+            existing = Order.objects.filter(idempotency_key=idempotency_key).first()
+            if existing:
+                return self._existing_for_actor(existing, user)
+            raise
+
+        # Debit stock per city/variant with an atomic conditional
+        # UPDATE ... SET stock_quantity = stock_quantity - qty
+        # WHERE stock_quantity >= qty  (never read-modify-write in Python).
+        # Zero rows updated means a concurrent order won the remaining stock;
+        # the surrounding transaction rolls the whole order back.
+        for variant_id in variant_ids:
+            quantity = quantities[variant_id]
+            debited = StockBalance.objects.filter(
+                city_id=city_id,
+                variant_id=variant_id,
+                stock_quantity__gte=quantity,
+            ).update(
+                stock_quantity=F("stock_quantity") - quantity,
+                updated_at=Now(),
+            )
+            if not debited:
+                raise serializers.ValidationError(
+                    {
+                        "items": f"Insufficient stock for SKU "
+                        f"{variants[variant_id].sku} in this city."
+                    }
+                )
 
         order_items = []
         movements = []
         for item in items_data:
-            v = locked_variants[item["variant"].id]
-            qty = item["quantity"]
-            v.stock_quantity -= qty
-            v.save(update_fields=["stock_quantity", "updated_at"])
-            order_items.append(OrderItem(
-                order=order, variant=v, category_id=v.product.category_id, quantity=qty,
-                unit_price_snapshot=v.product.selling_price, unit_cost_snapshot=v.product.cost_price,
-                customisation_data=item.get("customisation_data") or {},
-            ))
-            movements.append(StockMovement(
-                variant=v, school_id=v.school_id, city_id=v.city_id, quantity_change=-qty,
-                reason=StockMovement.Reason.ORDER_PLACED, reference_order=order, created_by_id=user.id,
-            ))
+            variant_id = item["variant"].id
+            variant = variants[variant_id]
+            quantity = item["quantity"]
+            order_items.append(
+                OrderItem(
+                    order=order,
+                    variant=variant,
+                    category_id=variant.product.category_id,
+                    quantity=quantity,
+                    unit_price_snapshot=variant.product.selling_price,
+                    unit_cost_snapshot=variant.product.cost_price,
+                    customisation_data=item.get("customisation_data") or {},
+                )
+            )
+            movements.append(
+                StockMovement(
+                    variant=variant,
+                    city_id=city_id,
+                    school_id=order.school_id,
+                    quantity_change=-quantity,
+                    reason=StockMovement.Reason.ORDER_PLACED,
+                    reference_order=order,
+                    created_by_id=user.id,
+                )
+            )
         OrderItem.objects.bulk_create(order_items)
         StockMovement.objects.bulk_create(movements)
-        OrderStatusEvent.objects.create(order=order, status=Order.Status.PLACED,
-                                        changed_by_id=user.id, note="Order placed.")
+        OrderStatusEvent.objects.create(
+            order=order,
+            status=Order.Status.PLACED,
+            changed_by_id=user.id,
+            note="Order placed.",
+        )
 
-        # External work starts only after all rows are durable.
-        from .tasks import send_order_confirmation, refresh_order_summary, release_expired_reservation
+        # Slow side effects are dispatched after the transaction commits.
+        from .tasks import (
+            refresh_order_summary,
+            release_expired_reservation,
+            send_order_confirmation,
+        )
+
         transaction.on_commit(lambda: send_order_confirmation.delay(str(order.id)))
         transaction.on_commit(lambda: refresh_order_summary.delay(str(order.id)))
-        transaction.on_commit(lambda: release_expired_reservation.apply_async(args=[str(order.id)], countdown=15 * 60))
+        transaction.on_commit(
+            lambda: release_expired_reservation.apply_async(
+                args=[str(order.id)], countdown=15 * 60
+            )
+        )
+        return order
+
+    @staticmethod
+    def _existing_for_actor(order, user):
+        if order.placed_by_id != user.id:
+            raise PermissionDenied("That idempotency key belongs to another account.")
         return order
 
     @staticmethod
     def _validate_customisation(schema, data):
         if not data:
             if schema and schema.get("required"):
-                raise serializers.ValidationError({"customisation_data": "Required customisation is missing."})
+                raise serializers.ValidationError(
+                    {"customisation_data": "Required customisation is missing."}
+                )
             return
         if schema.get("type") == "object" and not isinstance(data, dict):
-            raise serializers.ValidationError({"customisation_data": "Must be an object."})
+            raise serializers.ValidationError(
+                {"customisation_data": "Must be an object."}
+            )
         required = schema.get("required", [])
         missing = [key for key in required if key not in data]
         if missing:
-            raise serializers.ValidationError({"customisation_data": f"Missing fields: {', '.join(missing)}"})
+            raise serializers.ValidationError(
+                {"customisation_data": f"Missing fields: {', '.join(missing)}"}
+            )
         properties = schema.get("properties", {})
         if schema.get("additionalProperties") is False:
             unknown = set(data) - set(properties)
             if unknown:
-                raise serializers.ValidationError({"customisation_data": f"Unknown fields: {', '.join(unknown)}"})
+                raise serializers.ValidationError(
+                    {"customisation_data": f"Unknown fields: {', '.join(unknown)}"}
+                )
         for key, rules in properties.items():
             if key not in data:
                 continue
             expected = rules.get("type")
-            valid = {"string": isinstance(data[key], str), "number": isinstance(data[key], (int, float)),
-                     "integer": isinstance(data[key], int) and not isinstance(data[key], bool),
-                     "boolean": isinstance(data[key], bool), "array": isinstance(data[key], list),
-                     "object": isinstance(data[key], dict)}
+            valid = {
+                "string": isinstance(data[key], str),
+                "number": isinstance(data[key], (int, float)),
+                "integer": isinstance(data[key], int) and not isinstance(data[key], bool),
+                "boolean": isinstance(data[key], bool),
+                "array": isinstance(data[key], list),
+                "object": isinstance(data[key], dict),
+            }
             if expected in valid and not valid[expected]:
-                raise serializers.ValidationError({"customisation_data": f"Invalid type for {key}."})
+                raise serializers.ValidationError(
+                    {"customisation_data": f"Invalid type for {key}."}
+                )

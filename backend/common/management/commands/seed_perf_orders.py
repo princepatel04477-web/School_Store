@@ -96,32 +96,50 @@ class Command(BaseCommand):
                 str(s.school_id),
                 str(s.school.city_id),
                 str(s.parent_id or fallback_user.id),
+                s.class_name,
             )
             for s in students
         ]
-        variant_tuples = [
-            (
-                str(v.id),
-                str(v.product.category_id),
-                str(v.product.selling_price),
-                str(v.product.cost_price),
-                float(v.product.selling_price),
+        # Items a student may actually buy: their own school's catalogue plus
+        # the shared items (school is null), so a DPS student is never sold a
+        # uniform that belongs to another school.
+        variants_by_school = {}
+        for v in variants:
+            school_id = v.product.school_id
+            key = str(school_id) if school_id else None
+            variants_by_school.setdefault(key, []).append(
+                (
+                    str(v.id),
+                    str(v.product.category_id),
+                    str(v.product.selling_price),
+                    str(v.product.cost_price),
+                    float(v.product.selling_price),
+                )
             )
-            for v in variants
-        ]
+        shared_variant_tuples = variants_by_school.pop(None, [])
+        if shared_variant_tuples:
+            for key in list(variants_by_school):
+                variants_by_school[key] = variants_by_school[key] + shared_variant_tuples
+        if not variants_by_school:
+            variants_by_school = {"": shared_variant_tuples}
         teacher_id_str = str(teacher_user.id)
 
         num_students = len(student_tuples)
-        num_variants = len(variant_tuples)
         num_statuses = len(statuses)
-        delivery_json = '{"delivery_type":"school_counter"}'
+        # Per-student eligible item list, so the round-robin below never
+        # crosses school boundaries.
+        per_student_variants = [
+            variants_by_school.get(student_tuples[i][1])
+            or next(iter(variants_by_school.values()))
+            for i in range(num_students)
+        ]
         empty_json = "{}"
 
         order_copy_sql = """
             COPY orders_order (
-                id, order_number, placed_by_id, placed_by_role,
-                student_id, parent_id, school_id, city_id, status,
-                subtotal, total, payment_status,
+                id, order_number, idempotency_key, placed_by_id, placed_by_role, payer_id,
+                student_id, parent_id, school_id, city_id, student_class, status,
+                subtotal, total, payment_status, fulfillment_type,
                 razorpay_order_id, razorpay_payment_id, razorpay_signature,
                 delivery_details, created_at, updated_at, idempotency_key
             ) FROM STDIN
@@ -147,9 +165,11 @@ class Command(BaseCommand):
                     order_id = str(uuid4())
                     item_id = str(uuid4())
 
-                    st_id, sch_id, cit_id, par_id = student_tuples[seq % num_students]
-                    var_id, cat_id, price_str, cost_str, price_float = variant_tuples[
-                        seq % num_variants
+                    st_index = seq % num_students
+                    st_id, sch_id, cit_id, par_id, st_class = student_tuples[st_index]
+                    eligible = per_student_variants[st_index]
+                    var_id, cat_id, price_str, cost_str, price_float = eligible[
+                        (seq // num_students) % len(eligible)
                     ]
                     ord_status, pay_status = statuses[seq % num_statuses]
 
@@ -165,25 +185,40 @@ class Command(BaseCommand):
                     # Spread orders across the last 90 days for realistic time-series queries
                     ts = (now - timedelta(days=seq % 90, seconds=seq % 86400)).isoformat()
                     ord_num = f"ORD-PERF-{seq:07d}"
+                    idempotency_key = f"perf-{uuid4().hex}"
+                    fulfillment_type = (
+                        Order.FulfillmentType.SCHOOL_PICKUP
+                        if seq % 2
+                        else Order.FulfillmentType.HOME_DELIVERY
+                    )
+                    delivery_details = (
+                        '{"pickup":"school"}'
+                        if fulfillment_type == Order.FulfillmentType.SCHOOL_PICKUP
+                        else '{"address":"Performance test address"}'
+                    )
 
                     order_rows.append(
                         (
                             order_id,
                             ord_num,
+                            idempotency_key,
                             placed_by_id,
                             placed_by_role,
+                            placed_by_id,
                             st_id,
                             par_id,
                             sch_id,
                             cit_id,
+                            st_class,
                             ord_status,
                             total_str,
                             total_str,
                             pay_status,
+                            fulfillment_type,
                             f"order_rzp_{seq:07d}",
                             f"pay_rzp_{seq:07d}" if pay_status == "PAID" else "",
                             "",
-                            delivery_json,
+                            delivery_details,
                             ts,
                             ts,
                             f"perf-key-{order_id}",
