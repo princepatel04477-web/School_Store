@@ -90,6 +90,7 @@ INSTALLED_APPS = [
     "orders",
     "analytics",
     "panel",
+    "boss",
 ]
 
 MIDDLEWARE = [
@@ -173,7 +174,9 @@ DATABASES = {
         "PASSWORD": os.environ.get("POSTGRES_PASSWORD", ""),
         "HOST": os.environ.get("POSTGRES_HOST", "127.0.0.1"),
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
-        "CONN_MAX_AGE": 0 if "test" in sys.argv else DB_CONN_MAX_AGE,
+        # psycopg's connection pool manages connection lifetime itself;
+        # Django 5.2 rejects CONN_MAX_AGE > 0 when a pool is configured.
+        "CONN_MAX_AGE": 0 if ("test" in sys.argv or USE_DB_POOL) else DB_CONN_MAX_AGE,
         "CONN_HEALTH_CHECKS": True,
         "OPTIONS": {},
     }
@@ -234,6 +237,31 @@ CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "0") == "1
     "test" in sys.argv
 )
 CELERY_TASK_EAGER_PROPAGATES = CELERY_TASK_ALWAYS_EAGER
+
+# Nightly drift correction for the dashboard rollups: the last 7 days are
+# recomputed from the raw order tables so any missed incremental refresh is
+# repaired within a day.
+from celery.schedules import crontab  # noqa: E402
+
+CELERY_BEAT_SCHEDULE = {
+    "analytics-nightly-rollup-repair": {
+        "task": "analytics.recompute_recent_days",
+        "schedule": crontab(
+            hour=int(os.environ.get("ROLLUP_REPAIR_HOUR", "2")),
+            minute=int(os.environ.get("ROLLUP_REPAIR_MINUTE", "0")),
+        ),
+    },
+}
+
+# --------------------------------------------------------------------------- #
+# Boss dashboard (prompt 9)
+#   - every KPI/chart response is cached in Redis for BOSS_DASHBOARD_CACHE_TTL
+#     seconds, keyed by the exact filter combination
+#   - the stock-value aggregate is cached longer because stock only moves on
+#     checkout / restock and the number is advisory
+# --------------------------------------------------------------------------- #
+BOSS_DASHBOARD_CACHE_TTL = int(os.environ.get("BOSS_DASHBOARD_CACHE_TTL", "60"))
+BOSS_STOCK_VALUE_CACHE_TTL = int(os.environ.get("BOSS_STOCK_VALUE_CACHE_TTL", "180"))
 
 # Django REST Framework & JWT Authentication
 REST_FRAMEWORK = {

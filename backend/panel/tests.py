@@ -87,6 +87,9 @@ class PanelTestBase(TestCase):
         Order.objects.all().delete()
         DailySalesSummary.objects.all().delete()
         DailySchoolTotal.objects.all().delete()
+        from analytics.models import DailyProductSummary
+
+        DailyProductSummary.objects.all().delete()
 
         cls.student = Student.objects.filter(school=cls.school, approval_status="APPROVED").first()
         cls.variant = (

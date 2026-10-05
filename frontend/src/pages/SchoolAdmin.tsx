@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../auth';
 import {
@@ -12,8 +12,19 @@ import {
 /* ------------------------------------------------------------------ *
  * School scope
  * ------------------------------------------------------------------ */
-type SchoolCtx = { schoolId: string | null; setSchoolId: (id: string) => void; schools: PanelSchool[] };
-const SchoolContext = createContext<SchoolCtx>({ schoolId: null, setSchoolId: () => {}, schools: [] });
+type ViewAs = { active: boolean; kind: 'city' | 'school' | null; name: string };
+type SchoolCtx = {
+  schoolId: string | null;
+  setSchoolId: (id: string) => void;
+  schools: PanelSchool[];
+  /** Read-only "view as" mode — write UI is hidden while this is true. */
+  readOnly: boolean;
+  viewAs: ViewAs;
+};
+const SchoolContext = createContext<SchoolCtx>({
+  schoolId: null, setSchoolId: () => {}, schools: [],
+  readOnly: false, viewAs: { active: false, kind: null, name: '' },
+});
 const useSchool = () => useContext(SchoolContext);
 
 /* ------------------------------------------------------------------ *
@@ -29,23 +40,58 @@ const NAV = [
 
 export default function SchoolAdmin() {
   const { user, signOut } = useAuth();
+  const [searchParams] = useSearchParams();
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const { data } = useQuery({ queryKey: ['panel-schools'], queryFn: () => panel.schools() });
-  const schools = data?.results ?? [];
+  const allSchools = data?.results ?? [];
+
+  // --- "View as" mode (Boss only) ------------------------------------- //
+  // /school?view_city=<id>  -> the City Admin view for one city
+  // /school?view_school=<id> -> the School Admin view for one school
+  // Read-only by default; the Boss may explicitly switch editing on.
+  const viewCity = searchParams.get('view_city');
+  const viewSchoolId = searchParams.get('view_school');
+  const isBoss = user?.role === 'BOSS';
+  const viewAs: ViewAs = {
+    active: !!isBoss && !!(viewCity || viewSchoolId),
+    kind: viewCity ? 'city' : viewSchoolId ? 'school' : null,
+    name: '',
+  };
+  const schools = useMemo(() => {
+    if (!viewAs.active) return allSchools;
+    if (viewSchoolId) return allSchools.filter((s) => s.id === viewSchoolId);
+    return allSchools.filter((s) => s.city_id === viewCity);
+  }, [allSchools, viewAs.active, viewCity, viewSchoolId]);
+  viewAs.name = viewSchoolId
+    ? (schools[0]?.name ?? '')
+    : (schools[0]?.city_name ?? '');
+
+  const [editingOn, setEditingOn] = useState(false);
+  const readOnly = viewAs.active && !editingOn;
 
   useEffect(() => {
     if (!schoolId && schools.length) setSchoolId(schools[0].id);
   }, [schools, schoolId]);
+  useEffect(() => {
+    // Keep the picked school inside the view-as scope.
+    if (schoolId && schools.length && !schools.some((s) => s.id === schoolId)) {
+      setSchoolId(schools[0].id);
+    }
+  }, [schools, schoolId]);
 
   return (
-    <SchoolContext.Provider value={{ schoolId, setSchoolId, schools }}>
+    <SchoolContext.Provider value={{ schoolId, setSchoolId, schools, readOnly, viewAs }}>
       <div className="admin">
         <header className="admin-top">
-          <Link to="/school" className="brand">
+          <Link to={viewAs.active ? '/boss' : '/school'} className="brand">
             <span className="brand-mark">S</span>
             <span>School<span className="ink">Store</span></span>
           </Link>
-          <span className="admin-role">{ROLE_LABEL[user?.role ?? 'SCHOOL_ADMIN'] ?? user?.role}</span>
+          <span className="admin-role">
+            {viewAs.active
+              ? (viewAs.kind === 'city' ? 'City admin view' : 'School admin view')
+              : (ROLE_LABEL[user?.role ?? 'SCHOOL_ADMIN'] ?? user?.role)}
+          </span>
           {schools.length > 1 && schoolId && (
             <select className="school-switch" value={schoolId} onChange={(e) => setSchoolId(e.target.value)}>
               {schools.map((s) => (
@@ -55,10 +101,24 @@ export default function SchoolAdmin() {
           )}
           {schools.length === 1 && <span className="school-tag">{schools[0]?.name}</span>}
           <div className="header-right">
+            {viewAs.active && <Link to="/boss" className="link-button">Exit view-as</Link>}
             <span className="avatar">{user?.username?.slice(0, 1).toUpperCase()}</span>
             <button className="icon-btn" onClick={signOut} aria-label="Sign out">↗</button>
           </div>
         </header>
+        {viewAs.active && (
+          <div className="view-as-banner">
+            <span>
+              Viewing as <b>{viewAs.kind === 'city' ? 'City Admin' : 'School Admin'}</b>
+              {viewAs.name ? <> — {viewAs.name}</> : null}
+              {' '}· <b>{readOnly ? 'read-only' : 'editing enabled'}</b>
+            </span>
+            <label className="check">
+              <input type="checkbox" checked={!readOnly} onChange={(e) => setEditingOn(e.target.checked)} />
+              Enable editing
+            </label>
+          </div>
+        )}
         <div className="admin-body">
           <nav className="admin-nav">
             {NAV.map((n) => (
@@ -288,7 +348,7 @@ function CommissionCard({ commission }: { commission: Commission }) {
  * 2. Orders table
  * ------------------------------------------------------------------ */
 function Orders() {
-  const { schoolId } = useSchool();
+  const { schoolId, readOnly } = useSchool();
   const { data: filters } = useQuery({ queryKey: ['panel-filters', schoolId], queryFn: () => panel.filters(schoolId!), enabled: !!schoolId });
   const [f, setF] = useState<Record<string, string>>({});
   const set = (k: string, v: string) => setF((prev) => ({ ...prev, [k]: v }));
@@ -311,7 +371,7 @@ function Orders() {
           <h1>Every order for this school</h1>
           <p className="muted">50 rows at a time, newest first — load more to keep going.</p>
         </div>
-        <ExportButton filters={f} />
+        {!readOnly && <ExportButton filters={f} />}
       </div>
 
       <section className="card">
@@ -458,7 +518,7 @@ function ExportButton({ filters }: { filters: Record<string, string> }) {
  * 5. Students
  * ------------------------------------------------------------------ */
 function Students() {
-  const { schoolId } = useSchool();
+  const { schoolId, readOnly } = useSchool();
   const [search, setSearch] = useState('');
   const [term, setTerm] = useState('');
   const [classFilter, setClassFilter] = useState('');
@@ -500,10 +560,10 @@ function Students() {
           <h1>Roster</h1>
           <p className="muted">Search, edit, approve parent-added children and bulk import.</p>
         </div>
-        <button className="primary" onClick={() => setAdding(true)}>+ Add student</button>
+        {!readOnly && <button className="primary" onClick={() => setAdding(true)}>+ Add student</button>}
       </div>
 
-      <StudentImportCard schoolId={schoolId} onDone={invalidate} />
+      {!readOnly && <StudentImportCard schoolId={schoolId} onDone={invalidate} />}
 
       <section className="card">
         <div className="filters">
@@ -546,11 +606,11 @@ function Students() {
                       ? <span className="badge s-pending">pending approval</span>
                       : <span className="badge s-approved">approved</span>}</td>
                     <td className="r actions">
-                      {s.approval_status === 'PENDING' && (
+                      {s.approval_status === 'PENDING' && !readOnly && (
                         <button className="link-button" disabled={approve.isPending} onClick={() => approve.mutate(s)}>Approve</button>
                       )}
                       <Link className="link-button" to={`/school/students/${s.id}`}>Orders</Link>
-                      <button className="link-button" onClick={() => setEditing(s)}>Edit</button>
+                      {!readOnly && <button className="link-button" onClick={() => setEditing(s)}>Edit</button>}
                     </td>
                   </tr>
                 ))}
@@ -806,7 +866,7 @@ function currentAcademicYear() {
  * 6. Teachers
  * ------------------------------------------------------------------ */
 function Teachers() {
-  const { schoolId } = useSchool();
+  const { schoolId, readOnly } = useSchool();
   const queryClient = useQueryClient();
   const [adding, setAdding] = useState(false);
   const [created, setCreated] = useState<PanelTeacher | null>(null);
@@ -825,7 +885,7 @@ function Teachers() {
           <h1>Teacher logins</h1>
           <p className="muted">Create accounts for your school and deactivate leavers without losing their order history.</p>
         </div>
-        <button className="primary" onClick={() => setAdding(true)}>+ Add teacher</button>
+        {!readOnly && <button className="primary" onClick={() => setAdding(true)}>+ Add teacher</button>}
       </div>
 
       {created && (
@@ -854,9 +914,11 @@ function Teachers() {
                       ? <span className="badge s-approved">{t.must_change_password ? 'must set password' : 'active'}</span>
                       : <span className="badge s-failed">deactivated</span>}</td>
                     <td className="r actions">
-                      <button className="link-button" disabled={toggle.isPending} onClick={() => toggle.mutate({ t, active: !t.is_active })}>
-                        {t.is_active ? 'Deactivate' : 'Activate'}
-                      </button>
+                      {!readOnly && (
+                        <button className="link-button" disabled={toggle.isPending} onClick={() => toggle.mutate({ t, active: !t.is_active })}>
+                          {t.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -953,6 +1015,7 @@ function Exports() {
 }
 
 function ExportRow({ job, onDelete }: { job: ExportJob; onDelete: () => void }) {
+  const { readOnly } = useSchool();
   const running = ['QUEUED', 'RUNNING'].includes(job.status);
   return (
     <tr>
@@ -972,7 +1035,7 @@ function ExportRow({ job, onDelete }: { job: ExportJob; onDelete: () => void }) 
         {job.download_url
           ? <button className="link-button" onClick={() => download(job.download_url!, job.filename)}>Download ⤓</button>
           : <span className="fine">{running ? 'building…' : '—'}</span>}
-        <button className="link-button" onClick={onDelete}>Delete</button>
+        {!readOnly && <button className="link-button" onClick={onDelete}>Delete</button>}
       </td>
     </tr>
   );

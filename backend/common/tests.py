@@ -112,7 +112,14 @@ class FoundationAndDataModelTests(TestCase):
             "idx_order_placer_created",
             "idx_order_payer_created",
             "uniq_dailysales_date_sch_cat",
-            "idx_dailysales_date_city",
+            # Covering indexes (INCLUDE the measures) backing the dashboards'
+            # index-only scans; they supersede the old (date, city) index.
+            "idx_ds_cover_date",
+            "idx_ds_cover_city_date",
+            "idx_ds_cover_school_date",
+            "idx_ds_cover_cat_date",
+            "idx_dst_cover_date",
+            "uniq_dailyprod_date_prod_city_sch",
         }
         with connection.cursor() as cursor:
             cursor.execute(

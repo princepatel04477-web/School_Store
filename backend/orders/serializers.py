@@ -49,6 +49,30 @@ class OrderStatusEventSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class OrderUpdateSerializer(serializers.ModelSerializer):
+    """
+    Staff-facing status / payment updates (cancel, return, mark delivered).
+
+    Only the lifecycle fields are writable; the snapshot amounts and the
+    denormalised scope columns are never edited after checkout.
+    """
+
+    class Meta:
+        model = Order
+        fields = ("status", "payment_status")
+
+    def validate(self, attrs):
+        from rest_framework.exceptions import PermissionDenied
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if user is None or user.role in ("PARENT", "TEACHER"):
+            raise PermissionDenied(
+                "Only Boss, Admin, or School Admin may change an order's status."
+            )
+        return attrs
+
+
 class OrderListSerializer(serializers.ModelSerializer):
     """Lightweight order list payload without nested arrays."""
 

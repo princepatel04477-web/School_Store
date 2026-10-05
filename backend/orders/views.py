@@ -15,6 +15,7 @@ from .serializers import (
     OrderCreateSerializer,
     OrderDetailSerializer,
     OrderListSerializer,
+    OrderUpdateSerializer,
 )
 
 
@@ -64,6 +65,8 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             return OrderCreateSerializer
         if self.action == "retrieve":
             return OrderDetailSerializer
+        if self.action in ("update", "partial_update"):
+            return OrderUpdateSerializer
         return OrderListSerializer
 
     def create(self, request, *args, **kwargs):
@@ -136,6 +139,12 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
                 changed_by_id=user.id,
                 note=f"Status updated from {old_status} to {order.status}",
             )
+            # Rollups must follow returns and cancellations too, so the
+            # dashboards stop counting this order the moment its status
+            # changes (analytics refreshes the order's local day).
+            from .tasks import refresh_order_summary
+
+            transaction.on_commit(lambda: refresh_order_summary.delay(str(order.id)))
 
     def perform_destroy(self, instance):
         user = self.request.user
