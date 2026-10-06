@@ -1,0 +1,20 @@
+export const siteConfig = {
+  name: 'SchoolStore',
+  tagline: 'School uniforms and essentials, sorted.',
+  supportPhone: '+91 98765 43210',
+  supportPhoneHref: 'tel:+919876543210',
+  whatsappNumber: '+919876543210',
+  whatsappHref: 'https://wa.me/919876543210',
+  supportEmail: 'care@schoolstore.in',
+  supportEmailHref: 'mailto:care@schoolstore.in',
+  hours: 'Mon – Sat, 9:00 AM – 6:00 PM IST',
+  businessName: 'SchoolStore Retail India Private Limited',
+  address: 'Plot 42, Sector 18, Udyog Vihar, Gurugram, Haryana 122008',
+  categories: [
+    { label: 'Uniform', slug: 'Uniform' },
+    { label: 'Shoes', slug: 'School Shoes' },
+    { label: 'Accessories', slug: 'Uniform Accessories' },
+    { label: 'Stationery', slug: 'Stationery' },
+    { label: 'ID Cards', slug: 'ID Cards' },
+  ],
+};

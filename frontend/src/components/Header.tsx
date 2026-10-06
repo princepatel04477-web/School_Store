@@ -1,0 +1,239 @@
+import { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Search, ShoppingBag, Menu, X, ArrowRight, User } from 'lucide-react';
+import { useAuth } from '../auth';
+import { siteConfig } from '../siteConfig';
+import { useStoreState } from '../store/storeState';
+import { SchoolCrest } from './school/SchoolCrest';
+import { Thread } from '../motion/Thread';
+import './headerFooter.css';
+
+export interface HeaderProps {
+  onOpenBag?: () => void;
+  onOpenSearch?: () => void;
+}
+
+export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
+  const { user } = useAuth();
+  const { totalCount, selection, setSelection } = useStoreState();
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 8);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
+  // Close mobile menu on Esc key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mobileMenuOpen]);
+
+  return (
+    <>
+      <a href="#main" className="skip-link">
+        Skip to content
+      </a>
+
+      <header className={`site-header ${isScrolled ? 'is-scrolled' : ''}`}>
+        <div className="header-inner container">
+          {/* Mobile menu button */}
+          <button
+            type="button"
+            className="mobile-menu-trigger"
+            aria-label="Open navigation menu"
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            <Menu width={22} height={22} strokeWidth={1.5} />
+          </button>
+
+          {/* Left: Brand mark + wordmark */}
+          <div className="brand-group">
+            <Link to="/" className="site-brand" aria-label="SchoolStore Home">
+              <span className="brand-mark">S</span>
+              <span className="brand-wordmark">SchoolStore</span>
+            </Link>
+
+            {/* School Pill if selected */}
+            {selection && (
+              <div className="selected-school-pill">
+                <SchoolCrest name={selection.schoolName} code={selection.schoolCode} size={24} />
+                <span className="pill-school-info">
+                  {selection.schoolName} {selection.gradeName ? `· ${selection.gradeName}` : ''}
+                </span>
+                <Link
+                  to="/flow?step=1"
+                  className="pill-change-link"
+                  aria-label="Change school or class"
+                >
+                  Change
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Categories Center Navigation */}
+          <nav className="desktop-nav" aria-label="Primary Navigation">
+            {siteConfig.categories.map((cat) => {
+              const isActive = location.pathname.startsWith('/shop') && location.search.includes(`cat=${encodeURIComponent(cat.slug)}`);
+              return (
+                <Link
+                  key={cat.slug}
+                  to={`/shop?cat=${encodeURIComponent(cat.slug)}`}
+                  className={`nav-link ${isActive ? 'is-active' : ''}`}
+                >
+                  <span>{cat.label}</span>
+                  {isActive && <Thread width={28} className="nav-thread" />}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Right actions */}
+          <div className="header-actions">
+            <button
+              type="button"
+              className="action-icon-btn"
+              aria-label="Search items"
+              onClick={onOpenSearch}
+            >
+              <Search width={20} height={20} strokeWidth={1.5} />
+            </button>
+
+            {user ? (
+              <Link to="/parent" className="action-account-btn" aria-label="My Account">
+                <User width={20} height={20} strokeWidth={1.5} />
+              </Link>
+            ) : (
+              <Link to="/login" className="action-signin-link">
+                Sign in
+              </Link>
+            )}
+
+            <button
+              type="button"
+              className="action-icon-btn bag-btn"
+              aria-label={`Shopping bag, ${totalCount} items`}
+              onClick={onOpenBag}
+            >
+              <ShoppingBag width={20} height={20} strokeWidth={1.5} />
+              {totalCount > 0 && (
+                <span className="bag-count-dot" aria-live="polite">
+                  {totalCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile Drawer Sheet */}
+      {mobileMenuOpen && (
+        <div className="mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)}>
+          <div
+            className="mobile-menu-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mobile Navigation"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sheet-top">
+              <Link to="/" className="site-brand" onClick={() => setMobileMenuOpen(false)}>
+                <span className="brand-mark">S</span>
+                <span className="brand-wordmark">SchoolStore</span>
+              </Link>
+              <button
+                type="button"
+                className="sheet-close-btn"
+                aria-label="Close navigation menu"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <X width={24} height={24} strokeWidth={1.5} />
+              </button>
+            </div>
+
+            <div className="sheet-nav-links">
+              {siteConfig.categories.map((cat) => (
+                <Link
+                  key={cat.slug}
+                  to={`/shop?cat=${encodeURIComponent(cat.slug)}`}
+                  className="sheet-nav-item"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <span>{cat.label}</span>
+                  <ArrowRight width={18} height={18} strokeWidth={1.5} />
+                </Link>
+              ))}
+
+              <div className="sheet-divider" />
+
+              <Link
+                to="/size-guide"
+                className="sheet-secondary-item"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Size Guide
+              </Link>
+              <Link
+                to="/help"
+                className="sheet-secondary-item"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Help & FAQs
+              </Link>
+              {user ? (
+                <Link
+                  to="/parent"
+                  className="sheet-secondary-item"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  My Account
+                </Link>
+              ) : (
+                <Link
+                  to="/login"
+                  className="sheet-secondary-item"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Sign in
+                </Link>
+              )}
+            </div>
+
+            <div className="sheet-footer">
+              <div className="sheet-support-row">
+                <span className="label">Need assistance?</span>
+                <a href={siteConfig.supportPhoneHref} className="sheet-contact-link">
+                  {siteConfig.supportPhone}
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

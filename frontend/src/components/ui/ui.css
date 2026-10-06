@@ -1,0 +1,249 @@
+/* UI Components Styles */
+
+/* ================== Button ================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--font-body);
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background-color var(--duration-micro) var(--ease-spring),
+              color var(--duration-micro) var(--ease-spring),
+              border-color var(--duration-micro) var(--ease-spring),
+              transform var(--duration-micro) var(--ease-spring);
+  text-decoration: none;
+  min-height: 48px;
+  min-width: 44px;
+  padding: 0 var(--space-6);
+  box-sizing: border-box;
+  user-select: none;
+  position: relative;
+}
+
+.btn-md {
+  font-size: var(--text-base);
+  height: 48px;
+}
+
+.btn-lg {
+  font-size: var(--text-lg);
+  height: 56px;
+  padding: 0 var(--space-8);
+}
+
+.btn-primary {
+  background-color: var(--brand);
+  color: var(--paper-raised);
+  border-color: var(--brand);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--brand-deep);
+  border-color: var(--brand-deep);
+  color: var(--paper-raised);
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--brand);
+  color: var(--brand);
+  background-color: var(--paper-raised);
+}
+
+.btn-text {
+  background-color: transparent;
+  color: var(--brand);
+  border-color: transparent;
+  padding: 0 var(--space-2);
+  min-height: 44px;
+}
+
+.btn-text:hover:not(:disabled) {
+  color: var(--brand-deep);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-loading {
+  position: relative;
+}
+
+.btn-content-hidden {
+  visibility: hidden;
+}
+
+.btn-spinner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ================== Input ================== */
+.input-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  text-align: left;
+  width: 100%;
+}
+
+.input-label {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.input-box-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.input-leading-icon {
+  position: absolute;
+  left: var(--space-3);
+  display: flex;
+  align-items: center;
+  color: var(--ink-faint);
+  pointer-events: none;
+}
+
+.input-control {
+  width: 100%;
+  height: 48px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background-color: var(--paper-raised);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  padding: 0 var(--space-4);
+  transition: border-color var(--duration-micro) var(--ease-spring);
+}
+
+.input-control.has-leading {
+  padding-left: calc(var(--space-3) + 24px + var(--space-2));
+}
+
+.input-control::placeholder {
+  color: var(--ink-faint);
+}
+
+.input-control:hover:not(:disabled) {
+  border-color: var(--ink-soft);
+}
+
+.input-control:focus {
+  border-color: var(--brand);
+}
+
+.input-field-group.has-error .input-control {
+  border-color: var(--danger);
+}
+
+.input-hint {
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+}
+
+.input-error {
+  font-size: var(--text-xs);
+  color: var(--danger);
+  font-weight: 500;
+}
+
+/* ================== Chip ================== */
+.chip-root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background-color: var(--paper-raised);
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--duration-micro) var(--ease-spring);
+}
+
+.chip-root:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.chip-root.is-selected {
+  background-color: var(--brand);
+  border-color: var(--brand);
+  color: var(--paper-raised);
+}
+
+/* ================== Skeleton ================== */
+.skeleton-root {
+  background-color: var(--paper-sunk);
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-root::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0,
+    rgba(255, 255, 255, 0.45) 50%,
+    transparent 100%
+  );
+  animation: shimmer 1.6s infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-root::after {
+    animation: none;
+    display: none;
+  }
+}

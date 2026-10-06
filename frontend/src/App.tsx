@@ -1,8 +1,22 @@
 import { lazy, Suspense, useState, type ReactNode } from 'react';
-import { Navigate, Route, Routes, Link } from 'react-router-dom';
+import { Navigate, Route, Routes, Link, useLocation } from 'react-router-dom';
 import { useAuth } from './auth';
-import { SelectionFlow } from './components/SelectionFlow';
+import { Header } from './components/Header';
+import { Footer } from './components/Footer';
+import { BagDrawer } from './components/cart/BagDrawer';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { PageTransition } from './motion/PageTransition';
 
+// Lazy Loaded Pages
+const HomePage = lazy(() =>
+  import('./pages/HomePage').then((m) => ({ default: m.HomePage }))
+);
+const SelectionFlowPage = lazy(() =>
+  import('./pages/SelectionFlowPage').then((m) => ({ default: m.SelectionFlowPage }))
+);
+const CheckoutPage = lazy(() =>
+  import('./pages/CheckoutPage').then((m) => ({ default: m.CheckoutPage }))
+);
 const Login = lazy(() => import('./pages/Login'));
 const Parent = lazy(() => import('./pages/Parent'));
 const Teacher = lazy(() => import('./pages/Teacher'));
@@ -10,7 +24,8 @@ const SchoolAdmin = lazy(() => import('./pages/SchoolAdmin'));
 const CityAdmin = lazy(() => import('./pages/CityAdmin'));
 const BossPanel = lazy(() => import('./pages/BossPanel'));
 
-/** Where each role lands after signing in. */
+import { ComingSoonPage, NotFoundPage } from './pages/InfoPages';
+
 export const homeFor = (role?: string) =>
   role === 'BOSS'
     ? '/boss'
@@ -31,73 +46,77 @@ function Guard({ children, roles }: { children: ReactNode; roles?: string[] }) {
 }
 
 export default function App() {
-  return (
-    <Suspense fallback={<div className="splash">Loading…</div>}>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/boss/*" element={<Guard roles={['BOSS']}><BossPanel /></Guard>} />
-        <Route path="/city/*" element={<Guard roles={['ADMIN', 'BOSS']}><CityAdmin /></Guard>} />
-        <Route path="/school/*" element={<Guard roles={['SCHOOL_ADMIN', 'ADMIN', 'BOSS']}><SchoolAdmin /></Guard>} />
-        <Route path="/parent/*" element={<Guard roles={['PARENT']}><Parent /></Guard>} />
-        <Route path="/teacher/*" element={<Guard roles={['TEACHER', 'SCHOOL_ADMIN']}><Teacher /></Guard>} />
-        <Route path="/shop" element={<Shop />} />
-        <Route path="/products/*" element={<Navigate to="/shop" replace />} />
-        <Route path="/product/*" element={<Navigate to="/shop" replace />} />
-        <Route path="*" element={<Home />} />
-      </Routes>
-    </Suspense>
-  );
-}
+  const [bagOpen, setBagOpen] = useState(false);
+  const location = useLocation();
 
-function Home() {
-  const { user, loading } = useAuth();
-  if (loading) return <div className="splash">Loading your store…</div>;
-  return user ? <Navigate to={homeFor(user.role)} replace /> : <Shop />;
-}
-
-function Shop() {
-  const { user } = useAuth();
-  const [activeCategory, setActiveCategory] = useState<
-    'Uniform' | 'School Shoes' | 'Uniform Accessories' | 'Stationery' | 'ID Cards'
-  >('Uniform');
+  const isPortal =
+    location.pathname.startsWith('/boss') ||
+    location.pathname.startsWith('/city') ||
+    location.pathname.startsWith('/school') ||
+    location.pathname.startsWith('/teacher') ||
+    location.pathname.startsWith('/login');
 
   return (
-    <div className="app">
-      <header>
-        <Link to="/shop" className="brand">
-          <span className="brand-mark">S</span>
-          <span>School<span className="ink">Store</span></span>
-        </Link>
-        <div className="header-right">
-          {user ? (
-            <Link className="text-button" to={homeFor(user.role)}>My account</Link>
-          ) : (
-            <Link className="text-button" to="/login">Sign in</Link>
-          )}
-        </div>
-      </header>
-      <main>
-        <div className="eyebrow">STEP-BY-STEP SELECTION FLOW</div>
-        <h1>School essentials, sorted.</h1>
-        <div className="chips" style={{ marginBottom: '1.5rem' }}>
-          {(['Uniform', 'School Shoes', 'Uniform Accessories', 'Stationery', 'ID Cards'] as const).map((cat) => (
-            <button
-              key={cat}
-              className={activeCategory === cat ? 'chip active' : 'chip'}
-              onClick={() => setActiveCategory(cat)}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-        <SelectionFlow
-          key={activeCategory}
-          publicView
-          category={activeCategory}
-          onNavigateCategory={(cat) => setActiveCategory(cat as any)}
-        />
-      </main>
-    </div>
+    <ErrorBoundary>
+      <div className="store-application-root">
+        {/* Render global Header for storefront */}
+        {!isPortal && (
+          <Header
+            onOpenBag={() => setBagOpen(true)}
+            onOpenSearch={() => {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              const input = document.querySelector('.hero-search-input') as HTMLInputElement;
+              if (input) input.focus();
+            }}
+          />
+        )}
+
+        <PageTransition>
+          <Suspense fallback={<div className="splash">Loading…</div>}>
+            <Routes>
+              {/* Public Storefront Routes */}
+              <Route path="/" element={<HomePage />} />
+              <Route
+                path="/shop"
+                element={<SelectionFlowPage onOpenBag={() => setBagOpen(true)} />}
+              />
+              <Route
+                path="/flow"
+                element={<SelectionFlowPage onOpenBag={() => setBagOpen(true)} />}
+              />
+              <Route path="/checkout" element={<CheckoutPage />} />
+
+              {/* Informational pages */}
+              <Route path="/about" element={<ComingSoonPage title="About SchoolStore" />} />
+              <Route path="/for-schools" element={<ComingSoonPage title="For Partner Schools" />} />
+              <Route path="/contact" element={<ComingSoonPage title="Contact Us" />} />
+              <Route path="/help" element={<ComingSoonPage title="Help & FAQs" />} />
+              <Route path="/size-guide" element={<ComingSoonPage title="Size Guide" />} />
+              <Route path="/privacy" element={<ComingSoonPage title="Privacy Policy" />} />
+              <Route path="/terms" element={<ComingSoonPage title="Terms of Service" />} />
+              <Route path="/refunds" element={<ComingSoonPage title="Refund Policy" />} />
+
+              {/* Protected Management / Portal Routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/boss/*" element={<Guard roles={['BOSS']}><BossPanel /></Guard>} />
+              <Route path="/city/*" element={<Guard roles={['ADMIN', 'BOSS']}><CityAdmin /></Guard>} />
+              <Route path="/school/*" element={<Guard roles={['SCHOOL_ADMIN', 'ADMIN', 'BOSS']}><SchoolAdmin /></Guard>} />
+              <Route path="/parent/*" element={<Guard roles={['PARENT']}><Parent /></Guard>} />
+              <Route path="/teacher/*" element={<Guard roles={['TEACHER', 'SCHOOL_ADMIN']}><Teacher /></Guard>} />
+
+              {/* Fallback 404 */}
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Suspense>
+        </PageTransition>
+
+        {/* Global Footer for storefront */}
+        {!isPortal && <Footer />}
+
+        {/* Global Bag Drawer */}
+        <BagDrawer isOpen={bagOpen} onClose={() => setBagOpen(false)} />
+      </div>
+    </ErrorBoundary>
   );
 }
 
