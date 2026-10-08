@@ -60,6 +60,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://127.0.0.1:8000",
     *CORS_ALLOWED_ORIGINS,
+    *_env_list("DJANGO_CSRF_TRUSTED_ORIGINS"),
 ]
 
 if not DEBUG:
@@ -334,6 +335,12 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
+# Optional single-origin "local server" mode: serve the built React app from Django.
+# Set FRONTEND_DIST to the Vite build folder (see scripts/start-local.ps1).
+FRONTEND_DIST = os.environ.get("FRONTEND_DIST", "")
+if FRONTEND_DIST:
+    WHITENOISE_ROOT = FRONTEND_DIST
+
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 

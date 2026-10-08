@@ -37,3 +37,9 @@ pgdata/
 redis/
 *.pid
 *.sock
+
+# Server publishing
+deploy/public.env
+deploy/*-log.txt
+deploy/*-result.txt
+frontend/dist-local/
