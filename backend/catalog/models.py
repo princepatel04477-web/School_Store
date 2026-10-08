@@ -32,9 +32,9 @@ class Category(UUIDModel):
 
 class Product(UUIDModel):
     class Gender(models.TextChoices):
-        MALE = "MALE", "Male"
-        FEMALE = "FEMALE", "Female"
-        BOTH = "BOTH", "Both"
+        BOY = "boy", "Boy"
+        GIRL = "girl", "Girl"
+        UNISEX = "unisex", "Unisex"
 
     class ProductType(models.TextChoices):
         SOCKS = "SOCKS", "Socks"
@@ -87,10 +87,16 @@ class Product(UUIDModel):
     cost_price = models.DecimalField(max_digits=10, decimal_places=2)
     selling_price = models.DecimalField(max_digits=10, decimal_places=2)
     gender = models.CharField(
-        max_length=16,
+        max_length=10,
         choices=Gender.choices,
-        default=Gender.BOTH,
-        help_text="Restrict to Male/Female, or Both for unisex items.",
+        null=True,
+        blank=False,
+        help_text="Designated gender: boy, girl, or unisex.",
+    )
+    needs_review = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Flag indicating this product needs review (e.g. unassigned gender).",
     )
     class_from = models.PositiveSmallIntegerField(
         null=True,
@@ -114,6 +120,18 @@ class Product(UUIDModel):
     class Meta:
         ordering = ["name"]
         indexes = [
+            models.Index(
+                fields=["school", "class_from", "gender"],
+                name="idx_prod_sch_class_gen",
+            ),
+            models.Index(
+                fields=["school", "class_from", "class_to", "gender"],
+                name="idx_prod_sch_cls_rng_gen",
+            ),
+            models.Index(
+                fields=["school", "gender"],
+                name="idx_prod_school_gender",
+            ),
             models.Index(
                 fields=["school", "category", "gender", "active"],
                 name="idx_prod_sch_cat_gen_act",

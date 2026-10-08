@@ -190,42 +190,73 @@ class PublicProductList(APIView):
     def get(self, request):
         school_id = request.query_params.get("school")
         city_id = request.query_params.get("city")
-        grade_id = request.query_params.get("grade")
+        grade_id = request.query_params.get("class") or request.query_params.get("grade")
+        gender = request.query_params.get("gender")
 
-        # Requirement 5: The catalogue endpoint requires school, city and grade.
-        if not school_id or not city_id or not grade_id:
+        if not school_id and not grade_id and not gender:
             raise ValidationError({
                 "detail": "School, city, and grade parameters are all required to view products."
             })
 
+        # 1. School is required and must be valid
+        if not school_id:
+            raise ValidationError({"school": "School parameter is required to view products."})
         try:
-            school_uuid = UUID(school_id)
+            school_uuid = UUID(str(school_id))
         except (TypeError, ValueError, AttributeError) as exc:
             raise ValidationError({"school": "Provide a valid school UUID."}) from exc
 
-        try:
-            city_uuid = UUID(city_id)
-        except (TypeError, ValueError, AttributeError) as exc:
-            raise ValidationError({"city": "Provide a valid city UUID."}) from exc
-
-        try:
-            grade_uuid = UUID(grade_id)
-        except (TypeError, ValueError, AttributeError) as exc:
-            raise ValidationError({"grade": "Provide a valid grade UUID."}) from exc
-
         school = School.objects.filter(pk=school_uuid, active=True).only("id", "city_id").first()
         if school is None:
-            raise NotFound("School not found.")
+            raise ValidationError({"school": "School not found or inactive."})
 
-        # Ensure the selected school actually operates in the chosen city
-        # either directly or via SchoolBranch.
-        has_branch = SchoolBranch.objects.filter(school_id=school_uuid, city_id=city_uuid, active=True).exists()
-        if not has_branch and school.city_id != city_uuid:
-            raise ValidationError({"city": "The selected school does not operate in this city."})
+        # 2. Class is required and must be valid
+        if not grade_id:
+            raise ValidationError({"class": "Class parameter is required to view products."})
 
-        grade = Grade.objects.filter(pk=grade_uuid).first()
+        grade = None
+        try:
+            grade_uuid = UUID(str(grade_id))
+            grade = Grade.objects.filter(pk=grade_uuid).first()
+        except (TypeError, ValueError, AttributeError):
+            pass
+
         if grade is None:
-            raise NotFound("Grade not found.")
+            from common.constants import normalize_class_name
+            normalized = normalize_class_name(str(grade_id))
+            if normalized:
+                grade = Grade.objects.filter(
+                    Q(name__iexact=normalized) | Q(name__iexact=str(grade_id).strip())
+                ).first()
+
+        if grade is None:
+            raise ValidationError({"class": f"Invalid class '{grade_id}'. Must be a valid school class."})
+
+        # 3. Gender is required and must be boy or girl
+        if not gender:
+            raise ValidationError({"gender": "Gender parameter is required ('boy' or 'girl')."})
+
+        gender_val = str(gender).strip().lower()
+        if gender_val in ("boy", "male", "m"):
+            selected_gender = Product.Gender.BOY
+        elif gender_val in ("girl", "female", "f"):
+            selected_gender = Product.Gender.GIRL
+        else:
+            raise ValidationError({"gender": f"Invalid gender '{gender}'. Must be 'boy' or 'girl'."})
+
+        # 4. City (validated if provided, otherwise defaults to school's city)
+        city_uuid = None
+        if city_id:
+            try:
+                city_uuid = UUID(str(city_id))
+            except (TypeError, ValueError, AttributeError) as exc:
+                raise ValidationError({"city": "Provide a valid city UUID."}) from exc
+
+            has_branch = SchoolBranch.objects.filter(school_id=school_uuid, city_id=city_uuid, active=True).exists()
+            if not has_branch and school.city_id != city_uuid:
+                raise ValidationError({"city": "The selected school does not operate in this city."})
+        else:
+            city_uuid = school.city_id
 
         # Performance: Cache key per exact filter combination
         cache_key = None
@@ -244,7 +275,7 @@ class PublicProductList(APIView):
         if cached_data is not None:
             return Response(cached_data)
 
-        balance_qs = StockBalance.objects.filter(city_id=city_uuid)
+        balance_qs = StockBalance.objects.filter(city_id=city_uuid) if city_uuid else StockBalance.objects.none()
         variants = Prefetch(
             "variants",
             queryset=(
@@ -260,15 +291,31 @@ class PublicProductList(APIView):
             ),
         )
 
-        # Requirement 9: Product query uses (school, category, gender, active) index
-        # and grade link table (grade, product) index.
         category = request.query_params.get("category")
-        gender = request.query_params.get("gender")
+
+        # Class matching:
+        # Match products explicitly assigned to this grade via M2M `grades`,
+        # or products without explicit grades where class falls within class_from..class_to.
+        import re
+        class_num = int(re.search(r"\d+", grade.name).group()) if re.search(r"\d+", grade.name) else 0
+
+        grade_filter = Q(grades=grade)
+        range_filter = Q(grades__isnull=True) & (
+            (Q(class_from__isnull=True) & Q(class_to__isnull=True))
+            | (
+                (Q(class_from__isnull=True) | Q(class_from__lte=class_num))
+                & (Q(class_to__isnull=True) | Q(class_to__gte=class_num))
+            )
+        )
 
         qs = (
             Product.objects.filter(active=True)
+            .filter(needs_review=False)
+            .filter(gender__isnull=False)
             .filter(Q(school_id=school_uuid) | Q(school__isnull=True))
-            .filter(grades=grade)
+            .filter(grade_filter | range_filter)
+            .filter(Q(gender=selected_gender) | Q(gender=Product.Gender.UNISEX))
+            .distinct()
             .select_related("category", "school")
             .prefetch_related(variants)
             .order_by("id")
@@ -278,12 +325,6 @@ class PublicProductList(APIView):
             qs = qs.filter(
                 Q(category__name__iexact=category) | Q(category__slug__iexact=category)
             )
-
-        # Requirement 4: Filter with Male and Female. Products marked "Both" appear under either.
-        if gender:
-            gender_val = gender.upper()
-            if gender_val in (Product.Gender.MALE, Product.Gender.FEMALE):
-                qs = qs.filter(Q(gender=gender_val) | Q(gender=Product.Gender.BOTH))
 
         # Requirement 3: Filter by product_type through the API (e.g. SOCKS, BELT, TIE)
         product_type = request.query_params.get("product_type")
@@ -304,6 +345,7 @@ class PublicProductList(APIView):
                 "category": product.category.name,
                 "product_type": product.product_type,
                 "gender": product.gender,
+                "needs_review": product.needs_review,
                 "school": product.school.name if product.school else None,
                 "price": float(product.selling_price),
                 "thumbnail": product_thumbnail(product.images),

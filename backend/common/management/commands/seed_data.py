@@ -108,31 +108,25 @@ class Command(BaseCommand):
             )
         )
 
-        # 3. 15 Fixed Ordered Grades (Nursery, Junior KG, Senior KG, 1..12)
-        grade_names = [
-            "Nursery",
-            "Junior KG",
-            "Senior KG",
-            "1",
-            "2",
-            "3",
-            "4",
-            "5",
-            "6",
-            "7",
-            "8",
-            "9",
-            "10",
-            "11",
-            "12",
-        ]
+        # 3. 15 Fixed Ordered Grades (Nursery, Junior KG, Senior KG, Class 1..12)
+        from common.constants import CLASSES, CLASS_NAMES
+        grade_names = CLASS_NAMES
         grades_by_name = {}
-        for idx, gname in enumerate(grade_names, start=1):
-            g_obj, _ = Grade.objects.update_or_create(
-                name=gname,
-                defaults={"sort_order": idx},
-            )
-            grades_by_name[gname] = g_obj
+        for c in CLASSES:
+            g_obj = Grade.objects.filter(sort_order=c["sort_order"]).first()
+            if g_obj:
+                if g_obj.name != c["name"]:
+                    g_obj.name = c["name"]
+                    g_obj.save(update_fields=["name"])
+            else:
+                g_obj, _ = Grade.objects.update_or_create(
+                    name=c["name"],
+                    defaults={"sort_order": c["sort_order"]},
+                )
+            grades_by_name[c["name"]] = g_obj
+            if c["name"].startswith("Class "):
+                num = c["name"][6:].strip()
+                grades_by_name[num] = g_obj
 
         self.stdout.write(
             self.style.SUCCESS(f"Seeded all 15 grades with sort_order 1 to 15.")
@@ -345,7 +339,7 @@ class Command(BaseCommand):
                 "name": "DPS Everyday Formal Half-Sleeve Shirt",
                 "category": categories["uniform"],
                 "school": dps_surat,
-                "gender": Product.Gender.MALE,
+                "gender": Product.Gender.BOY,
                 "grades": [grades_by_name[str(i)] for i in range(1, 13)],
                 "description": "Breathable cotton-blend formal shirt with embroidered DPS crest.",
                 "cost_price": Decimal("280.00"),
@@ -372,7 +366,7 @@ class Command(BaseCommand):
                 "name": "DPS Girls Pleated Pinafore (Class 1-5)",
                 "category": categories["uniform"],
                 "school": dps_surat,
-                "gender": Product.Gender.FEMALE,
+                "gender": Product.Gender.GIRL,
                 "grades": [grades_by_name[str(i)] for i in range(1, 6)],
                 "description": "Navy pleated pinafore with DPS crest, for junior girls.",
                 "cost_price": Decimal("360.00"),
@@ -387,7 +381,7 @@ class Command(BaseCommand):
                 "name": "Fountainhead Signature Polo Tee",
                 "category": categories["uniform"],
                 "school": fhs_surat,
-                "gender": Product.Gender.BOTH,
+                "gender": Product.Gender.UNISEX,
                 "grades": [grades_by_name[str(i)] for i in range(1, 13)],
                 "description": "Pique cotton polo t-shirt with Fountainhead logo.",
                 "cost_price": Decimal("260.00"),
@@ -403,7 +397,7 @@ class Command(BaseCommand):
                 "name": "Udgam Ceremonial Winter Blazer",
                 "category": categories["uniform"],
                 "school": udgam_amd,
-                "gender": Product.Gender.BOTH,
+                "gender": Product.Gender.UNISEX,
                 "grades": [grades_by_name[str(i)] for i in range(5, 13)],
                 "description": "Tailored navy blazer with Udgam School crest.",
                 "cost_price": Decimal("850.00"),
@@ -420,7 +414,7 @@ class Command(BaseCommand):
                 "name": "All-Weather Black Velcro School Shoes",
                 "category": categories["school-shoes"],
                 "school": None,
-                "gender": Product.Gender.BOTH,
+                "gender": Product.Gender.UNISEX,
                 "grades": [grades_by_name[str(i)] for i in range(1, 13)],
                 "description": "Durable anti-skid black velcro school shoes suitable for daily wear.",
                 "cost_price": Decimal("420.00"),
@@ -442,7 +436,7 @@ class Command(BaseCommand):
                 "name": "DPS Formal Black Oxford Shoes",
                 "category": categories["school-shoes"],
                 "school": dps_surat,
-                "gender": Product.Gender.MALE,
+                "gender": Product.Gender.BOY,
                 "grades": [grades_by_name[str(i)] for i in range(5, 13)],
                 "description": "Official DPS formal black lace-up oxford school shoes with cushioned insole.",
                 "cost_price": Decimal("480.00"),
@@ -459,7 +453,7 @@ class Command(BaseCommand):
                 "name": "Action White PT Sports Shoes",
                 "category": categories["school-shoes"],
                 "school": None,
-                "gender": Product.Gender.BOTH,
+                "gender": Product.Gender.UNISEX,
                 "grades": [grades_by_name[str(i)] for i in range(1, 13)],
                 "description": "Lightweight breathable white canvas PT and sports shoes with non-marking rubber sole.",
                 "cost_price": Decimal("320.00"),
@@ -479,7 +473,7 @@ class Command(BaseCommand):
                 "category": categories["uniform-accessories"],
                 "product_type": Product.ProductType.SOCKS,
                 "school": dps_surat,
-                "gender": Product.Gender.BOTH,
+                "gender": Product.Gender.UNISEX,
                 "grades": [grades_by_name[g] for g in grade_names],
                 "description": "Cushioned cotton crew socks with bottle green DPS school stripes.",
                 "cost_price": Decimal("110.00"),
@@ -495,7 +489,7 @@ class Command(BaseCommand):
                 "category": categories["uniform-accessories"],
                 "product_type": Product.ProductType.SOCKS,
                 "school": None,
-                "gender": Product.Gender.BOTH,
+                "gender": Product.Gender.UNISEX,
                 "grades": [grades_by_name[g] for g in grade_names],
                 "description": "Breathable cotton-rich plain navy crew socks for everyday school wear.",
                 "cost_price": Decimal("90.00"),
@@ -511,7 +505,7 @@ class Command(BaseCommand):
                 "category": categories["uniform-accessories"],
                 "product_type": Product.ProductType.BELT,
                 "school": None,
-                "gender": Product.Gender.BOTH,
+                "gender": Product.Gender.UNISEX,
                 "grades": [grades_by_name[str(i)] for i in range(1, 13)],
                 "description": "Adjustable elastic woven uniform belt with metal slide buckle.",
                 "cost_price": Decimal("75.00"),
@@ -528,7 +522,7 @@ class Command(BaseCommand):
                 "category": categories["uniform-accessories"],
                 "product_type": Product.ProductType.BELT,
                 "school": dps_surat,
-                "gender": Product.Gender.BOTH,
+                "gender": Product.Gender.UNISEX,
                 "grades": [grades_by_name[str(i)] for i in range(1, 13)],
                 "description": "Premium black leatherette belt embossed with DPS school crest and brass buckle.",
                 "cost_price": Decimal("95.00"),
@@ -544,7 +538,7 @@ class Command(BaseCommand):
                 "category": categories["uniform-accessories"],
                 "product_type": Product.ProductType.TIE,
                 "school": udgam_amd,
-                "gender": Product.Gender.BOTH,
+                "gender": Product.Gender.UNISEX,
                 "grades": [grades_by_name[str(i)] for i in range(1, 13)],
                 "description": "Microfiber woven school tie with embroidered Udgam crest.",
                 "cost_price": Decimal("60.00"),
@@ -559,7 +553,7 @@ class Command(BaseCommand):
                 "category": categories["uniform-accessories"],
                 "product_type": Product.ProductType.TIE,
                 "school": dps_surat,
-                "gender": Product.Gender.BOTH,
+                "gender": Product.Gender.UNISEX,
                 "grades": [grades_by_name[str(i)] for i in range(1, 13)],
                 "description": "Official bottle green DPS school tie with golden school crest and diagonal stripes.",
                 "cost_price": Decimal("65.00"),
@@ -574,7 +568,7 @@ class Command(BaseCommand):
                 "category": categories["uniform-accessories"],
                 "product_type": Product.ProductType.TIE,
                 "school": None,
-                "gender": Product.Gender.BOTH,
+                "gender": Product.Gender.UNISEX,
                 "grades": [grades_by_name[str(i)] for i in range(1, 13)],
                 "description": "Classic plain navy woven school uniform tie suitable for formal dress codes.",
                 "cost_price": Decimal("50.00"),
@@ -589,7 +583,7 @@ class Command(BaseCommand):
                 "name": "Personalised Photo Notebook Pack (Set of 6)",
                 "category": categories["stationery"],
                 "school": None,
-                "gender": Product.Gender.BOTH,
+                "gender": Product.Gender.UNISEX,
                 "grades": [grades_by_name[g] for g in grade_names],
                 "description": "172-page A4 single-line notebooks with custom student photo & name cover print.",
                 "cost_price": Decimal("210.00"),
@@ -620,7 +614,7 @@ class Command(BaseCommand):
                 "name": "Smart RFID PVC Student ID Card with Lanyard",
                 "category": categories["id-cards"],
                 "school": None,
-                "gender": Product.Gender.BOTH,
+                "gender": Product.Gender.UNISEX,
                 "grades": [grades_by_name[g] for g in grade_names],
                 "description": "CR80 glossy PVC ID card printed with student photo, name, class and emergency contact.",
                 "cost_price": Decimal("45.00"),
@@ -679,7 +673,8 @@ class Command(BaseCommand):
                     "description": p_spec["description"],
                     "cost_price": p_spec["cost_price"],
                     "selling_price": p_spec["selling_price"],
-                    "gender": p_spec.get("gender", Product.Gender.BOTH),
+                    "gender": p_spec.get("gender", Product.Gender.UNISEX),
+                    "needs_review": False,
                     "customisation_schema": p_spec["customisation_schema"],
                     "images": [f"https://placehold.co/600x600?text={p_spec['name'][:18].replace(' ', '+')}"],
                     "active": True,

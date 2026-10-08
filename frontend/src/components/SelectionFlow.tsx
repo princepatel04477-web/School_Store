@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, Product, StockStatus } from '../api';
+import { CLASSES } from '../data/classes';
+import { useStoreState } from '../store/storeState';
 import { CustomisationForm } from './CustomisationForm';
 import { Popup } from './Popup';
 
@@ -26,6 +28,7 @@ export interface SelectionState {
   school: SchoolItem | null;
   city: CityItem | null;
   grade: GradeItem | null;
+  gender: 'boy' | 'girl' | null;
 }
 
 interface SelectionFlowProps {
@@ -39,6 +42,8 @@ interface SelectionFlowProps {
     gender?: string;
   } | null;
   autoSelectStudentProfile?: boolean;
+  cartItemCount?: number;
+  onClearCart?: () => void;
   onOrder?: (x: { product: Product; variantId: string; customisationData: Record<string, any> }) => void;
   onNavigateCategory?: (category: string) => void;
   publicView?: boolean;
@@ -51,24 +56,36 @@ export function SelectionFlow({
   category = 'Uniform',
   studentProfile,
   autoSelectStudentProfile = false,
+  cartItemCount,
+  onClearCart,
   onOrder,
   onNavigateCategory,
   publicView = false,
 }: SelectionFlowProps) {
+  const { cart: storeCart, clearCart: clearStoreCart } = useStoreState();
+  const activeCartCount = cartItemCount !== undefined ? cartItemCount : storeCart.length;
+
   // Try restoring from sessionStorage
   const [selection, setSelection] = useState<SelectionState>(() => {
     try {
       const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return {
+          school: parsed.school || null,
+          city: parsed.city || null,
+          grade: parsed.grade || null,
+          gender: parsed.gender === 'boy' || parsed.gender === 'girl' ? parsed.gender : null,
+        };
       }
     } catch {
       // ignore
     }
-    return { school: null, city: null, grade: null };
+    return { school: null, city: null, grade: null, gender: null };
   });
 
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(() => {
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(() => {
+    if (selection.school && selection.city && selection.grade && selection.gender) return 5;
     if (selection.school && selection.city && selection.grade) return 4;
     if (selection.school && selection.city) return 3;
     if (selection.school) return 2;
@@ -76,6 +93,9 @@ export function SelectionFlow({
   });
 
   const [schoolSearch, setSchoolSearch] = useState('');
+  const [showCartWarning, setShowCartWarning] = useState(false);
+  const [showChangeMenu, setShowChangeMenu] = useState(false);
+  const [pendingTargetStep, setPendingTargetStep] = useState<1 | 3 | 4 | null>(null);
   const [genderFilter, setGenderFilter] = useState<'ALL' | 'MALE' | 'FEMALE'>('ALL');
   const [productTypeFilter, setProductTypeFilter] = useState<'ALL' | 'SOCKS' | 'BELT' | 'TIE'>('ALL');
   const [showSizeGuide, setShowSizeGuide] = useState(false);
@@ -172,34 +192,45 @@ export function SelectionFlow({
     staleTime: 10 * 60 * 1000,
   });
 
-  // Query: Products (Only when school, city, grade are selected)
+  // Exactly 15 options from the single source of truth (CLASSES)
+  const availableGrades: GradeItem[] = useMemo(() => {
+    return CLASSES.map((c) => {
+      const match = grades.find(
+        (g) => g.name.toLowerCase() === c.name.toLowerCase() || g.sort_order === c.sortOrder
+      );
+      return {
+        id: match ? match.id : c.id,
+        name: c.name,
+        sort_order: c.sortOrder,
+      };
+    });
+  }, [grades]);
+
+  // Query: Products (Only when school, city, grade, and gender are selected at step 5)
   const { data: productsData, isLoading: loadingProducts } = useQuery({
     queryKey: [
       'selection-products',
       selection.school?.id,
       selection.city?.id,
       selection.grade?.id,
+      selection.gender,
       category,
-      genderFilter,
       productTypeFilter,
     ],
     queryFn: async () => {
-      if (!selection.school?.id || !selection.city?.id || !selection.grade?.id) {
+      if (!selection.school?.id || !selection.city?.id || !selection.grade?.id || !selection.gender) {
         return { results: [] };
       }
-      let url = `/public/products/?school=${selection.school.id}&city=${selection.city.id}&grade=${selection.grade.id}`;
+      let url = `/public/products/?school=${selection.school.id}&city=${selection.city.id}&grade=${selection.grade.id}&gender=${selection.gender}`;
       if (category && category !== 'All') {
         url += `&category=${encodeURIComponent(category)}`;
-      }
-      if (genderFilter !== 'ALL') {
-        url += `&gender=${genderFilter}`;
       }
       if (isAccessoriesFlow && productTypeFilter !== 'ALL') {
         url += `&product_type=${productTypeFilter}`;
       }
       return api<{ results: Product[] }>(url);
     },
-    enabled: !!(selection.school?.id && selection.city?.id && selection.grade?.id && step === 4),
+    enabled: !!(selection.school?.id && selection.city?.id && selection.grade?.id && selection.gender && step === 5),
   });
 
   const productsList = productsData?.results || [];
@@ -226,8 +257,12 @@ export function SelectionFlow({
       (s) => s.id === studentProfile.school_id || s.name === studentProfile.school_name
     ) || (studentProfile.school_id ? { id: studentProfile.school_id, name: studentProfile.school_name || 'My School', code: '' } : null);
 
-    const matchedGrade = grades.find(
-      (g) => g.id === studentProfile.grade_id || g.name === studentProfile.grade_name || g.name === `Grade ${studentProfile.grade_name}`
+    const matchedGrade = availableGrades.find(
+      (g) =>
+        g.id === studentProfile.grade_id ||
+        g.name === studentProfile.grade_name ||
+        g.name === `Grade ${studentProfile.grade_name}` ||
+        g.name === `Class ${studentProfile.grade_name}`
     ) || (studentProfile.grade_id ? { id: studentProfile.grade_id, name: studentProfile.grade_name || '', sort_order: 1 } : null);
 
     const cityObj = studentProfile.city_id
@@ -239,33 +274,24 @@ export function SelectionFlow({
         school: matchedSchool,
         city: cityObj,
         grade: matchedGrade,
+        gender: null, // NO DEFAULT SELECTED per requirement - user/teacher must choose!
       });
-      if (studentProfile.gender) {
-        const g = studentProfile.gender.toUpperCase();
-        if (g === 'MALE' || g === 'FEMALE') {
-          setGenderFilter(g as 'MALE' | 'FEMALE');
-        }
-      }
-      // If city is already available, jump straight to products; otherwise go to city step
-      if (cityObj) {
-        setStep(4);
-      } else {
-        setStep(2);
-      }
+      // Land directly on Step 4: Boy or Girl
+      setStep(4);
     }
   };
 
   // Auto-select when requested (e.g. Teacher ordering on behalf of student)
   useEffect(() => {
-    if (!autoSelectStudentProfile || !studentProfile || schools.length === 0 || grades.length === 0) return;
+    if (!autoSelectStudentProfile || !studentProfile || schools.length === 0) return;
     if (step === 1 && !selection.school) {
       handlePreFillConfirm();
     }
-  }, [autoSelectStudentProfile, studentProfile, schools, grades, step, selection.school]);
+  }, [autoSelectStudentProfile, studentProfile, schools, step, selection.school]);
 
   // Requirement 1: Trigger stationery prompt when reaching end of Uniform Accessories page
   useEffect(() => {
-    if (!isAccessoriesFlow || step !== 4) return;
+    if (!isAccessoriesFlow || step !== 5) return;
     const sentinel = endOfPageSentinelRef.current;
     if (!sentinel) return;
 
@@ -282,21 +308,54 @@ export function SelectionFlow({
     return () => observer.disconnect();
   }, [isAccessoriesFlow, step, triggerStationeryPrompt, productsList.length]);
 
-  const handleReset = () => {
-    setSelection({ school: null, city: null, grade: null });
-    setStep(1);
-    setSchoolSearch('');
-    setProductTypeFilter('ALL');
-    setGenderFilter('ALL');
-    try {
-      sessionStorage.removeItem(SESSION_STORAGE_KEY);
-    } catch {
-      // ignore
+  const performStepChange = (targetStep: 1 | 3 | 4) => {
+    if (targetStep === 3) {
+      setSelection((prev) => ({ ...prev, grade: null, gender: null }));
+      setStep(3);
+    } else if (targetStep === 4) {
+      setSelection((prev) => ({ ...prev, gender: null }));
+      setStep(4);
+    } else {
+      setSelection({ school: null, city: null, grade: null, gender: null });
+      setStep(1);
+      setSchoolSearch('');
+    }
+    setShowChangeMenu(false);
+    setShowCartWarning(false);
+  };
+
+  const requestStepChange = (targetStep: 1 | 3 | 4) => {
+    if (activeCartCount > 0) {
+      setPendingTargetStep(targetStep);
+      setShowCartWarning(true);
+      setShowChangeMenu(false);
+    } else {
+      performStepChange(targetStep);
     }
   };
 
+  const handleConfirmCartClear = () => {
+    onClearCart?.();
+    clearStoreCart();
+    if (pendingTargetStep) {
+      performStepChange(pendingTargetStep);
+    }
+    setShowCartWarning(false);
+    setPendingTargetStep(null);
+  };
+
+  const handleCancelCartClear = () => {
+    setShowCartWarning(false);
+    setPendingTargetStep(null);
+  };
+
+  const handleReset = () => {
+    requestStepChange(1);
+  };
+
   const handleBack = () => {
-    if (step === 4) setStep(3);
+    if (step === 5) setStep(4);
+    else if (step === 4) setStep(3);
     else if (step === 3) {
       // If school had only 1 city, back goes directly to step 1
       if (schoolCities.length === 1) {
@@ -503,7 +562,7 @@ export function SelectionFlow({
         <div className="card" style={{ padding: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <div>
-              <span className="eyebrow">STEP 2 OF 3</span>
+              <span className="eyebrow">STEP 2 OF 4</span>
               <h2 style={{ margin: '4px 0 0', fontSize: '20px' }}>Select Branch City</h2>
               <small style={{ color: '#78817a' }}>Branches for {selection.school?.name}</small>
             </div>
@@ -559,71 +618,201 @@ export function SelectionFlow({
         </div>
       )}
 
-      {/* STEP 3: Select Grade / Standard */}
+      {/* STEP 3: Select Class (All 15 options from single source of truth) */}
       {step === 3 && (
         <div className="card" style={{ padding: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <div>
-              <span className="eyebrow">STEP 3 OF 3</span>
-              <h2 style={{ margin: '4px 0 0', fontSize: '20px' }}>Select Grade / Standard</h2>
-              <small style={{ color: '#78817a' }}>Choose your child's standard</small>
+              <span className="eyebrow">STEP 3 OF 4</span>
+              <h2 style={{ margin: '4px 0 0', fontSize: '20px' }}>Select Class</h2>
+              <small style={{ color: '#78817a' }}>Choose your child's class</small>
             </div>
             <button className="text-button" onClick={handleBack}>
               ← Back
             </button>
           </div>
 
-          {loadingGrades ? (
-            <div className="empty">
-              <h3>Loading standards…</h3>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '10px' }}>
-              {grades.map((grade) => (
-                <button
-                  key={grade.id}
-                  onClick={() => {
-                    setSelection((prev) => ({ ...prev, grade }));
-                    setStep(4);
-                  }}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '14px 10px',
-                    textAlign: 'center',
-                    background: selection.grade?.id === grade.id ? '#edf6ef' : '#fafbf8',
-                    border: selection.grade?.id === grade.id ? '2px solid var(--green, #275b4c)' : '1px solid var(--line, #dfe5dd)',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span style={{ fontSize: '18px', marginBottom: '4px' }}>🎓</span>
-                  <strong style={{ fontSize: '13px', color: 'var(--ink, #17221f)' }}>
-                    {grade.name}
-                  </strong>
-                </button>
-              ))}
-            </div>
-          )}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))',
+              gap: '10px',
+            }}
+          >
+            {availableGrades.map((grade) => (
+              <button
+                key={grade.id}
+                onClick={() => {
+                  setSelection((prev) => ({ ...prev, grade }));
+                  setStep(4);
+                }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '14px 8px',
+                  textAlign: 'center',
+                  background: selection.grade?.id === grade.id ? '#edf6ef' : '#fafbf8',
+                  border: selection.grade?.id === grade.id ? '2px solid var(--green, #275b4c)' : '1px solid var(--line, #dfe5dd)',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  minHeight: '68px',
+                }}
+              >
+                <span style={{ fontSize: '16px', marginBottom: '4px' }}>🎓</span>
+                <strong style={{ fontSize: '13px', color: 'var(--ink, #17221f)' }}>
+                  {grade.name}
+                </strong>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* STEP 4: Products Display with Male / Female Filter */}
+      {/* STEP 4: Select Boy or Girl (Two large tappable cards, no default selected) */}
       {step === 4 && (
-        <div>
-          <div className="section-row" style={{ marginTop: '0', marginBottom: '16px' }}>
+        <div className="card" style={{ padding: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <div>
-              <div className="eyebrow">{category.toUpperCase()} CATALOGUE</div>
-              <h2 style={{ margin: '4px 0 0' }}>
-                {category} for Grade {selection.grade?.name}
-              </h2>
+              <span className="eyebrow">STEP 4 OF 4</span>
+              <h2 style={{ margin: '4px 0 0', fontSize: '20px' }}>Who are you shopping for?</h2>
               <small style={{ color: '#78817a' }}>
-                {selection.school?.name} · {selection.city?.name}
+                {selection.grade?.name} at {selection.school?.name}
               </small>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button className="text-button" onClick={handleBack}>
+              ← Back
+            </button>
+          </div>
+
+          <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '0 0 20px' }}>
+            Please choose Boy or Girl to view tailored uniforms and approved items. You cannot continue without choosing.
+          </p>
+
+          <div
+            className="gender-cards-grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+              gap: '16px',
+            }}
+          >
+            {/* Boy Card */}
+            <button
+              type="button"
+              className={`gender-card ${selection.gender === 'boy' ? 'selected' : ''}`}
+              onClick={() => {
+                setSelection((prev) => ({ ...prev, gender: 'boy' }));
+                setStep(5);
+              }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '28px 16px',
+                textAlign: 'center',
+                background: selection.gender === 'boy' ? '#edf6ef' : '#fafbf8',
+                border: selection.gender === 'boy' ? '2px solid var(--green, #275b4c)' : '1px solid var(--line, #dfe5dd)',
+                borderRadius: '16px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: selection.gender === 'boy' ? '0 4px 12px rgba(39,91,76,0.12)' : '0 1px 3px rgba(0,0,0,0.04)',
+                minHeight: '140px',
+              }}
+            >
+              <span style={{ fontSize: '48px', display: 'block', marginBottom: '10px' }}>👦</span>
+              <strong style={{ fontSize: '19px', display: 'block', color: 'var(--ink, #17221f)' }}>
+                Boy
+              </strong>
+              <small style={{ color: '#78817a', fontSize: '12px', marginTop: '6px' }}>
+                Boys' &amp; unisex essentials
+              </small>
+            </button>
+
+            {/* Girl Card */}
+            <button
+              type="button"
+              className={`gender-card ${selection.gender === 'girl' ? 'selected' : ''}`}
+              onClick={() => {
+                setSelection((prev) => ({ ...prev, gender: 'girl' }));
+                setStep(5);
+              }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '28px 16px',
+                textAlign: 'center',
+                background: selection.gender === 'girl' ? '#edf6ef' : '#fafbf8',
+                border: selection.gender === 'girl' ? '2px solid var(--green, #275b4c)' : '1px solid var(--line, #dfe5dd)',
+                borderRadius: '16px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: selection.gender === 'girl' ? '0 4px 12px rgba(39,91,76,0.12)' : '0 1px 3px rgba(0,0,0,0.04)',
+                minHeight: '140px',
+              }}
+            >
+              <span style={{ fontSize: '48px', display: 'block', marginBottom: '10px' }}>👧</span>
+              <strong style={{ fontSize: '19px', display: 'block', color: 'var(--ink, #17221f)' }}>
+                Girl
+              </strong>
+              <small style={{ color: '#78817a', fontSize: '12px', marginTop: '6px' }}>
+                Girls' &amp; unisex essentials
+              </small>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 5: Products Display with Summary Bar & Clear Cart Warning */}
+      {step === 5 && (
+        <div>
+          {/* Summary Bar above product list with Change action */}
+          <div
+            className="selection-summary-bar"
+            style={{
+              background: '#ffffff',
+              border: '1px solid var(--line, #dfe5dd)',
+              borderRadius: '12px',
+              padding: '12px 18px',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+              flexWrap: 'wrap',
+              gap: '10px',
+            }}
+          >
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600, textTransform: 'uppercase' }}>
+                Current Selection:
+              </span>
+              {selection.school && (
+                <span className="pill" style={{ background: '#eef3ef', color: '#275b4c', fontWeight: 600 }}>
+                  🏫 {selection.school.name}
+                </span>
+              )}
+              {selection.city && (
+                <span className="pill" style={{ background: '#eef3ef', color: '#275b4c', fontWeight: 600 }}>
+                  📍 {selection.city.name}
+                </span>
+              )}
+              {selection.grade && (
+                <span className="pill" style={{ background: '#eef3ef', color: '#275b4c', fontWeight: 600 }}>
+                  🎓 {selection.grade.name}
+                </span>
+              )}
+              {selection.gender && (
+                <span className="pill" style={{ background: '#eef3ef', color: '#275b4c', fontWeight: 600 }}>
+                  {selection.gender === 'boy' ? '👦 Boy' : '👧 Girl'}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               {isShoeFlow && (
                 <button
                   type="button"
@@ -642,50 +831,35 @@ export function SelectionFlow({
                   📏 Shoe Size Guide
                 </button>
               )}
-              <button className="text-button" onClick={handleReset} style={{ fontSize: '13px', fontWeight: 600 }}>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setShowChangeMenu(true)}
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--line, #dfe5dd)',
+                  background: '#fafbf8',
+                  cursor: 'pointer',
+                }}
+              >
                 Change ✎
               </button>
             </div>
           </div>
 
-          {/* Gender Filter: Male, Female, All */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginBottom: '20px',
-              padding: '8px 12px',
-              background: '#ffffff',
-              borderRadius: '10px',
-              border: '1px solid var(--line, #dfe5dd)',
-              width: 'fit-content',
-            }}
-          >
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#4b5563', marginRight: '6px' }}>
-              Gender Filter:
-            </span>
-            <button
-              onClick={() => setGenderFilter('ALL')}
-              className={genderFilter === 'ALL' ? 'chip active' : 'chip'}
-              style={{ padding: '6px 14px', fontSize: '12px' }}
-            >
-              All Items
-            </button>
-            <button
-              onClick={() => setGenderFilter('MALE')}
-              className={genderFilter === 'MALE' ? 'chip active' : 'chip'}
-              style={{ padding: '6px 14px', fontSize: '12px' }}
-            >
-              👦 Boys (Male)
-            </button>
-            <button
-              onClick={() => setGenderFilter('FEMALE')}
-              className={genderFilter === 'FEMALE' ? 'chip active' : 'chip'}
-              style={{ padding: '6px 14px', fontSize: '12px' }}
-            >
-              👧 Girls (Female)
-            </button>
+          <div className="section-row" style={{ marginTop: '0', marginBottom: '16px' }}>
+            <div>
+              <div className="eyebrow">{category.toUpperCase()} CATALOGUE</div>
+              <h2 style={{ margin: '4px 0 0' }}>
+                {category} for {selection.grade?.name} ({selection.gender === 'boy' ? 'Boy' : 'Girl'})
+              </h2>
+              <small style={{ color: '#78817a' }}>
+                {selection.school?.name} · {selection.city?.name}
+              </small>
+            </div>
           </div>
 
           {/* Requirement 3: Uniform Accessories Product Type Filter: Socks, Belt, Tie, All */}
@@ -747,21 +921,39 @@ export function SelectionFlow({
               <h3>Loading matching products…</h3>
             </div>
           ) : productsList.length === 0 ? (
-            <div className="empty">
-              <span>⌁</span>
-              <h3>No matching {category.toLowerCase()} products found</h3>
-              <p>There are no products matching this school, grade, and filter criteria.</p>
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '10px' }}>
-                {genderFilter !== 'ALL' && (
-                  <button className="text-button" onClick={() => setGenderFilter('ALL')}>
-                    Reset gender filter
-                  </button>
-                )}
-                {isAccessoriesFlow && productTypeFilter !== 'ALL' && (
-                  <button className="text-button" onClick={() => setProductTypeFilter('ALL')}>
-                    Show all accessories
-                  </button>
-                )}
+            <div className="empty" style={{ padding: '48px 20px', textAlign: 'center' }}>
+              <span style={{ fontSize: '36px', display: 'block', marginBottom: '12px' }}>📦</span>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 8px', color: 'var(--ink)' }}>
+                {`No items listed yet for ${
+                  selection.grade?.name
+                    ? selection.grade.name.toLowerCase().startsWith('class') ||
+                      selection.grade.name.toLowerCase().includes('kg') ||
+                      selection.grade.name.toLowerCase().includes('nursery')
+                      ? selection.grade.name
+                      : `Class ${selection.grade.name}`
+                    : 'Class'
+                } (${selection.gender === 'boy' ? 'Boy' : 'Girl'})`}
+              </h3>
+              <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '0 0 18px', maxWidth: '420px', marginLeft: 'auto', marginRight: 'auto' }}>
+                No approved {category.toLowerCase()} items have been listed yet for this class and gender. Please check back later or modify your selection.
+              </p>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => requestStepChange(3)}
+                  style={{ fontSize: '13px', padding: '10px 18px', borderRadius: '8px' }}
+                >
+                  Change Class 🎓
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => requestStepChange(4)}
+                  style={{ fontSize: '13px', padding: '10px 18px', borderRadius: '8px', width: 'auto' }}
+                >
+                  Change Boy / Girl 👤
+                </button>
               </div>
             </div>
           ) : (
@@ -811,7 +1003,7 @@ export function SelectionFlow({
                             </span>
                           )}
                         </div>
-                        {p.gender && p.gender !== 'BOTH' && (
+                        {p.gender && p.gender !== 'unisex' && (
                           <span className="pill" style={{ fontSize: '9px', padding: '2px 6px' }}>
                             {p.gender}
                           </span>
@@ -1114,6 +1306,170 @@ export function SelectionFlow({
         onConfirm={handleStationeryConfirm}
         onCancel={handleStationeryDismiss}
       />
+
+      {/* Change Selection Options Modal */}
+      {showChangeMenu && (
+        <div className="modal-backdrop" onClick={() => setShowChangeMenu(false)} style={{ zIndex: 1100 }}>
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: 'min(420px, 92vw)', padding: '24px', borderRadius: '16px', background: '#fff' }}
+          >
+            <h3 style={{ margin: '0 0 6px', fontSize: '18px', color: 'var(--ink)' }}>
+              Change Selection
+            </h3>
+            <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '0 0 18px' }}>
+              Select what you would like to change:
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => requestStepChange(3)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  textAlign: 'left',
+                }}
+              >
+                <div>
+                  <strong style={{ display: 'block', fontSize: '14px', color: 'var(--green)' }}>
+                    🎓 Change Class
+                  </strong>
+                  <small style={{ color: '#6b7280', fontSize: '11px' }}>
+                    Currently: {selection.grade?.name || 'Not set'}
+                  </small>
+                </div>
+                <span>→</span>
+              </button>
+
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => requestStepChange(4)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  textAlign: 'left',
+                }}
+              >
+                <div>
+                  <strong style={{ display: 'block', fontSize: '14px', color: 'var(--green)' }}>
+                    👤 Change Boy / Girl
+                  </strong>
+                  <small style={{ color: '#6b7280', fontSize: '11px' }}>
+                    Currently: {selection.gender === 'boy' ? 'Boy' : selection.gender === 'girl' ? 'Girl' : 'Not set'}
+                  </small>
+                </div>
+                <span>→</span>
+              </button>
+
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => requestStepChange(1)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  textAlign: 'left',
+                }}
+              >
+                <div>
+                  <strong style={{ display: 'block', fontSize: '14px', color: 'var(--green)' }}>
+                    🏫 Change School &amp; City
+                  </strong>
+                  <small style={{ color: '#6b7280', fontSize: '11px' }}>
+                    Currently: {selection.school?.name} · {selection.city?.name}
+                  </small>
+                </div>
+                <span>→</span>
+              </button>
+            </div>
+
+            <div style={{ marginTop: '18px', textAlign: 'right' }}>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setShowChangeMenu(false)}
+                style={{ fontSize: '13px', color: '#6b7280' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cart Cleared Warning Modal */}
+      {showCartWarning && (
+        <div className="modal-backdrop" onClick={handleCancelCartClear} style={{ zIndex: 1200 }}>
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(400px, 92vw)',
+              padding: '24px',
+              borderRadius: '16px',
+              background: '#fff',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+            }}
+          >
+            <div style={{ fontSize: '36px', textAlign: 'center', marginBottom: '8px' }}>⚠️</div>
+            <h3 style={{ margin: '0 0 8px', fontSize: '18px', textAlign: 'center', color: 'var(--ink)' }}>
+              Cart will be cleared
+            </h3>
+            <p style={{ color: '#4b5563', fontSize: '13px', textAlign: 'center', lineHeight: '1.5', margin: '0 0 20px' }}>
+              You have <strong>{activeCartCount} {activeCartCount === 1 ? 'item' : 'items'}</strong> in your cart from your current selection.
+              <br /><br />
+              Changing class or gender will clear your cart so you do not receive mismatched uniforms or school essentials.
+            </p>
+
+            <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
+              <button
+                type="button"
+                className="primary"
+                onClick={handleConfirmCartClear}
+                style={{
+                  background: '#a34235',
+                  borderColor: '#a34235',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  color: '#fff',
+                  width: '100%',
+                }}
+              >
+                Clear Cart &amp; Continue →
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={handleCancelCartClear}
+                style={{
+                  padding: '10px',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  width: '100%',
+                  justifyContent: 'center',
+                }}
+              >
+                Keep Cart (Cancel)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

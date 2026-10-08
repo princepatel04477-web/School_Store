@@ -53,6 +53,17 @@ class ProductSerializer(serializers.ModelSerializer):
     school_name = serializers.CharField(source="school.name", read_only=True, default=None)
     variants = ProductVariantSerializer(many=True, read_only=True)
     thumbnail = serializers.ReadOnlyField()
+    gender = serializers.ChoiceField(
+        choices=Product.Gender.choices,
+        required=True,
+        allow_null=True,
+    )
+    needs_review = serializers.BooleanField(read_only=True)
+    grades = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Product.grades.field.related_model.objects.all(),
+        required=False,
+    )
 
     class Meta:
         model = Product
@@ -70,6 +81,8 @@ class ProductSerializer(serializers.ModelSerializer):
             "cost_price",
             "selling_price",
             "gender",
+            "needs_review",
+            "grades",
             "class_from",
             "class_to",
             "customisation_schema",
@@ -117,6 +130,11 @@ class ProductSerializer(serializers.ModelSerializer):
         if user.role == "ADMIN" and school and school.city_id != user.city_id:
             raise PermissionDenied(
                 "Admins can only manage products for schools in their own city."
+            )
+
+        if self.instance is None and not attrs.get("gender"):
+            raise serializers.ValidationError(
+                {"gender": "gender is required and must be one of: boy, girl, unisex."}
             )
 
         def current(field):

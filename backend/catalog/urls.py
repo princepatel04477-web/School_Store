@@ -8,7 +8,12 @@ from .public import (
     PublicSchoolListView,
 )
 from .storefront import StudentCatalogueView, StudentProductDetailView
-from .views import CategoryViewSet, ProductVariantViewSet, ProductViewSet
+from .views import (
+    CartValidateView,
+    CategoryViewSet,
+    ProductVariantViewSet,
+    ProductViewSet,
+)
 
 router = DefaultRouter()
 router.register("categories", CategoryViewSet, basename="category")
@@ -20,6 +25,10 @@ urlpatterns = [
     path("public/schools/<uuid:school_id>/cities/", PublicSchoolCitiesView.as_view(), name="public-school-cities"),
     path("public/grades/", PublicGradeListView.as_view(), name="public-grades"),
     path("public/products/", PublicProductList.as_view(), name="public-products"),
+    path("cart/validate/", CartValidateView.as_view(), name="cart-validate"),
+    path("cart/add/", CartValidateView.as_view(), name="cart-add"),
+    path("catalog/cart/validate/", CartValidateView.as_view(), name="catalog-cart-validate"),
+    path("catalog/cart/add/", CartValidateView.as_view(), name="catalog-cart-add"),
     # Ordering read path: catalogue valid for one student (school + class +
     # gender targeted items plus shared items), with fresh stock flags.
     path(

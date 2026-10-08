@@ -292,12 +292,14 @@ function TeacherOrder() {
         ))}
       </div>
 
-      {/* Reused SelectionFlow with autoSelectStudentProfile automatically applying student's school, grade & gender */}
+      {/* Reused SelectionFlow with autoSelectStudentProfile landing on Boy/Girl step */}
       <SelectionFlow
-        key={`${activeCategory}-${student.id}`}
+        key={student.id}
         category={activeCategory}
         studentProfile={studentProfile}
         autoSelectStudentProfile={true}
+        cartItemCount={cartItems.length}
+        onClearCart={() => setCartItems([])}
         onOrder={handleAddItem}
         onNavigateCategory={(cat) => setActiveCategory(cat as any)}
       />

@@ -26,12 +26,13 @@ class ProductAdmin(admin.ModelAdmin):
         "product_type",
         "school",
         "gender",
+        "needs_review",
         "cost_price",
         "selling_price",
         "active",
         "created_at",
     )
-    list_filter = ("active", "category", "product_type", "school", "gender")
+    list_filter = ("active", "needs_review", "category", "product_type", "school", "gender")
     search_fields = ("name", "description")
     filter_horizontal = ("grades",)
     readonly_fields = ("id", "created_at", "updated_at")

@@ -277,9 +277,11 @@ function Dashboard() {
       </div>
 
       <SelectionFlow
-        key={`${activeCategory}-${selected?.id}`}
+        key={selected?.id}
         category={activeCategory}
         studentProfile={studentProfile}
+        cartItemCount={cartItems.length}
+        onClearCart={() => setCartItems([])}
         onOrder={handleAddItem}
         onNavigateCategory={(cat) => setActiveCategory(cat as any)}
       />

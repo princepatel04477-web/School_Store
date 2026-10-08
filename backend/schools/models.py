@@ -32,7 +32,7 @@ class City(UUIDModel):
 class Grade(UUIDModel):
     """
     Fixed, ordered list of grades (sort_order):
-    Nursery, Junior KG, Senior KG, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12.
+    Nursery, Junior KG, Senior KG, Class 1 to Class 12.
     Always sorted by sort_order, never alphabetically.
     """
     name = models.CharField(max_length=50, unique=True)
@@ -223,6 +223,14 @@ class Student(UUIDModel):
         ]
         indexes = [
             models.Index(
+                fields=["school", "grade", "gender"],
+                name="idx_stud_sch_grd_gen",
+            ),
+            models.Index(
+                fields=["school", "class_name", "gender"],
+                name="idx_stud_sch_cls_gen",
+            ),
+            models.Index(
                 fields=["school", "grade", "section"],
                 name="idx_student_school_grd_sec",
             ),
@@ -264,10 +272,13 @@ class Student(UUIDModel):
         if self.grade and not self.class_name:
             self.class_name = self.grade.name
         elif self.class_name and not self.grade_id:
-            # Match existing grade by name if available
-            gr = Grade.objects.filter(name__iexact=self.class_name).first()
+            # Match existing grade by name or normalized name if available
+            from common.constants import normalize_class_name
+            norm_name = normalize_class_name(self.class_name) or self.class_name
+            gr = Grade.objects.filter(Q(name__iexact=self.class_name) | Q(name__iexact=norm_name)).first()
             if gr:
                 self.grade = gr
+                self.class_name = gr.name
 
         update_fields = kwargs.get("update_fields")
         parent_may_have_changed = update_fields is None or bool(

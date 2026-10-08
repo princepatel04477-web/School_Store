@@ -23,6 +23,7 @@ export interface StoredSelection {
   cityName?: string;
   gradeId?: string;
   gradeName?: string;
+  gender?: 'boy' | 'girl' | null;
 }
 
 const CART_STORAGE_KEY = 'schoolstore_cart';

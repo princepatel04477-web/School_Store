@@ -248,6 +248,15 @@ def validate_row(raw_row: dict, row_number: int) -> tuple[dict | None, dict | No
     for column in REQUIRED_COLUMNS:
         if column == "gender":
             value, error = clean_gender(raw_row.get(column))
+        elif column == "class":
+            value, error = clean_text(raw_row.get(column), column)
+            if not error:
+                from common.constants import normalize_class_name, CLASS_NAMES
+                norm = normalize_class_name(value)
+                if not norm:
+                    error = f"class must be one of: {', '.join(CLASS_NAMES)}."
+                else:
+                    value = norm
         else:
             value, error = clean_text(raw_row.get(column), column)
         if error:

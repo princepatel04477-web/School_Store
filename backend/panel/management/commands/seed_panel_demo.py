@@ -19,6 +19,7 @@ from django.core.management.base import BaseCommand
 from django.db import connection
 
 from accounts.models import User
+from common.constants import CLASS_NAMES, CLASS_SORT_ORDERS
 from schools.models import School, Student
 
 FIRST_NAMES = [
@@ -57,14 +58,16 @@ class Command(BaseCommand):
         for school in School.objects.select_related("city").filter(active=True):
             school_parents = [p for p in parents if p.school_id == school.id] or parents
             students = []
-            for class_name in [str(c) for c in range(1, 11)]:
+            for class_name in CLASS_NAMES:
+                sort_num = CLASS_SORT_ORDERS.get(class_name, 1)
+                clean_cls = class_name.replace(" ", "")
                 for section in ("A", "B", "C", "D"):
                     for index in range(per_class):
                         first = rng.choice(FIRST_NAMES)
                         last = rng.choice(LAST_NAMES)
                         gr_number = (
-                            f"{school.code}-{class_name}{section}-"
-                            f"{1000 + (int(class_name) * 100) + index}"
+                            f"{school.code}-{clean_cls}{section}-"
+                            f"{1000 + (sort_num * 100) + index}"
                         )
                         students.append(
                             Student(

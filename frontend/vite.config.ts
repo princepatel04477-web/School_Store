@@ -4,6 +4,9 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    fs: {
+      allow: ['..'],
+    },
     // The preview host is allowed explicitly so the sandboxed dev server can
     // be embedded; the browser only ever talks to this origin and the proxy
     // below forwards /api (and /media) to Django.

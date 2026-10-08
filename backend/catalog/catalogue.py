@@ -18,19 +18,32 @@ Design:
 """
 
 import re
+from uuid import UUID
 
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Prefetch, Q
+from rest_framework.exceptions import ValidationError
 
 from common.cache_utils import CATALOG_CACHE_VERSION_KEY, get_cache_version
+from common.constants import normalize_class_name
+from schools.models import Grade
 
 from .images import product_thumbnail
 from .models import Product, ProductVariant
 
-# Pre-primary classes sort below class 1 so "class 1-12" uniforms never
-# match them, while unranged items always do.
-_CLASS_ALIASES = {"nursery": 0, "pre-k": 0, "prek": 0, "kg": 0, "lkg": 0, "ukg": 0, "jr kg": 0, "sr kg": 0}
+_CLASS_ALIASES = {
+    "nursery": 0,
+    "pre-k": 0,
+    "prek": 0,
+    "kg": 0,
+    "lkg": 0,
+    "ukg": 0,
+    "jr kg": 0,
+    "junior kg": 0,
+    "sr kg": 0,
+    "senior kg": 0,
+}
 _CLASS_NUMBER_RE = re.compile(r"\d+")
 
 
@@ -69,7 +82,7 @@ def build_school_catalogue(school_id, category=None) -> list[dict]:
         ),
     )
     qs = (
-        Product.objects.filter(active=True)
+        Product.objects.filter(active=True, needs_review=False, gender__isnull=False)
         .select_related("category")
         .prefetch_related(variant_prefetch)
         .only(
@@ -78,6 +91,7 @@ def build_school_catalogue(school_id, category=None) -> list[dict]:
             "images",
             "selling_price",
             "gender",
+            "needs_review",
             "class_from",
             "class_to",
             "customisation_schema",
@@ -115,6 +129,7 @@ def build_school_catalogue(school_id, category=None) -> list[dict]:
             # narrow the shared school cache down to one student).
             "school": str(product.school_id) if product.school_id else None,
             "gender": product.gender,
+            "needs_review": product.needs_review,
             "class_from": product.class_from,
             "class_to": product.class_to,
             "sizes": [
@@ -149,7 +164,17 @@ def get_school_catalogue(school_id, category=None) -> list[dict]:
 
 def entry_matches_student(entry: dict, class_number, gender) -> bool:
     """Class-range and gender targeting for one cached catalogue entry."""
-    if entry["gender"] not in (Product.Gender.BOTH, "BOTH", "UNISEX") and entry["gender"] != gender:
+    if entry.get("needs_review") or not entry.get("gender"):
+        return False
+
+    entry_gender = str(entry.get("gender") or "").lower()
+    student_gender = str(gender or "").lower()
+    if student_gender in ("male", "m", "boy"):
+        student_gender = "boy"
+    elif student_gender in ("female", "f", "girl"):
+        student_gender = "girl"
+
+    if entry_gender not in (Product.Gender.UNISEX, "unisex") and entry_gender != student_gender:
         return False
     class_from = entry.get("class_from")
     class_to = entry.get("class_to")
@@ -173,3 +198,78 @@ def filter_for_student(entries: list[dict], student) -> list[dict]:
         for entry in entries
         if entry_matches_student(entry, class_number, student.gender)
     ]
+
+
+def validate_product_match(product: Product, school_id, class_name_or_grade, gender):
+    """
+    Validates that a product matches the specified school, class, and gender.
+    Raises rest_framework.exceptions.ValidationError with a clear message on mismatch.
+    """
+    if product.needs_review or not product.gender:
+        raise ValidationError(
+            f"Product '{product.name}' is under review or missing gender designation."
+        )
+
+    # 1. School check: product must be shared (school is None) or match this school
+    if product.school_id and school_id:
+        if str(product.school_id) != str(school_id):
+            raise ValidationError(
+                f"Product '{product.name}' is not available for this school."
+            )
+
+    # 2. Gender check: product must be unisex or match selected gender (boy/girl)
+    norm_gender = str(gender or "").strip().lower()
+    if norm_gender in ("boy", "male", "m"):
+        target_gender = "boy"
+    elif norm_gender in ("girl", "female", "f"):
+        target_gender = "girl"
+    else:
+        raise ValidationError(f"Invalid gender '{gender}'. Must be 'boy' or 'girl'.")
+
+    if product.gender != Product.Gender.UNISEX and product.gender != target_gender:
+        raise ValidationError(
+            f"Product '{product.name}' (gender: {product.gender}) does not match selected gender '{target_gender}'."
+        )
+
+    # 3. Class check: verify explicit grades M2M or class_from..class_to bounds
+    grade = None
+    if isinstance(class_name_or_grade, Grade):
+        grade = class_name_or_grade
+    elif class_name_or_grade:
+        try:
+            grade = Grade.objects.filter(pk=UUID(str(class_name_or_grade))).first()
+        except (TypeError, ValueError, AttributeError):
+            pass
+        if grade is None:
+            normalized = normalize_class_name(str(class_name_or_grade))
+            if normalized:
+                grade = Grade.objects.filter(
+                    Q(name__iexact=normalized) | Q(name__iexact=str(class_name_or_grade).strip())
+                ).first()
+
+    class_str = grade.name if grade else str(class_name_or_grade or "")
+    class_num = parse_class_number(class_str)
+
+    # Check Many-to-Many assigned grades
+    if product.grades.exists():
+        if grade and not product.grades.filter(id=grade.id).exists():
+            raise ValidationError(
+                f"Product '{product.name}' is not assigned to class '{grade.name}'."
+            )
+        elif not grade:
+            raise ValidationError(
+                f"Product '{product.name}' is not assigned to class '{class_name_or_grade}'."
+            )
+
+    # Check class_from and class_to integer ranges
+    if product.class_from is not None and class_num is not None:
+        if class_num < product.class_from:
+            raise ValidationError(
+                f"Product '{product.name}' is for classes {product.class_from}+, does not match class '{class_str}'."
+            )
+    if product.class_to is not None and class_num is not None:
+        if class_num > product.class_to:
+            raise ValidationError(
+                f"Product '{product.name}' is for classes up to {product.class_to}, does not match class '{class_str}'."
+            )
+

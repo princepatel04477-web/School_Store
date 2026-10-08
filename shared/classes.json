@@ -1,0 +1,107 @@
+[
+  {
+    "id": "cls-1",
+    "name": "Nursery",
+    "group": "Pre-primary",
+    "sort_order": 1,
+    "sortOrder": 1
+  },
+  {
+    "id": "cls-2",
+    "name": "Junior KG",
+    "group": "Pre-primary",
+    "sort_order": 2,
+    "sortOrder": 2
+  },
+  {
+    "id": "cls-3",
+    "name": "Senior KG",
+    "group": "Pre-primary",
+    "sort_order": 3,
+    "sortOrder": 3
+  },
+  {
+    "id": "cls-4",
+    "name": "Class 1",
+    "group": "Primary",
+    "sort_order": 4,
+    "sortOrder": 4
+  },
+  {
+    "id": "cls-5",
+    "name": "Class 2",
+    "group": "Primary",
+    "sort_order": 5,
+    "sortOrder": 5
+  },
+  {
+    "id": "cls-6",
+    "name": "Class 3",
+    "group": "Primary",
+    "sort_order": 6,
+    "sortOrder": 6
+  },
+  {
+    "id": "cls-7",
+    "name": "Class 4",
+    "group": "Primary",
+    "sort_order": 7,
+    "sortOrder": 7
+  },
+  {
+    "id": "cls-8",
+    "name": "Class 5",
+    "group": "Primary",
+    "sort_order": 8,
+    "sortOrder": 8
+  },
+  {
+    "id": "cls-9",
+    "name": "Class 6",
+    "group": "Middle",
+    "sort_order": 9,
+    "sortOrder": 9
+  },
+  {
+    "id": "cls-10",
+    "name": "Class 7",
+    "group": "Middle",
+    "sort_order": 10,
+    "sortOrder": 10
+  },
+  {
+    "id": "cls-11",
+    "name": "Class 8",
+    "group": "Middle",
+    "sort_order": 11,
+    "sortOrder": 11
+  },
+  {
+    "id": "cls-12",
+    "name": "Class 9",
+    "group": "Secondary",
+    "sort_order": 12,
+    "sortOrder": 12
+  },
+  {
+    "id": "cls-13",
+    "name": "Class 10",
+    "group": "Secondary",
+    "sort_order": 13,
+    "sortOrder": 13
+  },
+  {
+    "id": "cls-14",
+    "name": "Class 11",
+    "group": "Secondary",
+    "sort_order": 14,
+    "sortOrder": 14
+  },
+  {
+    "id": "cls-15",
+    "name": "Class 12",
+    "group": "Secondary",
+    "sort_order": 15,
+    "sortOrder": 15
+  }
+]

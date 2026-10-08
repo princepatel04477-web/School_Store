@@ -132,3 +132,98 @@ class ProductVariantViewSet(
                 request=self.request,
             )
 
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
+from rest_framework.exceptions import ValidationError
+from .catalogue import validate_product_match
+from schools.models import Student
+
+
+class CartValidateView(APIView):
+    """
+    POST /api/cart/validate/ and /api/cart/add/
+    Re-check on the server that the product/variant matches the selected school, class, and gender.
+    Reject mismatches with 400.
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        variant_id = request.data.get("variant") or request.data.get("variant_id")
+        product_id = request.data.get("product") or request.data.get("product_id")
+        school_id = request.data.get("school") or request.data.get("school_id")
+        class_param = (
+            request.data.get("class")
+            or request.data.get("grade")
+            or request.data.get("class_name")
+        )
+        gender_param = request.data.get("gender")
+        student_id = request.data.get("student") or request.data.get("student_id")
+
+        if student_id:
+            try:
+                student = (
+                    Student.objects.select_related("school", "grade")
+                    .filter(pk=student_id)
+                    .first()
+                )
+                if student:
+                    school_id = school_id or student.school_id
+                    class_param = class_param or student.grade or student.class_name
+                    gender_param = gender_param or student.gender
+            except Exception:
+                pass
+
+        if not variant_id and not product_id:
+            raise ValidationError({"item": "Variant ID or Product ID is required."})
+        if not school_id:
+            raise ValidationError({"school": "School is required."})
+        if not class_param:
+            raise ValidationError({"class": "Class is required."})
+        if not gender_param:
+            raise ValidationError({"gender": "Gender is required ('boy' or 'girl')."})
+
+        product = None
+        if variant_id:
+            try:
+                variant = (
+                    ProductVariant.objects.select_related("product")
+                    .prefetch_related("product__grades")
+                    .filter(pk=variant_id)
+                    .first()
+                )
+                if not variant:
+                    raise ValidationError({"variant": "Variant not found."})
+                product = variant.product
+            except (ValueError, TypeError):
+                raise ValidationError({"variant": "Invalid variant UUID."})
+        elif product_id:
+            try:
+                product = (
+                    Product.objects.prefetch_related("grades")
+                    .filter(pk=product_id)
+                    .first()
+                )
+                if not product:
+                    raise ValidationError({"product": "Product not found."})
+            except (ValueError, TypeError):
+                raise ValidationError({"product": "Invalid product UUID."})
+
+        validate_product_match(
+            product=product,
+            school_id=school_id,
+            class_name_or_grade=class_param,
+            gender=gender_param,
+        )
+
+        return Response(
+            {
+                "valid": True,
+                "message": "Product matches selected school, class, and gender.",
+                "product_id": str(product.id),
+            }
+        )
+
+

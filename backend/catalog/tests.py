@@ -25,10 +25,11 @@ class PublicCatalogTests(TestCase):
         call_command("seed_data")
         cls.dps = School.objects.get(code="DPS-SUR")
         cls.surat = City.objects.get(code="SUR")
-        cls.grade5 = cls.dps.students.filter(class_name="5").first().grade
+        st = cls.dps.students.filter(class_name__in=["5", "Class 5"]).first()
+        cls.grade5 = st.grade if st else None
         if not cls.grade5:
             from schools.models import Grade
-            cls.grade5 = Grade.objects.get(sort_order=4)
+            cls.grade5 = Grade.objects.filter(name="Class 5").first() or Grade.objects.get(sort_order=8)
 
     def setUp(self):
         cache.clear()
@@ -61,30 +62,162 @@ class PublicCatalogTests(TestCase):
         self.assertEqual(grades[1]["name"], "Junior KG")
 
     def test_public_products_with_school_city_grade_and_gender_filter(self):
-        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}&category=Uniform"
-        res = APIClient().get(url)
-        self.assertEqual(res.status_code, 200)
-        products = res.json()["results"]
-        self.assertGreater(len(products), 0)
+        base_url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}&category=Uniform"
 
         # Test male filter
-        res_male = APIClient().get(url + "&gender=MALE")
+        res_male = APIClient().get(base_url + "&gender=MALE")
         self.assertEqual(res_male.status_code, 200)
         male_prods = res_male.json()["results"]
+        self.assertGreater(len(male_prods), 0)
         for p in male_prods:
-            self.assertIn(p["gender"], ("MALE", "BOTH"))
+            self.assertIn(p["gender"], ("boy", "unisex"))
+            self.assertNotEqual(p["gender"], "girl")
 
         # Test female filter
-        res_female = APIClient().get(url + "&gender=FEMALE")
+        res_female = APIClient().get(base_url + "&gender=FEMALE")
         self.assertEqual(res_female.status_code, 200)
         female_prods = res_female.json()["results"]
+        self.assertGreater(len(female_prods), 0)
         for p in female_prods:
-            self.assertIn(p["gender"], ("FEMALE", "BOTH"))
+            self.assertIn(p["gender"], ("girl", "unisex"))
+            self.assertNotEqual(p["gender"], "boy")
+
+    def test_missing_gender_returns_400(self):
+        # Missing gender parameter must return 400
+        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}"
+        res = APIClient().get(url)
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("gender", str(res.json()).lower())
+
+        # Invalid gender values (unisex, random) must also return 400
+        res_unisex = APIClient().get(url + "&gender=unisex")
+        self.assertEqual(res_unisex.status_code, 400)
+        res_inv = APIClient().get(url + "&gender=invalid_choice")
+        self.assertEqual(res_inv.status_code, 400)
+
+        # Missing class parameter must return 400
+        res_no_class = APIClient().get(f"/api/public/products/?school={self.dps.id}&gender=boy")
+        self.assertEqual(res_no_class.status_code, 400)
+
+        # Missing school parameter must return 400
+        res_no_school = APIClient().get(f"/api/public/products/?grade={self.grade5.id}&gender=boy")
+        self.assertEqual(res_no_school.status_code, 400)
+
+    def test_boy_sees_only_boy_and_unisex(self):
+        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}&gender=boy"
+        res = APIClient().get(url)
+        self.assertEqual(res.status_code, 200)
+        prods = res.json()["results"]
+        self.assertGreater(len(prods), 0)
+        genders = {p["gender"] for p in prods}
+        self.assertTrue(genders.issubset({"boy", "unisex"}))
+        self.assertNotIn("girl", genders)
+        self.assertTrue(all(not p.get("needs_review") for p in prods))
+
+    def test_girl_sees_only_girl_and_unisex(self):
+        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}&gender=girl"
+        res = APIClient().get(url)
+        self.assertEqual(res.status_code, 200)
+        prods = res.json()["results"]
+        self.assertGreater(len(prods), 0)
+        genders = {p["gender"] for p in prods}
+        self.assertTrue(genders.issubset({"girl", "unisex"}))
+        self.assertNotIn("boy", genders)
+        self.assertTrue(all(not p.get("needs_review") for p in prods))
+        names = {p["name"] for p in prods}
+        self.assertIn("DPS Girls Pleated Pinafore (Class 1-5)", names)
+
+    def test_class_11_and_12_return_products(self):
+        from schools.models import Grade
+        grade11 = Grade.objects.get(name="Class 11")
+        grade12 = Grade.objects.get(name="Class 12")
+
+        # Class 11 boy
+        res_11_boy = APIClient().get(f"/api/public/products/?school={self.dps.id}&grade={grade11.id}&gender=boy")
+        self.assertEqual(res_11_boy.status_code, 200)
+        prods_11_boy = res_11_boy.json()["results"]
+        self.assertGreater(len(prods_11_boy), 0)
+        self.assertTrue(all(p["gender"] in ("boy", "unisex") for p in prods_11_boy))
+
+        # Class 11 girl
+        res_11_girl = APIClient().get(f"/api/public/products/?school={self.dps.id}&grade={grade11.id}&gender=girl")
+        self.assertEqual(res_11_girl.status_code, 200)
+        prods_11_girl = res_11_girl.json()["results"]
+        self.assertGreater(len(prods_11_girl), 0)
+        self.assertTrue(all(p["gender"] in ("girl", "unisex") for p in prods_11_girl))
+
+        # Class 12 boy
+        res_12_boy = APIClient().get(f"/api/public/products/?school={self.dps.id}&grade={grade12.id}&gender=boy")
+        self.assertEqual(res_12_boy.status_code, 200)
+        prods_12_boy = res_12_boy.json()["results"]
+        self.assertGreater(len(prods_12_boy), 0)
+        self.assertTrue(all(p["gender"] in ("boy", "unisex") for p in prods_12_boy))
+
+        # Class 12 girl
+        res_12_girl = APIClient().get(f"/api/public/products/?school={self.dps.id}&grade={grade12.id}&gender=girl")
+        self.assertEqual(res_12_girl.status_code, 200)
+        prods_12_girl = res_12_girl.json()["results"]
+        self.assertGreater(len(prods_12_girl), 0)
+        self.assertTrue(all(p["gender"] in ("girl", "unisex") for p in prods_12_girl))
+
+    def test_mismatched_cart_item_is_rejected(self):
+        import uuid
+        parent = User.objects.get(username="parent_rahul")
+        boy = Student.objects.get(gr_number="DPS-2026-001")  # Aarav, male, class 5
+        girl_pinafore_var = ProductVariant.objects.filter(
+            product__name="DPS Girls Pleated Pinafore (Class 1-5)"
+        ).first()
+        self.assertIsNotNone(girl_pinafore_var)
+
+        # 1. Cart validate endpoint rejects gender mismatch
+        res_cart = APIClient().post(
+            "/api/cart/validate/",
+            {
+                "variant": str(girl_pinafore_var.id),
+                "school": str(self.dps.id),
+                "class": "Class 5",
+                "gender": "boy",
+            },
+            format="json",
+        )
+        self.assertEqual(res_cart.status_code, 400)
+        self.assertIn("does not match", str(res_cart.json()))
+
+        # Cart validate succeeds with matching gender (girl)
+        res_cart_ok = APIClient().post(
+            "/api/cart/validate/",
+            {
+                "variant": str(girl_pinafore_var.id),
+                "school": str(self.dps.id),
+                "class": "Class 5",
+                "gender": "girl",
+            },
+            format="json",
+        )
+        self.assertEqual(res_cart_ok.status_code, 200)
+        self.assertTrue(res_cart_ok.json()["valid"])
+
+        # 2. Order creation rejects mismatched item for boy student
+        client = APIClient()
+        token = build_tokens_for_user(parent)["access"]
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        order_payload = {
+            "idempotency_key": str(uuid.uuid4()),
+            "student": str(boy.id),
+            "items": [
+                {"variant": str(girl_pinafore_var.id), "quantity": 1},
+            ],
+            "fulfillment_type": "HOME_DELIVERY",
+        }
+        res_order = client.post("/api/orders/", order_payload, format="json")
+        self.assertEqual(res_order.status_code, 400)
+        self.assertIn("does not match", str(res_order.json()))
 
     def test_invalid_token_is_ignored(self):
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION="Bearer not-a-real-token")
-        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}"
+        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}&gender=boy"
         self.assertEqual(client.get(url).status_code, 200)
 
     def test_public_endpoint_is_read_only(self):
@@ -92,8 +225,8 @@ class PublicCatalogTests(TestCase):
 
     def test_school_shoes_section_and_targeting(self):
         # 1. Shoes for DPS Surat grade 5
-        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}&category=School Shoes"
-        res = APIClient().get(url)
+        base_url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}&category=School Shoes"
+        res = APIClient().get(base_url + "&gender=boy")
         self.assertEqual(res.status_code, 200)
         prods = res.json()["results"]
         prod_names = {p["name"] for p in prods}
@@ -112,7 +245,7 @@ class PublicCatalogTests(TestCase):
         # but shared shoes MUST appear
         udgam = School.objects.get(code="UDG-AMD")
         amd_city = City.objects.get(code="AMD")
-        udgam_url = f"/api/public/products/?school={udgam.id}&city={amd_city.id}&grade={self.grade5.id}&category=School Shoes"
+        udgam_url = f"/api/public/products/?school={udgam.id}&city={amd_city.id}&grade={self.grade5.id}&category=School Shoes&gender=boy"
         res_udgam = APIClient().get(udgam_url)
         self.assertEqual(res_udgam.status_code, 200)
         udgam_prod_names = {p["name"] for p in res_udgam.json()["results"]}
@@ -120,18 +253,18 @@ class PublicCatalogTests(TestCase):
         self.assertNotIn("DPS Formal Black Oxford Shoes", udgam_prod_names)
 
         # 4. Gender filter on shoes
-        res_male = APIClient().get(url + "&gender=MALE")
+        res_male = APIClient().get(base_url + "&gender=MALE")
         male_shoe_names = {p["name"] for p in res_male.json()["results"]}
         self.assertIn("DPS Formal Black Oxford Shoes", male_shoe_names)
 
-        res_female = APIClient().get(url + "&gender=FEMALE")
+        res_female = APIClient().get(base_url + "&gender=FEMALE")
         female_shoe_names = {p["name"] for p in res_female.json()["results"]}
         self.assertNotIn("DPS Formal Black Oxford Shoes", female_shoe_names)
         self.assertIn("All-Weather Black Velcro School Shoes", female_shoe_names)
 
     def test_uniform_accessories_section_and_product_types(self):
         # 1. Base accessories query for DPS Surat
-        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}&category=Uniform Accessories"
+        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}&category=Uniform Accessories&gender=boy"
         res = APIClient().get(url)
         self.assertEqual(res.status_code, 200)
         prods = res.json()["results"]
@@ -181,7 +314,7 @@ class PublicCatalogTests(TestCase):
         # 5. School scoping: Udgam Ahmedabad sees generic accessories + Udgam tie, but NOT DPS items
         udgam = School.objects.get(code="UDG-AMD")
         amd_city = City.objects.get(code="AMD")
-        udgam_url = f"/api/public/products/?school={udgam.id}&city={amd_city.id}&grade={self.grade5.id}&category=Uniform Accessories"
+        udgam_url = f"/api/public/products/?school={udgam.id}&city={amd_city.id}&grade={self.grade5.id}&category=Uniform Accessories&gender=boy"
         res_udgam = APIClient().get(udgam_url)
         self.assertEqual(res_udgam.status_code, 200)
         udgam_prod_names = {p["name"] for p in res_udgam.json()["results"]}
@@ -193,7 +326,7 @@ class PublicCatalogTests(TestCase):
 
     def test_stationery_section_keeps_school_and_grade(self):
         # Stationery section query with the preserved school, city, and grade
-        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}&category=Stationery"
+        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade={self.grade5.id}&category=Stationery&gender=boy"
         res = APIClient().get(url)
         self.assertEqual(res.status_code, 200)
         prods = res.json()["results"]
@@ -207,10 +340,8 @@ class PublicCatalogTests(TestCase):
         self.assertEqual(res.status_code, 200)
         grades = res.json()
         self.assertEqual(len(grades), 15)
-        expected_names = [
-            "Nursery", "Junior KG", "Senior KG",
-            "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"
-        ]
+        from common.constants import CLASS_NAMES
+        expected_names = list(CLASS_NAMES)
         actual_names = [g["name"] for g in grades]
         self.assertEqual(actual_names, expected_names)
         # Ensure strictly ascending sort_order
@@ -226,7 +357,11 @@ class PublicCatalogTests(TestCase):
         boy = Student.objects.get(gr_number="DPS-2026-001")
 
         # Pick 1 variant from Uniform, 1 from Shoes, 1 from Accessories, 1 from Stationery
-        v_uniform = ProductVariant.objects.filter(product__category__slug="uniform", product__school=self.dps).first()
+        v_uniform = ProductVariant.objects.filter(
+            product__category__slug="uniform",
+            product__school=self.dps,
+            product__gender__in=["boy", "unisex"],
+        ).first()
         v_shoes = ProductVariant.objects.filter(product__category__slug="school-shoes").first()
         v_acc = ProductVariant.objects.filter(product__category__slug="uniform-accessories").first()
         v_stat = ProductVariant.objects.filter(product__category__slug="stationery").first()
@@ -261,7 +396,7 @@ class PublicCatalogTests(TestCase):
         }
 
         res = client.post("/api/orders/", payload, format="json")
-        self.assertEqual(res.status_code, 201)
+        self.assertEqual(res.status_code, 201, res.json())
         order_id = res.json()["id"]
 
         # Verify order has 4 items spanning all 4 categories
@@ -279,7 +414,11 @@ class PublicCatalogTests(TestCase):
 
         teacher = User.objects.get(username="teacher_dps")
         boy = Student.objects.get(gr_number="DPS-2026-001")
-        v_uniform = ProductVariant.objects.filter(product__category__slug="uniform", product__school=self.dps).first()
+        v_uniform = ProductVariant.objects.filter(
+            product__category__slug="uniform",
+            product__school=self.dps,
+            product__gender__in=["boy", "unisex"],
+        ).first()
 
         client = APIClient()
         token = build_tokens_for_user(teacher)["access"]
@@ -294,7 +433,7 @@ class PublicCatalogTests(TestCase):
         }
 
         res = client.post("/api/orders/", payload, format="json")
-        self.assertEqual(res.status_code, 201)
+        self.assertEqual(res.status_code, 201, res.json())
         data = res.json()
         self.assertEqual(data["student"], str(boy.id))
         self.assertEqual(data["placed_by_role"], "TEACHER")

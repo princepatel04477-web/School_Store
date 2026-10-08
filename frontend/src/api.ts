@@ -21,7 +21,8 @@ export type Product={
   category_slug?:string;
   product_type?:'SOCKS'|'BELT'|'TIE'|string|null;
   price:number;
-  gender?:'MALE'|'FEMALE'|'BOTH';
+  gender?:'boy'|'girl'|'unisex'|null;
+  needs_review?:boolean;
   school?:string|null;
   image?:string;
   thumbnail?:string|null;

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Search, Check, ArrowRight, ArrowLeft } from 'lucide-react';
 import { seedSchools, seedClasses, seedProducts, type SeedSchool, type SeedClass, type SeedProduct } from '../data/seedData';
-import { useStoreState } from '../store/storeState';
+import { useStoreState, storeState } from '../store/storeState';
 import { SchoolCrest } from '../components/school/SchoolCrest';
 import { ProductCard } from '../components/product/ProductCard';
 import { ProductSheet } from '../components/product/ProductSheet';
@@ -14,7 +14,7 @@ import './flow.css';
 export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { selection, setSelection, subtotalPaise, cart } = useStoreState();
+  const { selection, setSelection, subtotalPaise, cart, clearCart } = useStoreState();
 
   // Read URL params or fallback to active stored selection
   const stepParam = parseInt(searchParams.get('step') || '1', 10);
@@ -24,9 +24,10 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   // School Search query
   const [schoolQuery, setSchoolQuery] = useState('');
 
-  // Selected School and Class State
+  // Selected School, Class, and Gender State
   const activeSchoolId = searchParams.get('school') || selection?.schoolId || '';
   const activeClassId = searchParams.get('class') || selection?.gradeId || '';
+  const activeGender = (searchParams.get('gender') as 'boy' | 'girl' | null) || selection?.gender || null;
 
   const activeSchool = useMemo(
     () => seedSchools.find((s) => s.id === activeSchoolId) || null,
@@ -37,7 +38,11 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     [activeClassId]
   );
 
-  // Active Category Tab on Step 3
+  // Cart clear warning state
+  const [showCartWarning, setShowCartWarning] = useState(false);
+  const [pendingTargetStep, setPendingTargetStep] = useState<number | null>(null);
+
+  // Active Category Tab on Step 4
   const [activeTab, setActiveTab] = useState<string>('Uniform');
 
   // Product Sheet Modal
@@ -61,16 +66,39 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     });
   };
 
+  const requestStepChange = (targetStep: number) => {
+    if (cart.length > 0 && targetStep < 4) {
+      setPendingTargetStep(targetStep);
+      setShowCartWarning(true);
+    } else {
+      goToStep(targetStep);
+    }
+  };
+
+  const handleConfirmCartClear = () => {
+    storeState.clearCart();
+    setShowCartWarning(false);
+    if (pendingTargetStep) {
+      goToStep(pendingTargetStep);
+      setPendingTargetStep(null);
+    }
+  };
+
   const handleSelectSchool = (school: SeedSchool) => {
     setSelection({
       schoolId: school.id,
       schoolName: school.name,
       schoolCode: school.code,
       cityName: school.city,
+      gradeId: undefined,
+      gradeName: undefined,
+      gender: null,
     });
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('school', school.id);
+      next.delete('class');
+      next.delete('gender');
       next.set('step', '2');
       return next;
     });
@@ -85,12 +113,34 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         cityName: activeSchool.city,
         gradeId: cls.id,
         gradeName: cls.name,
+        gender: null,
       });
     }
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('class', cls.id);
+      next.delete('gender');
       next.set('step', '3');
+      return next;
+    });
+  };
+
+  const handleSelectGender = (gender: 'boy' | 'girl') => {
+    if (activeSchool && activeClass) {
+      setSelection({
+        schoolId: activeSchool.id,
+        schoolName: activeSchool.name,
+        schoolCode: activeSchool.code,
+        cityName: activeSchool.city,
+        gradeId: activeClass.id,
+        gradeName: activeClass.name,
+        gender,
+      });
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('gender', gender);
+      next.set('step', '4');
       return next;
     });
   };
@@ -120,18 +170,22 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     return groups;
   }, []);
 
-  // Filtered Products for Step 3
-  const step3Products = useMemo(() => {
-    return seedProducts.filter((p) => p.category === activeTab);
-  }, [activeTab]);
+  // Filtered Products for Step 4 (Category + Gender filter)
+  const step4Products = useMemo(() => {
+    return seedProducts.filter((p) => {
+      if (p.category !== activeTab) return false;
+      if (!activeGender) return true;
+      return p.gender === activeGender || p.gender === 'unisex';
+    });
+  }, [activeTab, activeGender]);
 
   const requiredProducts = useMemo(() => {
-    return step3Products.filter((p) => p.required);
-  }, [step3Products]);
+    return step4Products.filter((p) => p.required);
+  }, [step4Products]);
 
   const optionalProducts = useMemo(() => {
-    return step3Products.filter((p) => !p.required);
-  }, [step3Products]);
+    return step4Products.filter((p) => !p.required);
+  }, [step4Products]);
 
   return (
     <div className="selection-flow-page container" id="main">
@@ -142,7 +196,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
           <button
             type="button"
             className={`step-node ${currentStep >= 1 ? 'is-active' : ''} ${currentStep > 1 ? 'is-complete' : ''}`}
-            onClick={() => goToStep(1)}
+            onClick={() => requestStepChange(1)}
             aria-current={currentStep === 1 ? 'step' : undefined}
           >
             <span className="step-node-bubble">
@@ -160,7 +214,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
           <button
             type="button"
             className={`step-node ${currentStep >= 2 ? 'is-active' : ''} ${currentStep > 2 ? 'is-complete' : ''}`}
-            onClick={() => activeSchool && goToStep(2)}
+            onClick={() => activeSchool && requestStepChange(2)}
             disabled={!activeSchool}
             aria-current={currentStep === 2 ? 'step' : undefined}
           >
@@ -175,15 +229,34 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
             <Thread animate={currentStep >= 3} />
           </div>
 
-          {/* Step 3 Node */}
+          {/* Step 3 Node: Boy / Girl */}
           <button
             type="button"
-            className={`step-node ${currentStep === 3 ? 'is-active' : ''}`}
-            onClick={() => activeSchool && activeClass && goToStep(3)}
+            className={`step-node ${currentStep >= 3 ? 'is-active' : ''} ${currentStep > 3 ? 'is-complete' : ''}`}
+            onClick={() => activeSchool && activeClass && requestStepChange(3)}
             disabled={!activeSchool || !activeClass}
             aria-current={currentStep === 3 ? 'step' : undefined}
           >
-            <span className="step-node-bubble">3</span>
+            <span className="step-node-bubble">
+              {currentStep > 3 ? <Check width={14} height={14} /> : '3'}
+            </span>
+            <span className="step-node-label">Boy / Girl</span>
+          </button>
+
+          {/* Stepper Thread Connector */}
+          <div className="stepper-connector">
+            <Thread animate={currentStep >= 4} />
+          </div>
+
+          {/* Step 4 Node: Items */}
+          <button
+            type="button"
+            className={`step-node ${currentStep === 4 ? 'is-active' : ''}`}
+            onClick={() => activeSchool && activeClass && activeGender && goToStep(4)}
+            disabled={!activeSchool || !activeClass || !activeGender}
+            aria-current={currentStep === 4 ? 'step' : undefined}
+          >
+            <span className="step-node-bubble">4</span>
             <span className="step-node-label">Items</span>
           </button>
         </div>
@@ -191,8 +264,14 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         {/* Mobile Stepper Header */}
         <div className="mobile-stepper-title">
           <span>
-            Step {currentStep} of 3 ·{' '}
-            {currentStep === 1 ? 'Select School' : currentStep === 2 ? 'Pick Class' : 'Prescribed Items'}
+            Step {currentStep} of 4 ·{' '}
+            {currentStep === 1
+              ? 'Select School'
+              : currentStep === 2
+              ? 'Pick Class'
+              : currentStep === 3
+              ? 'Boy or Girl'
+              : 'Prescribed Items'}
           </span>
         </div>
       </div>
@@ -297,23 +376,146 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
           </div>
         )}
 
-        {/* ================= STEP 3: ITEMS ================= */}
-        {currentStep === 3 && activeSchool && (
+        {/* ================= STEP 3: BOY OR GIRL ================= */}
+        {currentStep === 3 && activeSchool && activeClass && (
+          <div className="step-panel step-gender-panel">
+            <button
+              type="button"
+              className="step-back-btn"
+              onClick={() => goToStep(2)}
+            >
+              <ArrowLeft width={16} height={16} /> Change Class ({activeClass.name})
+            </button>
+
+            <div className="step-title-row">
+              <span className="label">{activeSchool.name} · {activeClass.name}</span>
+              <h1 className="step-heading">Who are you shopping for?</h1>
+              <p className="step-subtitle">
+                Please choose Boy or Girl to view tailored uniforms and approved items. You cannot continue without choosing.
+              </p>
+            </div>
+
+            <div
+              className="gender-cards-grid"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '20px',
+                maxWidth: '560px',
+              }}
+            >
+              {/* Boy Card */}
+              <button
+                type="button"
+                className={`gender-card ${activeGender === 'boy' ? 'is-selected' : ''}`}
+                onClick={() => handleSelectGender('boy')}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '32px 20px',
+                  textAlign: 'center',
+                  background: activeGender === 'boy' ? 'var(--brand-tint, #edf6ef)' : 'var(--paper-raised, #ffffff)',
+                  border: activeGender === 'boy' ? '2px solid var(--brand, #275b4c)' : '1px solid var(--line, #dfe5dd)',
+                  borderRadius: '16px',
+                  cursor: 'pointer',
+                  minHeight: '140px',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <span style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>👦</span>
+                <strong style={{ fontSize: '20px', display: 'block', color: 'var(--ink)' }}>Boy</strong>
+                <small style={{ color: 'var(--ink-soft)', fontSize: '13px', marginTop: '6px' }}>Boys' &amp; unisex essentials</small>
+              </button>
+
+              {/* Girl Card */}
+              <button
+                type="button"
+                className={`gender-card ${activeGender === 'girl' ? 'is-selected' : ''}`}
+                onClick={() => handleSelectGender('girl')}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '32px 20px',
+                  textAlign: 'center',
+                  background: activeGender === 'girl' ? 'var(--brand-tint, #edf6ef)' : 'var(--paper-raised, #ffffff)',
+                  border: activeGender === 'girl' ? '2px solid var(--brand, #275b4c)' : '1px solid var(--line, #dfe5dd)',
+                  borderRadius: '16px',
+                  cursor: 'pointer',
+                  minHeight: '140px',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <span style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>👧</span>
+                <strong style={{ fontSize: '20px', display: 'block', color: 'var(--ink)' }}>Girl</strong>
+                <small style={{ color: 'var(--ink-soft)', fontSize: '13px', marginTop: '6px' }}>Girls' &amp; unisex essentials</small>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ================= STEP 4: ITEMS ================= */}
+        {currentStep === 4 && activeSchool && (
           <div className="step-panel step-items-panel">
-            <div className="step-3-layout">
-              {/* Main Catalog Col */}
-              <div className="items-main-col">
+            {/* Summary Bar above product list */}
+            <div
+              className="selection-summary-bar"
+              style={{
+                backgroundColor: 'var(--paper-raised, #ffffff)',
+                border: '1px solid var(--line, #dfe5dd)',
+                borderRadius: '12px',
+                padding: '12px 18px',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '11px', color: 'var(--ink-soft)', fontWeight: 600, textTransform: 'uppercase' }}>
+                  Selection:
+                </span>
+                <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
+                  🏫 {activeSchool.name}
+                </span>
+                <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
+                  📍 {activeSchool.city}
+                </span>
+                {activeClass && (
+                  <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
+                    🎓 {activeClass.name}
+                  </span>
+                )}
+                {activeGender && (
+                  <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
+                    {activeGender === 'boy' ? '👦 Boy' : '👧 Girl'}
+                  </span>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <button
                   type="button"
                   className="step-back-btn"
-                  onClick={() => goToStep(2)}
+                  style={{ margin: 0 }}
+                  onClick={() => requestStepChange(3)}
                 >
-                  <ArrowLeft width={16} height={16} /> Change Class ({activeClass?.name || 'Class 5'})
+                  Change ✎
                 </button>
+              </div>
+            </div>
 
+            <div className="step-3-layout">
+              {/* Main Catalog Col */}
+              <div className="items-main-col">
                 <div className="step-title-row">
                   <span className="label">
-                    {activeSchool.name} · {activeClass?.name || 'Class 5'}
+                    {activeSchool.name} · {activeClass?.name || 'Class 5'} · {activeGender === 'boy' ? 'Boy' : 'Girl'}
                   </span>
                   <h1 className="step-heading">Approved Store Items</h1>
                 </div>
@@ -334,42 +536,81 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   )}
                 </div>
 
-                {/* Required List Section */}
-                {requiredProducts.length > 0 && (
-                  <div className="required-section-block">
-                    <div className="required-head-row">
-                      <div>
-                        <span className="label">Prescribed Checklist</span>
-                        <h2 className="required-heading">Required Kit for {activeClass?.name || 'Class 5'}</h2>
+                {/* Empty State when no items match */}
+                {step4Products.length === 0 ? (
+                  <div className="flow-empty-state" style={{ padding: '48px 24px', textAlign: 'center' }}>
+                    <span style={{ fontSize: '40px', display: 'block', marginBottom: '12px' }}>📦</span>
+                    <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 8px', color: 'var(--ink)' }}>
+                      {`No items listed yet for ${
+                        activeClass?.name
+                          ? activeClass.name.toLowerCase().startsWith('class') ||
+                            activeClass.name.toLowerCase().includes('kg') ||
+                            activeClass.name.toLowerCase().includes('nursery')
+                            ? activeClass.name
+                            : `Class ${activeClass.name}`
+                          : 'Class'
+                      } (${activeGender === 'boy' ? 'Boy' : 'Girl'})`}
+                    </h3>
+                    <p style={{ color: 'var(--ink-soft)', fontSize: '14px', margin: '0 0 20px' }}>
+                      No approved {activeTab.toLowerCase()} items have been listed yet for this class and gender.
+                    </p>
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => requestStepChange(2)}
+                      >
+                        Change Class 🎓
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => requestStepChange(3)}
+                      >
+                        Change Boy / Girl 👤
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Required List Section */}
+                    {requiredProducts.length > 0 && (
+                      <div className="required-section-block">
+                        <div className="required-head-row">
+                          <div>
+                            <span className="label">Prescribed Checklist</span>
+                            <h2 className="required-heading">Required Kit for {activeClass?.name || 'Class 5'}</h2>
+                          </div>
+                        </div>
+
+                        <div className="products-grid">
+                          {requiredProducts.map((p) => (
+                            <ProductCard
+                              key={p.id}
+                              product={p}
+                              onOpenDetails={(item) => setActiveProductForSheet(item)}
+                            />
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
-                    <div className="products-grid">
-                      {requiredProducts.map((p) => (
-                        <ProductCard
-                          key={p.id}
-                          product={p}
-                          onOpenDetails={(item) => setActiveProductForSheet(item)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Optional items */}
-                {optionalProducts.length > 0 && (
-                  <div className="optional-section-block">
-                    <h2 className="optional-heading">Additional Essentials & Spares</h2>
-                    <div className="products-grid">
-                      {optionalProducts.map((p) => (
-                        <ProductCard
-                          key={p.id}
-                          product={p}
-                          onOpenDetails={(item) => setActiveProductForSheet(item)}
-                        />
-                      ))}
-                    </div>
-                  </div>
+                    {/* Optional items */}
+                    {optionalProducts.length > 0 && (
+                      <div className="optional-section-block">
+                        <h2 className="optional-heading">Additional Essentials & Spares</h2>
+                        <div className="products-grid">
+                          {optionalProducts.map((p) => (
+                            <ProductCard
+                              key={p.id}
+                              product={p}
+                              onOpenDetails={(item) => setActiveProductForSheet(item)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -380,7 +621,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                     <SchoolCrest name={activeSchool.name} code={activeSchool.code} size={40} />
                     <div>
                       <h3 className="summary-school-name">{activeSchool.name}</h3>
-                      <span className="summary-class-tag">{activeClass?.name || 'Class 5'}</span>
+                      <span className="summary-class-tag">{activeClass?.name || 'Class 5'} · {activeGender === 'boy' ? 'Boy' : 'Girl'}</span>
                     </div>
                   </div>
 
@@ -407,6 +648,39 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
           </div>
         )}
       </StepTransition>
+
+      {/* Cart Cleared Warning Modal */}
+      {showCartWarning && (
+        <div className="modal-backdrop" style={{ zIndex: 100 }}>
+          <div className="modal-card" style={{ maxWidth: '440px', padding: '24px' }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: '18px', color: '#b91c1c' }}>⚠️ Clear Bag Items?</h3>
+            <p style={{ margin: '0 0 16px', fontSize: '14px', color: 'var(--ink)' }}>
+              You have {cart.length} item{cart.length > 1 ? 's' : ''} in your bag for {activeClass?.name} ({activeGender === 'boy' ? 'Boy' : 'Girl'}).
+              Changing your school, class, or student gender will clear items from your bag.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowCartWarning(false);
+                  setPendingTargetStep(null);
+                }}
+              >
+                Keep Current
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ backgroundColor: '#dc2626', borderColor: '#dc2626', color: '#ffffff' }}
+                onClick={handleConfirmCartClear}
+              >
+                Clear &amp; Proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Product Details Sheet */}
       <ProductSheet

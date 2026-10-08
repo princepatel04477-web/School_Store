@@ -252,6 +252,7 @@ class OrderCreateSerializer(serializers.Serializer):
             for variant in ProductVariant.objects.select_related(
                 "product", "product__category"
             )
+            .prefetch_related("product__grades")
             .filter(id__in=variant_ids)
             .order_by("id")
         }
@@ -260,15 +261,22 @@ class OrderCreateSerializer(serializers.Serializer):
                 {"items": "One or more variants do not exist."}
             )
 
+        from catalog.catalogue import validate_product_match
         for variant in variants.values():
             if not variant.active:
                 raise serializers.ValidationError(
                     {"items": f"SKU {variant.sku} is not available."}
                 )
-            if variant.product.school_id and variant.product.school_id != student.school_id:
-                raise serializers.ValidationError(
-                    {"items": f"SKU {variant.sku} is not available for this school."}
+            try:
+                validate_product_match(
+                    product=variant.product,
+                    school_id=student.school_id,
+                    class_name_or_grade=student.grade or student.class_name,
+                    gender=student.gender,
                 )
+            except serializers.ValidationError as err:
+                msg = err.detail[0] if isinstance(err.detail, list) else str(err.detail)
+                raise serializers.ValidationError({"items": msg})
 
         quantities = {}
         for item in items_data:

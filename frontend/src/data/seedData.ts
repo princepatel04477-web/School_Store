@@ -1,3 +1,5 @@
+import { CLASSES } from './classes';
+
 export interface SeedSchool {
   id: string;
   name: string;
@@ -26,7 +28,8 @@ export interface SeedProduct {
   schoolId?: string;
   classId?: string;
   required?: boolean;
-  gender?: 'MALE' | 'FEMALE' | 'BOTH';
+  gender?: 'boy' | 'girl' | 'unisex' | null;
+  needs_review?: boolean;
   sizes: { id: string; size: string; inStock: boolean }[];
   description: string;
   fabricCare?: string;
@@ -100,21 +103,13 @@ export const seedSchools: SeedSchool[] = [
   },
 ];
 
-export const seedClasses: SeedClass[] = [
-  // Groups for schools
-  { id: 'cls-1', schoolId: 'sch-1', name: 'Nursery', group: 'Pre-primary', sortOrder: 1 },
-  { id: 'cls-2', schoolId: 'sch-1', name: 'Kindergarten', group: 'Pre-primary', sortOrder: 2 },
-  { id: 'cls-3', schoolId: 'sch-1', name: 'Class 1', group: 'Primary', sortOrder: 3 },
-  { id: 'cls-4', schoolId: 'sch-1', name: 'Class 2', group: 'Primary', sortOrder: 4 },
-  { id: 'cls-5', schoolId: 'sch-1', name: 'Class 3', group: 'Primary', sortOrder: 5 },
-  { id: 'cls-6', schoolId: 'sch-1', name: 'Class 4', group: 'Primary', sortOrder: 6 },
-  { id: 'cls-7', schoolId: 'sch-1', name: 'Class 5', group: 'Primary', sortOrder: 7 },
-  { id: 'cls-8', schoolId: 'sch-1', name: 'Class 6', group: 'Middle', sortOrder: 8 },
-  { id: 'cls-9', schoolId: 'sch-1', name: 'Class 7', group: 'Middle', sortOrder: 9 },
-  { id: 'cls-10', schoolId: 'sch-1', name: 'Class 8', group: 'Middle', sortOrder: 10 },
-  { id: 'cls-11', schoolId: 'sch-1', name: 'Class 9', group: 'Secondary', sortOrder: 11 },
-  { id: 'cls-12', schoolId: 'sch-1', name: 'Class 10', group: 'Secondary', sortOrder: 12 },
-];
+export const seedClasses: SeedClass[] = CLASSES.map((c) => ({
+  id: c.id,
+  schoolId: 'sch-1',
+  name: c.name,
+  group: c.group,
+  sortOrder: c.sortOrder,
+}));
 
 export const seedProducts: SeedProduct[] = [
   {
@@ -125,6 +120,8 @@ export const seedProducts: SeedProduct[] = [
     descriptor: '65% Cotton, 35% Poly Blend',
     pricePaise: 65000,
     required: true,
+    gender: 'unisex',
+    needs_review: false,
     sizes: [
       { id: 'sz-28', size: '28', inStock: true },
       { id: 'sz-30', size: '30', inStock: true },
@@ -144,6 +141,8 @@ export const seedProducts: SeedProduct[] = [
     descriptor: 'Durable wrinkle-resistant twill',
     pricePaise: 82000,
     required: true,
+    gender: 'girl',
+    needs_review: false,
     sizes: [
       { id: 'sz-24', size: '24', inStock: true },
       { id: 'sz-26', size: '26', inStock: true },
@@ -154,6 +153,25 @@ export const seedProducts: SeedProduct[] = [
     fabricCare: 'Wash dark colours separately. Line dry in shade.',
   },
   {
+    id: 'prod-2b',
+    name: 'School Uniform Trousers',
+    category: 'Uniform',
+    categorySlug: 'Uniform',
+    descriptor: 'Durable wrinkle-resistant twill',
+    pricePaise: 85000,
+    required: true,
+    gender: 'boy',
+    needs_review: false,
+    sizes: [
+      { id: 'sz-26', size: '26', inStock: true },
+      { id: 'sz-28', size: '28', inStock: true },
+      { id: 'sz-30', size: '30', inStock: true },
+      { id: 'sz-32', size: '32', inStock: true },
+    ],
+    description: 'Smart tailored boy uniform trousers featuring expandable waistband.',
+    fabricCare: 'Wash dark colours separately. Line dry in shade.',
+  },
+  {
     id: 'prod-3',
     name: 'Winter Knit V-Neck Pullover',
     category: 'Uniform',
@@ -161,6 +179,8 @@ export const seedProducts: SeedProduct[] = [
     descriptor: 'Soft acrylic wool blend with contrast piping',
     pricePaise: 95000,
     required: false,
+    gender: 'unisex',
+    needs_review: false,
     sizes: [
       { id: 'sz-30', size: '30', inStock: true },
       { id: 'sz-32', size: '32', inStock: true },
@@ -176,6 +196,8 @@ export const seedProducts: SeedProduct[] = [
     descriptor: 'Breathable genuine leather with TPR sole',
     pricePaise: 115000,
     required: true,
+    gender: 'unisex',
+    needs_review: false,
     sizes: [
       { id: 'sz-1', size: '1', inStock: true },
       { id: 'sz-2', size: '2', inStock: true },
@@ -194,6 +216,8 @@ export const seedProducts: SeedProduct[] = [
     descriptor: 'Lightweight cushioned mesh running sole',
     pricePaise: 105000,
     required: false,
+    gender: 'unisex',
+    needs_review: false,
     sizes: [
       { id: 'sz-2', size: '2', inStock: true },
       { id: 'sz-3', size: '3', inStock: true },
@@ -209,6 +233,8 @@ export const seedProducts: SeedProduct[] = [
     descriptor: 'Micro-polyester jacquard weave',
     pricePaise: 22000,
     required: true,
+    gender: 'unisex',
+    needs_review: false,
     sizes: [
       { id: 'sz-std', size: 'Standard', inStock: true },
     ],
@@ -222,6 +248,8 @@ export const seedProducts: SeedProduct[] = [
     descriptor: 'Strong woven strap with metal buckle',
     pricePaise: 18000,
     required: true,
+    gender: 'unisex',
+    needs_review: false,
     sizes: [
       { id: 'sz-free', size: 'Free Size', inStock: true },
     ],
@@ -235,6 +263,8 @@ export const seedProducts: SeedProduct[] = [
     descriptor: '80% Combed Cotton, 20% Elastane',
     pricePaise: 32000,
     required: true,
+    gender: 'unisex',
+    needs_review: false,
     sizes: [
       { id: 'sz-s', size: 'Small (Size 1-3)', inStock: true },
       { id: 'sz-m', size: 'Medium (Size 4-6)', inStock: true },
@@ -249,6 +279,8 @@ export const seedProducts: SeedProduct[] = [
     descriptor: '172 Pages, 70 GSM High Opacity Paper',
     pricePaise: 42000,
     required: true,
+    gender: 'unisex',
+    needs_review: false,
     sizes: [
       { id: 'sz-single', size: 'A4 Single Line', inStock: true },
       { id: 'sz-square', size: 'A4 Small Square', inStock: true },
@@ -263,6 +295,8 @@ export const seedProducts: SeedProduct[] = [
     descriptor: 'Die-cast compass with protective tin box',
     pricePaise: 19000,
     required: false,
+    gender: 'unisex',
+    needs_review: false,
     sizes: [
       { id: 'sz-tin', size: 'Complete Set', inStock: true },
     ],
@@ -276,6 +310,8 @@ export const seedProducts: SeedProduct[] = [
     descriptor: 'Waterproof thermal laminated PVC, RFID chip',
     pricePaise: 15000,
     required: true,
+    gender: 'unisex',
+    needs_review: false,
     sizes: [
       { id: 'sz-id', size: 'Standard CR80', inStock: true },
     ],
@@ -289,6 +325,8 @@ export const seedProducts: SeedProduct[] = [
     descriptor: '20mm satin finish with quick-release snap',
     pricePaise: 7500,
     required: false,
+    gender: 'unisex',
+    needs_review: false,
     sizes: [
       { id: 'sz-lan', size: 'One Size', inStock: true },
     ],
