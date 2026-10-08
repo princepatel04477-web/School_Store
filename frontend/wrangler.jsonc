@@ -1,11 +1,20 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "school-store",
+  "main": "worker/index.js",
   "compatibility_date": "2026-09-01",
-  // Static React (Vite) build served by Workers Assets; unknown paths fall back to index.html
-  // so react-router client-side routes work on refresh.
+  // The Worker (worker/index.js) is the permanent public address. It forwards every request through a
+  // Cloudflare tunnel to the store running on our own server (Django serves the API AND the React app).
+  // The React build below is bundled but only used if the Worker is changed to serve it directly.
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
-  }
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  },
+  // KV key "origin" = the server's current tunnel URL. The server (deploy/publish.ps1) writes it by POSTing to
+  // /__origin with the REGISTER_SECRET Worker secret (set with: wrangler secret put REGISTER_SECRET).
+  "kv_namespaces": [{ "binding": "CONFIG", "id": "566ceb75e73540df8aa002cfed256fdc" }]
+  // Custom domain, once the domain is on this Cloudflare account:
+  // "routes": [{ "pattern": "store.yourdomain.com", "custom_domain": true }]
 }
