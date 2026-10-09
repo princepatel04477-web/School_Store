@@ -1,7 +1,8 @@
 /* Home Page Styles */
 
 .home-page {
-  padding-bottom: var(--space-24);
+  /* The last section's own padding plus the footer margin already give the gap */
+  padding-bottom: 0;
 }
 
 /* ================== Hero Section ================== */
@@ -9,8 +10,8 @@
 .hero-section {
   position: relative;
   z-index: 2;
-  padding-top: var(--space-12);
-  padding-bottom: var(--space-16);
+  padding-top: var(--space-16);
+  padding-bottom: calc(var(--section-gap) / 2);
 }
 
 .hero-grid {
@@ -33,7 +34,7 @@
 }
 
 .hero-label {
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
   color: var(--brand);
 }
 
@@ -44,8 +45,8 @@
   font-stretch: var(--stretch-condensed);
   text-transform: uppercase;
   font-size: clamp(3rem, 1.6rem + 6vw, 6.25rem);
-  line-height: 0.9;
-  letter-spacing: 0;
+  line-height: 0.92;
+  letter-spacing: 0.005em;
   margin-bottom: var(--space-6);
   color: var(--navy);
 }
@@ -77,9 +78,9 @@
 .hero-subtext {
   font-size: var(--text-lg);
   color: var(--ink-soft);
-  max-width: 48ch;
+  max-width: 46ch;
   margin-bottom: var(--space-8);
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 /* Combobox */
@@ -340,33 +341,42 @@
 }
 
 /* ================== General Sections ================== */
+/* One rhythm: every section is the same distance from the next */
 .section-wrap {
-  padding-top: var(--space-16);
-  padding-bottom: var(--space-12);
+  padding-block: calc(var(--section-gap) / 2);
 }
 
 .section-head {
-  margin-bottom: var(--space-8);
+  margin-bottom: var(--space-12);
   text-align: left;
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
 }
 
 .section-head h2 {
   font-size: var(--text-3xl);
-  margin-top: var(--space-1);
+  margin: 0 0 var(--space-2);
 }
 
 .section-head-split {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-bottom: var(--space-8);
+  gap: var(--space-6);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-12);
+}
+
+.section-head-split h2 {
+  margin: var(--space-3) 0 0;
 }
 
 /* ================== How It Works ================== */
 .how-it-works-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--space-8);
+  gap: var(--space-6);
 }
 
 @media (min-width: 768px) {
@@ -494,6 +504,7 @@
 
 @media (min-width: 640px) {
   .editorial-category-grid {
+    gap: var(--space-6);
     grid-template-columns: repeat(3, 1fr);
   }
 }
@@ -501,7 +512,7 @@
 @media (min-width: 1024px) {
   .editorial-category-grid {
     grid-template-columns: repeat(5, 1fr);
-    gap: var(--space-4);
+    gap: var(--space-6);
   }
 }
 
@@ -582,6 +593,7 @@
 @media (min-width: 640px) {
   .schools-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-6);
   }
 }
 
@@ -704,7 +716,7 @@
   font-stretch: var(--stretch-condensed);
   text-transform: uppercase;
   font-size: clamp(2.25rem, 1.6rem + 2.6vw, 3.5rem);
-  line-height: 0.92;
+  line-height: 0.95;
   color: var(--navy);
 }
 

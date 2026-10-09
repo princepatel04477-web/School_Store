@@ -93,8 +93,14 @@
   --shadow-sm: 0 1px 2px rgb(27 36 32 / 0.04);
   --shadow-md: 0 8px 24px rgb(27 36 32 / 0.06);
 
-  /* School colour change */
-  --duration-retint: 0.6s;
+  /* School colour change: slow and even, so it reads as a fade, not a snap.
+     Symmetric ease-in-out instead of the site's fast-start curve, which would
+     do most of the change in the first few frames. */
+  --duration-retint: 1.2s;
+  --ease-retint: cubic-bezier(0.45, 0, 0.55, 1);
+
+  /* Vertical rhythm between page sections */
+  --section-gap: clamp(64px, 9vw, 128px);
 
   /* Motion Durations & Easing (Exact brief specification) */
   --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
@@ -110,7 +116,7 @@
 
 /* The school colour fades in when a parent picks a school */
 html {
-  transition: --brand var(--duration-retint) var(--ease-standard);
+  transition: --brand var(--duration-retint) var(--ease-retint);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -411,7 +411,7 @@
   border-top: 1px solid var(--line);
   padding-top: var(--space-16);
   padding-bottom: var(--space-8);
-  margin-top: var(--space-24);
+  margin-top: calc(var(--section-gap) / 2);
 }
 
 .footer-grid {
