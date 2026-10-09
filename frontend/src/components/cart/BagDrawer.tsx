@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { X, Trash2, ArrowRight } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
 import { useStoreState } from '../../store/storeState';
 import { QuantityStepper } from '../product/QuantityStepper';
 import { CategoryOutlineIllustration } from '../product/CategoryOutlineIllustration';
+import { EASING } from '../../motion/motionConfig';
 import './bagCheckout.css';
 
 export interface BagDrawerProps {
@@ -48,22 +50,33 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const handleCheckout = () => {
     onClose();
     navigate('/checkout');
   };
 
   return (
-    <div className="bag-drawer-backdrop" onClick={onClose}>
-      <div
-        className="bag-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Shopping Bag"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="bag-drawer-backdrop"
+          onClick={onClose}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25, ease: EASING }}
+        >
+          <motion.div
+            className="bag-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Shopping Bag"
+            onClick={(e) => e.stopPropagation()}
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ duration: 0.3, ease: EASING }}
+          >
         {/* Drawer Header */}
         <div className="bag-drawer-header">
           <div className="bag-title-wrap">
@@ -101,43 +114,59 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
         <div className="bag-lines-container">
           {cart.length > 0 ? (
             <div className="bag-lines-list">
-              {cart.map((line) => (
-                <div key={line.id} className="bag-line-item">
-                  <div className="bag-line-img">
-                    {line.image ? (
-                      <img src={line.image} alt={line.name} width={64} height={80} />
-                    ) : (
-                      <CategoryOutlineIllustration category={line.category} />
-                    )}
-                  </div>
-                  <div className="bag-line-info">
-                    <h3 className="bag-line-name">{line.name}</h3>
-                    <div className="bag-line-meta">
-                      <span>Size: {line.size}</span>
-                      {line.schoolName && <span> · {line.schoolName}</span>}
+              <AnimatePresence initial={false}>
+                {cart.map((line) => (
+                  <motion.div
+                    key={line.id}
+                    className="bag-line-item"
+                    layout
+                    initial={{ opacity: 1, height: 'auto' }}
+                    exit={{
+                      opacity: 0,
+                      height: 0,
+                      marginBottom: 0,
+                      paddingTop: 0,
+                      paddingBottom: 0,
+                      overflow: 'hidden',
+                    }}
+                    transition={{ duration: 0.25, ease: EASING }}
+                  >
+                    <div className="bag-line-img">
+                      {line.image ? (
+                        <img src={line.image} alt={line.name} width={64} height={80} />
+                      ) : (
+                        <CategoryOutlineIllustration category={line.category} />
+                      )}
                     </div>
-                    <div className="bag-line-price">{formatINR(line.pricePaise * line.quantity)}</div>
-
-                    <div className="bag-line-controls">
-                      <div className="bag-stepper-wrap">
-                        <QuantityStepper
-                          quantity={line.quantity}
-                          onIncrement={() => updateQuantity(line.id, line.quantity + 1)}
-                          onDecrement={() => updateQuantity(line.id, line.quantity - 1)}
-                          min={1}
-                        />
+                    <div className="bag-line-info">
+                      <h3 className="bag-line-name">{line.name}</h3>
+                      <div className="bag-line-meta">
+                        <span>Size: {line.size}</span>
+                        {line.schoolName && <span> · {line.schoolName}</span>}
                       </div>
-                      <button
-                        type="button"
-                        className="bag-remove-link"
-                        onClick={() => removeItem(line.id)}
-                      >
-                        Remove
-                      </button>
+                      <div className="bag-line-price">{formatINR(line.pricePaise * line.quantity)}</div>
+
+                      <div className="bag-line-controls">
+                        <div className="bag-stepper-wrap">
+                          <QuantityStepper
+                            quantity={line.quantity}
+                            onIncrement={() => updateQuantity(line.id, line.quantity + 1)}
+                            onDecrement={() => updateQuantity(line.id, line.quantity - 1)}
+                            min={1}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="bag-remove-link"
+                          onClick={() => removeItem(line.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           ) : (
             <div className="bag-empty-state">
@@ -184,7 +213,9 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
             </button>
           </div>
         )}
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

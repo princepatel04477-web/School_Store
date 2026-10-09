@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { X, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
 import { useStoreState } from '../../store/storeState';
 import { ProductImage } from './ProductImage';
 import { SizeSelector } from './SizeSelector';
 import { SizeGuide } from './SizeGuide';
 import { QuantityStepper } from './QuantityStepper';
+import { EASING } from '../../motion/motionConfig';
 import type { SeedProduct } from '../../data/seedData';
 import './product.css';
 
@@ -57,7 +59,7 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
         onClose();
         onOpenBag();
       }
-    }, 1200);
+    }, 1500);
   };
 
   return (
@@ -83,7 +85,9 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
           <div className="sheet-content-grid">
             {/* Gallery Left */}
             <div className="sheet-gallery-col">
-              <ProductImage id={product.id} name={product.name} category={product.category} priority />
+              <motion.div layoutId={`product-image-${product.id}`} style={{ width: '100%' }}>
+                <ProductImage id={product.id} name={product.name} category={product.category} priority />
+              </motion.div>
             </div>
 
             {/* Details Right */}
@@ -132,14 +136,32 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
                   onClick={handleAdd}
                   disabled={isAddedSuccess}
                 >
-                  {isAddedSuccess ? (
-                    <>
-                      <Check width={18} height={18} strokeWidth={2} />
-                      Added to Bag
-                    </>
-                  ) : (
-                    `Add to Bag · ${formatINR(product.pricePaise * quantity)}`
-                  )}
+                  <AnimatePresence mode="wait" initial={false}>
+                    {isAddedSuccess ? (
+                      <motion.span
+                        key="added"
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.15, ease: EASING }}
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                      >
+                        <Check width={18} height={18} strokeWidth={2} />
+                        Added to Bag
+                      </motion.span>
+                    ) : (
+                      <motion.span
+                        key="add"
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 4 }}
+                        transition={{ duration: 0.15, ease: EASING }}
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        Add to Bag · {formatINR(product.pricePaise * quantity)}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </button>
               </div>
 

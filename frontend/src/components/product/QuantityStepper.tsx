@@ -1,4 +1,6 @@
 import { Minus, Plus } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { EASING } from '../../motion/motionConfig';
 import './product.css';
 
 export interface QuantityStepperProps {
@@ -29,8 +31,19 @@ export function QuantityStepper({
       >
         <Minus width={16} height={16} strokeWidth={1.5} />
       </button>
-      <span className="stepper-value" aria-live="polite">
-        {quantity}
+      <span className="stepper-value" aria-live="polite" style={{ position: 'relative', overflow: 'hidden' }}>
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.span
+            key={quantity}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.15, ease: EASING }}
+            style={{ display: 'inline-block' }}
+          >
+            {quantity}
+          </motion.span>
+        </AnimatePresence>
       </span>
       <button
         type="button"

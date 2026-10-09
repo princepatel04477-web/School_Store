@@ -1,3 +1,5 @@
+import { motion } from 'motion/react';
+import { EASING } from '../../motion/motionConfig';
 import './product.css';
 
 export interface SizeOption {
@@ -52,7 +54,14 @@ export function SizeSelector({
               className={`size-tile ${isSelected ? 'is-selected' : ''} ${!s.inStock ? 'is-out-of-stock' : ''}`}
               onClick={() => onSelectSize(s.id)}
             >
-              <span>{s.size}</span>
+              {isSelected && (
+                <motion.span
+                  layoutId="active-size-pill"
+                  className="size-tile-indicator"
+                  transition={{ duration: 0.2, ease: EASING }}
+                />
+              )}
+              <span className="size-tile-label">{s.size}</span>
               {!s.inStock && <span className="diagonal-strike" aria-label="Unavailable" />}
             </button>
           );

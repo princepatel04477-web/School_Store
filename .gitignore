@@ -43,3 +43,8 @@ deploy/public.env
 deploy/*-log.txt
 deploy/*-result.txt
 frontend/dist-local/
+
+# Local tooling & brag
+.agents/
+brag-output*/
+skills-lock.json

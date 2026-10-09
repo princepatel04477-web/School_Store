@@ -58,7 +58,7 @@
 
   /* Radii */
   --radius-sm: 6px;
-  --radius-md: 10px;    /* Inputs & Buttons */
+  --radius-md: 12px;    /* Inputs & Buttons (12px radius per brief) */
   --radius-lg: 16px;    /* Cards */
   --radius-full: 999px; /* Chips & Badges */
 
@@ -66,10 +66,14 @@
   --shadow-sm: 0 1px 2px rgb(27 36 32 / 0.04);
   --shadow-md: 0 8px 24px rgb(27 36 32 / 0.06);
 
-  /* Motion Durations & Easing */
-  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
-  --duration-micro: 160ms;
-  --duration-ui: 280ms;
-  --duration-reveal: 520ms;
-  --duration-thread: 700ms;
+  /* Motion Durations & Easing (Exact brief specification) */
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 0.2s;
+  --duration-base: 0.5s;
+  --duration-slow: 0.9s;
+  --duration-micro: 0.2s;
+  --duration-ui: 0.2s;
+  --duration-reveal: 0.5s;
+  --duration-thread: 0.9s;
 }

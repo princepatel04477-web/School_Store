@@ -26,14 +26,21 @@
   height: 72px;
   background-color: var(--paper);
   z-index: 40;
-  transition: border-color var(--duration-ui) var(--ease-spring),
-              box-shadow var(--duration-ui) var(--ease-spring);
+  transition: height var(--duration-fast) var(--ease-standard),
+              background-color var(--duration-fast) var(--ease-standard),
+              backdrop-filter var(--duration-fast) var(--ease-standard),
+              border-color var(--duration-fast) var(--ease-standard),
+              box-shadow var(--duration-fast) var(--ease-standard);
   border-bottom: 1px solid transparent;
 }
 
 .site-header.is-scrolled {
+  height: 60px;
+  background-color: rgba(250, 248, 245, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 20px rgba(27, 36, 32, 0.04);
 }
 
 .header-inner {
@@ -41,13 +48,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
+  gap: clamp(8px, 1.5vw, 16px);
 }
 
 .brand-group {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: clamp(8px, 1.2vw, 16px);
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 .site-brand {
@@ -56,6 +65,8 @@
   gap: var(--space-2);
   color: var(--ink);
   text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .site-brand:hover {
@@ -92,12 +103,15 @@
   padding: 4px var(--space-3);
   border-radius: var(--radius-full);
   font-size: var(--text-xs);
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .pill-school-info {
   font-weight: 500;
   color: var(--ink);
-  max-width: 200px;
+  max-width: clamp(100px, 12vw, 170px);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -108,26 +122,35 @@
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Desktop nav */
 .desktop-nav {
   display: none;
   align-items: center;
-  gap: var(--space-6);
+  gap: clamp(4px, 0.8vw, 10px);
+  white-space: nowrap;
+  flex-shrink: 0;
+  position: relative;
 }
 
 .nav-link {
   position: relative;
   font-family: var(--font-body);
-  font-size: var(--text-base);
+  font-size: clamp(0.8125rem, 0.85vw, 0.9375rem);
   font-weight: 500;
   color: var(--ink-soft);
   text-decoration: none;
-  padding: var(--space-2) 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
   display: flex;
   flex-direction: column;
   align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: color var(--duration-fast) var(--ease-standard);
 }
 
 .nav-link:hover {
@@ -138,16 +161,33 @@
   color: var(--brand);
 }
 
+.nav-active-pill {
+  position: absolute;
+  inset: 0;
+  background-color: var(--brand-tint);
+  border: 1px solid rgba(47, 93, 80, 0.15);
+  border-radius: var(--radius-full);
+  z-index: 0;
+}
+
+.nav-link span {
+  position: relative;
+  z-index: 1;
+}
+
 .nav-thread {
   position: absolute;
-  bottom: -4px;
+  bottom: 2px;
+  z-index: 1;
 }
 
 /* Actions right */
 .header-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: clamp(4px, 1vw, 12px);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .action-icon-btn {
@@ -161,7 +201,8 @@
   place-items: center;
   cursor: pointer;
   position: relative;
-  transition: background-color var(--duration-micro) var(--ease-spring);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+  flex-shrink: 0;
 }
 
 .action-icon-btn:hover {
@@ -173,6 +214,8 @@
   font-weight: 600;
   color: var(--brand);
   padding: var(--space-2) var(--space-3);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .action-account-btn {
@@ -309,9 +352,18 @@
   color: var(--brand);
 }
 
+@media (max-width: 1023px) {
+  .mobile-menu-trigger {
+    display: inline-grid;
+  }
+  .desktop-nav {
+    display: none !important;
+  }
+}
+
 @media (min-width: 1024px) {
   .mobile-menu-trigger {
-    display: none;
+    display: none !important;
   }
   .desktop-nav {
     display: flex;

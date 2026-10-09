@@ -318,7 +318,10 @@
   color: var(--ink-soft);
   cursor: pointer;
   white-space: nowrap;
-  transition: all var(--duration-micro) var(--ease-spring);
+  position: relative;
+  overflow: hidden;
+  transition: color var(--duration-fast) var(--ease-standard),
+              border-color var(--duration-fast) var(--ease-standard);
 }
 
 .cat-tab:hover {
@@ -327,9 +330,21 @@
 }
 
 .cat-tab.is-active {
-  background-color: var(--brand);
   border-color: var(--brand);
   color: var(--paper-raised);
+}
+
+.cat-tab-indicator {
+  position: absolute;
+  inset: 0;
+  background-color: var(--brand);
+  border-radius: inherit;
+  z-index: 0;
+}
+
+.cat-tab-label {
+  position: relative;
+  z-index: 1;
 }
 
 .required-section-block,

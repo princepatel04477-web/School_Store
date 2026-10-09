@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Search, Check, ArrowRight, ArrowLeft } from 'lucide-react';
+import { motion } from 'motion/react';
 import { seedSchools, seedClasses, seedProducts, type SeedSchool, type SeedClass, type SeedProduct } from '../data/seedData';
 import { useStoreState, storeState } from '../store/storeState';
 import { SchoolCrest } from '../components/school/SchoolCrest';
@@ -8,6 +9,9 @@ import { ProductCard } from '../components/product/ProductCard';
 import { ProductSheet } from '../components/product/ProductSheet';
 import { StepTransition } from '../motion/StepTransition';
 import { Thread } from '../motion/Thread';
+import { Stagger, Reveal, Hairline } from '../motion';
+import { EASING } from '../motion/motionConfig';
+import { prefetchBagDrawer, prefetchCheckoutPage } from '../utils/prefetch';
 import { formatINR } from '../utils/formatINR';
 import './flow.css';
 
@@ -301,7 +305,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
             </div>
 
             {filteredSchools.length > 0 ? (
-              <div className="schools-select-grid">
+              <Stagger className="schools-select-grid">
                 {filteredSchools.map((s) => {
                   const isSelected = activeSchool?.id === s.id;
                   return (
@@ -319,7 +323,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                     </div>
                   );
                 })}
-              </div>
+              </Stagger>
             ) : (
               <div className="flow-empty-state">
                 <h3>We couldn’t find that school</h3>
@@ -530,7 +534,14 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                         className={`cat-tab ${activeTab === cat ? 'is-active' : ''}`}
                         onClick={() => setActiveTab(cat)}
                       >
-                        {cat}
+                        {activeTab === cat && (
+                          <motion.span
+                            layoutId="cat-tab-indicator"
+                            className="cat-tab-indicator"
+                            transition={{ duration: 0.2, ease: EASING }}
+                          />
+                        )}
+                        <span className="cat-tab-label">{cat}</span>
                       </button>
                     )
                   )}
@@ -583,7 +594,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                           </div>
                         </div>
 
-                        <div className="products-grid">
+                        <Stagger key={`req-${activeTab}`} className="products-grid">
                           {requiredProducts.map((p) => (
                             <ProductCard
                               key={p.id}
@@ -591,7 +602,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                               onOpenDetails={(item) => setActiveProductForSheet(item)}
                             />
                           ))}
-                        </div>
+                        </Stagger>
                       </div>
                     )}
 
@@ -599,7 +610,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                     {optionalProducts.length > 0 && (
                       <div className="optional-section-block">
                         <h2 className="optional-heading">Additional Essentials & Spares</h2>
-                        <div className="products-grid">
+                        <Stagger key={`opt-${activeTab}`} className="products-grid">
                           {optionalProducts.map((p) => (
                             <ProductCard
                               key={p.id}
@@ -607,7 +618,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                               onOpenDetails={(item) => setActiveProductForSheet(item)}
                             />
                           ))}
-                        </div>
+                        </Stagger>
                       </div>
                     )}
                   </>
@@ -638,6 +649,10 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   <button
                     type="button"
                     className="btn btn-primary summary-bag-btn"
+                    onMouseEnter={() => {
+                      prefetchBagDrawer();
+                      prefetchCheckoutPage();
+                    }}
                     onClick={onOpenBag}
                   >
                     View Bag · {formatINR(subtotalPaise)}

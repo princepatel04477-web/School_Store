@@ -1,9 +1,19 @@
+export const EASING = [0.16, 1, 0.3, 1] as const;
+
+export const DURATION_FAST = 0.2;
+export const DURATION_BASE = 0.5;
+export const DURATION_SLOW = 0.9;
+
 export const motionConfig = {
-  ease: [0.22, 1, 0.36, 1] as const,
+  ease: EASING,
   duration: {
-    micro: 0.16,
-    ui: 0.28,
-    reveal: 0.52,
-    thread: 0.70,
+    fast: DURATION_FAST,
+    base: DURATION_BASE,
+    slow: DURATION_SLOW,
+    // backwards-compatibility aliases
+    micro: DURATION_FAST,
+    ui: DURATION_FAST,
+    reveal: DURATION_BASE,
+    thread: DURATION_SLOW,
   },
 };

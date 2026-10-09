@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { auth, User, logout } from './api';
+import { storeState } from './store/storeState';
 
 type C = {
   user: User | null;
@@ -24,7 +25,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (localStorage.getItem('access')) {
-      auth.me().then(setUser).catch(() => logout()).finally(() => setLoading(false));
+      auth.me()
+        .then((u) => {
+          setUser(u);
+          storeState.mergeOnSignIn(u);
+        })
+        .catch(() => logout())
+        .finally(() => setLoading(false));
     } else {
       setLoading(false);
     }
@@ -35,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('refresh', tokens.refresh);
     const signedIn = tokens.user ?? (await auth.me());
     setUser(signedIn);
+    storeState.mergeOnSignIn(signedIn);
     return signedIn;
   };
 

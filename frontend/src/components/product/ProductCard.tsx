@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
 import { useStoreState } from '../../store/storeState';
 import { ProductImage } from './ProductImage';
@@ -66,7 +67,9 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
         className="product-card-media"
         onClick={() => onOpenDetails && onOpenDetails(product)}
       >
-        <ProductImage id={product.id} name={product.name} category={product.category} />
+        <motion.div layoutId={`product-image-${product.id}`}>
+          <ProductImage id={product.id} name={product.name} category={product.category} />
+        </motion.div>
         {product.required && (
           <span className="required-badge">Required</span>
         )}

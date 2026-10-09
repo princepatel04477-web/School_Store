@@ -17,16 +17,6 @@
   box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
-  animation: slideInRight var(--duration-ui) var(--ease-spring);
-}
-
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
 }
 
 .bag-drawer-header {

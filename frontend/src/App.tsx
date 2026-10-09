@@ -3,9 +3,13 @@ import { Navigate, Route, Routes, Link, useLocation } from 'react-router-dom';
 import { useAuth } from './auth';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
-import { BagDrawer } from './components/cart/BagDrawer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { PageTransition } from './motion/PageTransition';
+
+// Lazy Loaded Components
+const BagDrawer = lazy(() =>
+  import('./components/cart/BagDrawer').then((m) => ({ default: m.BagDrawer }))
+);
 
 // Lazy Loaded Pages
 const HomePage = lazy(() =>
@@ -45,6 +49,8 @@ function Guard({ children, roles }: { children: ReactNode; roles?: string[] }) {
   return <>{children}</>;
 }
 
+import { SmoothScroll } from './motion/SmoothScroll';
+
 export default function App() {
   const [bagOpen, setBagOpen] = useState(false);
   const location = useLocation();
@@ -58,7 +64,8 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="store-application-root">
+      <SmoothScroll>
+        <div className="store-application-root">
         {/* Render global Header for storefront */}
         {!isPortal && (
           <Header
@@ -113,9 +120,12 @@ export default function App() {
         {/* Global Footer for storefront */}
         {!isPortal && <Footer />}
 
-        {/* Global Bag Drawer */}
-        <BagDrawer isOpen={bagOpen} onClose={() => setBagOpen(false)} />
+        {/* Global Bag Drawer (code-split) */}
+        <Suspense fallback={null}>
+          <BagDrawer isOpen={bagOpen} onClose={() => setBagOpen(false)} />
+        </Suspense>
       </div>
+      </SmoothScroll>
     </ErrorBoundary>
   );
 }

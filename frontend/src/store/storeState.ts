@@ -131,6 +131,24 @@ export const storeState = {
     localStorage.removeItem(CART_STORAGE_KEY);
     notify();
   },
+
+  mergeOnSignIn: (user?: { school?: { name: string } | string | null; school_name?: string | null; school_code?: string | null; city_name?: string | null }) => {
+    if (!user) return;
+    // If guest had no school selected, adopt user's school if present on account
+    if (!selectionState && (user.school || user.school_name)) {
+      const sName = typeof user.school === 'object' && user.school ? user.school.name : (user.school_name || String(user.school || ''));
+      if (sName) {
+        storeState.setSelection({
+          schoolId: (typeof user.school === 'string' ? user.school : user.school_name) || 'account-school',
+          schoolName: sName,
+          schoolCode: user.school_code || undefined,
+          cityName: user.city_name || undefined,
+        });
+      }
+    }
+    // Guest cart in localStorage remains active and associated with the account
+    notify();
+  },
 };
 
 export function useStoreState() {

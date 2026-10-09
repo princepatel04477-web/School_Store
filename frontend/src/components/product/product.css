@@ -222,7 +222,16 @@
   justify-content: center;
   cursor: pointer;
   position: relative;
-  transition: all var(--duration-micro) var(--ease-spring);
+  overflow: hidden;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.size-tile-indicator {
+  position: absolute;
+  inset: 0;
+  background-color: var(--brand);
+  border-radius: inherit;
+  z-index: 1;
 }
 
 .size-tile:hover:not(:disabled) {
@@ -230,10 +239,18 @@
 }
 
 .size-tile.is-selected {
-  background-color: var(--brand-tint);
   border-color: var(--brand);
-  color: var(--brand-deep);
+}
+
+.size-tile.is-selected .size-tile-label {
+  color: #fff;
   font-weight: 600;
+}
+
+.size-tile-label {
+  position: relative;
+  z-index: 2;
+  transition: color var(--duration-fast) var(--ease-standard);
 }
 
 .size-tile:disabled {

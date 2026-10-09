@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { motionConfig } from './motionConfig';
+import { EASING } from './motionConfig';
 
 export interface PageTransitionProps {
   children: ReactNode;
@@ -19,6 +19,7 @@ export function PageTransition({ children }: PageTransitionProps) {
     return <>{children}</>;
   }
 
+  // Cross-fade with 0.3s duration fallback or View Transitions
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -27,8 +28,8 @@ export function PageTransition({ children }: PageTransitionProps) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{
-          duration: 0.2,
-          ease: motionConfig.ease,
+          duration: 0.3,
+          ease: EASING,
         }}
       >
         {children}

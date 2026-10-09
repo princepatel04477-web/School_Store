@@ -1,0 +1,108 @@
+/* Skeleton loader styles with warm neutral shimmer */
+
+.skeleton-box {
+  background: linear-gradient(
+    90deg,
+    var(--paper-sunk) 0%,
+    rgba(255, 255, 255, 0.5) 50%,
+    var(--paper-sunk) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.8s infinite linear;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-box {
+    animation: none;
+    background: var(--paper-sunk);
+  }
+}
+
+/* School Picker Skeleton Grid */
+.school-picker-skeleton-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .school-picker-skeleton-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.school-card-skeleton {
+  background-color: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 96px;
+}
+
+.school-card-skeleton .crest-skeleton {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.school-card-skeleton .text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+/* Product Grid Skeleton */
+.product-grid-skeleton {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+}
+
+@media (min-width: 640px) {
+  .product-grid-skeleton {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .product-grid-skeleton {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.product-card-skeleton {
+  background-color: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.product-card-skeleton .image-skeleton {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 0;
+}
+
+.product-card-skeleton .content-skeleton {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Search, ShoppingBag, Menu, X, ArrowRight, User } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../auth';
 import { siteConfig } from '../siteConfig';
 import { useStoreState } from '../store/storeState';
 import { SchoolCrest } from './school/SchoolCrest';
 import { Thread } from '../motion/Thread';
+import { EASING, DURATION_FAST } from '../motion/motionConfig';
+import { prefetchFlowPage, prefetchBagDrawer } from '../utils/prefetch';
 import './headerFooter.css';
 
 export interface HeaderProps {
@@ -22,7 +25,7 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 8);
+      setIsScrolled(window.scrollY > 80);
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
@@ -72,9 +75,9 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
 
           {/* Left: Brand mark + wordmark */}
           <div className="brand-group">
-            <Link to="/" className="site-brand" aria-label="SchoolStore Home">
-              <span className="brand-mark">S</span>
-              <span className="brand-wordmark">SchoolStore</span>
+            <Link to="/" className="site-brand" aria-label={`${siteConfig.name} Home`}>
+              <span className="brand-mark">{siteConfig.mark}</span>
+              <span className="brand-wordmark">{siteConfig.logoText}</span>
             </Link>
 
             {/* School Pill if selected */}
@@ -104,7 +107,15 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
                   key={cat.slug}
                   to={`/shop?cat=${encodeURIComponent(cat.slug)}`}
                   className={`nav-link ${isActive ? 'is-active' : ''}`}
+                  onMouseEnter={prefetchFlowPage}
                 >
+                  {isActive && (
+                    <motion.span
+                      layoutId="header-active-pill"
+                      className="nav-active-pill"
+                      transition={{ duration: 0.25, ease: EASING }}
+                    />
+                  )}
                   <span>{cat.label}</span>
                   {isActive && <Thread width={28} className="nav-thread" />}
                 </Link>
@@ -138,13 +149,24 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
               className="action-icon-btn bag-btn"
               aria-label={`Shopping bag, ${totalCount} items`}
               onClick={onOpenBag}
+              onMouseEnter={prefetchBagDrawer}
             >
               <ShoppingBag width={20} height={20} strokeWidth={1.5} />
-              {totalCount > 0 && (
-                <span className="bag-count-dot" aria-live="polite">
-                  {totalCount}
-                </span>
-              )}
+              <AnimatePresence mode="popLayout">
+                {totalCount > 0 && (
+                  <motion.span
+                    key={totalCount}
+                    className="bag-count-dot"
+                    aria-live="polite"
+                    initial={{ scale: 0.8 }}
+                    animate={{ scale: [1, 1.25, 1] }}
+                    exit={{ scale: 0.8, opacity: 0 }}
+                    transition={{ duration: DURATION_FAST, ease: EASING }}
+                  >
+                    {totalCount}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </button>
           </div>
         </div>
@@ -162,8 +184,8 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
           >
             <div className="sheet-top">
               <Link to="/" className="site-brand" onClick={() => setMobileMenuOpen(false)}>
-                <span className="brand-mark">S</span>
-                <span className="brand-wordmark">SchoolStore</span>
+                <span className="brand-mark">{siteConfig.mark}</span>
+                <span className="brand-wordmark">{siteConfig.logoText}</span>
               </Link>
               <button
                 type="button"

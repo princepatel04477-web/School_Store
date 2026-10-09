@@ -1,6 +1,6 @@
 import { type ReactNode, type ElementType } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { motionConfig } from './motionConfig';
+import { EASING, DURATION_BASE } from './motionConfig';
 
 export interface RevealProps {
   children: ReactNode;
@@ -19,12 +19,12 @@ export function Reveal({ children, delay = 0, as = 'div', className = '' }: Reve
 
   return (
     <MotionComponent
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-10% 0px' }}
+      initial={{ opacity: 0, y: 24, filter: 'blur(6px)' }}
+      whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+      viewport={{ once: true }}
       transition={{
-        duration: motionConfig.duration.reveal,
-        ease: motionConfig.ease,
+        duration: DURATION_BASE,
+        ease: EASING,
         delay,
       }}
       className={className}

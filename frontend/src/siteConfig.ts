@@ -1,5 +1,7 @@
 export const siteConfig = {
   name: 'SchoolStore',
+  mark: 'S',
+  logoText: 'SchoolStore',
   tagline: 'School uniforms and essentials, sorted.',
   supportPhone: '+91 98765 43210',
   supportPhoneHref: 'tel:+919876543210',

@@ -1,24 +1,68 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Search, ArrowRight, ShieldCheck, RefreshCw, Truck, MessageCircle } from 'lucide-react';
+import { motion, useReducedMotion, AnimatePresence } from 'motion/react';
 import { seedSchools, type SeedSchool } from '../data/seedData';
 import { useStoreState } from '../store/storeState';
 import { SchoolCrest } from '../components/school/SchoolCrest';
-import { FlatLayIllustration } from '../components/home/FlatLayIllustration';
-import { Thread } from '../motion/Thread';
-import { Reveal } from '../motion/Reveal';
-import { Stagger } from '../motion/Stagger';
+import { SmartImage } from '../components/ui/SmartImage';
+import { EASING } from '../motion/motionConfig';
+import { prefetchFlowPage, prefetchSchoolData } from '../utils/prefetch';
+import {
+  Reveal,
+  Stagger,
+  Thread,
+  TextReveal,
+  ImageCurtain,
+  Parallax,
+  Magnetic,
+  Hairline,
+} from '../motion';
 import { siteConfig } from '../siteConfig';
 import './home.css';
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { setSelection } = useStoreState();
+  const { selection, setSelection } = useStoreState();
+  const shouldReduceMotion = useReducedMotion();
 
   const [query, setQuery] = useState('');
   const [comboboxOpen, setComboboxOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const comboboxRef = useRef<HTMLDivElement>(null);
+
+  const categoryTiles = [
+    {
+      title: 'Uniform',
+      href: '/shop?cat=Uniform',
+      image: '/images/categories/uniform.jpg',
+      alt: 'Tailored school blazers, pressed shirts, and pleated skirts',
+    },
+    {
+      title: 'Shoes',
+      href: '/shop?cat=School%20Shoes',
+      image: '/images/categories/shoes.jpg',
+      alt: 'Anti-scuff leather school shoes and non-marking PE white trainers',
+    },
+    {
+      title: 'Accessories',
+      href: '/shop?cat=Uniform%20Accessories',
+      image: '/images/categories/accessories.jpg',
+      alt: 'School uniform woven crest ties, brass buckle belts, and socks',
+    },
+    {
+      title: 'Stationery',
+      href: '/shop?cat=Stationery',
+      image: '/images/categories/stationery.jpg',
+      alt: 'Prescribed syllabus notebooks, geometry kits, and art books',
+    },
+    {
+      title: 'ID Cards',
+      href: '/shop?cat=ID%20Cards',
+      image: '/images/categories/id-cards.jpg',
+      alt: 'Smart student ID cards with safety breakaway lanyards',
+    },
+  ];
 
   // Filtered schools
   const filteredSchools = query.trim()
@@ -80,7 +124,7 @@ export function HomePage() {
 
   return (
     <div className="home-page" id="main">
-      {/* 1. HERO SECTION (Static on first paint for fast LCP) */}
+      {/* 1. HERO SECTION */}
       <section className="hero-section container">
         <div className="hero-grid">
           {/* Left Column (7 cols) */}
@@ -88,93 +132,226 @@ export function HomePage() {
             <span className="label hero-label">
               Uniforms · Shoes · Stationery · ID cards
             </span>
-            <h1 className="hero-heading">
-              School essentials, <span className="word-with-thread">sorted.<Thread className="hero-thread" delay={0.2} /></span>
-            </h1>
-            <p className="hero-subtext">
-              Pick your school and class to get the exact parent-approved list delivered directly to your door.
-            </p>
+            <TextReveal
+              lines={['School essentials,', 'sorted.']}
+              className="hero-heading"
+            />
+            <Reveal delay={0.15}>
+              <p className="hero-subtext">
+                Pick your school and class to get the exact parent-approved list delivered directly to your door.
+              </p>
+            </Reveal>
 
-            {/* School Search Combobox */}
-            <div className="school-search-box" ref={comboboxRef}>
-              <div className="search-input-wrap">
-                <Search className="search-box-icon" width={22} height={22} strokeWidth={1.5} />
-                <input
-                  type="text"
-                  role="combobox"
-                  aria-expanded={comboboxOpen}
-                  aria-haspopup="listbox"
-                  aria-controls="school-results-list"
-                  aria-label="Search your school"
-                  placeholder="Search your school (e.g. DPS, Cathedral, NPS)..."
-                  className="hero-search-input"
-                  value={query}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    setComboboxOpen(true);
-                    setActiveIndex(-1);
-                  }}
-                  onFocus={() => setComboboxOpen(true)}
-                  onKeyDown={handleKeyDown}
-                />
-                <button
-                  type="button"
-                  className="btn btn-primary hero-find-btn"
-                  onClick={() => {
-                    if (filteredSchools.length > 0) {
-                      handleSelectSchool(filteredSchools[0]);
-                    }
-                  }}
-                >
-                  Find my school
-                </button>
-              </div>
+            {/* Hero Selection State vs School Search Box */}
+            <Reveal delay={0.25}>
+              <AnimatePresence mode="wait">
+                {selection ? (
+                  <motion.div
+                    key="selected"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.25, ease: EASING }}
+                    className="hero-selected-state"
+                  >
+                    <div className="hero-selected-badge">
+                      <SchoolCrest name={selection.schoolName} code={selection.schoolCode} size={42} />
+                      <div className="hero-selected-text">
+                        <span className="hero-selected-label">Current Campus</span>
+                        <h2 className="hero-selected-school">Shopping for {selection.schoolName}</h2>
+                        <span className="hero-selected-grade">
+                          {selection.cityName ? `${selection.cityName} ` : ''}
+                          {selection.gradeName ? `· ${selection.gradeName}` : ''}
+                          {selection.gender ? ` · ${selection.gender === 'boy' ? 'Boy' : 'Girl'}` : ''}
+                        </span>
+                      </div>
+                    </div>
 
-              {/* Dropdown Results */}
-              {comboboxOpen && (
-                <div className="combobox-dropdown" id="school-results-list" role="listbox">
-                  <div className="combobox-header">
-                    <span className="label">
-                      {query.trim() ? 'Matching Schools' : 'Popular Schools'}
-                    </span>
-                  </div>
-
-                  {filteredSchools.length > 0 ? (
-                    <div className="combobox-list">
-                      {filteredSchools.map((school, idx) => (
-                        <div
-                          key={school.id}
-                          role="option"
-                          aria-selected={idx === activeIndex}
-                          className={`combobox-option ${idx === activeIndex ? 'is-active' : ''}`}
-                          onClick={() => handleSelectSchool(school)}
+                    <div className="hero-selected-actions">
+                      <Magnetic>
+                        <button
+                          type="button"
+                          className="btn btn-primary hero-continue-btn"
+                          onMouseEnter={prefetchFlowPage}
+                          onClick={() => {
+                            const nextStep = selection.gradeId
+                              ? selection.gender
+                                ? '4'
+                                : '3'
+                              : '2';
+                            navigate(
+                              `/flow?school=${encodeURIComponent(selection.schoolId)}&step=${nextStep}`
+                            );
+                          }}
                         >
-                          <SchoolCrest name={school.name} code={school.code} size={36} />
-                          <div className="school-option-text">
-                            <span className="school-option-name">{school.name}</span>
-                            <span className="school-option-meta">
-                              {school.city} · {school.board}
-                            </span>
-                          </div>
+                          Continue shopping <ArrowRight width={16} height={16} />
+                        </button>
+                      </Magnetic>
+                      <button
+                        type="button"
+                        className="hero-change-school-link"
+                        onClick={() => {
+                          setSelection(null);
+                          setQuery('');
+                          setTimeout(() => {
+                            const input = document.querySelector('.hero-search-input') as HTMLInputElement;
+                            if (input) input.focus();
+                          }, 50);
+                        }}
+                      >
+                        Change school
+                      </button>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="search"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.25, ease: EASING }}
+                    className="school-search-box"
+                    ref={comboboxRef}
+                  >
+                    <div className="search-input-wrap">
+                      <Search className="search-box-icon" width={22} height={22} strokeWidth={1.5} />
+                      <input
+                        type="text"
+                        role="combobox"
+                        aria-expanded={comboboxOpen}
+                        aria-haspopup="listbox"
+                        aria-controls="school-results-list"
+                        aria-label="Search your school"
+                        placeholder="Search your school (e.g. DPS, Cathedral, NPS)..."
+                        className="hero-search-input"
+                        value={query}
+                        onChange={(e) => {
+                          setQuery(e.target.value);
+                          setComboboxOpen(true);
+                          setActiveIndex(-1);
+                        }}
+                        onFocus={() => setComboboxOpen(true)}
+                        onKeyDown={handleKeyDown}
+                      />
+                      <Magnetic>
+                        <button
+                          type="button"
+                          className="btn btn-primary hero-find-btn"
+                          onClick={() => {
+                            if (filteredSchools.length > 0) {
+                              handleSelectSchool(filteredSchools[0]);
+                            }
+                          }}
+                        >
+                          Find my school
+                        </button>
+                      </Magnetic>
+                    </div>
+
+                    {/* Dropdown Results */}
+                    {comboboxOpen && (
+                      <div className="combobox-dropdown" id="school-results-list" role="listbox">
+                        <div className="combobox-header">
+                          <span className="label">
+                            {query.trim() ? 'Matching Schools' : 'Popular Schools'}
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="combobox-empty">
-                      <p>We don't have that school yet.</p>
-                      <Link to="/contact?reason=request-school" className="request-link">
-                        Request your school <ArrowRight width={14} height={14} />
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+
+                        {filteredSchools.length > 0 ? (
+                          <Stagger className="combobox-list">
+                            {filteredSchools.map((school, idx) => (
+                              <div
+                                key={school.id}
+                                role="option"
+                                aria-selected={idx === activeIndex}
+                                className={`combobox-option ${idx === activeIndex ? 'is-active' : ''}`}
+                                onMouseEnter={() => {
+                                  prefetchFlowPage();
+                                  prefetchSchoolData(school.id);
+                                }}
+                                onClick={() => handleSelectSchool(school)}
+                              >
+                                <SchoolCrest name={school.name} code={school.code} size={36} />
+                                <div className="school-option-text">
+                                  <span className="school-option-name">{school.name}</span>
+                                  <span className="school-option-meta">
+                                    {school.city} · {school.board}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </Stagger>
+                        ) : (
+                          <div className="combobox-empty">
+                            <p>We don't have that school yet.</p>
+                            <Link to="/contact?reason=request-school" className="request-link">
+                              Request your school <ArrowRight width={14} height={14} />
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </Reveal>
           </div>
 
-          {/* Right Column (5 cols) Flat lay composition */}
+          {/* Right Column (5 cols) with Parallax, ImageCurtain, and Floating Cards */}
           <div className="hero-right">
-            <FlatLayIllustration />
+            <Parallax offset={24}>
+              <div className="hero-photo-wrapper">
+                <ImageCurtain>
+                  <SmartImage
+                    src="/images/hero/hero-children.jpg"
+                    alt="Schoolchildren smiling in neatly fitted school uniforms in warm morning light"
+                    width={440}
+                    height={550}
+                    aspectRatio="4 / 5"
+                    priority={true}
+                    className="hero-main-photo"
+                  />
+                </ImageCurtain>
+
+                {/* Floating card 1: School Shoes */}
+                <motion.div
+                  className="hero-floating-card floating-card-shoe"
+                  animate={shouldReduceMotion ? undefined : { y: [-3, 3, -3] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                >
+                  <img
+                    src="/images/hero/hero-shoe.jpg"
+                    alt="Polished school shoes"
+                    width={48}
+                    height={48}
+                    className="floating-card-thumb"
+                  />
+                  <div className="floating-card-meta">
+                    <span className="floating-card-tag">Approved</span>
+                    <span className="floating-card-title">School Shoes</span>
+                  </div>
+                </motion.div>
+
+                {/* Floating card 2: Syllabus Notebooks */}
+                <motion.div
+                  className="hero-floating-card floating-card-notebook"
+                  animate={shouldReduceMotion ? undefined : { y: [3, -3, 3] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+                >
+                  <img
+                    src="/images/hero/hero-notebook.jpg"
+                    alt="Curriculum notebooks"
+                    width={48}
+                    height={48}
+                    className="floating-card-thumb"
+                  />
+                  <div className="floating-card-meta">
+                    <span className="floating-card-tag">Required</span>
+                    <span className="floating-card-title">Syllabus Sets</span>
+                  </div>
+                </motion.div>
+              </div>
+            </Parallax>
           </div>
         </div>
       </section>
@@ -185,40 +362,35 @@ export function HomePage() {
           <div className="section-head">
             <span className="label">Simple 3-step process</span>
             <h2>How it works</h2>
+            <Hairline />
           </div>
         </Reveal>
 
-        <div className="how-it-works-grid">
-          <Reveal delay={0.1}>
-            <div className="step-card">
-              <span className="step-num">01</span>
-              <h3 className="step-title">Choose your school</h3>
-              <p className="step-desc">
-                Select your school campus to view official uniform guidelines and approved colors.
-              </p>
-            </div>
-          </Reveal>
+        <Stagger className="how-it-works-grid">
+          <div className="step-card">
+            <span className="step-num">01</span>
+            <h3 className="step-title">Choose your school</h3>
+            <p className="step-desc">
+              Select your school campus to view official uniform guidelines and approved colors.
+            </p>
+          </div>
 
-          <Reveal delay={0.2}>
-            <div className="step-card">
-              <span className="step-num">02</span>
-              <h3 className="step-title">Pick the class</h3>
-              <p className="step-desc">
-                Choose nursery through secondary to unlock curriculum-specific notebooks and attire.
-              </p>
-            </div>
-          </Reveal>
+          <div className="step-card">
+            <span className="step-num">02</span>
+            <h3 className="step-title">Pick the class</h3>
+            <p className="step-desc">
+              Choose nursery through secondary to unlock curriculum-specific notebooks and attire.
+            </p>
+          </div>
 
-          <Reveal delay={0.3}>
-            <div className="step-card">
-              <span className="step-num">03</span>
-              <h3 className="step-title">Add the list to bag</h3>
-              <p className="step-desc">
-                Add the pre-bundled required uniform set in one tap, or tailor individual sizes.
-              </p>
-            </div>
-          </Reveal>
-        </div>
+          <div className="step-card">
+            <span className="step-num">03</span>
+            <h3 className="step-title">Add the list to bag</h3>
+            <p className="step-desc">
+              Add the pre-bundled required uniform set in one tap, or tailor individual sizes.
+            </p>
+          </div>
+        </Stagger>
       </section>
 
       {/* 3. SHOP BY CATEGORY (Editorial Grid) */}
@@ -227,77 +399,36 @@ export function HomePage() {
           <div className="section-head">
             <span className="label">Approved Catalog</span>
             <h2>Shop by category</h2>
+            <Hairline />
           </div>
         </Reveal>
 
-        <div className="editorial-category-grid">
-          {/* Main Tile: Uniform (Spans 2 rows) */}
-          <Link to="/shop?cat=Uniform" className="cat-tile cat-tile-large">
-            <div className="cat-tile-media">
-              <div className="cat-placeholder-shirt">
-                <span className="cat-monogram">UNIFORM</span>
+        <Stagger className="editorial-category-grid">
+          {categoryTiles.map((cat) => (
+            <Link
+              key={cat.title}
+              to={cat.href}
+              className="cat-tile"
+              onMouseEnter={prefetchFlowPage}
+            >
+              <div className="cat-tile-media">
+                <SmartImage
+                  src={cat.image}
+                  alt={cat.alt}
+                  width={300}
+                  height={300}
+                  aspectRatio="1 / 1"
+                />
               </div>
-            </div>
-            <div className="cat-tile-body">
-              <span className="label">Full sets & separates</span>
-              <h3 className="cat-title">Official Uniforms</h3>
-              <p className="cat-desc">
-                Preshrunk cotton blends, reinforced knees, pleated skirts, and certified daily attire.
-              </p>
-              <span className="cat-arrow">
-                Explore collection <ArrowRight width={16} height={16} strokeWidth={1.5} />
-              </span>
-            </div>
-          </Link>
-
-          {/* Shoes */}
-          <Link to="/shop?cat=School%20Shoes" className="cat-tile">
-            <div className="cat-tile-body">
-              <span className="label">Activity & Formal</span>
-              <h3 className="cat-title">School Shoes</h3>
-              <p className="cat-desc">Anti-scuff leather shoes and non-marking PE white trainers.</p>
-              <span className="cat-arrow">
-                Shop shoes <ArrowRight width={16} height={16} strokeWidth={1.5} />
-              </span>
-            </div>
-          </Link>
-
-          {/* Accessories */}
-          <Link to="/shop?cat=Uniform%20Accessories" className="cat-tile">
-            <div className="cat-tile-body">
-              <span className="label">Ties, Belts, Socks</span>
-              <h3 className="cat-title">Accessories</h3>
-              <p className="cat-desc">Woven crest ties, brass buckle belts, and cushioned socks.</p>
-              <span className="cat-arrow">
-                View items <ArrowRight width={16} height={16} strokeWidth={1.5} />
-              </span>
-            </div>
-          </Link>
-
-          {/* Stationery */}
-          <Link to="/shop?cat=Stationery" className="cat-tile">
-            <div className="cat-tile-body">
-              <span className="label">Syllabus notebooks</span>
-              <h3 className="cat-title">Stationery</h3>
-              <p className="cat-desc">Prescribed notebook bundles, geometry kits, and art books.</p>
-              <span className="cat-arrow">
-                Browse stationery <ArrowRight width={16} height={16} strokeWidth={1.5} />
-              </span>
-            </div>
-          </Link>
-
-          {/* ID Cards */}
-          <Link to="/shop?cat=ID%20Cards" className="cat-tile">
-            <div className="cat-tile-body">
-              <span className="label">Security badges</span>
-              <h3 className="cat-title">ID Cards & Lanyards</h3>
-              <p className="cat-desc">RFID chip smart badges with breakaway child-safe lanyards.</p>
-              <span className="cat-arrow">
-                Configure card <ArrowRight width={16} height={16} strokeWidth={1.5} />
-              </span>
-            </div>
-          </Link>
-        </div>
+              <div className="cat-tile-body">
+                <h3 className="cat-title">{cat.title}</h3>
+                <span className="cat-arrow" aria-hidden="true">
+                  <ArrowRight width={16} height={16} strokeWidth={1.5} />
+                </span>
+              </div>
+            </Link>
+          ))}
+        </Stagger>
       </section>
 
       {/* 4. FEATURED SCHOOLS */}
@@ -308,7 +439,11 @@ export function HomePage() {
               <span className="label">Campuses onboard</span>
               <h2>Featured schools</h2>
             </div>
-            <Link to="/flow?step=1" className="plain-link">
+            <Link
+              to="/flow?step=1"
+              className="plain-link"
+              onMouseEnter={prefetchFlowPage}
+            >
               View all schools <ArrowRight width={16} height={16} />
             </Link>
           </div>
@@ -319,6 +454,10 @@ export function HomePage() {
             <div
               key={school.id}
               className="featured-school-card"
+              onMouseEnter={() => {
+                prefetchFlowPage();
+                prefetchSchoolData(school.id);
+              }}
               onClick={() => handleSelectSchool(school)}
             >
               <SchoolCrest name={school.name} code={school.code} size={52} />
