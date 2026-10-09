@@ -124,6 +124,13 @@ export function HomePage() {
 
   return (
     <div className="home-page" id="main">
+      <div className="house-stripe" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+
       {/* 1. HERO SECTION */}
       <section className="hero-section container">
         <div className="hero-grid">
@@ -155,7 +162,7 @@ export function HomePage() {
                     className="hero-selected-state"
                   >
                     <div className="hero-selected-badge">
-                      <SchoolCrest name={selection.schoolName} code={selection.schoolCode} size={42} />
+                      <SchoolCrest id={selection.schoolId} name={selection.schoolName} code={selection.schoolCode} size={42} />
                       <div className="hero-selected-text">
                         <span className="hero-selected-label">Current Campus</span>
                         <h2 className="hero-selected-school">Shopping for {selection.schoolName}</h2>
@@ -271,7 +278,7 @@ export function HomePage() {
                                 }}
                                 onClick={() => handleSelectSchool(school)}
                               >
-                                <SchoolCrest name={school.name} code={school.code} size={36} />
+                                <SchoolCrest id={school.id} color={school.color} name={school.name} code={school.code} size={36} />
                                 <div className="school-option-text">
                                   <span className="school-option-name">{school.name}</span>
                                   <span className="school-option-meta">
@@ -367,7 +374,7 @@ export function HomePage() {
         </Reveal>
 
         <Stagger className="how-it-works-grid">
-          <div className="step-card">
+          <div className="step-card house-0">
             <span className="step-num">01</span>
             <h3 className="step-title">Choose your school</h3>
             <p className="step-desc">
@@ -375,7 +382,7 @@ export function HomePage() {
             </p>
           </div>
 
-          <div className="step-card">
+          <div className="step-card house-1">
             <span className="step-num">02</span>
             <h3 className="step-title">Pick the class</h3>
             <p className="step-desc">
@@ -383,7 +390,7 @@ export function HomePage() {
             </p>
           </div>
 
-          <div className="step-card">
+          <div className="step-card house-2">
             <span className="step-num">03</span>
             <h3 className="step-title">Add the list to bag</h3>
             <p className="step-desc">
@@ -404,11 +411,11 @@ export function HomePage() {
         </Reveal>
 
         <Stagger className="editorial-category-grid">
-          {categoryTiles.map((cat) => (
+          {categoryTiles.map((cat, idx) => (
             <Link
               key={cat.title}
               to={cat.href}
-              className="cat-tile"
+              className={`cat-tile house-${idx % 5}`}
               onMouseEnter={prefetchFlowPage}
             >
               <div className="cat-tile-media">
@@ -460,7 +467,7 @@ export function HomePage() {
               }}
               onClick={() => handleSelectSchool(school)}
             >
-              <SchoolCrest name={school.name} code={school.code} size={52} />
+              <SchoolCrest id={school.id} color={school.color} name={school.name} code={school.code} size={52} />
               <div className="featured-school-info">
                 <h3 className="featured-school-name">{school.name}</h3>
                 <span className="featured-school-meta">

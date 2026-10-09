@@ -97,7 +97,7 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
             {/* School Pill if selected */}
             {selection && (
               <div className="selected-school-pill">
-                <SchoolCrest name={selection.schoolName} code={selection.schoolCode} size={24} />
+                <SchoolCrest id={selection.schoolId} name={selection.schoolName} code={selection.schoolCode} size={24} />
                 <span className="pill-school-info">
                   {selection.schoolName} {selection.gradeName ? `· ${selection.gradeName}` : ''}
                 </span>

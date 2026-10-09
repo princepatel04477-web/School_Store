@@ -63,8 +63,8 @@ button.primary:hover:not(:disabled) {
 .primary:active:not(:disabled),
 button.primary:active:not(:disabled) {
   /* press scale for every button lives in motion/interactions.css */
-  background-color: #1b372e;
-  border-color: #1b372e;
+  background-color: var(--brand-deep);
+  border-color: var(--brand-deep);
 }
 
 .btn-outline:active:not(:disabled) {

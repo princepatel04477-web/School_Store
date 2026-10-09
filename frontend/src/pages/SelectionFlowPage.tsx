@@ -314,7 +314,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                       className={`school-select-card ${isSelected ? 'is-selected' : ''}`}
                       onClick={() => handleSelectSchool(s)}
                     >
-                      <SchoolCrest name={s.name} code={s.code} size={52} />
+                      <SchoolCrest id={s.id} color={s.color} name={s.name} code={s.code} size={52} />
                       <div className="school-select-details">
                         <h3 className="school-select-name">{s.name}</h3>
                         <span className="school-select-meta">{s.city} · {s.board}</span>
@@ -428,8 +428,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   transition: 'all 0.2s ease',
                 }}
               >
-                <span style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>👦</span>
-                <strong style={{ fontSize: '20px', display: 'block', color: 'var(--ink)' }}>Boy</strong>
+                <strong className="gender-card-title">Boy</strong>
                 <small style={{ color: 'var(--ink-soft)', fontSize: '13px', marginTop: '6px' }}>Boys' &amp; unisex essentials</small>
               </button>
 
@@ -453,8 +452,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   transition: 'all 0.2s ease',
                 }}
               >
-                <span style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>👧</span>
-                <strong style={{ fontSize: '20px', display: 'block', color: 'var(--ink)' }}>Girl</strong>
+                <strong className="gender-card-title">Girl</strong>
                 <small style={{ color: 'var(--ink-soft)', fontSize: '13px', marginTop: '6px' }}>Girls' &amp; unisex essentials</small>
               </button>
             </div>
@@ -485,19 +483,19 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   Selection:
                 </span>
                 <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
-                  🏫 {activeSchool.name}
+                  {activeSchool.name}
                 </span>
                 <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
-                  📍 {activeSchool.city}
+                  {activeSchool.city}
                 </span>
                 {activeClass && (
                   <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
-                    🎓 {activeClass.name}
+                    {activeClass.name}
                   </span>
                 )}
                 {activeGender && (
                   <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
-                    {activeGender === 'boy' ? '👦 Boy' : '👧 Girl'}
+                    {activeGender === 'boy' ? 'Boy' : 'Girl'}
                   </span>
                 )}
               </div>
@@ -509,7 +507,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   style={{ margin: 0 }}
                   onClick={() => requestStepChange(3)}
                 >
-                  Change ✎
+                  Change
                 </button>
               </div>
             </div>
@@ -571,7 +569,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                         className="btn btn-primary"
                         onClick={() => requestStepChange(2)}
                       >
-                        Change Class 🎓
+                        Change class
                       </button>
                       <button
                         type="button"
@@ -629,7 +627,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
               <aside className="selection-summary-aside">
                 <div className="selection-summary-card">
                   <div className="summary-school-head">
-                    <SchoolCrest name={activeSchool.name} code={activeSchool.code} size={40} />
+                    <SchoolCrest id={activeSchool.id} color={activeSchool.color} name={activeSchool.name} code={activeSchool.code} size={40} />
                     <div>
                       <h3 className="summary-school-name">{activeSchool.name}</h3>
                       <span className="summary-class-tag">{activeClass?.name || 'Class 5'} · {activeGender === 'boy' ? 'Boy' : 'Girl'}</span>

@@ -4,7 +4,7 @@
 .bag-drawer-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(27, 36, 32, 0.45);
+  background-color: rgba(21, 24, 30, 0.45);
   z-index: 80;
   display: flex;
   justify-content: flex-end;

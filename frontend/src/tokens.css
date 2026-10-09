@@ -1,32 +1,59 @@
+/*
+ * Colour system
+ * - Before a school is picked the store wears its own colours: navy plus four
+ *   "house" colours, used on the home page.
+ * - Once a school is picked, --brand becomes that school's uniform colour
+ *   (set at runtime by theme/schoolTheme.ts) and every page re-tints.
+ * - --brand is a registered property so that change fades instead of snapping.
+ */
+@property --brand {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #14213D;
+}
+
 :root {
-  /* Surfaces & Canvas */
-  --paper: #F5F4EF;
+  /* Surfaces: cool grey frame, white cards */
+  --paper: #F1F3F5;
   --paper-raised: #FFFFFF;
-  --paper-sunk: #ECEAE2;
+  --paper-sunk: #E6E9ED;
 
-  /* Typography / Inks */
-  --ink: #1B2420;
-  --ink-soft: #55605A;
-  --ink-faint: #8A928D;
+  /* Inks */
+  --ink: #15181E;
+  --ink-soft: #545C66;
+  --ink-faint: #8C939C;
 
-  /* Hairlines & Borders */
-  --line: #DEDBD0;
+  /* Hairlines */
+  --line: #DCE0E5;
 
-  /* Brand Colors */
-  --brand: #2F5D50;
-  --brand-deep: #234539;
-  --brand-tint: #E4ECE8;
+  /* Store anchor: navy. Present in both modes (logo, footer, text accents) */
+  --navy: #14213D;
 
-  /* Brass Accent (Hairlines, thread effect, tiny details only) */
-  --accent: #B8893B;
-  --accent-text: #7A5718;
+  /* Active accent: the store navy, or the picked school's colour */
+  --brand: #14213D;
+  --brand-deep: color-mix(in oklab, var(--brand) 78%, black);
+  --brand-tint: color-mix(in oklab, var(--brand) 10%, white);
+  --on-brand: #FFFFFF;
+
+  /* House colours: home page only, never on shop pages */
+  --house-red: #D7263D;
+  --house-blue: #2E5EAA;
+  --house-green: #13896F;
+  --house-yellow: #F4B400;
+  --on-house-yellow: #15181E;
+
+  /* Small details (hairlines, threads) follow the active accent */
+  --accent: var(--brand);
+  --accent-text: var(--brand-deep);
 
   /* Feedback */
-  --danger: #A23B2E;
+  --danger: #B42318;
 
-  /* Typography Families */
-  --font-display: 'Fraunces', Georgia, serif;
-  --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Typography: one variable family, width does the work */
+  --font-display: 'Anek Latin', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Anek Latin', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --stretch-condensed: 75%;
+  --stretch-numeric: 82%;
 
   /* Fluid Type Scale */
   --text-xs: clamp(0.6875rem, 0.65rem + 0.15vw, 0.75rem);   /* 11-12px */
@@ -53,7 +80,7 @@
 
   /* Container & Gutters */
   --max-width: 1200px;
-  --gutter: clamp(24px, 4vw, 48px);
+  --gutter: clamp(16px, 4vw, 48px);
   --section-padding: clamp(56px, 8vw, 128px);
 
   /* Radii */
@@ -66,6 +93,9 @@
   --shadow-sm: 0 1px 2px rgb(27 36 32 / 0.04);
   --shadow-md: 0 8px 24px rgb(27 36 32 / 0.06);
 
+  /* School colour change */
+  --duration-retint: 0.6s;
+
   /* Motion Durations & Easing (Exact brief specification) */
   --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
@@ -76,4 +106,15 @@
   --duration-ui: 0.2s;
   --duration-reveal: 0.5s;
   --duration-thread: 0.9s;
+}
+
+/* The school colour fades in when a parent picks a school */
+html {
+  transition: --brand var(--duration-retint) var(--ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    transition: none;
+  }
 }

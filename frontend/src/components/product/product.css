@@ -35,7 +35,7 @@
   left: var(--space-3);
   background-color: var(--paper-raised);
   color: var(--accent-text);
-  border: 1px solid rgba(184, 137, 59, 0.4);
+  border: 1px solid color-mix(in oklab, var(--brand) 40%, transparent);
   border-radius: var(--radius-full);
   padding: 2px 8px;
   font-family: var(--font-body);
@@ -321,7 +321,7 @@
 .product-sheet-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(27, 36, 32, 0.45);
+  background-color: rgba(21, 24, 30, 0.45);
   z-index: 60;
   display: flex;
   align-items: center;
@@ -470,7 +470,7 @@
 .size-guide-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(27, 36, 32, 0.45);
+  background-color: rgba(21, 24, 30, 0.45);
   z-index: 70;
   display: flex;
   align-items: center;
@@ -559,4 +559,26 @@
 .size-guide-footer {
   display: flex;
   justify-content: flex-end;
+}
+
+/* Prices, sizes and counts read like jersey numbers */
+.product-card-price,
+.product-sheet-price,
+.size-tile-label,
+.card-size-chip,
+.stepper-value,
+.bag-line-price,
+.bag-subtotal-value,
+.summary-item-price {
+  font-stretch: var(--stretch-numeric);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.product-card-price {
+  font-size: var(--text-xl);
+}
+
+.product-sheet-price {
+  font-size: var(--text-3xl);
 }

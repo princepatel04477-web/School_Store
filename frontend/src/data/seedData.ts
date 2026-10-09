@@ -8,6 +8,8 @@ export interface SeedSchool {
   code: string;
   slug: string;
   logoUrl?: string;
+  /** Main uniform colour as hex (e.g. "#7A1F2B"). Set per school in the admin. */
+  color?: string;
 }
 
 export interface SeedClass {

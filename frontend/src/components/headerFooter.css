@@ -36,11 +36,11 @@
 
 .site-header.is-scrolled {
   height: 60px;
-  background-color: rgba(250, 248, 245, 0.88);
+  background-color: color-mix(in srgb, var(--paper) 88%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
-  box-shadow: 0 4px 20px rgba(27, 36, 32, 0.04);
+  box-shadow: 0 4px 20px rgba(21, 24, 30, 0.04);
 }
 
 .header-inner {
@@ -73,25 +73,29 @@
   color: var(--ink);
 }
 
-.brand-mark {
-  background-color: var(--brand);
+/* The logo stays store navy on every page, whatever school is picked.
+   Scoped to .site-brand so the older .brand-mark rule in styles.css can't win. */
+.site-brand .brand-mark {
+  background-color: var(--navy);
   color: var(--paper-raised);
   width: 32px;
   height: 32px;
   border-radius: var(--radius-md);
   display: inline-grid;
   place-items: center;
-  font-family: Georgia, serif;
-  font-size: 20px;
-  font-style: italic;
-  font-weight: bold;
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 800;
+  font-stretch: 80%;
 }
 
 .brand-wordmark {
   font-family: var(--font-display);
   font-size: var(--text-2xl);
-  font-weight: 500;
+  font-weight: 800;
+  font-stretch: 112%;
   letter-spacing: -0.02em;
+  color: var(--navy);
 }
 
 .selected-school-pill {
@@ -165,7 +169,7 @@
   position: absolute;
   inset: 0;
   background-color: var(--brand-tint);
-  border: 1px solid rgba(47, 93, 80, 0.15);
+  border: 1px solid color-mix(in oklab, var(--brand) 15%, transparent);
   border-radius: var(--radius-full);
   z-index: 0;
 }
@@ -276,7 +280,7 @@
 .mobile-menu-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(27, 36, 32, 0.4);
+  background-color: rgba(21, 24, 30, 0.4);
   z-index: 100;
   display: flex;
 }
@@ -388,6 +392,16 @@
   }
   .selected-school-pill {
     display: none;
+  }
+  /* Sign in lives in the menu drawer on phones */
+  .action-signin-link {
+    display: none;
+  }
+  .brand-wordmark {
+    font-size: var(--text-xl);
+  }
+  .header-actions {
+    gap: 0;
   }
 }
 
