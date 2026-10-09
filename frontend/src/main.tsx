@@ -8,6 +8,8 @@ import App from './App';
 import './tokens.css';
 import './base.css';
 import './styles.css';
+import './components/ui/ui.css';
+import './motion/interactions.css';
 
 const client = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: 1 } } });
 createRoot(document.getElementById('root')!).render(

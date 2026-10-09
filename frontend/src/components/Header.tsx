@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Search, ShoppingBag, Menu, X, ArrowRight, User } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useAnimate, useReducedMotion } from 'motion/react';
 import { useAuth } from '../auth';
 import { siteConfig } from '../siteConfig';
 import { useStoreState } from '../store/storeState';
@@ -19,6 +19,20 @@ export interface HeaderProps {
 export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
   const { user } = useAuth();
   const { totalCount, selection, setSelection } = useStoreState();
+
+  // Bag feedback: the count rolls up or down, and the bag tilts when something is added
+  const [bagIconRef, animateBag] = useAnimate<HTMLSpanElement>();
+  const shouldReduceMotion = useReducedMotion();
+  const lastCount = useRef(totalCount);
+  const [countDirection, setCountDirection] = useState(1);
+  useEffect(() => {
+    const grew = totalCount > lastCount.current;
+    if (totalCount !== lastCount.current) setCountDirection(grew ? 1 : -1);
+    if (grew && !shouldReduceMotion && bagIconRef.current) {
+      animateBag(bagIconRef.current, { rotate: [0, -10, 0] }, { duration: 0.3, ease: EASING });
+    }
+    lastCount.current = totalCount;
+  }, [totalCount, shouldReduceMotion, animateBag, bagIconRef]);
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
@@ -151,19 +165,37 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
               onClick={onOpenBag}
               onMouseEnter={prefetchBagDrawer}
             >
-              <ShoppingBag width={20} height={20} strokeWidth={1.5} />
-              <AnimatePresence mode="popLayout">
+              <span ref={bagIconRef} className="bag-icon-wrap">
+                <ShoppingBag width={20} height={20} strokeWidth={1.5} />
+              </span>
+              <AnimatePresence>
                 {totalCount > 0 && (
                   <motion.span
-                    key={totalCount}
                     className="bag-count-dot"
-                    aria-live="polite"
-                    initial={{ scale: 0.8 }}
-                    animate={{ scale: [1, 1.25, 1] }}
-                    exit={{ scale: 0.8, opacity: 0 }}
+                    aria-hidden="true"
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0, opacity: 0 }}
                     transition={{ duration: DURATION_FAST, ease: EASING }}
                   >
-                    {totalCount}
+                    <AnimatePresence mode="popLayout" initial={false} custom={countDirection}>
+                      <motion.span
+                        key={totalCount}
+                        className="bag-count-digit"
+                        custom={countDirection}
+                        variants={{
+                          enter: (d: number) => ({ y: `${100 * d}%`, opacity: 0 }),
+                          center: { y: 0, opacity: 1 },
+                          exit: (d: number) => ({ y: `${-100 * d}%`, opacity: 0 }),
+                        }}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
+                        transition={{ duration: DURATION_FAST, ease: EASING }}
+                      >
+                        {totalCount}
+                      </motion.span>
+                    </AnimatePresence>
                   </motion.span>
                 )}
               </AnimatePresence>

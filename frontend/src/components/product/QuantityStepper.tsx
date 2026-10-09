@@ -1,4 +1,5 @@
 import { Minus, Plus } from 'lucide-react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EASING } from '../../motion/motionConfig';
 import './product.css';
@@ -20,6 +21,14 @@ export function QuantityStepper({
   max = 99,
   className = '',
 }: QuantityStepperProps) {
+  // Roll the number up when it grows and down when it shrinks
+  const [previous, setPrevious] = useState(quantity);
+  const [direction, setDirection] = useState(1);
+  if (quantity !== previous) {
+    setDirection(quantity > previous ? 1 : -1);
+    setPrevious(quantity);
+  }
+
   return (
     <div className={`quantity-stepper ${className}`.trim()} role="group" aria-label="Change quantity">
       <button
@@ -32,12 +41,18 @@ export function QuantityStepper({
         <Minus width={16} height={16} strokeWidth={1.5} />
       </button>
       <span className="stepper-value" aria-live="polite" style={{ position: 'relative', overflow: 'hidden' }}>
-        <AnimatePresence mode="popLayout" initial={false}>
+        <AnimatePresence mode="popLayout" initial={false} custom={direction}>
           <motion.span
             key={quantity}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
+            custom={direction}
+            variants={{
+              enter: (d: number) => ({ opacity: 0, y: 10 * d }),
+              center: { opacity: 1, y: 0 },
+              exit: (d: number) => ({ opacity: 0, y: -10 * d }),
+            }}
+            initial="enter"
+            animate="center"
+            exit="exit"
             transition={{ duration: 0.15, ease: EASING }}
             style={{ display: 'inline-block' }}
           >

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Check, AlertCircle, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { formatINR } from '../utils/formatINR';
 import { useStoreState } from '../store/storeState';
 import { paymentAdapter } from '../services/paymentAdapter';
+import { motion, AnimatePresence } from 'motion/react';
 import { Thread } from '../motion/Thread';
+import { EASING, DURATION_FAST, DURATION_BASE } from '../motion/motionConfig';
 import '../components/cart/bagCheckout.css';
 
 export function CheckoutPage() {
@@ -101,9 +103,25 @@ export function CheckoutPage() {
     return (
       <div className="order-confirmed-wrap container">
         <div className="order-confirmed-card">
-          <div className="confirmed-badge">
-            <Check width={32} height={32} strokeWidth={2} />
-          </div>
+          <motion.div
+            className="confirmed-badge"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: DURATION_BASE, ease: EASING }}
+          >
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <motion.path
+                d="M5 12.5l4.5 4.5L19 7.5"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: DURATION_BASE, delay: 0.2, ease: EASING }}
+              />
+            </svg>
+          </motion.div>
           <h1 className="confirmed-heading">Order placed</h1>
           <Thread className="confirmed-thread" />
           <div className="order-num-label">Order Reference #{orderComplete.orderNumber}</div>
@@ -463,11 +481,32 @@ export function CheckoutPage() {
 
                 <button
                   type="button"
-                  className="btn btn-primary pay-now-btn"
+                  className={`btn btn-primary pay-now-btn ${isSubmitting ? 'is-paying' : ''}`}
                   onClick={handlePay}
                   disabled={isSubmitting}
+                  aria-busy={isSubmitting}
                 >
-                  {isSubmitting ? 'Authorizing Payment…' : `Pay ${formatINR(grandTotalPaise)}`}
+                  <span className="pay-btn-labels">
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      <motion.span
+                        key={isSubmitting ? 'paying' : 'pay'}
+                        className="pay-btn-label"
+                        initial={{ y: '110%', opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: '-110%', opacity: 0 }}
+                        transition={{ duration: DURATION_FAST, ease: EASING }}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <span className="pay-btn-spinner" aria-hidden="true" />
+                            Authorizing payment…
+                          </>
+                        ) : (
+                          `Pay ${formatINR(grandTotalPaise)}`
+                        )}
+                      </motion.span>
+                    </AnimatePresence>
+                  </span>
                 </button>
               </div>
             )}

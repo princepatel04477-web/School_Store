@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { X, Check, ChevronDown, ChevronUp } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { X, ChevronDown, ChevronUp } from 'lucide-react';
+import { motion } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
 import { useStoreState } from '../../store/storeState';
 import { ProductImage } from './ProductImage';
 import { SizeSelector } from './SizeSelector';
 import { SizeGuide } from './SizeGuide';
 import { QuantityStepper } from './QuantityStepper';
-import { EASING } from '../../motion/motionConfig';
+import { AddToBagButton } from './AddToBagButton';
+import { useShake } from '../../motion/useShake';
 import type { SeedProduct } from '../../data/seedData';
 import './product.css';
 
@@ -25,7 +26,7 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
   const [quantity, setQuantity] = useState(1);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [sizeError, setSizeError] = useState<string | undefined>();
-  const [isAddedSuccess, setIsAddedSuccess] = useState(false);
+  const [sizeRowRef, shakeSizeRow] = useShake();
 
   // Accordion open states
   const [openFabric, setOpenFabric] = useState(true);
@@ -34,10 +35,11 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
 
   if (!isOpen || !product) return null;
 
-  const handleAdd = () => {
+  const handleAdd = (): boolean => {
     if (product.sizes.length > 1 && !selectedSizeId) {
       setSizeError('Please select a size to continue');
-      return;
+      shakeSizeRow();
+      return false;
     }
     setSizeError(undefined);
 
@@ -51,15 +53,15 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
       size: chosenSize.size,
       quantity,
     });
+    return true;
+  };
 
-    setIsAddedSuccess(true);
-    setTimeout(() => {
-      setIsAddedSuccess(false);
-      if (onOpenBag) {
-        onClose();
-        onOpenBag();
-      }
-    }, 1500);
+  // After the "Added" moment, hand over to the bag
+  const handleSettled = () => {
+    if (onOpenBag) {
+      onClose();
+      onOpenBag();
+    }
   };
 
   return (
@@ -105,6 +107,7 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
 
               {/* Sizing Radio Group */}
               {product.sizes.length > 0 && (
+                <div ref={sizeRowRef}>
                 <SizeSelector
                   sizes={product.sizes}
                   selectedSizeId={selectedSizeId}
@@ -115,6 +118,7 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
                   onOpenSizeGuide={() => setSizeGuideOpen(true)}
                   error={sizeError}
                 />
+                </div>
               )}
 
               {/* Quantity Stepper */}
@@ -130,39 +134,14 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
 
               {/* Main Add Button */}
               <div className="sheet-cta-row">
-                <button
-                  type="button"
-                  className={`btn btn-primary sheet-add-btn ${isAddedSuccess ? 'btn-success-added' : ''}`}
-                  onClick={handleAdd}
-                  disabled={isAddedSuccess}
+                <AddToBagButton
+                  variant="primary"
+                  className="sheet-add-btn"
+                  onAdd={handleAdd}
+                  onSettled={handleSettled}
                 >
-                  <AnimatePresence mode="wait" initial={false}>
-                    {isAddedSuccess ? (
-                      <motion.span
-                        key="added"
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        transition={{ duration: 0.15, ease: EASING }}
-                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                      >
-                        <Check width={18} height={18} strokeWidth={2} />
-                        Added to Bag
-                      </motion.span>
-                    ) : (
-                      <motion.span
-                        key="add"
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 4 }}
-                        transition={{ duration: 0.15, ease: EASING }}
-                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        Add to Bag · {formatINR(product.pricePaise * quantity)}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </button>
+                  Add to Bag · {formatINR(product.pricePaise * quantity)}
+                </AddToBagButton>
               </div>
 
               {/* Accordions */}

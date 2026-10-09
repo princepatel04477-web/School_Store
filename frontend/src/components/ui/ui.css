@@ -61,11 +61,14 @@ button.primary:hover:not(:disabled) {
 
 .btn-primary:active:not(:disabled),
 .primary:active:not(:disabled),
-button.primary:active:not(:disabled),
-.btn:active:not(:disabled) {
-  transform: scale(0.98);
+button.primary:active:not(:disabled) {
+  /* press scale for every button lives in motion/interactions.css */
   background-color: #1b372e;
   border-color: #1b372e;
+}
+
+.btn-outline:active:not(:disabled) {
+  background-color: var(--paper-sunk);
 }
 
 .btn-primary:focus-visible,
@@ -99,8 +102,6 @@ button.primary:focus-visible,
 
 .btn-text:hover:not(:disabled) {
   color: var(--brand-deep);
-  text-decoration: underline;
-  text-underline-offset: 4px;
 }
 
 .btn:disabled {

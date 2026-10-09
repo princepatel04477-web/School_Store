@@ -136,6 +136,45 @@
   width: 100%;
 }
 
+/* Add to bag: colour wipe + label roll (see AddToBagButton.tsx) */
+.add-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Beats the outline button's hover colours while "Added" is showing */
+.btn.add-btn.is-added,
+.btn.add-btn.is-added:hover:not(:disabled) {
+  color: var(--paper-raised);
+  border-color: var(--brand);
+  cursor: default;
+}
+
+.add-btn-fill {
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  background-color: var(--brand);
+}
+
+.add-btn.btn-primary .add-btn-fill {
+  background-color: var(--brand-deep);
+}
+
+.add-btn-labels {
+  display: grid;
+  overflow: hidden;
+}
+
+.add-btn-label {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
 /* ================== Stepper ================== */
 .quantity-stepper {
   display: inline-flex;
@@ -392,10 +431,6 @@
 
 .sheet-add-btn {
   width: 100%;
-}
-
-.btn-success-added {
-  background-color: var(--brand-deep);
 }
 
 /* Accordions */
