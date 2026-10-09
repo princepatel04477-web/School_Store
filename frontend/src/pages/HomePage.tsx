@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Search, ArrowRight, ShieldCheck, RefreshCw, Truck, MessageCircle } from 'lucide-react';
-import { motion, useReducedMotion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { seedSchools, type SeedSchool } from '../data/seedData';
 import { useStoreState } from '../store/storeState';
 import { SchoolCrest } from '../components/school/SchoolCrest';
-import { SmartImage } from '../components/ui/SmartImage';
+import { KitIllustration, type KitKind } from '../components/home/KitIllustration';
+import { KitListHero } from '../components/home/KitListHero';
 import { EASING } from '../motion/motionConfig';
 import { prefetchFlowPage, prefetchSchoolData } from '../utils/prefetch';
 import {
@@ -13,8 +14,6 @@ import {
   Stagger,
   Thread,
   TextReveal,
-  ImageCurtain,
-  Parallax,
   Magnetic,
   Hairline,
 } from '../motion';
@@ -24,7 +23,6 @@ import './home.css';
 export function HomePage() {
   const navigate = useNavigate();
   const { selection, setSelection } = useStoreState();
-  const shouldReduceMotion = useReducedMotion();
 
   const [query, setQuery] = useState('');
   const [comboboxOpen, setComboboxOpen] = useState(false);
@@ -34,33 +32,28 @@ export function HomePage() {
   const categoryTiles = [
     {
       title: 'Uniform',
+      kind: 'uniform' as KitKind,
       href: '/shop?cat=Uniform',
-      image: '/images/categories/uniform.jpg',
-      alt: 'Tailored school blazers, pressed shirts, and pleated skirts',
     },
     {
       title: 'Shoes',
+      kind: 'shoes' as KitKind,
       href: '/shop?cat=School%20Shoes',
-      image: '/images/categories/shoes.jpg',
-      alt: 'Anti-scuff leather school shoes and non-marking PE white trainers',
     },
     {
       title: 'Accessories',
+      kind: 'accessories' as KitKind,
       href: '/shop?cat=Uniform%20Accessories',
-      image: '/images/categories/accessories.jpg',
-      alt: 'School uniform woven crest ties, brass buckle belts, and socks',
     },
     {
       title: 'Stationery',
+      kind: 'stationery' as KitKind,
       href: '/shop?cat=Stationery',
-      image: '/images/categories/stationery.jpg',
-      alt: 'Prescribed syllabus notebooks, geometry kits, and art books',
     },
     {
       title: 'ID Cards',
+      kind: 'idcard' as KitKind,
       href: '/shop?cat=ID%20Cards',
-      image: '/images/categories/id-cards.jpg',
-      alt: 'Smart student ID cards with safety breakaway lanyards',
     },
   ];
 
@@ -304,61 +297,11 @@ export function HomePage() {
             </Reveal>
           </div>
 
-          {/* Right Column (5 cols) with Parallax, ImageCurtain, and Floating Cards */}
+          {/* Right Column: an example class list instead of a photo */}
           <div className="hero-right">
-            <Parallax offset={24}>
-              <div className="hero-photo-wrapper">
-                <ImageCurtain>
-                  <SmartImage
-                    src="/images/hero/hero-children.jpg"
-                    alt="Schoolchildren smiling in neatly fitted school uniforms in warm morning light"
-                    width={440}
-                    height={550}
-                    aspectRatio="4 / 5"
-                    priority={true}
-                    className="hero-main-photo"
-                  />
-                </ImageCurtain>
-
-                {/* Floating card 1: School Shoes */}
-                <motion.div
-                  className="hero-floating-card floating-card-shoe"
-                  animate={shouldReduceMotion ? undefined : { y: [-3, 3, -3] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                >
-                  <img
-                    src="/images/hero/hero-shoe.jpg"
-                    alt="Polished school shoes"
-                    width={48}
-                    height={48}
-                    className="floating-card-thumb"
-                  />
-                  <div className="floating-card-meta">
-                    <span className="floating-card-tag">Approved</span>
-                    <span className="floating-card-title">School Shoes</span>
-                  </div>
-                </motion.div>
-
-                {/* Floating card 2: Syllabus Notebooks */}
-                <motion.div
-                  className="hero-floating-card floating-card-notebook"
-                  animate={shouldReduceMotion ? undefined : { y: [3, -3, 3] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-                >
-                  <img
-                    src="/images/hero/hero-notebook.jpg"
-                    alt="Curriculum notebooks"
-                    width={48}
-                    height={48}
-                    className="floating-card-thumb"
-                  />
-                  <div className="floating-card-meta">
-                    <span className="floating-card-tag">Required</span>
-                    <span className="floating-card-title">Syllabus Sets</span>
-                  </div>
-                </motion.div>
-              </div>
-            </Parallax>
+            <Reveal delay={0.2}>
+              <KitListHero schoolName={selection?.schoolName} />
+            </Reveal>
           </div>
         </div>
       </section>
@@ -419,13 +362,7 @@ export function HomePage() {
               onMouseEnter={prefetchFlowPage}
             >
               <div className="cat-tile-media">
-                <SmartImage
-                  src={cat.image}
-                  alt={cat.alt}
-                  width={300}
-                  height={300}
-                  aspectRatio="1 / 1"
-                />
+                <KitIllustration kind={cat.kind} color="var(--tile)" />
               </div>
               <div className="cat-tile-body">
                 <h3 className="cat-title">{cat.title}</h3>
