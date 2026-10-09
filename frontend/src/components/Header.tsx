@@ -127,7 +127,7 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
           <div className="header-actions">
             <button
               type="button"
-              className="action-icon-btn"
+              className="action-icon-btn header-search-btn"
               aria-label="Search items"
               onClick={onOpenSearch}
             >
@@ -198,6 +198,18 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
             </div>
 
             <div className="sheet-nav-links">
+              <button
+                type="button"
+                className="sheet-search-btn"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenSearch?.();
+                }}
+              >
+                <Search width={18} height={18} strokeWidth={1.5} />
+                <span>Search items</span>
+              </button>
+
               {siteConfig.categories.map((cat) => (
                 <Link
                   key={cat.slug}

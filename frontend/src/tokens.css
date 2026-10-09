@@ -53,7 +53,7 @@
 
   /* Container & Gutters */
   --max-width: 1200px;
-  --gutter: clamp(24px, 4vw, 48px);
+  --gutter: clamp(16px, 4vw, 48px);
   --section-padding: clamp(56px, 8vw, 128px);
 
   /* Radii */

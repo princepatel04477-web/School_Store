@@ -143,7 +143,7 @@ export function HomePage() {
             </Reveal>
 
             {/* Hero Selection State vs School Search Box */}
-            <Reveal delay={0.25}>
+            <Reveal delay={0.25} className="hero-search-reveal">
               <AnimatePresence mode="wait">
                 {selection ? (
                   <motion.div
@@ -233,7 +233,7 @@ export function HomePage() {
                         onFocus={() => setComboboxOpen(true)}
                         onKeyDown={handleKeyDown}
                       />
-                      <Magnetic>
+                      <Magnetic className="hero-find-magnetic">
                         <button
                           type="button"
                           className="btn btn-primary hero-find-btn"

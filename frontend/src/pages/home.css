@@ -12,15 +12,21 @@
 
 .hero-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-12);
   align-items: center;
 }
 
 @media (min-width: 1024px) {
   .hero-grid {
-    grid-template-columns: 7fr 5fr;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
   }
+}
+
+/* Let grid items shrink below their content's min-content width (the
+   search input's intrinsic size otherwise widens the page on phones). */
+.hero-grid > * {
+  min-width: 0;
 }
 
 .hero-left {
@@ -65,6 +71,11 @@
 }
 
 /* Combobox */
+.hero-search-reveal {
+  width: 100%;
+  max-width: 580px;
+}
+
 .school-search-box {
   width: 100%;
   max-width: 580px;
@@ -95,6 +106,8 @@
 
 .hero-search-input {
   flex: 1;
+  min-width: 0;
+  text-overflow: ellipsis;
   border: none;
   background: transparent;
   font-family: var(--font-body);
@@ -141,6 +154,28 @@
 .hero-find-btn:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
+}
+
+/* Narrow phones: the button doesn't fit beside the input, so stack it
+   full-width under the input inside the same field. */
+@media (max-width: 479px) {
+  .search-input-wrap {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 4px 6px 6px var(--space-4);
+    row-gap: 4px;
+  }
+  .search-input-wrap .hero-search-input {
+    height: 44px;
+  }
+  .hero-find-magnetic {
+    flex-basis: 100%;
+  }
+  .hero-find-magnetic,
+  .hero-find-magnetic > div,
+  .hero-find-btn {
+    width: 100%;
+  }
 }
 
 /* Hero Selected State */
