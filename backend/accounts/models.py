@@ -40,6 +40,11 @@ class User(AbstractUser):
         related_name="users",
     )
     phone = models.CharField(max_length=20, blank=True, default="", db_index=True)
+    phone_verified = models.BooleanField(
+        default=False,
+        help_text="True once the phone number has been confirmed by OTP. Only verified "
+        "numbers are used to link a parent to children on the school roster.",
+    )
     must_change_password = models.BooleanField(
         default=False,
         help_text="Set for staff accounts created by another staff member; cleared after first-login password change.",

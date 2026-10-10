@@ -8,6 +8,8 @@ type C = {
   /** Resolves with the signed-in user so callers can route by role. */
   signIn: (u: string, p: string) => Promise<User>;
   signUp: (x: unknown) => Promise<User>;
+  /** Parent sign-in with mobile number + OTP (creates the account on first use). */
+  signInWithOtp: (phone: string, otp: string) => Promise<{ user: User; childrenLinked: number }>;
   signOut: () => void;
 };
 
@@ -16,6 +18,7 @@ const Context = createContext<C>({
   loading: true,
   signIn: async () => { throw new Error('not ready'); },
   signUp: async () => { throw new Error('not ready'); },
+  signInWithOtp: async () => { throw new Error('not ready'); },
   signOut: () => {},
 });
 
@@ -53,6 +56,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         signIn: async (u, p) => save(await auth.login(u, p)),
         signUp: async (x) => save(await auth.register(x)),
+        signInWithOtp: async (phone, otp) => {
+          const res = await auth.verifyOtp(phone, otp);
+          const signedIn = await save(res);
+          return { user: signedIn, childrenLinked: res.children_linked };
+        },
         signOut: () => { logout(); },
       }}
     >

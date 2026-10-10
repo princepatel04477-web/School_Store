@@ -638,7 +638,9 @@ function StudentImportCard({ schoolId, onDone }: { schoolId: string | null; onDo
   const [jobId, setJobId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const confirm = useMutation({ mutationFn: (id: string) => panel.confirmImport(schoolId!, id) });
+  // Yearly upload: when this file is the school's complete list, students not in it are marked as left
+  const [completeList, setCompleteList] = useState(false);
+  const confirm = useMutation({ mutationFn: (id: string) => panel.confirmImport(schoolId!, id, completeList) });
 
   const job = useQuery({
     queryKey: ['panel-import', jobId],
@@ -647,7 +649,14 @@ function StudentImportCard({ schoolId, onDone }: { schoolId: string | null; onDo
     refetchInterval: (q) => (q.state.data && ['PENDING', 'VALIDATING', 'IMPORTING'].includes(q.state.data.status) ? 1500 : false),
   });
   const data = job.data;
-  const preview = (data?.preview ?? {}) as { errors?: { row: number; name?: string; errors?: Record<string, string> }[]; duplicates?: { row: number; name?: string; gr_number?: string }[]; valid?: unknown[] };
+  const preview = (data?.preview ?? {}) as {
+    errors?: { row: number; name?: string; errors?: Record<string, string> }[];
+    duplicates?: { row: number; name?: string; gr_number?: string }[];
+    valid?: unknown[];
+    summary?: { new: number; updated: number; not_in_file: number; parent_phones: number; parent_phones_ignored: number };
+  };
+  const summary = preview.summary;
+  const result = (data?.result ?? {}) as { inserted?: number; updated?: number; marked_left?: number; parents_linked?: number };
   const announced = useRef(false);
   useEffect(() => {
     if (data?.status === 'COMPLETED' && !announced.current) {
@@ -673,15 +682,18 @@ function StudentImportCard({ schoolId, onDone }: { schoolId: string | null; onDo
           {schoolId && <button className="link-button" onClick={() => download(panel.importTemplateUrl(schoolId, 'csv'), 'student-import-template.csv')}>Template (.csv)</button>}
         </div>
       </div>
-      <p className="muted pad-tight">Upload the roster, check the preview, then confirm. Nothing is inserted until you confirm — and both steps run as background jobs.</p>
+      <p className="muted pad-tight">
+        Upload the roster, check the preview, then confirm. Nothing changes until you confirm. Students already on the roster are updated (class, section, name), so the
+        yearly list promotes everyone. Add an optional <b>parent_phone</b> column and parents who sign in with that number see their child without filling anything.
+      </p>
       <div className="row-gap wrap">
         <label className="secondary file">
           {busy ? 'Uploading…' : 'Choose file'}
           <input type="file" accept=".xlsx,.xls,.csv" hidden disabled={busy} onChange={(e) => pick(e.target.files?.[0])} />
         </label>
         {data && data.status === 'PREVIEW_READY' && (
-          <button className="secondary" disabled={confirm.isPending} onClick={() => confirm.mutateAsync(data.id).then(() => { onDone?.(); })}>
-            Import {data.valid_count} student{data.valid_count === 1 ? '' : 's'}
+          <button className="secondary" disabled={confirm.isPending} onClick={() => confirm.mutateAsync(data.id).then(() => { void job.refetch(); onDone?.(); })}>
+            Save {data.valid_count} student{data.valid_count === 1 ? '' : 's'}
           </button>
         )}
         {data && (data.error_count > 0 || data.duplicate_count > 0) && (
@@ -697,12 +709,34 @@ function StudentImportCard({ schoolId, onDone }: { schoolId: string | null; onDo
           </div>
           <div className="stat-grid four">
             <StatCard label="ROWS" value={num(data.total_rows)} />
-            <StatCard label="VALID" value={num(data.valid_count)} />
-            <StatCard label="DUPLICATES" value={num(data.duplicate_count)} />
+            <StatCard label="NEW" value={num(summary?.new ?? data.valid_count)} />
+            <StatCard label="UPDATED" value={num(summary?.updated ?? 0)} />
             <StatCard label="ERRORS" value={num(data.error_count)} />
           </div>
+          {data.status === 'PREVIEW_READY' && summary && (
+            <div className="preview-list is-plan">
+              <b>What will happen</b>
+              <small>{num(summary.new)} new students added · {num(summary.updated)} existing students updated to their new class and section</small>
+              {summary.parent_phones > 0 && (
+                <small>
+                  {num(summary.parent_phones)} parent phone numbers saved
+                  {summary.parent_phones_ignored > 0 ? ` · ${num(summary.parent_phones_ignored)} not valid mobile numbers, left out` : ''}
+                </small>
+              )}
+              {summary.not_in_file > 0 && (
+                <label className="check">
+                  <input type="checkbox" checked={completeList} onChange={(e) => setCompleteList(e.target.checked)} />
+                  This is our complete student list. Mark the {num(summary.not_in_file)} students not in it as left school (their past orders are kept).
+                </label>
+              )}
+            </div>
+          )}
           {data.status === 'COMPLETED' && (
-            <p className="ok-line">✓ Imported {(data.result as { inserted?: number })?.inserted ?? 0} students.</p>
+            <p className="ok-line">
+              ✓ Added {num(result.inserted ?? 0)}, updated {num(result.updated ?? 0)}
+              {result.marked_left ? `, marked ${num(result.marked_left)} as left school` : ''}
+              {result.parents_linked ? `, linked ${num(result.parents_linked)} to parent accounts` : ''}.
+            </p>
           )}
           {!!preview.errors?.length && (
             <div className="preview-list">
@@ -714,7 +748,7 @@ function StudentImportCard({ schoolId, onDone }: { schoolId: string | null; onDo
           )}
           {!!preview.duplicates?.length && (
             <div className="preview-list">
-              <b>Duplicate GR numbers (skipped)</b>
+              <b>GR number repeated in the file (only the first row is used)</b>
               {preview.duplicates.slice(0, 5).map((row, i) => <small key={i}>Row {row.row}: {row.name} · {row.gr_number}</small>)}
             </div>
           )}

@@ -121,3 +121,7 @@ table.data small.gr{display:block;color:var(--muted);font-size:10px;margin-top:2
   .school-switch,.school-tag{margin-left:0}
   .admin-top .header-right{margin-left:auto}
 }
+
+/* Import preview: the plan is information, not an error list */
+.preview-list.is-plan small{color:var(--ink-soft)}
+.preview-list.is-plan .check{display:flex;gap:8px;align-items:flex-start;margin-top:8px;font-size:13px;color:var(--ink);text-transform:none;letter-spacing:0}

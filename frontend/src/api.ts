@@ -41,7 +41,21 @@ export async function upload<T>(path:string, form:FormData):Promise<T>{const hea
 /** Stream a protected file with the bearer token attached (no token in the URL). */
 export async function download(path:string, filename:string){const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{headers}); if(!res.ok) throw new Error((await res.json().catch(()=>({}))).detail||'Download failed'); const blob=await res.blob(); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);}
 export function logout(){localStorage.removeItem('access');localStorage.removeItem('refresh'); window.location.href='/login';}
-export const auth={login:(username:string,password:string)=>api<{access:string;refresh:string;user:User}>('/auth/token/',{method:'POST',body:JSON.stringify({username,password})}),register:(body:unknown)=>api<{access:string;refresh:string;user:User}>('/auth/register/',{method:'POST',body:JSON.stringify(body)}),me:()=>api<User>('/auth/me/')};
+export const auth={login:(username:string,password:string)=>api<{access:string;refresh:string;user:User}>('/auth/token/',{method:'POST',body:JSON.stringify({username,password})}),register:(body:unknown)=>api<{access:string;refresh:string;user:User}>('/auth/register/',{method:'POST',body:JSON.stringify(body)}),me:()=>api<User>('/auth/me/'),
+  /** Parent sign-in by mobile number: send the code, then verify it. */
+  sendOtp:(phone:string)=>api<{detail:string;phone:string;otp_debug?:string}>('/auth/otp/send/',{method:'POST',body:JSON.stringify({phone})}),
+  verifyOtp:(phone:string,otp:string)=>api<{access:string;refresh:string;user:User;created:boolean;children_linked:number}>('/auth/otp/verify/',{method:'POST',body:JSON.stringify({phone,otp})}),
+};
+
+/** A child on the school roster, as the parent sees it. */
+export type ParentChild={id:string;name:string;gr_number:string;grade_name?:string|null;class_name:string;section:string;gender:string;date_of_birth:string|null;school:string;school_name:string;school_code:string;active:boolean};
+export const parentChildren={
+  list:()=>api<{results:ParentChild[]}>('/students/'),
+  /** Fallback when the school's list has no phone for this parent: GR number + date of birth. */
+  claim:(school:string,gr_number:string,date_of_birth:string)=>api<ParentChild>('/students/claim/',{method:'POST',body:JSON.stringify({school,gr_number,date_of_birth})}),
+  /** Every active school (public list) for the find-your-child form. */
+  schools:()=>api<{id:string;name:string;code:string}[]>('/public/schools/'),
+};
 export const queryKey={catalog:['catalog'],orders:['orders'],students:['students']};
 
 /** Request a presigned URL to upload a private file directly to object storage. */
@@ -146,7 +160,7 @@ export const panel={
   importJobs:(school:string)=>api<Page<ImportJob>>(`/panel/student-imports/?school=${school}`),
   importJob:(school:string,id:string)=>api<ImportJob>(`/panel/student-imports/${id}/?school=${school}`),
   uploadImport:(school:string,file:File)=>{const f=new FormData(); f.append('file',file); return upload<ImportJob>(`/panel/student-imports/?school=${school}`,f);},
-  confirmImport:(school:string,id:string)=>api<ImportJob>(`/panel/student-imports/${id}/confirm/?school=${school}`,{method:'POST'}),
+  confirmImport:(school:string,id:string,markMissingAsLeft=false)=>api<ImportJob>(`/panel/student-imports/${id}/confirm/?school=${school}`,{method:'POST',body:JSON.stringify({mark_missing_as_left:markMissingAsLeft})}),
   importReportUrl:(school:string,id:string)=>`/panel/student-imports/${id}/report/?school=${school}`,
   importTemplateUrl:(school:string,fmt:'xlsx'|'csv')=>`/panel/student-imports/template/?school=${school}&format=${fmt}`,
 };

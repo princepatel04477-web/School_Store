@@ -20,8 +20,9 @@ export function SchoolCrest({
   size = 48,
   className = '',
 }: SchoolCrestProps) {
+  // Codes like "DPS-SUR" keep only the school part so the badge stays legible
   const monogram = (
-    code ||
+    (code ? code.split(/[-\s/]/)[0].slice(0, 3) : '') ||
     name
       .split(/\s+/)
       .map((w) => w[0])

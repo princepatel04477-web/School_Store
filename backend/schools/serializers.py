@@ -99,6 +99,7 @@ class StudentSerializer(serializers.ModelSerializer):
             "parent",
             "parent_name",
             "parent_phone",
+            "roster_phone",
             "approval_status",
             "source",
             "active",
@@ -284,8 +285,8 @@ class StudentClaimSerializer(serializers.Serializer):
 
         # ONE indexed lookup on the unique (school, GR number) index.
         student = (
-            Student.objects.select_related("school")
-            .filter(school_id=school.id, gr_number=gr_number)
+            Student.objects.select_related("school", "grade")
+            .filter(school_id=school.id, gr_number=gr_number, active=True)
             .first()
         )
         # Generic message: never reveal whether a GR number exists.
@@ -311,8 +312,13 @@ class StudentClaimSerializer(serializers.Serializer):
         else:
             class_name = (self.validated_data.get("class_name") or "").strip()
             section = (self.validated_data.get("section") or "").strip()
+            # Stored classes are canonical ("Class 5"); parents may type "5" or "V"
+            from common.constants import normalize_class_name
+
+            stored = (student.grade.name if student.grade_id else student.class_name).strip()
+            given = normalize_class_name(class_name) or class_name
             if (
-                student.class_name.strip().lower() != class_name.lower()
+                (normalize_class_name(stored) or stored).lower() != given.lower()
                 or student.section.strip().lower() != section.lower()
             ):
                 raise not_found

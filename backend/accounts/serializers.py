@@ -3,6 +3,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from schools.models import City, School
+from common.phone import normalize_in_mobile
 from .models import User
 
 
@@ -29,6 +30,7 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name",
             "role",
             "phone",
+            "phone_verified",
             "must_change_password",
             "city",
             "city_name",
@@ -41,6 +43,7 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = (
             "id",
             "must_change_password",
+            "phone_verified",
             "city_name",
             "school_name",
             "school_code",
@@ -209,7 +212,9 @@ class ParentRegistrationSerializer(serializers.Serializer):
             )
 
         if otp:
-            cached_otp = cache.get(f"otp:{phone}")
+            cached_otp = cache.get(f"otp:{phone}") or cache.get(
+                f"otp:{normalize_in_mobile(phone)}"
+            )
             if not cached_otp or str(cached_otp) != str(otp).strip():
                 raise serializers.ValidationError({"otp": "Invalid or expired OTP."})
 
@@ -229,6 +234,7 @@ class ParentRegistrationSerializer(serializers.Serializer):
 
         if otp:
             cache.delete(f"otp:{phone}")
+            cache.delete(f"otp:{normalize_in_mobile(phone)}")
 
         user = User(
             username=validated_data["username"],
@@ -242,12 +248,18 @@ class ParentRegistrationSerializer(serializers.Serializer):
             is_active=True,
             is_staff=False,
             is_superuser=False,
+            # A number confirmed by OTP can be trusted to link roster children
+            phone_verified=bool(otp),
         )
         if password:
             user.set_password(password)
         else:
             user.set_unusable_password()
         user.save()
+        if user.phone_verified:
+            from schools.linking import link_children_by_phone
+
+            link_children_by_phone(user)
         return user
 
 

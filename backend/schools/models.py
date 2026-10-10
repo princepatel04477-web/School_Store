@@ -199,6 +199,14 @@ class Student(UUIDModel):
         blank=True,
         related_name="children",
     )
+    roster_phone = models.CharField(
+        max_length=10,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="Parent's mobile number from the school's records (10 digits). "
+        "A parent who verifies this number by OTP is linked automatically.",
+    )
     approval_status = models.CharField(
         max_length=16,
         choices=ApprovalStatus.choices,

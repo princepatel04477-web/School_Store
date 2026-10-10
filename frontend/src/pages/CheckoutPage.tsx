@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { formatINR } from '../utils/formatINR';
@@ -7,6 +7,9 @@ import { paymentAdapter } from '../services/paymentAdapter';
 import { motion, AnimatePresence } from 'motion/react';
 import { Thread } from '../motion/Thread';
 import { EASING, DURATION_FAST, DURATION_BASE } from '../motion/motionConfig';
+import { useAuth } from '../auth';
+import type { ParentChild } from '../api';
+import { ParentSignInSheet } from '../components/parent/ParentSignInSheet';
 import '../components/cart/bagCheckout.css';
 
 export function CheckoutPage() {
@@ -39,6 +42,30 @@ export function CheckoutPage() {
   // Validation Errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Sign-in happens here, at order time, never earlier.
+  // Mobile + OTP fills the parent; picking a child fills the student.
+  const { user } = useAuth();
+  const [signInOpen, setSignInOpen] = useState(false);
+  const [child, setChild] = useState<ParentChild | null>(null);
+  const isParent = user?.role === 'PARENT';
+
+  useEffect(() => {
+    if (!isParent || !user) return;
+    const digits = (user.phone || '').replace(/\D/g, '').slice(-10);
+    if (digits && !parentMobile) setParentMobile(digits);
+    const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
+    if (fullName && !parentName) setParentName(fullName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isParent, user]);
+
+  const handleChildChosen = (picked: ParentChild | null) => {
+    setSignInOpen(false);
+    if (!picked) return;
+    setChild(picked);
+    setStudentName(picked.name);
+    setStudentClass(picked.grade_name || picked.class_name);
+  };
+
   // Pricing math in integer paise
   const gstPaise = Math.round(subtotalPaise * 0.05); // 5% GST
   const deliveryPaise = deliveryType === 'HOME' && subtotalPaise < 150000 ? 10000 : 0; // ₹100 or free above ₹1500
@@ -48,7 +75,8 @@ export function CheckoutPage() {
     const errs: Record<string, string> = {};
     if (!parentName.trim()) errs.parentName = 'Parent name is required';
     if (!/^\d{10}$/.test(parentMobile.trim())) errs.parentMobile = 'Enter a valid 10-digit mobile number';
-    if (!parentEmail.trim() || !parentEmail.includes('@')) errs.parentEmail = 'Enter a valid email address';
+    // Optional: order updates go to WhatsApp; email is only for a copy of the receipt
+    if (parentEmail.trim() && !parentEmail.includes('@')) errs.parentEmail = 'Enter a valid email address';
     if (!studentName.trim()) errs.studentName = 'Student name is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -183,6 +211,13 @@ export function CheckoutPage() {
         <h1 className="checkout-title">Express Checkout</h1>
       </div>
 
+      <ParentSignInSheet
+        open={signInOpen}
+        onClose={() => setSignInOpen(false)}
+        onDone={handleChildChosen}
+        schoolName={selection?.schoolName}
+      />
+
       <div className="checkout-layout">
         {/* Left Column: 3 Stepped Sections */}
         <div className="checkout-steps-col">
@@ -199,6 +234,36 @@ export function CheckoutPage() {
 
             {activeStep === 1 ? (
               <div className="step-body">
+                {!isParent ? (
+                  <div className="checkout-signin">
+                    <div>
+                      <strong>Sign in with your mobile number</strong>
+                      <span>We'll fill in your child's details from the school's records.</span>
+                    </div>
+                    <button type="button" className="btn btn-primary" onClick={() => setSignInOpen(true)}>
+                      Continue with OTP
+                    </button>
+                  </div>
+                ) : child ? (
+                  <div className="checkout-child">
+                    <span>Ordering for</span>
+                    <strong>{child.name}</strong>
+                    <span>
+                      {[child.grade_name || child.class_name, child.section && `Section ${child.section}`]
+                        .filter(Boolean)
+                        .join(' · ')}{' '}
+                      · {child.school_name}
+                    </span>
+                    {parentMobile && <span>Mobile {parentMobile.slice(0, 5)} {parentMobile.slice(5)} · verified</span>}
+                    <button type="button" className="psi-link" onClick={() => setSignInOpen(true)}>
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" className="psi-link" onClick={() => setSignInOpen(true)}>
+                    Choose your child from the school's records
+                  </button>
+                )}
                 <div className="form-grid-2">
                   <div className="form-group">
                     <label className="input-label" htmlFor="parent-name">Parent Name</label>
@@ -214,6 +279,8 @@ export function CheckoutPage() {
                     {errors.parentName && <span className="field-err">{errors.parentName}</span>}
                   </div>
 
+                  {/* Signed in: the number is already verified by OTP, so no field */}
+                  {!isParent && (
                   <div className="form-group">
                     <label className="input-label" htmlFor="parent-mobile">Mobile Number</label>
                     <input
@@ -229,10 +296,11 @@ export function CheckoutPage() {
                     />
                     {errors.parentMobile && <span className="field-err">{errors.parentMobile}</span>}
                   </div>
+                  )}
                 </div>
 
                 <div className="form-group">
-                  <label className="input-label" htmlFor="parent-email">Email Address</label>
+                  <label className="input-label" htmlFor="parent-email">Email (optional, for the receipt)</label>
                   <input
                     id="parent-email"
                     type="email"
@@ -245,6 +313,8 @@ export function CheckoutPage() {
                   {errors.parentEmail && <span className="field-err">{errors.parentEmail}</span>}
                 </div>
 
+                {/* A child from the school's records needs no student fields */}
+                {!child && (
                 <div className="form-grid-2">
                   <div className="form-group">
                     <label className="input-label" htmlFor="student-name">Student Name</label>
@@ -270,6 +340,7 @@ export function CheckoutPage() {
                     />
                   </div>
                 </div>
+                )}
 
                 <button
                   type="button"

@@ -4,10 +4,13 @@ Student bulk-import engine (Prompt 4, requirement 3).
 Everything heavy happens inside Celery workers (Rule P5):
   1. `parse_rows()`      - streams .xlsx / .csv rows (5 MB / 5,000 row caps)
   2. `validate_import()` - validates every row and stores a preview on the job
-  3. `commit_import()`   - `bulk_create(batch_size=500, ignore_conflicts=True)`,
-                           i.e. `INSERT ... ON CONFLICT (school_id, gr_number) DO NOTHING`.
+  3. `commit_import()`   - inserts new GR numbers in batches of 500 and updates
+                           students whose GR number is already on the roster
+                           (class, section, name ... so a yearly re-upload
+                           promotes everyone). Optionally marks students missing
+                           from the file as left school.
 
-Duplicate GR numbers are detected with ONE indexed query for the whole file
+Existing GR numbers are found with ONE indexed query for the whole file
 (`WHERE school_id = %s AND gr_number IN (...)`) - never one query per row.
 """
 
@@ -23,12 +26,22 @@ from django.utils import timezone
 
 from common.models import ImportJob
 
+from common.phone import normalize_in_mobile
+
 from .models import Student
 
 # Exact template columns (requirement 3: "downloadable template with the exact columns")
-TEMPLATE_COLUMNS = ["name", "gr_number", "class", "section", "gender", "date_of_birth"]
+TEMPLATE_COLUMNS = [
+    "name",
+    "gr_number",
+    "class",
+    "section",
+    "gender",
+    "date_of_birth",
+    "parent_phone",
+]
 REQUIRED_COLUMNS = ["name", "gr_number", "class", "section", "gender"]
-OPTIONAL_COLUMNS = ["date_of_birth"]
+OPTIONAL_COLUMNS = ["date_of_birth", "parent_phone"]
 
 # Tolerated header spellings -> canonical template column
 COLUMN_ALIASES = {
@@ -59,6 +72,25 @@ COLUMN_ALIASES = {
     "dob": "date_of_birth",
     "birth date": "date_of_birth",
     "birthdate": "date_of_birth",
+    "parent_phone": "parent_phone",
+    "parent phone": "parent_phone",
+    "parent mobile": "parent_phone",
+    "parent mobile no": "parent_phone",
+    "parent contact": "parent_phone",
+    "phone": "parent_phone",
+    "phone no": "parent_phone",
+    "phone number": "parent_phone",
+    "mobile": "parent_phone",
+    "mobile no": "parent_phone",
+    "mobile no.": "parent_phone",
+    "mobile number": "parent_phone",
+    "contact": "parent_phone",
+    "contact no": "parent_phone",
+    "contact number": "parent_phone",
+    "father mobile": "parent_phone",
+    "mother mobile": "parent_phone",
+    "whatsapp": "parent_phone",
+    "whatsapp number": "parent_phone",
 }
 
 GENDER_ALIASES = {
@@ -269,6 +301,15 @@ def validate_row(raw_row: dict, row_number: int) -> tuple[dict | None, dict | No
             errors["date_of_birth"] = dob_error
         cleaned["date_of_birth"] = dob.isoformat() if dob else None
 
+    # Optional and forgiving: a bad number never blocks the row, it is just
+    # left out (the parent can still find the child by GR number + birth date).
+    raw_phone = raw_row.get("parent_phone")
+    phone = normalize_in_mobile(raw_phone)
+    cleaned["parent_phone"] = phone
+    cleaned["phone_ignored"] = bool(
+        raw_phone is not None and str(raw_phone).strip() and not phone
+    )
+
     if errors:
         return None, {
             "row": row_number,
@@ -354,18 +395,25 @@ def validate_import(job: ImportJob) -> ImportJob:
     else:
         existing = set()
 
-    if existing:
-        for gr_number in list(valid_rows.keys()):
-            if gr_number in existing:
-                row = valid_rows.pop(gr_number)
-                duplicate_count += 1
-                _save_preview_row(
-                    duplicates_preview,
-                    {
-                        **row_detail(row),
-                        "reason": "GR number already exists in this school.",
-                    },
-                )
+    # Rows whose GR number is already on the roster update that student
+    # (this is how the yearly upload promotes everyone to the next class).
+    updates_preview: list = []
+    for gr_number in valid_rows.keys():
+        if gr_number in existing:
+            valid_rows[gr_number]["existing"] = True
+            _save_preview_row(updates_preview, row_detail(valid_rows[gr_number]))
+
+    update_count = sum(1 for row in valid_rows.values() if row.get("existing"))
+    new_count = len(valid_rows) - update_count
+    # Students on the roster who are not in this file. They are only marked as
+    # left if the school confirms the file is its complete list.
+    missing_count = (
+        Student.objects.filter(school_id=job.school_id, active=True)
+        .exclude(gr_number__in=list(valid_rows.keys()))
+        .count()
+    )
+    phones_ignored = sum(1 for row in valid_rows.values() if row.get("phone_ignored"))
+    phones_found = sum(1 for row in valid_rows.values() if row.get("parent_phone"))
 
     job.total_rows = total_rows
     job.valid_count = len(valid_rows)
@@ -378,9 +426,18 @@ def validate_import(job: ImportJob) -> ImportJob:
         "errors": errors_preview[:limit],
         "preview_limit": limit,
         "columns": headers,
+        "updates": updates_preview[:limit],
+        "summary": {
+            "new": new_count,
+            "updated": update_count,
+            "not_in_file": missing_count,
+            "parent_phones": phones_found,
+            "parent_phones_ignored": phones_ignored,
+        },
         "notes": [
-            "Duplicates use the unique (school, GR number) index and are skipped.",
-            "Confirm the import to insert the valid rows.",
+            "GR numbers already on the roster update that student (class, section, name).",
+            "Students not in this file are marked as left only if you confirm it is your complete list.",
+            "Confirm the import to save the changes.",
         ],
     }
     # Rebuild the valid preview from the (possibly de-duplicated) valid rows
@@ -402,71 +459,146 @@ def validate_import(job: ImportJob) -> ImportJob:
 
 
 # --------------------------------------------------------------------------- #
-# 4. Commit job (batched insert, ON CONFLICT DO NOTHING)
+# 4. Commit job (batched inserts + batched updates)
 # --------------------------------------------------------------------------- #
 @transaction.atomic
 def commit_import(job: ImportJob) -> ImportJob:
     """
-    Inserts the validated rows in batches of 500 using
-    `bulk_create(..., ignore_conflicts=True)` which compiles to
-    `INSERT ... ON CONFLICT DO NOTHING` - the unique (school_id, gr_number)
-    constraint is the conflict target, so duplicates are skipped, never
-    inserted one row at a time (Rule P5 + requirement 3).
+    Saves the validated rows:
+      - new GR numbers: `bulk_create(batch_size=500, ignore_conflicts=True)`
+        (`INSERT ... ON CONFLICT DO NOTHING`, safe against a concurrent import);
+      - GR numbers already on the roster: `bulk_update` of name, class, section,
+        gender and, when the file has them, date of birth and parent phone.
+        Re-activates students who had been marked as left.
+      - if the school confirmed the file is its complete list
+        (`preview["mark_missing_as_left"]`), students not in the file are set
+        inactive. Their orders and history are kept.
+    Then links parents whose verified number matches a roster phone.
     """
-    rows = job.valid_rows or []
-    if not rows:
-        job.status = ImportJob.Status.COMPLETED
-        job.result = {"inserted": 0, "skipped_duplicates": 0, "batches": 0}
-        job.completed_at = timezone.now()
-        job.save(update_fields=["status", "result", "completed_at", "updated_at"])
-        return job
+    from accounts.models import User
 
+    from .models import Grade
+
+    rows = job.valid_rows or []
+    mark_missing = bool((job.preview or {}).get("mark_missing_as_left"))
     size = batch_size()
     gr_numbers = [row["gr_number"] for row in rows]
+    grades = {grade.name: grade for grade in Grade.objects.all()}
 
-    # Indexed pre-count via (school_id, gr_number) - guards against a concurrent import.
-    already_present = Student.objects.filter(
-        school_id=job.school_id, gr_number__in=gr_numbers
-    ).count()
+    def dob_of(row):
+        value = row.get("date_of_birth")
+        return dt.date.fromisoformat(value) if value else None
 
+    existing = {
+        student.gr_number: student
+        for student in Student.objects.filter(
+            school_id=job.school_id, gr_number__in=gr_numbers
+        )
+    }
+
+    # --- new students ------------------------------------------------------
+    new_rows = [row for row in rows if row["gr_number"] not in existing]
     objs = [
         Student(
             id=uuid.uuid4(),
             name=row["name"],
             gr_number=row["gr_number"],
             class_name=row["class"],
+            grade=grades.get(row["class"]),
             section=row["section"],
             gender=row["gender"],
-            date_of_birth=(
-                dt.date.fromisoformat(row["date_of_birth"])
-                if row.get("date_of_birth")
-                else None
-            ),
+            date_of_birth=dob_of(row),
+            roster_phone=row.get("parent_phone") or "",
             school_id=job.school_id,
             city_id=job.city_id,
             approval_status=Student.ApprovalStatus.APPROVED,
             source=Student.Source.IMPORT,
             active=True,
         )
-        for row in rows
+        for row in new_rows
     ]
-
+    before = Student.objects.filter(school_id=job.school_id, gr_number__in=gr_numbers).count()
     for start in range(0, len(objs), size):
-        Student.objects.bulk_create(
-            objs[start : start + size],
+        Student.objects.bulk_create(objs[start : start + size], batch_size=size, ignore_conflicts=True)
+    inserted = (
+        Student.objects.filter(school_id=job.school_id, gr_number__in=gr_numbers).count() - before
+    )
+
+    # --- existing students: promote / correct -----------------------------
+    updated_objs = []
+    for row in rows:
+        student = existing.get(row["gr_number"])
+        if student is None:
+            continue
+        student.name = row["name"]
+        student.class_name = row["class"]
+        student.grade = grades.get(row["class"])
+        student.section = row["section"]
+        student.gender = row["gender"]
+        if row.get("date_of_birth"):
+            student.date_of_birth = dob_of(row)
+        if row.get("parent_phone"):
+            student.roster_phone = row["parent_phone"]
+        student.active = True
+        student.updated_at = timezone.now()  # bulk_update skips auto_now
+        updated_objs.append(student)
+    if updated_objs:
+        Student.objects.bulk_update(
+            updated_objs,
+            [
+                "name",
+                "class_name",
+                "grade",
+                "section",
+                "gender",
+                "date_of_birth",
+                "roster_phone",
+                "active",
+                "updated_at",
+            ],
             batch_size=size,
-            ignore_conflicts=True,
         )
 
-    present_after = Student.objects.filter(
-        school_id=job.school_id, gr_number__in=gr_numbers
-    ).count()
+    # --- left school -------------------------------------------------------
+    marked_left = 0
+    if mark_missing:
+        marked_left = (
+            Student.objects.filter(school_id=job.school_id, active=True)
+            .exclude(gr_number__in=gr_numbers)
+            .update(active=False)
+        )
 
-    inserted = present_after - already_present
+    # --- parents who already verified a roster number ---------------------
+    phones = {row["parent_phone"] for row in rows if row.get("parent_phone")}
+    linked = 0
+    if phones:
+        # Indexed lookup on the stored forms of each number
+        stored_forms = set()
+        for phone in phones:
+            stored_forms.update({phone, f"+91{phone}", f"91{phone}", f"0{phone}"})
+        parents = {}
+        for parent in User.objects.filter(
+            role=User.Role.PARENT,
+            phone_verified=True,
+            is_active=True,
+            phone__in=stored_forms,
+        ).order_by("created_at"):
+            parents.setdefault(normalize_in_mobile(parent.phone), parent.id)
+        for phone, parent_id in parents.items():
+            linked += Student.objects.filter(
+                school_id=job.school_id,
+                roster_phone=phone,
+                parent__isnull=True,
+                active=True,
+            ).update(parent_id=parent_id)
+
     job.result = {
         "inserted": inserted,
+        "updated": len(updated_objs),
+        "marked_left": marked_left,
+        "parents_linked": linked,
         "skipped_duplicates": len(objs) - inserted,
-        "batches": (len(objs) + size - 1) // size,
+        "batches": (len(objs) + size - 1) // size if objs else 0,
         "batch_size": size,
     }
     job.status = ImportJob.Status.COMPLETED

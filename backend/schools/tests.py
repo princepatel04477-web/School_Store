@@ -60,8 +60,8 @@ def xlsx_upload(rows, columns=None):
     )
 
 
-def row(name, gr, klass="5", section="A", gender="M", dob=""):
-    return [name, gr, klass, section, gender, dob]
+def row(name, gr, klass="5", section="A", gender="M", dob="", phone=""):
+    return [name, gr, klass, section, gender, dob, phone]
 
 
 class StudentManagementTestBase(TestCase):
@@ -362,7 +362,7 @@ class StudentBulkImportTests(StudentManagementTestBase):
             row("Child Three", "GR-IMP-3", "6", "A", "Male"),
             row("Duplicate In File", "GR-IMP-1", "5", "A", "M"),
             row("", "GR-IMP-4", "5", "A", "M"),  # missing name
-            row("Existing Child", "GR-EXIST-1", "5", "A", "M"),  # already in DB
+            row("Existing Child", "GR-EXIST-1", "6", "A", "M"),  # already in DB -> update
         ]
         client = login(self.school_admin_a)
         res = self._upload(client, csv_upload(rows))
@@ -372,11 +372,14 @@ class StudentBulkImportTests(StudentManagementTestBase):
 
         job = ImportJob.objects.get(pk=res.data["id"])
         self.assertEqual(job.total_rows, 6)
-        self.assertEqual(job.valid_count, 3)
-        self.assertEqual(job.duplicate_count, 2)
+        # 3 new + 1 update of a student already on the roster
+        self.assertEqual(job.valid_count, 4)
+        self.assertEqual(job.duplicate_count, 1)
         self.assertEqual(job.error_count, 1)
-        self.assertEqual(len(job.preview["valid"]), 3)
-        self.assertEqual(len(job.preview["duplicates"]), 2)
+        self.assertEqual(job.preview["summary"]["new"], 3)
+        self.assertEqual(job.preview["summary"]["updated"], 1)
+        self.assertEqual(len(job.preview["updates"]), 1)
+        self.assertEqual(len(job.preview["duplicates"]), 1)
         self.assertEqual(len(job.preview["errors"]), 1)
         self.assertEqual(job.preview["errors"][0]["errors"]["name"], "name is required.")
         self.assertFalse(job.error_message)
@@ -393,15 +396,19 @@ class StudentBulkImportTests(StudentManagementTestBase):
         with CaptureQueriesContext(connection) as ctx:
             validate_import(job)
 
+        # The GR-number lookup is one query for the whole file. (A second,
+        # separate COUNT reports how many roster students are not in the file.)
         student_selects = [
             q["sql"]
             for q in ctx.captured_queries
-            if "SELECT" in q["sql"].upper() and "schools_student" in q["sql"]
+            if "SELECT" in q["sql"].upper()
+            and "schools_student" in q["sql"]
+            and "COUNT(" not in q["sql"].upper()
         ]
         self.assertEqual(
             len(student_selects),
             1,
-            f"Duplicate detection must use ONE query per file, got {len(student_selects)}",
+            f"Existing-GR detection must use ONE query per file, got {len(student_selects)}",
         )
         self.assertIn("gr_number", student_selects[0])
         self.assertIn("school_id", student_selects[0])
@@ -437,8 +444,9 @@ class StudentBulkImportTests(StudentManagementTestBase):
             any(Student.objects.filter(gr_number=f"GR-BATCH-{i:04d}").count() > 1 for i in range(1200))
         )
 
-    def test_reimporting_skips_duplicates_via_on_conflict(self):
-        rows = [row(f"Repeat Child {i}", f"GR-REP-{i}") for i in range(5)]
+    def test_reimporting_updates_existing_students(self):
+        """The yearly upload promotes students instead of skipping them."""
+        rows = [row(f"Repeat Child {i}", f"GR-REP-{i}", "5") for i in range(5)]
         client = login(self.school_admin_a)
         first = self._upload(client, csv_upload(rows))
         client.post(f"/api/student-imports/{first.data['id']}/confirm/")
@@ -446,31 +454,76 @@ class StudentBulkImportTests(StudentManagementTestBase):
             Student.objects.filter(school=self.school_a).count(), self.base_school_a + 5
         )
 
-        second = self._upload(client, csv_upload(rows))
+        promoted = [row(f"Repeat Child {i}", f"GR-REP-{i}", "6", "B") for i in range(5)]
+        second = self._upload(client, csv_upload(promoted))
         job = ImportJob.objects.get(pk=second.data["id"])
-        self.assertEqual(job.valid_count, 0)
-        self.assertEqual(job.duplicate_count, 5)
-        # force the commit path directly to prove ON CONFLICT also protects races
-        job.status = ImportJob.Status.PREVIEW_READY
-        job.valid_rows = [
-            {
-                "row": i + 1,
-                "name": f"Repeat Child {i}",
-                "gr_number": f"GR-REP-{i}",
-                "class": "5",
-                "section": "A",
-                "gender": "MALE",
-                "date_of_birth": None,
-            }
-            for i in range(5)
-        ]
-        job.save(update_fields=["status", "valid_rows"])
-        commit_import(job)
+        self.assertEqual(job.valid_count, 5)
+        self.assertEqual(job.duplicate_count, 0)
+        self.assertEqual(job.preview["summary"]["updated"], 5)
+        self.assertEqual(job.preview["summary"]["new"], 0)
+
+        res = client.post(f"/api/student-imports/{job.id}/confirm/")
+        self.assertEqual(res.status_code, 202, res.data)
+        job.refresh_from_db()
+        self.assertEqual(job.result["inserted"], 0)
+        self.assertEqual(job.result["updated"], 5)
         self.assertEqual(
             Student.objects.filter(school=self.school_a).count(), self.base_school_a + 5
         )
-        self.assertEqual(job.result["inserted"], 0)
-        self.assertEqual(job.result["skipped_duplicates"], 5)
+        child = Student.objects.get(school=self.school_a, gr_number="GR-REP-0")
+        self.assertEqual(child.class_name, "Class 6")
+        self.assertEqual(child.grade.name, "Class 6")
+        self.assertEqual(child.section, "B")
+
+    def test_complete_list_marks_missing_students_as_left(self):
+        client = login(self.school_admin_a)
+        first = self._upload(client, csv_upload([row(f"Kid {i}", f"GR-LEFT-{i}") for i in range(3)]))
+        client.post(f"/api/student-imports/{first.data['id']}/confirm/")
+        active_before = Student.objects.filter(school=self.school_a, active=True).count()
+
+        # A partial file (no flag) never deactivates anyone
+        partial = self._upload(client, csv_upload([row("Kid 0", "GR-LEFT-0")]))
+        client.post(f"/api/student-imports/{partial.data['id']}/confirm/")
+        self.assertEqual(
+            Student.objects.filter(school=self.school_a, active=True).count(), active_before
+        )
+
+        # The school's complete list: everyone not in it is marked as left
+        full = self._upload(client, csv_upload([row("Kid 0", "GR-LEFT-0"), row("Kid 1", "GR-LEFT-1")]))
+        job = ImportJob.objects.get(pk=full.data["id"])
+        self.assertEqual(job.preview["summary"]["not_in_file"], active_before - 2)
+        res = client.post(
+            f"/api/student-imports/{job.id}/confirm/",
+            {"mark_missing_as_left": True},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 202, res.data)
+        job.refresh_from_db()
+        self.assertEqual(job.result["marked_left"], active_before - 2)
+        self.assertFalse(Student.objects.get(school=self.school_a, gr_number="GR-LEFT-2").active)
+        self.assertTrue(Student.objects.get(school=self.school_a, gr_number="GR-LEFT-1").active)
+
+    def test_parent_phone_column_is_optional_and_forgiving(self):
+        client = login(self.school_admin_a)
+        res = self._upload(
+            client,
+            csv_upload(
+                [
+                    row("Phone Kid", "GR-PH-1", phone="+91 98200 11223"),
+                    row("Bad Phone Kid", "GR-PH-2", phone="12345"),
+                    row("No Phone Kid", "GR-PH-3"),
+                ]
+            ),
+        )
+        job = ImportJob.objects.get(pk=res.data["id"])
+        self.assertEqual(job.valid_count, 3)
+        self.assertEqual(job.error_count, 0)
+        self.assertEqual(job.preview["summary"]["parent_phones"], 1)
+        self.assertEqual(job.preview["summary"]["parent_phones_ignored"], 1)
+        client.post(f"/api/student-imports/{job.id}/confirm/")
+        self.assertEqual(Student.objects.get(gr_number="GR-PH-1").roster_phone, "9820011223")
+        self.assertEqual(Student.objects.get(gr_number="GR-PH-2").roster_phone, "")
+
 
     def test_xlsx_upload_supported(self):
         client = login(self.school_admin_a)
@@ -947,3 +1000,101 @@ class ParentWriteRestrictionTests(StudentManagementTestBase):
         self.assertEqual(res_delete.status_code, 403)
         self.assertIn("cannot edit or cancel an order", str(res_delete.data).lower())
 
+
+class RosterPhoneLinkingTests(StudentManagementTestBase):
+    """A parent whose OTP-verified number is on the roster sees the child with no form."""
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
+        self.child = Student.objects.create(
+            name="Roster Phone Child",
+            gr_number="GR-RP-1",
+            class_name="4",
+            section="B",
+            gender=Student.Gender.MALE,
+            date_of_birth="2016-08-14",
+            school=self.school_a,
+            city=self.school_a.city,
+            roster_phone="9820011223",
+        )
+
+    def test_otp_sign_in_creates_parent_and_links_roster_child(self):
+        anon = APIClient()
+        cache.set("otp:9820011223", "123456", timeout=300)
+        res = anon.post(
+            "/api/auth/otp/verify/", {"phone": "+91 98200 11223", "otp": "123456"}, format="json"
+        )
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertTrue(res.data["created"])
+        self.assertEqual(res.data["children_linked"], 1)
+        self.assertTrue(res.data["user"]["phone_verified"])
+        self.child.refresh_from_db()
+        self.assertEqual(str(self.child.parent_id), res.data["user"]["id"])
+
+        # Signing in again returns the same account
+        cache.set("otp:9820011223", "654321", timeout=300)
+        again = anon.post("/api/auth/otp/verify/", {"phone": "9820011223", "otp": "654321"}, format="json")
+        self.assertEqual(again.status_code, 200, again.data)
+        self.assertFalse(again.data["created"])
+        self.assertEqual(again.data["user"]["id"], res.data["user"]["id"])
+
+    def test_wrong_otp_is_rejected_and_burned_after_five_tries(self):
+        anon = APIClient()
+        cache.set("otp:9820011223", "123456", timeout=300)
+        # Four wrong tries already made; the fifth burns the code
+        cache.set("otp_attempts:9820011223", 4, timeout=300)
+        res = anon.post("/api/auth/otp/verify/", {"phone": "9820011223", "otp": "000000"}, format="json")
+        self.assertEqual(res.status_code, 400)
+        # The right code no longer works once it has been burned
+        res = anon.post("/api/auth/otp/verify/", {"phone": "9820011223", "otp": "123456"}, format="json")
+        self.assertEqual(res.status_code, 400)
+        self.child.refresh_from_db()
+        self.assertIsNone(self.child.parent_id)
+
+    def test_unverified_number_never_links(self):
+        # Same number, but registered with a password (never confirmed by OTP)
+        impostor = User.objects.create_user(
+            username="impostor", password="x" * 12, role=User.Role.PARENT, phone="9820011223"
+        )
+        res = login(impostor).get("/api/students/")
+        self.assertEqual(res.status_code, 200)
+        self.child.refresh_from_db()
+        self.assertIsNone(self.child.parent_id)
+
+    def test_verified_parent_sees_child_on_list(self):
+        parent = User.objects.create_user(
+            username="verified_parent",
+            password="x" * 12,
+            role=User.Role.PARENT,
+            phone="+919820011223",
+            phone_verified=True,
+        )
+        res = login(parent).get("/api/students/")
+        self.assertEqual(res.status_code, 200)
+        names = [s["name"] for s in res.data["results"]]
+        self.assertIn("Roster Phone Child", names)
+
+    def test_child_already_linked_is_not_taken_over(self):
+        self.child.parent = self.parent_a
+        self.child.save()
+        parent = User.objects.create_user(
+            username="second_parent",
+            password="x" * 12,
+            role=User.Role.PARENT,
+            phone="9820011223",
+            phone_verified=True,
+        )
+        login(parent).get("/api/students/")
+        self.child.refresh_from_db()
+        self.assertEqual(self.child.parent_id, self.parent_a.id)
+
+    def test_claim_by_gr_and_date_of_birth_still_works(self):
+        res = login(self.parent_a).post(
+            "/api/students/claim/",
+            {"school": str(self.school_a.id), "gr_number": "GR-RP-1", "date_of_birth": "2016-08-14"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200, res.data)
+        self.child.refresh_from_db()
+        self.assertEqual(self.child.parent_id, self.parent_a.id)
