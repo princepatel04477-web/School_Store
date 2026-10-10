@@ -14,23 +14,18 @@
   padding-bottom: calc(var(--section-gap) / 2);
 }
 
+/* Single column: headline, one line, search, steps */
 .hero-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-12);
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 760px;
 }
 
-@media (min-width: 1024px) {
-  .hero-grid {
-    grid-template-columns: 7fr 5fr;
-  }
-}
-
+/* Stretch so the search box can take its full width; text keeps its own measure */
 .hero-left {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 /* Sports-day voice: tall condensed caps */
@@ -641,13 +636,6 @@
   color: var(--on-tile);
 }
 
-/* Phones: the example class list is left out so the school search is the
-   whole first screen. Tablets and desktop keep it beside the headline. */
-@media (max-width: 767px) {
-  .hero-right {
-    display: none;
-  }
-}
 
 /* ================== How it works: one quiet line under the search ================== */
 .how-line {

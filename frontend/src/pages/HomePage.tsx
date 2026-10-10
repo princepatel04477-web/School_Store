@@ -6,7 +6,6 @@ import { seedSchools, type SeedSchool } from '../data/seedData';
 import { useStoreState } from '../store/storeState';
 import { SchoolCrest } from '../components/school/SchoolCrest';
 import { KitIllustration, type KitKind } from '../components/home/KitIllustration';
-import { KitListHero } from '../components/home/KitListHero';
 import { EASING } from '../motion/motionConfig';
 import { prefetchFlowPage, prefetchSchoolData } from '../utils/prefetch';
 import {
@@ -127,7 +126,6 @@ export function HomePage() {
       {/* 1. HERO SECTION */}
       <section className="hero-section container">
         <div className="hero-grid">
-          {/* Left Column (7 cols) */}
           <div className="hero-left">
             <TextReveal
               lines={['School essentials,', 'sorted.']}
@@ -315,13 +313,6 @@ export function HomePage() {
               </ol>
               </Reveal>
             )}
-          </div>
-
-          {/* Right Column: an example class list instead of a photo */}
-          <div className="hero-right">
-            <Reveal delay={0.2}>
-              <KitListHero schoolName={selection?.schoolName} />
-            </Reveal>
           </div>
         </div>
       </section>
