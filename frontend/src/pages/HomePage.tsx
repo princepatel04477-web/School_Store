@@ -129,16 +129,13 @@ export function HomePage() {
         <div className="hero-grid">
           {/* Left Column (7 cols) */}
           <div className="hero-left">
-            <span className="label hero-label">
-              Uniforms · Shoes · Stationery · ID cards
-            </span>
             <TextReveal
               lines={['School essentials,', 'sorted.']}
               className="hero-heading"
             />
             <Reveal delay={0.15}>
               <p className="hero-subtext">
-                Pick your school and class to get the exact parent-approved list delivered directly to your door.
+                Pick your school and class to see the exact list.
               </p>
             </Reveal>
 
@@ -222,7 +219,7 @@ export function HomePage() {
                         aria-haspopup="listbox"
                         aria-controls="school-results-list"
                         aria-label="Search your school"
-                        placeholder="Search your school (e.g. DPS, Cathedral, NPS)..."
+                        placeholder="Search your school"
                         className="hero-search-input"
                         value={query}
                         onChange={(e) => {
@@ -295,6 +292,29 @@ export function HomePage() {
                 )}
               </AnimatePresence>
             </Reveal>
+
+            {/* How it works, as one quiet line under the search */}
+            {!selection && (
+              <Reveal delay={0.35}>
+              <ol className="how-line" aria-label="How it works">
+                <li className="house-0">
+                  <span className="how-num">1</span>
+                  <span className="how-long">Choose your school</span>
+                  <span className="how-short">School</span>
+                </li>
+                <li className="house-1">
+                  <span className="how-num">2</span>
+                  <span className="how-long">Pick the class</span>
+                  <span className="how-short">Class</span>
+                </li>
+                <li className="house-2">
+                  <span className="how-num">3</span>
+                  <span className="how-long">Add the whole list to bag</span>
+                  <span className="how-short">Add to bag</span>
+                </li>
+              </ol>
+              </Reveal>
+            )}
           </div>
 
           {/* Right Column: an example class list instead of a photo */}
@@ -304,29 +324,6 @@ export function HomePage() {
             </Reveal>
           </div>
         </div>
-      </section>
-
-      {/* 2. HOW IT WORKS: one line */}
-      <section className="container how-line-wrap" aria-label="How it works">
-        <Reveal>
-          <ol className="how-line">
-            <li className="house-0">
-              <span className="how-num">1</span>
-              <span className="how-long">Choose your school</span>
-              <span className="how-short">School</span>
-            </li>
-            <li className="house-1">
-              <span className="how-num">2</span>
-              <span className="how-long">Pick the class</span>
-              <span className="how-short">Class</span>
-            </li>
-            <li className="house-2">
-              <span className="how-num">3</span>
-              <span className="how-long">Add the whole list to bag</span>
-              <span className="how-short">Add to bag</span>
-            </li>
-          </ol>
-        </Reveal>
       </section>
 
       {/* 3. SHOP BY CATEGORY (Editorial Grid) */}

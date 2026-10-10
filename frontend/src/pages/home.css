@@ -33,11 +33,6 @@
   align-items: flex-start;
 }
 
-.hero-label {
-  margin-bottom: var(--space-4);
-  color: var(--brand);
-}
-
 /* Sports-day voice: tall condensed caps */
 .hero-heading {
   font-family: var(--font-display);
@@ -654,28 +649,18 @@
   }
 }
 
-/* ================== How it works: one slim line ================== */
-.how-line-wrap {
-  padding-block: var(--space-6);
-}
-
+/* ================== How it works: one quiet line under the search ================== */
 .how-line {
   list-style: none;
-  width: fit-content;
-  max-width: 100%;
-  margin: 0 auto;
-  padding: var(--space-3) var(--space-4);
+  margin: var(--space-6) 0 0;
+  padding: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: var(--space-3);
   flex-wrap: nowrap;
-  background-color: var(--paper-raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-full);
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--ink);
+  color: var(--ink-soft);
   white-space: nowrap;
 }
 
@@ -718,7 +703,6 @@
 @media (max-width: 560px) {
   .how-line {
     gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
     font-size: var(--text-xs);
   }
   .how-line li + li::before {
