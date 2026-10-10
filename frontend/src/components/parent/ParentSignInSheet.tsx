@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X } from 'lucide-react';
+import { X } from '../ui/icons';
 import { auth as authApi, parentChildren, type ParentChild } from '../../api';
 import { useAuth } from '../../auth';
 import { SchoolCrest } from '../school/SchoolCrest';

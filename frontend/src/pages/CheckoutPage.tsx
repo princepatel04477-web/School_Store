@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ShieldCheck } from '../components/ui/icons';
 import { formatINR } from '../utils/formatINR';
 import { useStoreState } from '../store/storeState';
 import { paymentAdapter } from '../services/paymentAdapter';

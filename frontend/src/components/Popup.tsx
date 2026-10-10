@@ -70,7 +70,6 @@ export function Popup({
           padding: '28px 24px',
           textAlign: 'center',
           borderRadius: '16px',
-          boxShadow: '0 20px 45px rgba(23, 34, 31, 0.28)',
           background: '#ffffff',
         }}
       >

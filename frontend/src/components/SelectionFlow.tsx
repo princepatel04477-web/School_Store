@@ -423,7 +423,6 @@ export function SelectionFlow({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
             flexWrap: 'wrap',
             gap: '10px',
           }}
@@ -718,7 +717,6 @@ export function SelectionFlow({
                 borderRadius: '16px',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
-                boxShadow: selection.gender === 'boy' ? '0 4px 12px rgba(39,91,76,0.12)' : '0 1px 3px rgba(0,0,0,0.04)',
                 minHeight: '140px',
               }}
             >
@@ -751,7 +749,6 @@ export function SelectionFlow({
                 borderRadius: '16px',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
-                boxShadow: selection.gender === 'girl' ? '0 4px 12px rgba(39,91,76,0.12)' : '0 1px 3px rgba(0,0,0,0.04)',
                 minHeight: '140px',
               }}
             >
@@ -782,7 +779,6 @@ export function SelectionFlow({
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
               flexWrap: 'wrap',
               gap: '10px',
             }}
@@ -1421,7 +1417,6 @@ export function SelectionFlow({
               padding: '24px',
               borderRadius: '16px',
               background: '#fff',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
             }}
           >
             <div style={{ fontSize: '36px', textAlign: 'center', marginBottom: '8px' }}>⚠️</div>

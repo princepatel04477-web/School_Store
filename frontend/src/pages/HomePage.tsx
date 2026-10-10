@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Search, ArrowRight, ShieldCheck, RefreshCw, Truck, MessageCircle } from 'lucide-react';
+import { Search, ArrowRight, ShieldCheck, RefreshCw, Truck, MessageCircle } from '../components/ui/icons';
 import { motion, AnimatePresence } from 'motion/react';
 import { seedSchools, type SeedSchool } from '../data/seedData';
 import { useStoreState } from '../store/storeState';

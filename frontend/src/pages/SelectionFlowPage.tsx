@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { Search, Check, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Search, Check, ArrowRight, ArrowLeft } from '../components/ui/icons';
 import { motion } from 'motion/react';
 import { seedSchools, seedClasses, seedProducts, type SeedSchool, type SeedClass, type SeedProduct } from '../data/seedData';
 import { useStoreState, storeState } from '../store/storeState';

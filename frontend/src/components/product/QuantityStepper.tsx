@@ -1,4 +1,4 @@
-import { Minus, Plus } from 'lucide-react';
+import { Minus, Plus } from '../ui/icons';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EASING } from '../../motion/motionConfig';

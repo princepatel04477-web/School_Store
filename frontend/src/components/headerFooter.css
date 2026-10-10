@@ -40,7 +40,6 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
-  box-shadow: 0 4px 20px rgba(21, 24, 30, 0.04);
 }
 
 .header-inner {
