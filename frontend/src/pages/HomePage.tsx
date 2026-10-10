@@ -306,41 +306,27 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* 2. HOW IT WORKS */}
-      <section className="section-wrap container">
+      {/* 2. HOW IT WORKS: one line */}
+      <section className="container how-line-wrap" aria-label="How it works">
         <Reveal>
-          <div className="section-head">
-            <span className="label">Simple 3-step process</span>
-            <h2>How it works</h2>
-            <Hairline />
-          </div>
+          <ol className="how-line">
+            <li className="house-0">
+              <span className="how-num">1</span>
+              <span className="how-long">Choose your school</span>
+              <span className="how-short">School</span>
+            </li>
+            <li className="house-1">
+              <span className="how-num">2</span>
+              <span className="how-long">Pick the class</span>
+              <span className="how-short">Class</span>
+            </li>
+            <li className="house-2">
+              <span className="how-num">3</span>
+              <span className="how-long">Add the whole list to bag</span>
+              <span className="how-short">Add to bag</span>
+            </li>
+          </ol>
         </Reveal>
-
-        <Stagger className="how-it-works-grid">
-          <div className="step-card house-0">
-            <span className="step-num">01</span>
-            <h3 className="step-title">Choose your school</h3>
-            <p className="step-desc">
-              Select your school campus to view official uniform guidelines and approved colors.
-            </p>
-          </div>
-
-          <div className="step-card house-1">
-            <span className="step-num">02</span>
-            <h3 className="step-title">Pick the class</h3>
-            <p className="step-desc">
-              Choose nursery through secondary to unlock curriculum-specific notebooks and attire.
-            </p>
-          </div>
-
-          <div className="step-card house-2">
-            <span className="step-num">03</span>
-            <h3 className="step-title">Add the list to bag</h3>
-            <p className="step-desc">
-              Add the pre-bundled required uniform set in one tap, or tailor individual sizes.
-            </p>
-          </div>
-        </Stagger>
       </section>
 
       {/* 3. SHOP BY CATEGORY (Editorial Grid) */}

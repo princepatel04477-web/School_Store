@@ -372,47 +372,7 @@
   margin: var(--space-3) 0 0;
 }
 
-/* ================== How It Works ================== */
-.how-it-works-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-6);
-}
 
-@media (min-width: 768px) {
-  .how-it-works-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.step-card {
-  background-color: var(--paper-raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  padding: var(--space-8);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.step-num {
-  font-family: var(--font-display);
-  font-size: var(--text-4xl);
-  font-weight: 600;
-  color: var(--accent-text);
-  margin-bottom: var(--space-4);
-}
-
-.step-title {
-  font-size: var(--text-xl);
-  margin-bottom: var(--space-2);
-}
-
-.step-desc {
-  font-size: var(--text-sm);
-  color: var(--ink-soft);
-  line-height: 1.5;
-}
 
 
 
@@ -654,17 +614,7 @@
   color: var(--navy);
 }
 
-/* Step numbers: big jersey numerals, one house each */
-.home-page .step-num {
-  font-weight: 800;
-  font-stretch: var(--stretch-condensed);
-  font-size: clamp(3.5rem, 2.5rem + 3vw, 5rem);
-  line-height: 0.85;
-  font-variant-numeric: tabular-nums;
-}
-.home-page .step-card.house-0 .step-num { color: var(--house-red); }
-.home-page .step-card.house-1 .step-num { color: var(--house-blue); }
-.home-page .step-card.house-2 .step-num { color: var(--house-green); }
+
 
 /* Category tiles: each category owns a house colour */
 .cat-tile {
@@ -701,5 +651,83 @@
 @media (max-width: 767px) {
   .hero-right {
     display: none;
+  }
+}
+
+/* ================== How it works: one slim line ================== */
+.how-line-wrap {
+  padding-block: var(--space-6);
+}
+
+.how-line {
+  list-style: none;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  flex-wrap: nowrap;
+  background-color: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.how-line li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Arrow between steps */
+.how-line li + li::before {
+  content: '';
+  width: 18px;
+  height: 1.5px;
+  margin-right: var(--space-1);
+  background-color: var(--ink-faint);
+}
+
+.how-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--on-brand);
+  font-variant-numeric: tabular-nums;
+}
+
+.how-line .house-0 .how-num { background-color: var(--house-red); }
+.how-line .house-1 .how-num { background-color: var(--house-blue); }
+.how-line .house-2 .how-num { background-color: var(--house-green); }
+
+.how-short {
+  display: none;
+}
+
+/* Phones: short labels keep it on one line */
+@media (max-width: 560px) {
+  .how-line {
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
+  }
+  .how-line li + li::before {
+    width: 10px;
+  }
+  .how-long {
+    display: none;
+  }
+  .how-short {
+    display: inline;
   }
 }
