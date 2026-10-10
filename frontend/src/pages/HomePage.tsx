@@ -290,29 +290,6 @@ export function HomePage() {
                 )}
               </AnimatePresence>
             </Reveal>
-
-            {/* How it works, as one quiet line under the search */}
-            {!selection && (
-              <Reveal delay={0.35}>
-              <ol className="how-line" aria-label="How it works">
-                <li className="house-0">
-                  <span className="how-num">1</span>
-                  <span className="how-long">Choose your school</span>
-                  <span className="how-short">School</span>
-                </li>
-                <li className="house-1">
-                  <span className="how-num">2</span>
-                  <span className="how-long">Pick the class</span>
-                  <span className="how-short">Class</span>
-                </li>
-                <li className="house-2">
-                  <span className="how-num">3</span>
-                  <span className="how-long">Add the whole list to bag</span>
-                  <span className="how-short">Add to bag</span>
-                </li>
-              </ol>
-              </Reveal>
-            )}
           </div>
         </div>
       </section>
