@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { SchoolCrest } from '../school/SchoolCrest';
 import { EASING } from '../../motion/motionConfig';
@@ -37,6 +37,11 @@ export interface StudentIdCardProps {
 const SWING = { rotate: [9, -6.5, 4, -2.2, 0.8, 0] };
 const SWING_TIME = { duration: 2.2, ease: 'easeInOut' as const, times: [0, 0.2, 0.42, 0.62, 0.82, 1] };
 
+/** Flip: slow and even, like turning a card over by hand */
+const FLIP_TIME = { duration: 1.2, ease: [0.45, 0, 0.55, 1] as const };
+/** The mouse must rest on the card this long before it turns, so passing over doesn't flip it */
+const HOVER_INTENT_MS = 180;
+
 function initials(name: string) {
   return name
     .split(/\s+/)
@@ -65,6 +70,8 @@ export function StudentIdCard({ school, student, session, isExample = false }: S
   // Last input used on the card; keyboard until a pointer touches it
   const lastPointer = useRef<string>('keyboard');
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const hoverTimer = useRef<number>();
+  useEffect(() => () => window.clearTimeout(hoverTimer.current), []);
 
   const canHover = typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
@@ -116,10 +123,13 @@ export function StudentIdCard({ school, student, session, isExample = false }: S
               lastPointer.current = e.pointerType;
             }}
             onPointerEnter={(e) => {
-              if (e.pointerType === 'mouse' && canHover) setFlipped(true);
+              if (e.pointerType !== 'mouse' || !canHover) return;
+              window.clearTimeout(hoverTimer.current);
+              hoverTimer.current = window.setTimeout(() => setFlipped(true), HOVER_INTENT_MS);
             }}
             onPointerLeave={(e) => {
               if (e.pointerType === 'mouse' && canHover) {
+                window.clearTimeout(hoverTimer.current);
                 setFlipped(false);
                 setTilt({ x: 0, y: 0 });
               }
@@ -131,7 +141,7 @@ export function StudentIdCard({ school, student, session, isExample = false }: S
               lastPointer.current = 'keyboard';
             }}
             animate={{ rotateY: flipped ? 180 : 0 }}
-            transition={{ duration: shouldReduceMotion ? 0 : 0.7, ease: EASING }}
+            transition={shouldReduceMotion ? { duration: 0 } : FLIP_TIME}
           >
             {/* ---------- Front ---------- */}
             <div className={`idc-face idc-front ${isExample ? 'is-example' : ''}`}>
