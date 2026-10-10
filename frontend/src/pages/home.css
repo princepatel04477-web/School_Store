@@ -41,6 +41,15 @@
   color: var(--navy);
 }
 
+/* Each line balances its own wrap; the payoff line takes the house red */
+.hero-heading > * {
+  text-wrap: balance;
+}
+
+.hero-heading > :last-child {
+  color: var(--house-red);
+}
+
 /* Four house colours, home page only */
 .house-stripe {
   display: grid;
@@ -66,6 +75,7 @@
 }
 
 .hero-subtext {
+  text-wrap: pretty;
   font-size: var(--text-lg);
   color: var(--ink-soft);
   max-width: 46ch;

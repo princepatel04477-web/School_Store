@@ -128,12 +128,12 @@ export function HomePage() {
         <div className="hero-grid">
           <div className="hero-left">
             <TextReveal
-              lines={['School essentials,', 'sorted.']}
+              lines={['Everything your school asks for.', 'One order.']}
               className="hero-heading"
             />
             <Reveal delay={0.15}>
               <p className="hero-subtext">
-                Pick your school and class to see the exact list.
+                Uniform, shoes, books and ID card from your school’s own list. Delivered home or collected at school.
               </p>
             </Reveal>
 
