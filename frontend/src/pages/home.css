@@ -695,3 +695,11 @@
 .cat-tile .cat-arrow {
   color: var(--on-tile);
 }
+
+/* Phones: the example class list is left out so the school search is the
+   whole first screen. Tablets and desktop keep it beside the headline. */
+@media (max-width: 767px) {
+  .hero-right {
+    display: none;
+  }
+}

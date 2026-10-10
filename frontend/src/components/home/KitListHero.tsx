@@ -35,9 +35,10 @@ export function KitListHero({ schoolName }: KitListHeroProps) {
   const total = EXAMPLE_LIST.length;
   const [ticked, setTicked] = useState(shouldReduceMotion ? total : 0);
 
-  // Tick the list off one line at a time, once, on first view
+  // Tick the list off one line at a time, once, on first view.
+  // Skipped when the list is hidden (phones), so no timers run for nothing.
   useEffect(() => {
-    if (shouldReduceMotion) {
+    if (shouldReduceMotion || window.matchMedia('(max-width: 767px)').matches) {
       setTicked(total);
       return;
     }
