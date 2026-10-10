@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { X } from './ui/icons';
+import { CategoryOutlineIllustration } from './product/CategoryOutlineIllustration';
 import { useQuery } from '@tanstack/react-query';
 import { api, Product, StockStatus } from '../api';
 import { CLASSES } from '../data/classes';
@@ -417,7 +419,7 @@ export function SelectionFlow({
           style={{
             background: '#ffffff',
             border: '1px solid var(--line, #dfe5dd)',
-            borderRadius: '12px',
+            borderRadius: '6px',
             padding: '12px 18px',
             marginBottom: '1.5rem',
             display: 'flex',
@@ -433,17 +435,17 @@ export function SelectionFlow({
             </span>
             {selection.school && (
               <span className="pill" style={{ background: '#eef3ef', color: '#275b4c', fontWeight: 600 }}>
-                🏫 {selection.school.name}
+                {selection.school.name}
               </span>
             )}
             {selection.city && (
               <span className="pill" style={{ background: '#eef3ef', color: '#275b4c', fontWeight: 600 }}>
-                📍 {selection.city.name}
+                {selection.city.name}
               </span>
             )}
             {selection.grade && (
               <span className="pill" style={{ background: '#eef3ef', color: '#275b4c', fontWeight: 600 }}>
-                🎓 {selection.grade.name}
+                {selection.grade.name}
               </span>
             )}
           </div>
@@ -463,7 +465,7 @@ export function SelectionFlow({
           style={{
             background: '#edf6ef',
             border: '1px solid #c8e1cf',
-            borderRadius: '12px',
+            borderRadius: '6px',
             padding: '14px 18px',
             marginBottom: '1.5rem',
             display: 'flex',
@@ -484,9 +486,9 @@ export function SelectionFlow({
           <button
             className="primary"
             onClick={handlePreFillConfirm}
-            style={{ fontSize: '12px', padding: '8px 16px', borderRadius: '8px' }}
+            style={{ fontSize: '12px', padding: '8px 16px', borderRadius: '4px' }}
           >
-            Pre-fill in 1 tap ✓
+            Pre-fill in 1 tap
           </button>
         </div>
       )}
@@ -502,7 +504,6 @@ export function SelectionFlow({
           </div>
 
           <div className="search" style={{ marginBottom: '16px' }}>
-            <span>🔍</span>
             <input
               type="text"
               placeholder="Search active schools..."
@@ -537,11 +538,10 @@ export function SelectionFlow({
                     textAlign: 'left',
                     background: selection.school?.id === school.id ? '#edf6ef' : '#fafbf8',
                     border: selection.school?.id === school.id ? '2px solid var(--green, #275b4c)' : '1px solid var(--line, #dfe5dd)',
-                    borderRadius: '10px',
+                    borderRadius: '4px',
                     cursor: 'pointer',
                   }}
                 >
-                  <span style={{ fontSize: '20px' }}>🏫</span>
                   <div style={{ flex: 1 }}>
                     <strong style={{ fontSize: '13px', display: 'block', color: 'var(--ink, #17221f)' }}>
                       {school.name}
@@ -598,11 +598,10 @@ export function SelectionFlow({
                     textAlign: 'left',
                     background: selection.city?.id === city.id ? '#edf6ef' : '#fafbf8',
                     border: selection.city?.id === city.id ? '2px solid var(--green, #275b4c)' : '1px solid var(--line, #dfe5dd)',
-                    borderRadius: '10px',
+                    borderRadius: '4px',
                     cursor: 'pointer',
                   }}
                 >
-                  <span style={{ fontSize: '20px' }}>📍</span>
                   <div style={{ flex: 1 }}>
                     <strong style={{ fontSize: '14px', display: 'block', color: 'var(--ink, #17221f)' }}>
                       {city.name}
@@ -654,12 +653,11 @@ export function SelectionFlow({
                   textAlign: 'center',
                   background: selection.grade?.id === grade.id ? '#edf6ef' : '#fafbf8',
                   border: selection.grade?.id === grade.id ? '2px solid var(--green, #275b4c)' : '1px solid var(--line, #dfe5dd)',
-                  borderRadius: '10px',
+                  borderRadius: '4px',
                   cursor: 'pointer',
                   minHeight: '68px',
                 }}
               >
-                <span style={{ fontSize: '16px', marginBottom: '4px' }}>🎓</span>
                 <strong style={{ fontSize: '13px', color: 'var(--ink, #17221f)' }}>
                   {grade.name}
                 </strong>
@@ -714,13 +712,12 @@ export function SelectionFlow({
                 textAlign: 'center',
                 background: selection.gender === 'boy' ? '#edf6ef' : '#fafbf8',
                 border: selection.gender === 'boy' ? '2px solid var(--green, #275b4c)' : '1px solid var(--line, #dfe5dd)',
-                borderRadius: '16px',
+                borderRadius: '6px',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 minHeight: '140px',
               }}
             >
-              <span style={{ fontSize: '48px', display: 'block', marginBottom: '10px' }}>👦</span>
               <strong style={{ fontSize: '19px', display: 'block', color: 'var(--ink, #17221f)' }}>
                 Boy
               </strong>
@@ -746,13 +743,12 @@ export function SelectionFlow({
                 textAlign: 'center',
                 background: selection.gender === 'girl' ? '#edf6ef' : '#fafbf8',
                 border: selection.gender === 'girl' ? '2px solid var(--green, #275b4c)' : '1px solid var(--line, #dfe5dd)',
-                borderRadius: '16px',
+                borderRadius: '6px',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 minHeight: '140px',
               }}
             >
-              <span style={{ fontSize: '48px', display: 'block', marginBottom: '10px' }}>👧</span>
               <strong style={{ fontSize: '19px', display: 'block', color: 'var(--ink, #17221f)' }}>
                 Girl
               </strong>
@@ -773,7 +769,7 @@ export function SelectionFlow({
             style={{
               background: '#ffffff',
               border: '1px solid var(--line, #dfe5dd)',
-              borderRadius: '12px',
+              borderRadius: '6px',
               padding: '12px 18px',
               marginBottom: '1.5rem',
               display: 'flex',
@@ -789,22 +785,22 @@ export function SelectionFlow({
               </span>
               {selection.school && (
                 <span className="pill" style={{ background: '#eef3ef', color: '#275b4c', fontWeight: 600 }}>
-                  🏫 {selection.school.name}
+                  {selection.school.name}
                 </span>
               )}
               {selection.city && (
                 <span className="pill" style={{ background: '#eef3ef', color: '#275b4c', fontWeight: 600 }}>
-                  📍 {selection.city.name}
+                  {selection.city.name}
                 </span>
               )}
               {selection.grade && (
                 <span className="pill" style={{ background: '#eef3ef', color: '#275b4c', fontWeight: 600 }}>
-                  🎓 {selection.grade.name}
+                  {selection.grade.name}
                 </span>
               )}
               {selection.gender && (
                 <span className="pill" style={{ background: '#eef3ef', color: '#275b4c', fontWeight: 600 }}>
-                  {selection.gender === 'boy' ? '👦 Boy' : '👧 Girl'}
+                  {selection.gender === 'boy' ? 'Boy' : 'Girl'}
                 </span>
               )}
             </div>
@@ -824,7 +820,7 @@ export function SelectionFlow({
                     fontWeight: 600,
                   }}
                 >
-                  📏 Shoe Size Guide
+                  Shoe Size Guide
                 </button>
               )}
               <button
@@ -835,13 +831,13 @@ export function SelectionFlow({
                   fontSize: '13px',
                   fontWeight: 600,
                   padding: '6px 12px',
-                  borderRadius: '8px',
+                  borderRadius: '4px',
                   border: '1px solid var(--line, #dfe5dd)',
                   background: '#fafbf8',
                   cursor: 'pointer',
                 }}
               >
-                Change ✎
+                Change
               </button>
             </div>
           </div>
@@ -868,7 +864,7 @@ export function SelectionFlow({
                 marginBottom: '20px',
                 padding: '8px 12px',
                 background: '#ffffff',
-                borderRadius: '10px',
+                borderRadius: '4px',
                 border: '1px solid var(--line, #dfe5dd)',
                 width: 'fit-content',
                 flexWrap: 'wrap',
@@ -891,7 +887,7 @@ export function SelectionFlow({
                 className={productTypeFilter === 'SOCKS' ? 'chip active' : 'chip'}
                 style={{ padding: '6px 14px', fontSize: '12px' }}
               >
-                🧦 Socks
+                Socks
               </button>
               <button
                 type="button"
@@ -899,7 +895,7 @@ export function SelectionFlow({
                 className={productTypeFilter === 'BELT' ? 'chip active' : 'chip'}
                 style={{ padding: '6px 14px', fontSize: '12px' }}
               >
-                🏷️ Belt
+                Belt
               </button>
               <button
                 type="button"
@@ -907,7 +903,7 @@ export function SelectionFlow({
                 className={productTypeFilter === 'TIE' ? 'chip active' : 'chip'}
                 style={{ padding: '6px 14px', fontSize: '12px' }}
               >
-                👔 Tie
+                Tie
               </button>
             </div>
           )}
@@ -918,7 +914,6 @@ export function SelectionFlow({
             </div>
           ) : productsList.length === 0 ? (
             <div className="empty" style={{ padding: '48px 20px', textAlign: 'center' }}>
-              <span style={{ fontSize: '36px', display: 'block', marginBottom: '12px' }}>📦</span>
               <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 8px', color: 'var(--ink)' }}>
                 {`No items listed yet for ${
                   selection.grade?.name
@@ -938,17 +933,17 @@ export function SelectionFlow({
                   type="button"
                   className="primary"
                   onClick={() => requestStepChange(3)}
-                  style={{ fontSize: '13px', padding: '10px 18px', borderRadius: '8px' }}
+                  style={{ fontSize: '13px', padding: '10px 18px', borderRadius: '4px' }}
                 >
-                  Change Class 🎓
+                  Change Class 
                 </button>
                 <button
                   type="button"
                   className="secondary"
                   onClick={() => requestStepChange(4)}
-                  style={{ fontSize: '13px', padding: '10px 18px', borderRadius: '8px', width: 'auto' }}
+                  style={{ fontSize: '13px', padding: '10px 18px', borderRadius: '4px', width: 'auto' }}
                 >
-                  Change Boy / Girl 👤
+                  Change Boy / Girl 
                 </button>
               </div>
             </div>
@@ -964,21 +959,7 @@ export function SelectionFlow({
                 return (
                   <article className="product" key={p.id}>
                     <div className={'product-image ' + p.category.toLowerCase().replace(' ', '-')}>
-                      {p.category.toLowerCase().includes('shoe')
-                        ? '👞'
-                        : p.product_type === 'SOCKS'
-                        ? '🧦'
-                        : p.product_type === 'BELT'
-                        ? '🏷️'
-                        : p.product_type === 'TIE'
-                        ? '👔'
-                        : p.category.toLowerCase().includes('accessories')
-                        ? '🎀'
-                        : p.category === 'Stationery'
-                        ? '▤'
-                        : p.category === 'ID Cards'
-                        ? '▧'
-                        : '▥'}
+                      <CategoryOutlineIllustration category={p.category} />
                     </div>
                     <div className="product-body">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
@@ -1006,7 +987,7 @@ export function SelectionFlow({
                         )}
                         {hasCustom && (
                           <span className="badge s-confirmed" style={{ fontSize: '10px' }}>
-                            ✦ Personalised
+                            Personalised
                           </span>
                         )}
                       </div>
@@ -1024,7 +1005,7 @@ export function SelectionFlow({
                             }}
                             style={{ fontSize: '11px', color: '#275b4c', padding: 0, textDecoration: 'underline' }}
                           >
-                            📏 Shoe Size Guide
+                            Shoe Size Guide
                           </button>
                         </div>
                       )}
@@ -1035,7 +1016,7 @@ export function SelectionFlow({
                           style={{ marginTop: '10px' }}
                           onClick={() => openProductCustomisation(p)}
                         >
-                          {hasCustom ? 'Personalise & Order ✦' : 'Select Size & Order →'}
+                          {hasCustom ? 'Personalise & Order' : 'Select Size & Order →'}
                         </button>
                       ) : (
                         <button
@@ -1043,7 +1024,7 @@ export function SelectionFlow({
                           style={{ marginTop: '10px' }}
                           onClick={() => openProductCustomisation(p)}
                         >
-                          {hasCustom ? 'Personalise & Add ✦' : 'Add to cart +'}
+                          {hasCustom ? 'Personalise & Add' : 'Add to cart +'}
                         </button>
                       )}
                     </div>
@@ -1074,9 +1055,7 @@ export function SelectionFlow({
                   {selectedProduct.category} · ₹{selectedProduct.price.toLocaleString('en-IN')}
                 </div>
               </div>
-              <button className="icon-btn" onClick={() => setSelectedProduct(null)}>
-                ✕
-              </button>
+              <button className="icon-btn" aria-label="Close" onClick={() => setSelectedProduct(null)}><X width={18} height={18} /></button>
             </div>
 
             {tieHasNoSpecificSize ? (
@@ -1084,7 +1063,7 @@ export function SelectionFlow({
                 style={{
                   background: '#f4f6f4',
                   border: '1px dashed #c9d4c9',
-                  borderRadius: '8px',
+                  borderRadius: '4px',
                   padding: '10px 14px',
                   marginBottom: '16px',
                   fontSize: '13px',
@@ -1094,7 +1073,6 @@ export function SelectionFlow({
                   gap: '8px',
                 }}
               >
-                <span>👔</span>
                 <span><strong>Standard School Tie</strong> · One Size (No size selection required)</span>
               </div>
             ) : (
@@ -1117,7 +1095,7 @@ export function SelectionFlow({
                       className="text-button"
                       style={{ fontSize: '11px', textDecoration: 'underline', color: '#275b4c', padding: 0 }}
                     >
-                      📏 View Size Guide
+                      View Size Guide
                     </button>
                   )}
                 </div>
@@ -1127,7 +1105,7 @@ export function SelectionFlow({
                   style={{
                     width: '100%',
                     border: '1px solid #c9d4c9',
-                    borderRadius: '8px',
+                    borderRadius: '4px',
                     padding: '10px',
                     fontSize: '13px',
                     background: '#fff',
@@ -1211,16 +1189,14 @@ export function SelectionFlow({
                   Standard Indian School Shoe Sizing (Bata, Action, Liberty, Campus standards)
                 </div>
               </div>
-              <button className="icon-btn" onClick={() => setShowSizeGuide(false)}>
-                ✕
-              </button>
+              <button className="icon-btn" aria-label="Close" onClick={() => setShowSizeGuide(false)}><X width={18} height={18} /></button>
             </div>
 
             <div
               style={{
                 background: '#f4f8f5',
                 border: '1px solid #d2e4d8',
-                borderRadius: '8px',
+                borderRadius: '4px',
                 padding: '12px 14px',
                 fontSize: '12px',
                 color: '#275b4c',
@@ -1228,7 +1204,7 @@ export function SelectionFlow({
                 marginBottom: '16px',
               }}
             >
-              <strong>💡 How to measure your child's feet:</strong>
+              <strong>How to measure your child's feet:</strong>
               <ol style={{ margin: '6px 0 0 18px', padding: 0 }}>
                 <li>Place a sheet of paper on the floor against a flat wall.</li>
                 <li>Have your child stand on the paper wearing their normal school socks with their heel against the wall.</li>
@@ -1309,7 +1285,7 @@ export function SelectionFlow({
           <div
             className="modal"
             onClick={(e) => e.stopPropagation()}
-            style={{ width: 'min(420px, 92vw)', padding: '24px', borderRadius: '16px', background: '#fff' }}
+            style={{ width: 'min(420px, 92vw)', padding: '24px', borderRadius: '6px', background: '#fff' }}
           >
             <h3 style={{ margin: '0 0 6px', fontSize: '18px', color: 'var(--ink)' }}>
               Change Selection
@@ -1328,13 +1304,13 @@ export function SelectionFlow({
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '12px 16px',
-                  borderRadius: '10px',
+                  borderRadius: '4px',
                   textAlign: 'left',
                 }}
               >
                 <div>
                   <strong style={{ display: 'block', fontSize: '14px', color: 'var(--green)' }}>
-                    🎓 Change Class
+                    Change Class
                   </strong>
                   <small style={{ color: '#6b7280', fontSize: '11px' }}>
                     Currently: {selection.grade?.name || 'Not set'}
@@ -1352,13 +1328,13 @@ export function SelectionFlow({
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '12px 16px',
-                  borderRadius: '10px',
+                  borderRadius: '4px',
                   textAlign: 'left',
                 }}
               >
                 <div>
                   <strong style={{ display: 'block', fontSize: '14px', color: 'var(--green)' }}>
-                    👤 Change Boy / Girl
+                    Change Boy / Girl
                   </strong>
                   <small style={{ color: '#6b7280', fontSize: '11px' }}>
                     Currently: {selection.gender === 'boy' ? 'Boy' : selection.gender === 'girl' ? 'Girl' : 'Not set'}
@@ -1376,13 +1352,13 @@ export function SelectionFlow({
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '12px 16px',
-                  borderRadius: '10px',
+                  borderRadius: '4px',
                   textAlign: 'left',
                 }}
               >
                 <div>
                   <strong style={{ display: 'block', fontSize: '14px', color: 'var(--green)' }}>
-                    🏫 Change School &amp; City
+                    Change School &amp; City
                   </strong>
                   <small style={{ color: '#6b7280', fontSize: '11px' }}>
                     Currently: {selection.school?.name} · {selection.city?.name}
@@ -1415,11 +1391,10 @@ export function SelectionFlow({
             style={{
               width: 'min(400px, 92vw)',
               padding: '24px',
-              borderRadius: '16px',
+              borderRadius: '6px',
               background: '#fff',
             }}
           >
-            <div style={{ fontSize: '36px', textAlign: 'center', marginBottom: '8px' }}>⚠️</div>
             <h3 style={{ margin: '0 0 8px', fontSize: '18px', textAlign: 'center', color: 'var(--ink)' }}>
               Cart will be cleared
             </h3>
@@ -1438,7 +1413,7 @@ export function SelectionFlow({
                   background: '#a34235',
                   borderColor: '#a34235',
                   padding: '12px',
-                  borderRadius: '10px',
+                  borderRadius: '4px',
                   fontSize: '13px',
                   fontWeight: 700,
                   color: '#fff',
@@ -1453,7 +1428,7 @@ export function SelectionFlow({
                 onClick={handleCancelCartClear}
                 style={{
                   padding: '10px',
-                  borderRadius: '10px',
+                  borderRadius: '4px',
                   fontSize: '13px',
                   width: '100%',
                   justifyContent: 'center',

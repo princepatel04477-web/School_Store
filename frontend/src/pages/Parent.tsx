@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Check } from '../components/ui/icons';
 import { Link, Route, Routes } from 'react-router-dom';
 import { Shell } from '../App';
 import { SelectionFlow } from '../components/SelectionFlow';
@@ -63,12 +64,12 @@ function Dashboard() {
       ? studentsData.results.map((s: any) => ({
           id: s.id,
           name: s.name,
-          gr_number: s.gr_number || '—',
-          grade_name: s.grade_name || s.class_name || '—',
-          class_name: s.class_name || '—',
-          section: s.section || '—',
-          gender: s.gender ? (s.gender === 'MALE' ? 'Male' : s.gender === 'FEMALE' ? 'Female' : s.gender) : '—',
-          school_name: s.school_name || '—',
+          gr_number: s.gr_number || '-',
+          grade_name: s.grade_name || s.class_name || '-',
+          class_name: s.class_name || '-',
+          section: s.section || '-',
+          gender: s.gender ? (s.gender === 'MALE' ? 'Male' : s.gender === 'FEMALE' ? 'Female' : s.gender) : '-',
+          school_name: s.school_name || '-',
         }))
       : fallbackKids;
 
@@ -121,7 +122,6 @@ function Dashboard() {
           </h2>
           <p>Choose a child or standard to find tailored essentials.</p>
         </div>
-        <div className="scribble">✳</div>
       </div>
 
       <div className="student-picker">
@@ -143,7 +143,7 @@ function Dashboard() {
                 <b>{k.name}</b>
                 <small>{k.grade_name ? `Grade ${k.grade_name}` : `Class ${k.class_name}`} {k.section ? `${k.section} · ` : ' · '}{k.school_name}</small>
               </span>
-              <span className="radio">{selected?.id === k.id ? '✓' : ''}</span>
+              <span className="radio">{selected?.id === k.id ? <Check width={14} height={14} strokeWidth={2.5} /> : null}</span>
             </button>
           ))}
         </div>
@@ -154,7 +154,7 @@ function Dashboard() {
           style={{
             background: 'var(--card-bg, #ffffff)',
             border: '1px solid var(--line, #dfe5dd)',
-            borderRadius: '12px',
+            borderRadius: '6px',
             padding: '1.25rem',
             margin: '1.5rem 0',
           }}
@@ -189,7 +189,7 @@ function Dashboard() {
               style={{
                 fontSize: '0.75rem',
                 padding: '0.25rem 0.6rem',
-                borderRadius: '9999px',
+                borderRadius: '6px',
                 background: '#f3f4f6',
                 color: '#4b5563',
                 fontWeight: 500,
@@ -211,33 +211,33 @@ function Dashboard() {
               <span style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>
                 GR Number
               </span>
-              <strong style={{ fontSize: '0.95rem' }}>{selected.gr_number || '—'}</strong>
+              <strong style={{ fontSize: '0.95rem' }}>{selected.gr_number || '-'}</strong>
             </div>
             <div>
               <span style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>
                 Grade / Class
               </span>
               <strong style={{ fontSize: '0.95rem' }}>
-                {selected.grade_name || selected.class_name || '—'}
+                {selected.grade_name || selected.class_name || '-'}
               </strong>
             </div>
             <div>
               <span style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>
                 Section
               </span>
-              <strong style={{ fontSize: '0.95rem' }}>{selected.section || '—'}</strong>
+              <strong style={{ fontSize: '0.95rem' }}>{selected.section || '-'}</strong>
             </div>
             <div>
               <span style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>
                 Gender
               </span>
-              <strong style={{ fontSize: '0.95rem' }}>{selected.gender || '—'}</strong>
+              <strong style={{ fontSize: '0.95rem' }}>{selected.gender || '-'}</strong>
             </div>
             <div>
               <span style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>
                 School
               </span>
-              <strong style={{ fontSize: '0.95rem' }}>{selected.school_name || '—'}</strong>
+              <strong style={{ fontSize: '0.95rem' }}>{selected.school_name || '-'}</strong>
             </div>
           </div>
 

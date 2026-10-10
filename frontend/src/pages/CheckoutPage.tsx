@@ -579,6 +579,10 @@ export function CheckoutPage() {
                     </AnimatePresence>
                   </span>
                 </button>
+                <p className="checkout-legal-note">
+                  By paying you agree to our <Link to="/terms">Terms</Link>, <Link to="/refunds">Refund Policy</Link> and{' '}
+                  <Link to="/privacy">Privacy Policy</Link>.
+                </p>
               </div>
             )}
           </section>

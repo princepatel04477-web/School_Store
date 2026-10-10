@@ -78,7 +78,7 @@ export function CustomisationForm({
       style={{
         background: '#f8faf8',
         border: '1px solid #dfe5dd',
-        borderRadius: '12px',
+        borderRadius: '6px',
         padding: '16px',
         margin: '14px 0',
         display: 'grid',
@@ -86,7 +86,6 @@ export function CustomisationForm({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span style={{ fontSize: '15px' }}>✦</span>
         <b style={{ fontSize: '13px', color: '#17221f' }}>Customisation Details</b>
       </div>
 
@@ -165,7 +164,7 @@ export function CustomisationForm({
                     style={{
                       width: '64px',
                       height: '64px',
-                      borderRadius: '8px',
+                      borderRadius: '4px',
                       overflow: 'hidden',
                       border: '1px solid #c9d4c9',
                       background: '#eee',
@@ -188,7 +187,7 @@ export function CustomisationForm({
                     padding: '8px 14px',
                     background: isUploading ? '#eef2ee' : '#2a6a4e',
                     color: '#fff',
-                    borderRadius: '8px',
+                    borderRadius: '4px',
                     cursor: isUploading || disabled ? 'not-allowed' : 'pointer',
                     fontSize: '12px',
                     fontWeight: 600,
@@ -206,7 +205,7 @@ export function CustomisationForm({
 
                 {currentVal && !isUploading && (
                   <span style={{ fontSize: '11px', color: '#347052', fontWeight: 600 }}>
-                    ✓ Uploaded straight to storage
+                    Uploaded straight to storage
                   </span>
                 )}
               </div>

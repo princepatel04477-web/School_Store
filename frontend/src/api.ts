@@ -388,15 +388,15 @@ export const bossPanel={
   updateSchoolCommission:(schoolId:string,commission_rate:string|null)=>api<CitySchool>(`/schools/${schoolId}/`,{method:'PATCH',body:JSON.stringify({commission_rate})}),
 };
 export const money=(v:Money|number|null|undefined)=>{
-  if(v===null||v===undefined) return '—';
+  if(v===null||v===undefined) return '-';
   const n=typeof v==='number'?v:Number(v);
   if(Number.isNaN(n)) return String(v);
   return '₹'+n.toLocaleString('en-IN',{maximumFractionDigits:0});
 };
 export const money2=(v:Money|number|null|undefined)=>{
-  if(v===null||v===undefined) return '—';
+  if(v===null||v===undefined) return '-';
   const n=typeof v==='number'?v:Number(v);
   if(Number.isNaN(n)) return String(v);
   return '₹'+n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
 };
-export const num=(v:Money|number|null|undefined)=>v===null||v===undefined?'—':Number(v).toLocaleString('en-IN');
+export const num=(v:Money|number|null|undefined)=>v===null||v===undefined?'-':Number(v).toLocaleString('en-IN');

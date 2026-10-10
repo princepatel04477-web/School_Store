@@ -28,7 +28,6 @@
   z-index: 40;
   transition: height var(--duration-fast) var(--ease-standard),
               background-color var(--duration-fast) var(--ease-standard),
-              backdrop-filter var(--duration-fast) var(--ease-standard),
               border-color var(--duration-fast) var(--ease-standard),
               box-shadow var(--duration-fast) var(--ease-standard);
   border-bottom: 1px solid transparent;
@@ -36,9 +35,7 @@
 
 .site-header.is-scrolled {
   height: 60px;
-  background-color: color-mix(in srgb, var(--paper) 88%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background-color: var(--paper);
   border-bottom: 1px solid var(--line);
 }
 
@@ -244,7 +241,7 @@
   font-weight: 600;
   min-width: 18px;
   height: 18px;
-  border-radius: 999px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;

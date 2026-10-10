@@ -423,7 +423,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   textAlign: 'center',
                   background: activeGender === 'boy' ? 'var(--brand-tint, #edf6ef)' : 'var(--paper-raised, #ffffff)',
                   border: activeGender === 'boy' ? '2px solid var(--brand, #275b4c)' : '1px solid var(--line, #dfe5dd)',
-                  borderRadius: '16px',
+                  borderRadius: '6px',
                   cursor: 'pointer',
                   minHeight: '140px',
                   transition: 'all 0.2s ease',
@@ -447,7 +447,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   textAlign: 'center',
                   background: activeGender === 'girl' ? 'var(--brand-tint, #edf6ef)' : 'var(--paper-raised, #ffffff)',
                   border: activeGender === 'girl' ? '2px solid var(--brand, #275b4c)' : '1px solid var(--line, #dfe5dd)',
-                  borderRadius: '16px',
+                  borderRadius: '6px',
                   cursor: 'pointer',
                   minHeight: '140px',
                   transition: 'all 0.2s ease',
@@ -469,7 +469,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
               style={{
                 backgroundColor: 'var(--paper-raised, #ffffff)',
                 border: '1px solid var(--line, #dfe5dd)',
-                borderRadius: '12px',
+                borderRadius: '6px',
                 padding: '12px 18px',
                 marginBottom: '1.5rem',
                 display: 'flex',
@@ -483,19 +483,19 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                 <span style={{ fontSize: '11px', color: 'var(--ink-soft)', fontWeight: 600, textTransform: 'uppercase' }}>
                   Selection:
                 </span>
-                <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
+                <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
                   {activeSchool.name}
                 </span>
-                <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
+                <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
                   {activeSchool.city}
                 </span>
                 {activeClass && (
-                  <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
+                  <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
                     {activeClass.name}
                   </span>
                 )}
                 {activeGender && (
-                  <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
+                  <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
                     {activeGender === 'boy' ? 'Boy' : 'Girl'}
                   </span>
                 )}
@@ -671,7 +671,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       {showCartWarning && (
         <div className="modal-backdrop" style={{ zIndex: 100 }}>
           <div className="modal-card" style={{ maxWidth: '440px', padding: '24px' }}>
-            <h3 style={{ margin: '0 0 10px', fontSize: '18px', color: '#b91c1c' }}>⚠️ Clear Bag Items?</h3>
+            <h3 style={{ margin: '0 0 10px', fontSize: '18px', color: '#b91c1c' }}>Clear Bag Items?</h3>
             <p style={{ margin: '0 0 16px', fontSize: '14px', color: 'var(--ink)' }}>
               You have {cart.length} item{cart.length > 1 ? 's' : ''} in your bag for {activeClass?.name} ({activeGender === 'boy' ? 'Boy' : 'Girl'}).
               Changing your school, class, or student gender will clear items from your bag.

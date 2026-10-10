@@ -41,7 +41,6 @@ function TeacherHome() {
       </div>
       <div className="action-list">
         <Link to="students">
-          <span className="action-icon blue">♙</span>
           <div>
             <b>Find a student</b>
             <small>Order on behalf of a student</small>
@@ -138,7 +137,7 @@ function Students() {
             <div>
               <b>{s.name}</b>
               <small>
-                {s.gr || s.gr_number} · Grade {s.grade_name || s.class_name || '—'} {s.section ? `(${s.section})` : ''} · {s.gender || 'Unspecified'}
+                {s.gr || s.gr_number} · Grade {s.grade_name || s.class_name || '-'} {s.section ? `(${s.section})` : ''} · {s.gender || 'Unspecified'}
               </small>
             </div>
             <span style={{ fontSize: '13px', color: '#275b4c', fontWeight: 600 }}>Order on behalf →</span>
@@ -171,7 +170,7 @@ function Students() {
             Preview & confirm
           </button>
         ) : (
-          <span className="status">✓ Queued</span>
+          <span className="status">Queued</span>
         )}
       </div>
     </>
@@ -239,7 +238,7 @@ function TeacherOrder() {
         className="selected-student"
         style={{
           background: '#ffffff',
-          borderRadius: '12px',
+          borderRadius: '6px',
           padding: '16px 20px',
           border: '1px solid #dfe5dd',
           display: 'flex',
@@ -253,7 +252,7 @@ function TeacherOrder() {
           style={{
             width: '42px',
             height: '42px',
-            borderRadius: '50%',
+            borderRadius: '6%',
             background: '#275b4c',
             color: '#fff',
             display: 'grid',
@@ -268,7 +267,7 @@ function TeacherOrder() {
           <span className="eyebrow">ORDERING ON BEHALF OF</span>
           <h2 style={{ margin: '2px 0 4px', fontSize: '18px' }}>{student.name}</h2>
           <small style={{ color: '#55695d' }}>
-            GR: {student.gr || student.gr_number || '—'} · Grade {student.grade_name || student.class_name || '—'} · {student.school_name || 'DPS Surat'} · {student.gender ? (student.gender.toUpperCase() === 'MALE' ? 'Boy' : 'Girl') : 'Student'}
+            GR: {student.gr || student.gr_number || '-'} · Grade {student.grade_name || student.class_name || '-'} · {student.school_name || 'DPS Surat'} · {student.gender ? (student.gender.toUpperCase() === 'MALE' ? 'Boy' : 'Girl') : 'Student'}
           </small>
         </div>
       </div>

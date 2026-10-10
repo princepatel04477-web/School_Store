@@ -30,6 +30,7 @@ const CityAdmin = lazy(() => import('./pages/CityAdmin'));
 const BossPanel = lazy(() => import('./pages/BossPanel'));
 
 import { ComingSoonPage, NotFoundPage } from './pages/InfoPages';
+import { PrivacyPage, TermsPage, RefundPage } from './pages/LegalPages';
 
 export const homeFor = (role?: string) =>
   role === 'BOSS'
@@ -102,9 +103,9 @@ export default function App() {
               <Route path="/contact" element={<ComingSoonPage title="Contact Us" />} />
               <Route path="/help" element={<ComingSoonPage title="Help & FAQs" />} />
               <Route path="/size-guide" element={<ComingSoonPage title="Size Guide" />} />
-              <Route path="/privacy" element={<ComingSoonPage title="Privacy Policy" />} />
-              <Route path="/terms" element={<ComingSoonPage title="Terms of Service" />} />
-              <Route path="/refunds" element={<ComingSoonPage title="Refund Policy" />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/refunds" element={<RefundPage />} />
 
               {/* Protected Management / Portal Routes */}
               <Route path="/login" element={<Login />} />

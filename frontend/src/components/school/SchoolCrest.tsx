@@ -46,7 +46,7 @@ export function SchoolCrest({
         style={{
           width: `${size}px`,
           height: `${size}px`,
-          borderRadius: '12px',
+          borderRadius: '6px',
           objectFit: 'contain',
         }}
       />
@@ -60,7 +60,7 @@ export function SchoolCrest({
       style={{
         width: `${size}px`,
         height: `${size}px`,
-        borderRadius: size > 40 ? '14px' : '10px',
+        borderRadius: size > 40 ? '6px' : '4px',
         backgroundColor: schoolColor,
         color: 'var(--on-brand)',
         fontFamily: 'var(--font-display)',

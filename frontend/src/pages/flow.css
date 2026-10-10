@@ -188,7 +188,6 @@
 }
 
 .school-select-card:hover {
-  transform: translateY(-2px);
   border-color: var(--brand);
 }
 
@@ -219,7 +218,6 @@
 }
 
 .school-select-card:hover .school-select-arrow {
-  transform: translateX(4px);
   color: var(--brand);
 }
 
@@ -266,7 +264,6 @@
 
 .class-tile:hover {
   border-color: var(--brand);
-  transform: translateY(-2px);
 }
 
 .class-tile.is-selected {

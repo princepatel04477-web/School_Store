@@ -20,11 +20,11 @@ const useSchool = () => useContext(SchoolContext);
  * Shell
  * ------------------------------------------------------------------ */
 const NAV = [
-  { to: '', label: 'Overview', icon: '▤', end: true },
-  { to: 'orders', label: 'Orders', icon: '▣' },
-  { to: 'students', label: 'Students', icon: '♙' },
-  { to: 'teachers', label: 'Teachers', icon: '✎' },
-  { to: 'exports', label: 'Exports', icon: '↧' },
+  { to: '', label: 'Overview', end: true },
+  { to: 'orders', label: 'Orders' },
+  { to: 'students', label: 'Students' },
+  { to: 'teachers', label: 'Teachers' },
+  { to: 'exports', label: 'Exports' },
 ];
 
 export default function SchoolAdmin() {
@@ -62,7 +62,7 @@ export default function SchoolAdmin() {
         <div className="admin-body">
           <nav className="admin-nav">
             {NAV.map((n) => (
-              <AdminNavLink key={n.to} to={n.to} end={n.end}>{n.icon}<span>{n.label}</span></AdminNavLink>
+              <AdminNavLink key={n.to} to={n.to} end={n.end}><span>{n.label}</span></AdminNavLink>
             ))}
           </nav>
           <main className="admin-main">
@@ -265,7 +265,7 @@ function CommissionCard({ commission }: { commission: Commission }) {
         <dl>
           <div><dt>Gross sales (basis)</dt><dd>{money2(commission.gross_sales)}</dd></div>
           <div><dt>Commission rate</dt><dd className="muted">Not set on this school</dd></div>
-          <div><dt>Commission</dt><dd className="muted">—</dd></div>
+          <div><dt>Commission</dt><dd className="muted">-</dd></div>
         </dl>
         <p className="fine">{commission.note}</p>
       </div>
@@ -309,7 +309,7 @@ function Orders() {
         <div>
           <div className="eyebrow">ORDERS</div>
           <h1>Every order for this school</h1>
-          <p className="muted">50 rows at a time, newest first — load more to keep going.</p>
+          <p className="muted">50 rows at a time, newest first. Load more to keep going.</p>
         </div>
         <ExportButton filters={f} />
       </div>
@@ -397,7 +397,7 @@ function OrderRow({ order }: { order: PanelOrder }) {
             {it.quantity}× {it.product}{it.variant ? ` · ${it.variant}` : ''}
             {it.has_customisation && (
               <small style={{ display: 'block', color: '#2a6a4e', fontWeight: 600, fontSize: '11px' }}>
-                ✦ {it.customisation_summary || 'Customised'}
+                {it.customisation_summary || 'Customised'}
               </small>
             )}
           </span>
@@ -408,7 +408,7 @@ function OrderRow({ order }: { order: PanelOrder }) {
       <td className="r">{money2(order.amount)}</td>
       <td><span className={`badge s-${order.status.toLowerCase()}`}>{order.status.replace('_', ' ').toLowerCase()}</span></td>
       <td>
-        {order.placed_by_name || '—'}
+        {order.placed_by_name || '-'}
         <small className="gr">{order.placed_by_role_label}</small>
       </td>
     </tr>
@@ -452,7 +452,7 @@ function ExportButton({ filters }: { filters: Record<string, string> }) {
           ) : (
             <>
               <span className="progress"><i style={{ width: `${job.data.progress}%` }} /></span>
-              <span className="fine">{job.data.status_display}… we will email nothing — just wait here.</span>
+              <span className="fine">{job.data.status_display}… no email is sent, just wait here.</span>
             </>
           )}
         </div>
@@ -573,7 +573,7 @@ function Students() {
             {students.isFetchingNextPage ? 'Loading…' : 'Load more students'}
           </button>
         ) : (
-          rows.length > 0 && <span className="fine">End of the list — {rows.length} loaded.</span>
+          rows.length > 0 && <span className="fine">End of the list: {rows.length} loaded.</span>
         )}
       </div>
 
@@ -733,7 +733,7 @@ function StudentImportCard({ schoolId, onDone }: { schoolId: string | null; onDo
           )}
           {data.status === 'COMPLETED' && (
             <p className="ok-line">
-              ✓ Added {num(result.inserted ?? 0)}, updated {num(result.updated ?? 0)}
+              Added {num(result.inserted ?? 0)}, updated {num(result.updated ?? 0)}
               {result.marked_left ? `, marked ${num(result.marked_left)} as left school` : ''}
               {result.parents_linked ? `, linked ${num(result.parents_linked)} to parent accounts` : ''}.
             </p>
@@ -871,7 +871,7 @@ function Teachers() {
 
       {created && (
         <div className="notice credentials">
-          <b>{created.username} created.</b> Temporary password <code>{created.temporary_password}</code> — share it once; it is not shown again.
+          <b>{created.username} created.</b> Temporary password <code>{created.temporary_password}</code>. Share it once; it is not shown again.
           <button className="link-button" onClick={() => setCreated(null)}>Dismiss</button>
         </div>
       )}
@@ -888,9 +888,9 @@ function Teachers() {
               <tbody>
                 {rows.map((t) => (
                   <tr key={t.id} className={t.is_active ? '' : 'row-muted'}>
-                    <td>{[t.first_name, t.last_name].filter(Boolean).join(' ') || '—'}</td>
+                    <td>{[t.first_name, t.last_name].filter(Boolean).join(' ') || '-'}</td>
                     <td className="mono">{t.username}</td>
-                    <td>{t.email || '—'}<small className="gr">{t.phone || ''}</small></td>
+                    <td>{t.email || '-'}<small className="gr">{t.phone || ''}</small></td>
                     <td>{t.is_active
                       ? <span className="badge s-approved">{t.must_change_password ? 'must set password' : 'active'}</span>
                       : <span className="badge s-failed">deactivated</span>}</td>
@@ -935,7 +935,7 @@ function TeacherForm({ schoolId, onCreated }: { schoolId: string; onCreated: (t:
       </div>
       <label>Email<input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
       <label>Phone<input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
-      <label>Password (optional — we generate one)
+      <label>Password (optional, we generate one)
         <input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="min 8 characters" />
       </label>
       {error && <div className="error">{error}</div>}
@@ -1005,14 +1005,14 @@ function ExportRow({ job, onDelete }: { job: ExportJob; onDelete: () => void }) 
           : <span className={`badge s-${job.status.toLowerCase()}`}>{job.status_display.toLowerCase()}</span>}
         {job.status === 'FAILED' && <small className="gr">{job.error_message}</small>}
       </td>
-      <td className="r">{job.row_count ? num(job.row_count) : '—'}</td>
+      <td className="r">{job.row_count ? num(job.row_count) : '-'}</td>
       <td>{new Date(job.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
         <small className="gr">{job.requested_by_name ?? ''}</small>
       </td>
       <td className="r actions">
         {job.download_url
           ? <button className="link-button" onClick={() => download(job.download_url!, job.filename)}>Download ⤓</button>
-          : <span className="fine">{running ? 'building…' : '—'}</span>}
+          : <span className="fine">{running ? 'building…' : '-'}</span>}
         <button className="link-button" onClick={onDelete}>Delete</button>
       </td>
     </tr>

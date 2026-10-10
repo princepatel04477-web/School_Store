@@ -672,3 +672,15 @@
   justify-self: start;
   margin-top: var(--space-1);
 }
+
+.checkout-legal-note {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.checkout-legal-note a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

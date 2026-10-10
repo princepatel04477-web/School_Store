@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { X } from './ui/icons';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api, Product, Order, CustomisationField } from '../api';
@@ -228,7 +229,7 @@ export function Catalogue({
                   <span className="tag">{p.category}</span>
                   {hasCustom && (
                     <span className="badge s-confirmed" style={{ fontSize: '10px' }}>
-                      ✦ Personalised
+                      Personalised
                     </span>
                   )}
                 </div>
@@ -244,7 +245,7 @@ export function Catalogue({
                     className="secondary"
                     onClick={() => openProductCustomisation(p)}
                   >
-                    {hasCustom ? 'Personalise & Add ✦' : 'Add to cart +'}
+                    {hasCustom ? 'Personalise & Add' : 'Add to cart +'}
                   </button>
                 )}
               </div>
@@ -264,9 +265,7 @@ export function Catalogue({
                   {selectedProduct.category} · ₹{selectedProduct.price.toLocaleString('en-IN')}
                 </div>
               </div>
-              <button className="icon-btn" onClick={() => setSelectedProduct(null)}>
-                ✕
-              </button>
+              <button className="icon-btn" aria-label="Close" onClick={() => setSelectedProduct(null)}><X width={18} height={18} /></button>
             </div>
 
             <div style={{ marginBottom: '16px' }}>
@@ -277,7 +276,7 @@ export function Catalogue({
                   onChange={(e) => setSelectedVariantId(e.target.value)}
                   style={{
                     border: '1px solid #c9d4c9',
-                    borderRadius: '8px',
+                    borderRadius: '4px',
                     padding: '10px',
                     fontSize: '13px',
                     background: '#fff',
@@ -375,7 +374,6 @@ export function Cart({
   if (activeItems.length === 0)
     return (
       <div className="empty">
-        <span>✦</span>
         <h3>Your cart is light</h3>
         <p>Add something from the catalogue to get started.</p>
       </div>
@@ -454,7 +452,7 @@ export function Cart({
                 alignItems: 'flex-start',
                 padding: '8px 10px',
                 background: '#f9fbf9',
-                borderRadius: '8px',
+                borderRadius: '4px',
                 border: '1px solid #e2ece5',
               }}
             >
@@ -481,7 +479,7 @@ export function Cart({
                 </div>
                 {hasCustom && (
                   <div style={{ fontSize: '11px', color: '#2a6a4e', marginTop: '2px' }}>
-                    ✦ Customised
+                    Customised
                   </div>
                 )}
               </div>

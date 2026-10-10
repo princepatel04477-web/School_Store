@@ -41,7 +41,7 @@ button.primary {
   background-color: var(--brand);
   color: var(--paper-raised);
   border: 1px solid var(--brand);
-  border-radius: 12px;
+  border-radius: 6px;
   font-family: var(--font-body);
   font-weight: 600;
   cursor: pointer;
@@ -83,7 +83,7 @@ button.primary:focus-visible,
   background-color: transparent;
   color: var(--ink);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 6px;
 }
 
 .btn-outline:hover:not(:disabled) {

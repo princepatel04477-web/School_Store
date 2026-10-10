@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Search, ArrowRight, ShieldCheck, RefreshCw, Truck, MessageCircle } from '../components/ui/icons';
+import { Search, ArrowRight, MessageCircle } from '../components/ui/icons';
 import { motion, AnimatePresence } from 'motion/react';
 import { seedSchools, type SeedSchool } from '../data/seedData';
 import { useStoreState } from '../store/storeState';
@@ -13,7 +13,6 @@ import {
   Stagger,
   Thread,
   TextReveal,
-  Magnetic,
   Hairline,
 } from '../motion';
 import { siteConfig } from '../siteConfig';
@@ -163,7 +162,6 @@ export function HomePage() {
                     </div>
 
                     <div className="hero-selected-actions">
-                      <Magnetic>
                         <button
                           type="button"
                           className="btn btn-primary hero-continue-btn"
@@ -181,7 +179,6 @@ export function HomePage() {
                         >
                           Continue shopping <ArrowRight width={16} height={16} />
                         </button>
-                      </Magnetic>
                       <button
                         type="button"
                         className="hero-change-school-link"
@@ -228,7 +225,6 @@ export function HomePage() {
                         onFocus={() => setComboboxOpen(true)}
                         onKeyDown={handleKeyDown}
                       />
-                      <Magnetic>
                         <button
                           type="button"
                           className="btn btn-primary hero-find-btn"
@@ -240,7 +236,6 @@ export function HomePage() {
                         >
                           Find my school
                         </button>
-                      </Magnetic>
                     </div>
 
                     {/* Dropdown Results */}
@@ -367,40 +362,13 @@ export function HomePage() {
         </Stagger>
       </section>
 
-      {/* 5. REASSURANCE (Calm row of 3 plain-text points) */}
+      {/* 5. REASSURANCE: one plain sentence, not a row of feature cards */}
       <section className="section-wrap container">
         <Reveal>
-          <div className="reassurance-row">
-            <div className="reassurance-item">
-              <ShieldCheck width={24} height={24} strokeWidth={1.5} className="reassurance-icon" />
-              <div>
-                <h4 className="reassurance-title">School-approved items</h4>
-                <p className="reassurance-text">
-                  Direct partnership with school boards ensures strict adherence to color, fabric, and crest specs.
-                </p>
-              </div>
-            </div>
-
-            <div className="reassurance-item">
-              <RefreshCw width={24} height={24} strokeWidth={1.5} className="reassurance-icon" />
-              <div>
-                <h4 className="reassurance-title">Easy size exchange</h4>
-                <p className="reassurance-text">
-                  Hassle-free size replacement at home or via the campus school counter within 7 days.
-                </p>
-              </div>
-            </div>
-
-            <div className="reassurance-item">
-              <Truck width={24} height={24} strokeWidth={1.5} className="reassurance-icon" />
-              <div>
-                <h4 className="reassurance-title">Home or school collection</h4>
-                <p className="reassurance-text">
-                  Choose doorstep delivery or pick up directly from the school collection counter before term starts.
-                </p>
-              </div>
-            </div>
-          </div>
+          <p className="reassurance-line">
+            Items approved by your school. Wrong size? Exchange it within 7 days. Delivered home or picked up at the
+            school counter.
+          </p>
         </Reveal>
       </section>
 

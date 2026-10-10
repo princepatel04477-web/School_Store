@@ -12,7 +12,6 @@ const FALLBACK_COLORS = [
   '#1D3461', // navy
   '#1F5C3F', // bottle green
   '#1F4FA3', // royal blue
-  '#5B2A6E', // plum
   '#9A3B12', // rust
   '#0F5E63', // teal
   '#33383F', // charcoal
