@@ -51,3 +51,4 @@ skills-lock.json
 
 # start-all.sh marker
 backend/.seeded
+.venv/
