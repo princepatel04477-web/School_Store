@@ -7,6 +7,7 @@ import { useStoreState, storeState } from '../store/storeState';
 import { SchoolCrest } from '../components/school/SchoolCrest';
 import { ProductCard } from '../components/product/ProductCard';
 import { ProductSheet } from '../components/product/ProductSheet';
+import { IdCardPreview } from '../components/idcard/IdCardPreview';
 import { StepTransition } from '../motion/StepTransition';
 import { Thread } from '../motion/Thread';
 import { Stagger, Reveal, Hairline } from '../motion';
@@ -545,10 +546,14 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   )}
                 </div>
 
+                {/* ID card preview, filled from the parent's record when signed in */}
+                {activeTab === 'ID Cards' && (
+                  <IdCardPreview school={activeSchool} className={activeClass?.name} gender={activeGender} />
+                )}
+
                 {/* Empty State when no items match */}
                 {step4Products.length === 0 ? (
                   <div className="flow-empty-state" style={{ padding: '48px 24px', textAlign: 'center' }}>
-                    <span style={{ fontSize: '40px', display: 'block', marginBottom: '12px' }}>📦</span>
                     <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 8px', color: 'var(--ink)' }}>
                       {`No items listed yet for ${
                         activeClass?.name
@@ -576,7 +581,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                         className="btn btn-secondary"
                         onClick={() => requestStepChange(3)}
                       >
-                        Change Boy / Girl 👤
+                        Change boy / girl
                       </button>
                     </div>
                   </div>
