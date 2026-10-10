@@ -48,3 +48,6 @@ frontend/dist-local/
 .agents/
 brag-output*/
 skills-lock.json
+
+# start-all.sh marker
+backend/.seeded
