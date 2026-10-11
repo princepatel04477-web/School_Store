@@ -1,4 +1,9 @@
+import { getSchoolColor, getSchoolColorById } from '../../theme/schoolTheme';
+
 export interface SchoolCrestProps {
+  /** Used to pick the school's colour for the monogram */
+  id?: string;
+  color?: string;
   name: string;
   code?: string;
   logoUrl?: string;
@@ -7,6 +12,8 @@ export interface SchoolCrestProps {
 }
 
 export function SchoolCrest({
+  id,
+  color,
   name,
   code,
   logoUrl,
@@ -22,6 +29,10 @@ export function SchoolCrest({
       .slice(0, 2)
       .join('')
   ).toUpperCase();
+
+  // Each school's monogram wears that school's colour, so a list of schools
+  // reads as a row of different crests rather than identical tiles
+  const schoolColor = color || !id ? getSchoolColor({ id: id ?? name, color }) : getSchoolColorById(id);
 
   if (logoUrl) {
     return (
@@ -49,11 +60,11 @@ export function SchoolCrest({
         width: `${size}px`,
         height: `${size}px`,
         borderRadius: size > 40 ? '14px' : '10px',
-        backgroundColor: 'var(--brand-tint)',
-        border: '1px solid rgba(47, 93, 80, 0.15)',
-        color: 'var(--brand)',
+        backgroundColor: schoolColor,
+        color: 'var(--on-brand)',
         fontFamily: 'var(--font-display)',
-        fontWeight: 500,
+        fontWeight: 800,
+        fontStretch: '80%',
         fontSize: `${Math.round(size * 0.42)}px`,
         display: 'grid',
         placeItems: 'center',

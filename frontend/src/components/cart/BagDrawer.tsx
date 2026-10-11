@@ -6,7 +6,7 @@ import { formatINR } from '../../utils/formatINR';
 import { useStoreState } from '../../store/storeState';
 import { QuantityStepper } from '../product/QuantityStepper';
 import { CategoryOutlineIllustration } from '../product/CategoryOutlineIllustration';
-import { EASING } from '../../motion/motionConfig';
+import { EASING, DURATION_FAST } from '../../motion/motionConfig';
 import './bagCheckout.css';
 
 export interface BagDrawerProps {
@@ -94,21 +94,31 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
         </div>
 
         {/* Undo notification bar */}
-        {showUndo && lastRemoved && (
-          <div className="bag-undo-banner">
-            <span>Item removed from bag.</span>
-            <button
-              type="button"
-              className="undo-btn"
-              onClick={() => {
-                undoRemove();
-                setShowUndo(false);
-              }}
+        <AnimatePresence initial={false}>
+          {showUndo && lastRemoved && (
+            <motion.div
+              key="undo"
+              className="bag-undo-banner"
+              role="status"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: DURATION_FAST, ease: EASING }}
             >
-              Undo
-            </button>
-          </div>
-        )}
+              <span>Item removed from bag.</span>
+              <button
+                type="button"
+                className="undo-btn"
+                onClick={() => {
+                  undoRemove();
+                  setShowUndo(false);
+                }}
+              >
+                Undo
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Lines Container */}
         <div className="bag-lines-container">
@@ -203,6 +213,7 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
               onClick={handleCheckout}
             >
               Checkout · {formatINR(subtotalPaise)}
+              <ArrowRight width={16} height={16} aria-hidden="true" />
             </button>
             <button
               type="button"

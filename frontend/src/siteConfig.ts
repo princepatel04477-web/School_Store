@@ -2,7 +2,7 @@ export const siteConfig = {
   name: 'SchoolStore',
   mark: 'S',
   logoText: 'SchoolStore',
-  tagline: 'School uniforms and essentials, sorted.',
+  tagline: 'Everything your school asks for. One order.',
   supportPhone: '+91 98765 43210',
   supportPhoneHref: 'tel:+919876543210',
   whatsappNumber: '+919876543210',

@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Search, ArrowRight, ShieldCheck, RefreshCw, Truck, MessageCircle } from 'lucide-react';
-import { motion, useReducedMotion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { seedSchools, type SeedSchool } from '../data/seedData';
 import { useStoreState } from '../store/storeState';
 import { SchoolCrest } from '../components/school/SchoolCrest';
-import { SmartImage } from '../components/ui/SmartImage';
+import { KitIllustration, type KitKind } from '../components/home/KitIllustration';
 import { EASING } from '../motion/motionConfig';
 import { prefetchFlowPage, prefetchSchoolData } from '../utils/prefetch';
 import {
@@ -13,8 +13,6 @@ import {
   Stagger,
   Thread,
   TextReveal,
-  ImageCurtain,
-  Parallax,
   Magnetic,
   Hairline,
 } from '../motion';
@@ -24,7 +22,6 @@ import './home.css';
 export function HomePage() {
   const navigate = useNavigate();
   const { selection, setSelection } = useStoreState();
-  const shouldReduceMotion = useReducedMotion();
 
   const [query, setQuery] = useState('');
   const [comboboxOpen, setComboboxOpen] = useState(false);
@@ -34,33 +31,28 @@ export function HomePage() {
   const categoryTiles = [
     {
       title: 'Uniform',
+      kind: 'uniform' as KitKind,
       href: '/shop?cat=Uniform',
-      image: '/images/categories/uniform.jpg',
-      alt: 'Tailored school blazers, pressed shirts, and pleated skirts',
     },
     {
       title: 'Shoes',
+      kind: 'shoes' as KitKind,
       href: '/shop?cat=School%20Shoes',
-      image: '/images/categories/shoes.jpg',
-      alt: 'Anti-scuff leather school shoes and non-marking PE white trainers',
     },
     {
       title: 'Accessories',
+      kind: 'accessories' as KitKind,
       href: '/shop?cat=Uniform%20Accessories',
-      image: '/images/categories/accessories.jpg',
-      alt: 'School uniform woven crest ties, brass buckle belts, and socks',
     },
     {
       title: 'Stationery',
+      kind: 'stationery' as KitKind,
       href: '/shop?cat=Stationery',
-      image: '/images/categories/stationery.jpg',
-      alt: 'Prescribed syllabus notebooks, geometry kits, and art books',
     },
     {
       title: 'ID Cards',
+      kind: 'idcard' as KitKind,
       href: '/shop?cat=ID%20Cards',
-      image: '/images/categories/id-cards.jpg',
-      alt: 'Smart student ID cards with safety breakaway lanyards',
     },
   ];
 
@@ -124,21 +116,24 @@ export function HomePage() {
 
   return (
     <div className="home-page" id="main">
+      <div className="house-stripe" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+
       {/* 1. HERO SECTION */}
       <section className="hero-section container">
         <div className="hero-grid">
-          {/* Left Column (7 cols) */}
           <div className="hero-left">
-            <span className="label hero-label">
-              Uniforms · Shoes · Stationery · ID cards
-            </span>
             <TextReveal
-              lines={['School essentials,', 'sorted.']}
+              lines={['Everything your school asks for.', 'One order.']}
               className="hero-heading"
             />
             <Reveal delay={0.15}>
               <p className="hero-subtext">
-                Pick your school and class to get the exact parent-approved list delivered directly to your door.
+                Uniform, shoes, books and ID card from your school’s own list. Delivered home or collected at school.
               </p>
             </Reveal>
 
@@ -155,7 +150,7 @@ export function HomePage() {
                     className="hero-selected-state"
                   >
                     <div className="hero-selected-badge">
-                      <SchoolCrest name={selection.schoolName} code={selection.schoolCode} size={42} />
+                      <SchoolCrest id={selection.schoolId} name={selection.schoolName} code={selection.schoolCode} size={42} />
                       <div className="hero-selected-text">
                         <span className="hero-selected-label">Current Campus</span>
                         <h2 className="hero-selected-school">Shopping for {selection.schoolName}</h2>
@@ -222,7 +217,7 @@ export function HomePage() {
                         aria-haspopup="listbox"
                         aria-controls="school-results-list"
                         aria-label="Search your school"
-                        placeholder="Search your school (e.g. DPS, Cathedral, NPS)..."
+                        placeholder="Search your school"
                         className="hero-search-input"
                         value={query}
                         onChange={(e) => {
@@ -271,7 +266,7 @@ export function HomePage() {
                                 }}
                                 onClick={() => handleSelectSchool(school)}
                               >
-                                <SchoolCrest name={school.name} code={school.code} size={36} />
+                                <SchoolCrest id={school.id} color={school.color} name={school.name} code={school.code} size={36} />
                                 <div className="school-option-text">
                                   <span className="school-option-name">{school.name}</span>
                                   <span className="school-option-meta">
@@ -296,101 +291,7 @@ export function HomePage() {
               </AnimatePresence>
             </Reveal>
           </div>
-
-          {/* Right Column (5 cols) with Parallax, ImageCurtain, and Floating Cards */}
-          <div className="hero-right">
-            <Parallax offset={24}>
-              <div className="hero-photo-wrapper">
-                <ImageCurtain>
-                  <SmartImage
-                    src="/images/hero/hero-children.jpg"
-                    alt="Schoolchildren smiling in neatly fitted school uniforms in warm morning light"
-                    width={440}
-                    height={550}
-                    aspectRatio="4 / 5"
-                    priority={true}
-                    className="hero-main-photo"
-                  />
-                </ImageCurtain>
-
-                {/* Floating card 1: School Shoes */}
-                <motion.div
-                  className="hero-floating-card floating-card-shoe"
-                  animate={shouldReduceMotion ? undefined : { y: [-3, 3, -3] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                >
-                  <img
-                    src="/images/hero/hero-shoe.jpg"
-                    alt="Polished school shoes"
-                    width={48}
-                    height={48}
-                    className="floating-card-thumb"
-                  />
-                  <div className="floating-card-meta">
-                    <span className="floating-card-tag">Approved</span>
-                    <span className="floating-card-title">School Shoes</span>
-                  </div>
-                </motion.div>
-
-                {/* Floating card 2: Syllabus Notebooks */}
-                <motion.div
-                  className="hero-floating-card floating-card-notebook"
-                  animate={shouldReduceMotion ? undefined : { y: [3, -3, 3] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-                >
-                  <img
-                    src="/images/hero/hero-notebook.jpg"
-                    alt="Curriculum notebooks"
-                    width={48}
-                    height={48}
-                    className="floating-card-thumb"
-                  />
-                  <div className="floating-card-meta">
-                    <span className="floating-card-tag">Required</span>
-                    <span className="floating-card-title">Syllabus Sets</span>
-                  </div>
-                </motion.div>
-              </div>
-            </Parallax>
-          </div>
         </div>
-      </section>
-
-      {/* 2. HOW IT WORKS */}
-      <section className="section-wrap container">
-        <Reveal>
-          <div className="section-head">
-            <span className="label">Simple 3-step process</span>
-            <h2>How it works</h2>
-            <Hairline />
-          </div>
-        </Reveal>
-
-        <Stagger className="how-it-works-grid">
-          <div className="step-card">
-            <span className="step-num">01</span>
-            <h3 className="step-title">Choose your school</h3>
-            <p className="step-desc">
-              Select your school campus to view official uniform guidelines and approved colors.
-            </p>
-          </div>
-
-          <div className="step-card">
-            <span className="step-num">02</span>
-            <h3 className="step-title">Pick the class</h3>
-            <p className="step-desc">
-              Choose nursery through secondary to unlock curriculum-specific notebooks and attire.
-            </p>
-          </div>
-
-          <div className="step-card">
-            <span className="step-num">03</span>
-            <h3 className="step-title">Add the list to bag</h3>
-            <p className="step-desc">
-              Add the pre-bundled required uniform set in one tap, or tailor individual sizes.
-            </p>
-          </div>
-        </Stagger>
       </section>
 
       {/* 3. SHOP BY CATEGORY (Editorial Grid) */}
@@ -404,21 +305,15 @@ export function HomePage() {
         </Reveal>
 
         <Stagger className="editorial-category-grid">
-          {categoryTiles.map((cat) => (
+          {categoryTiles.map((cat, idx) => (
             <Link
               key={cat.title}
               to={cat.href}
-              className="cat-tile"
+              className={`cat-tile house-${idx % 5}`}
               onMouseEnter={prefetchFlowPage}
             >
               <div className="cat-tile-media">
-                <SmartImage
-                  src={cat.image}
-                  alt={cat.alt}
-                  width={300}
-                  height={300}
-                  aspectRatio="1 / 1"
-                />
+                <KitIllustration kind={cat.kind} color="var(--tile)" />
               </div>
               <div className="cat-tile-body">
                 <h3 className="cat-title">{cat.title}</h3>
@@ -460,7 +355,7 @@ export function HomePage() {
               }}
               onClick={() => handleSelectSchool(school)}
             >
-              <SchoolCrest name={school.name} code={school.code} size={52} />
+              <SchoolCrest id={school.id} color={school.color} name={school.name} code={school.code} size={52} />
               <div className="featured-school-info">
                 <h3 className="featured-school-name">{school.name}</h3>
                 <span className="featured-school-meta">

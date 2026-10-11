@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
 import { useStoreState } from '../../store/storeState';
 import { ProductImage } from './ProductImage';
 import { QuantityStepper } from './QuantityStepper';
+import { AddToBagButton } from './AddToBagButton';
+import { useShake } from '../../motion/useShake';
+import { EASING, DURATION_FAST } from '../../motion/motionConfig';
 import type { SeedProduct } from '../../data/seedData';
 import './product.css';
 
@@ -20,15 +23,19 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
     product.sizes.length === 1 ? product.sizes[0].id : ''
   );
   const [sizeError, setSizeError] = useState(false);
+  // Keeps the add button on screen while it shows "Added", before the stepper takes over
+  const [settling, setSettling] = useState(false);
+  const [sizeRowRef, shakeSizeRow] = useShake();
 
   // Check if this product is in the cart
   const cartMatches = cart.filter((c) => c.productId === product.id);
   const currentTotalQty = cartMatches.reduce((acc, c) => acc + c.quantity, 0);
 
-  const handleAdd = () => {
+  const handleAdd = (): boolean => {
     if (product.sizes.length > 1 && !selectedSizeId) {
       setSizeError(true);
-      return;
+      shakeSizeRow();
+      return false;
     }
     setSizeError(false);
     const chosenSize = product.sizes.find((s) => s.id === selectedSizeId) || product.sizes[0];
@@ -42,6 +49,7 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
       size: chosenSize.size,
       quantity: 1,
     });
+    return true;
   };
 
   const handleIncrement = () => {
@@ -87,8 +95,8 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
         <div className="product-card-price">{formatINR(product.pricePaise)}</div>
 
         {/* Compact Size Selector if multiple sizes */}
-        {product.sizes.length > 1 && currentTotalQty === 0 && (
-          <div className="card-size-row">
+        {product.sizes.length > 1 && (currentTotalQty === 0 || settling) && (
+          <div className="card-size-row" ref={sizeRowRef}>
             <span className="label">Size:</span>
             <div className="card-size-chips">
               {product.sizes.map((s) => (
@@ -112,21 +120,40 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
 
         {/* Add Button or Stepper */}
         <div className="product-card-action">
-          {currentTotalQty > 0 ? (
-            <QuantityStepper
-              quantity={currentTotalQty}
-              onIncrement={handleIncrement}
-              onDecrement={handleDecrement}
-            />
-          ) : (
-            <button
-              type="button"
-              className="btn btn-outline card-add-btn"
-              onClick={handleAdd}
-            >
-              Add to bag
-            </button>
-          )}
+          <AnimatePresence mode="popLayout" initial={false}>
+            {currentTotalQty > 0 && !settling ? (
+              <motion.div
+                key="stepper"
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: DURATION_FAST, ease: EASING }}
+              >
+                <QuantityStepper
+                  quantity={currentTotalQty}
+                  onIncrement={handleIncrement}
+                  onDecrement={handleDecrement}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="add"
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: DURATION_FAST, ease: EASING }}
+              >
+                <AddToBagButton
+                  className="card-add-btn"
+                  onAdd={() => {
+                    const ok = handleAdd();
+                    if (ok) setSettling(true);
+                    return ok;
+                  }}
+                  onSettled={() => setSettling(false)}
+                >
+                  Add to bag
+                </AddToBagButton>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </article>

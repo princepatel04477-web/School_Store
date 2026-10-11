@@ -11,3 +11,4 @@ export * from './Hairline';
 export * from './Thread';
 export * from './StepTransition';
 export * from './PressScale';
+export * from './useShake';

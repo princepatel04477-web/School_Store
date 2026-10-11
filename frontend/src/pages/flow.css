@@ -308,6 +308,7 @@
 }
 
 .cat-tab {
+  flex-shrink: 0;
   background: transparent;
   border: 1px solid var(--line);
   border-radius: var(--radius-full);
@@ -429,4 +430,20 @@
 
 .summary-bag-btn {
   width: 100%;
+}
+
+/* Grid children holding the scrolling category tabs must be allowed to shrink */
+.items-main-col {
+  min-width: 0;
+}
+
+.gender-card-title {
+  display: block;
+  font-size: var(--text-4xl);
+  font-weight: 800;
+  font-stretch: var(--stretch-condensed);
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--ink);
+  margin-bottom: var(--space-2);
 }

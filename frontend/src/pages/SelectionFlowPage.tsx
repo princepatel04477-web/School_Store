@@ -7,6 +7,7 @@ import { useStoreState, storeState } from '../store/storeState';
 import { SchoolCrest } from '../components/school/SchoolCrest';
 import { ProductCard } from '../components/product/ProductCard';
 import { ProductSheet } from '../components/product/ProductSheet';
+import { IdCardPreview } from '../components/idcard/IdCardPreview';
 import { StepTransition } from '../motion/StepTransition';
 import { Thread } from '../motion/Thread';
 import { Stagger, Reveal, Hairline } from '../motion';
@@ -314,7 +315,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                       className={`school-select-card ${isSelected ? 'is-selected' : ''}`}
                       onClick={() => handleSelectSchool(s)}
                     >
-                      <SchoolCrest name={s.name} code={s.code} size={52} />
+                      <SchoolCrest id={s.id} color={s.color} name={s.name} code={s.code} size={52} />
                       <div className="school-select-details">
                         <h3 className="school-select-name">{s.name}</h3>
                         <span className="school-select-meta">{s.city} · {s.board}</span>
@@ -428,8 +429,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   transition: 'all 0.2s ease',
                 }}
               >
-                <span style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>👦</span>
-                <strong style={{ fontSize: '20px', display: 'block', color: 'var(--ink)' }}>Boy</strong>
+                <strong className="gender-card-title">Boy</strong>
                 <small style={{ color: 'var(--ink-soft)', fontSize: '13px', marginTop: '6px' }}>Boys' &amp; unisex essentials</small>
               </button>
 
@@ -453,8 +453,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   transition: 'all 0.2s ease',
                 }}
               >
-                <span style={{ fontSize: '48px', display: 'block', marginBottom: '12px' }}>👧</span>
-                <strong style={{ fontSize: '20px', display: 'block', color: 'var(--ink)' }}>Girl</strong>
+                <strong className="gender-card-title">Girl</strong>
                 <small style={{ color: 'var(--ink-soft)', fontSize: '13px', marginTop: '6px' }}>Girls' &amp; unisex essentials</small>
               </button>
             </div>
@@ -485,19 +484,19 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   Selection:
                 </span>
                 <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
-                  🏫 {activeSchool.name}
+                  {activeSchool.name}
                 </span>
                 <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
-                  📍 {activeSchool.city}
+                  {activeSchool.city}
                 </span>
                 {activeClass && (
                   <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
-                    🎓 {activeClass.name}
+                    {activeClass.name}
                   </span>
                 )}
                 {activeGender && (
                   <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
-                    {activeGender === 'boy' ? '👦 Boy' : '👧 Girl'}
+                    {activeGender === 'boy' ? 'Boy' : 'Girl'}
                   </span>
                 )}
               </div>
@@ -509,7 +508,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   style={{ margin: 0 }}
                   onClick={() => requestStepChange(3)}
                 >
-                  Change ✎
+                  Change
                 </button>
               </div>
             </div>
@@ -547,10 +546,14 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   )}
                 </div>
 
+                {/* ID card preview, filled from the parent's record when signed in */}
+                {activeTab === 'ID Cards' && (
+                  <IdCardPreview school={activeSchool} className={activeClass?.name} gender={activeGender} />
+                )}
+
                 {/* Empty State when no items match */}
                 {step4Products.length === 0 ? (
                   <div className="flow-empty-state" style={{ padding: '48px 24px', textAlign: 'center' }}>
-                    <span style={{ fontSize: '40px', display: 'block', marginBottom: '12px' }}>📦</span>
                     <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 8px', color: 'var(--ink)' }}>
                       {`No items listed yet for ${
                         activeClass?.name
@@ -571,14 +574,14 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                         className="btn btn-primary"
                         onClick={() => requestStepChange(2)}
                       >
-                        Change Class 🎓
+                        Change class
                       </button>
                       <button
                         type="button"
                         className="btn btn-secondary"
                         onClick={() => requestStepChange(3)}
                       >
-                        Change Boy / Girl 👤
+                        Change boy / girl
                       </button>
                     </div>
                   </div>
@@ -629,7 +632,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
               <aside className="selection-summary-aside">
                 <div className="selection-summary-card">
                   <div className="summary-school-head">
-                    <SchoolCrest name={activeSchool.name} code={activeSchool.code} size={40} />
+                    <SchoolCrest id={activeSchool.id} color={activeSchool.color} name={activeSchool.name} code={activeSchool.code} size={40} />
                     <div>
                       <h3 className="summary-school-name">{activeSchool.name}</h3>
                       <span className="summary-class-tag">{activeClass?.name || 'Class 5'} · {activeGender === 'boy' ? 'Boy' : 'Girl'}</span>

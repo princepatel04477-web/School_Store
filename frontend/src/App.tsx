@@ -5,6 +5,7 @@ import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { PageTransition } from './motion/PageTransition';
+import { useSchoolTheme } from './theme/schoolTheme';
 
 // Lazy Loaded Components
 const BagDrawer = lazy(() =>
@@ -61,6 +62,8 @@ export default function App() {
     location.pathname.startsWith('/school') ||
     location.pathname.startsWith('/teacher') ||
     location.pathname.startsWith('/login');
+
+  useSchoolTheme(!isPortal);
 
   return (
     <ErrorBoundary>

@@ -1,0 +1,495 @@
+/* Student ID card: hangs on a lanyard, swings on arrival, flips to show the back.
+   --idc is the school's colour, set on .idc-stage. */
+.idc-stage {
+  --idc-w: min(300px, 78vw);
+  display: grid;
+  justify-items: center;
+  padding-top: 4px;
+  perspective: 1200px;
+}
+
+/* Pivot sits at the top of the lanyard, so the whole thing swings from there */
+.idc-swing {
+  display: grid;
+  justify-items: center;
+  transform-origin: 50% 0;
+}
+
+.idc-lanyard {
+  width: 26px;
+  height: 120px;
+  background-color: var(--idc);
+  border-radius: 2px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  box-shadow: inset 4px 0 0 rgb(255 255 255 / 0.12), inset -4px 0 0 rgb(0 0 0 / 0.12);
+}
+
+.idc-lanyard-text {
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--on-brand);
+  opacity: 0.85;
+}
+
+.idc-clip {
+  width: 18px;
+  height: 26px;
+  margin-top: -2px;
+  border: 3px solid #9AA1AA;
+  border-top-width: 6px;
+  border-radius: 4px 4px 9px 9px;
+  background: linear-gradient(#C7CCD3, #8D949D);
+  position: relative;
+  z-index: 2;
+  margin-bottom: -12px;
+}
+
+.idc-tilt {
+  transform-style: preserve-3d;
+}
+
+/* The card itself is a button so it can be flipped by tap and keyboard too */
+.idc-card {
+  position: relative;
+  display: block;
+  width: var(--idc-w);
+  aspect-ratio: 54 / 85.6; /* CR80 card, portrait */
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  border-radius: 16px;
+}
+
+.idc-card:focus-visible {
+  outline: 3px solid var(--idc);
+  outline-offset: 6px;
+}
+
+.idc-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background-color: var(--paper-raised);
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 40px rgb(21 24 30 / 0.16), 0 2px 6px rgb(21 24 30 / 0.08);
+  display: flex;
+  flex-direction: column;
+}
+
+.idc-back {
+  transform: rotateY(180deg);
+}
+
+/* Punched slot the clip goes through */
+.idc-slot {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  width: 34px;
+  height: 8px;
+  margin-left: -17px;
+  border-radius: 4px;
+  background-color: var(--paper);
+  box-shadow: inset 0 1px 2px rgb(21 24 30 / 0.3);
+  z-index: 2;
+}
+
+/* ---------- Front ---------- */
+.idc-head {
+  background-color: var(--idc);
+  color: var(--on-brand);
+  padding: 30px 16px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.idc-crest {
+  flex: none;
+  display: grid;
+  border-radius: 10px;
+}
+
+.idc-school {
+  display: grid;
+  min-width: 0;
+}
+
+.idc-school strong {
+  font-weight: 800;
+  font-stretch: 85%;
+  font-size: 15px;
+  line-height: 1.1;
+  text-transform: uppercase;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* `small` is greyed site-wide in styles.css; on the colour band it must stay white */
+.idc-school small {
+  display: block;
+  font-size: 10.5px;
+  color: inherit;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+/* Crest sits white on the school-colour band (SchoolCrest sets inline colours) */
+.idc-crest .school-crest-monogram {
+  background-color: var(--paper-raised) !important;
+  color: var(--idc) !important;
+}
+
+.idc-kind {
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 16px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--idc);
+  background-color: color-mix(in oklab, var(--idc) 10%, white);
+}
+
+.idc-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: end;
+  padding: 18px 16px 14px;
+}
+
+.idc-photo {
+  width: 92px;
+  aspect-ratio: 4 / 5;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid var(--idc);
+  background-color: color-mix(in oklab, var(--idc) 12%, white);
+}
+
+.idc-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.idc-photo-empty {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.idc-photo-empty svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: color-mix(in oklab, var(--idc) 28%, white);
+}
+
+.idc-photo-empty b {
+  position: relative;
+  font-weight: 800;
+  font-stretch: 80%;
+  font-size: 22px;
+  color: var(--idc);
+  margin-top: 18px;
+}
+
+.idc-name-block {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.idc-name {
+  font-weight: 800;
+  font-stretch: 78%;
+  font-size: 26px;
+  line-height: 0.95;
+  text-transform: uppercase;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.idc-class {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--idc);
+}
+
+.idc-details {
+  margin: 0;
+  padding: 6px 16px 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
+.idc-details div {
+  display: grid;
+  gap: 1px;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+}
+
+.idc-details dt {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.idc-details dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  font-stretch: 90%;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+/* Card number and signature, pinned to the bottom of the front */
+.idc-front-sign {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 12px 16px 12px;
+  font-size: 10px;
+  color: var(--ink-soft);
+}
+
+.idc-card-no {
+  display: grid;
+  gap: 1px;
+}
+
+.idc-card-no b {
+  font-size: 12px;
+  font-stretch: 88%;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.idc-front-sign .idc-sign {
+  padding: 0;
+}
+
+.idc-foot {
+  height: 10px;
+  background:
+    linear-gradient(90deg, var(--idc) 0 70%, color-mix(in oklab, var(--idc) 55%, white) 70% 85%, var(--ink) 85%);
+}
+
+/* Keep the school name clear of the Example ribbon */
+.idc-front.is-example .idc-head {
+  padding-right: 68px;
+}
+
+.idc-example {
+  position: absolute;
+  top: 34px;
+  right: -30px;
+  transform: rotate(35deg);
+  background-color: var(--house-yellow);
+  color: var(--on-house-yellow);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 3px 34px;
+  z-index: 3;
+}
+
+/* Soft light that follows the mouse across the front */
+.idc-sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--sheen-x, 30%) var(--sheen-y, 20%),
+    rgb(255 255 255 / 0.35),
+    transparent 45%
+  );
+  mix-blend-mode: soft-light;
+}
+
+/* ---------- Back ---------- */
+.idc-back-band {
+  height: 26px;
+  background-color: var(--idc);
+}
+
+.idc-back-block {
+  display: grid;
+  gap: 2px;
+  padding: 14px 16px 0;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.idc-back-block strong {
+  font-size: 15px;
+  font-weight: 800;
+  font-stretch: 88%;
+  color: var(--ink);
+  line-height: 1.15;
+}
+
+.idc-back-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--idc);
+}
+
+.idc-back-phone {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.idc-rules {
+  margin: 14px 16px 0;
+  padding: 10px 0 0 14px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.idc-scan {
+  margin: auto 16px 0;
+  display: grid;
+  gap: 4px;
+}
+
+.idc-bars {
+  display: flex;
+  align-items: stretch;
+  height: 34px;
+}
+
+.idc-bars i {
+  display: block;
+  background-color: var(--ink);
+}
+
+.idc-scan-label {
+  font-size: 10px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.idc-sign {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  padding: 10px 16px 16px;
+  font-size: 10px;
+  color: var(--ink-soft);
+}
+
+.idc-sign-line {
+  width: 96px;
+  height: 18px;
+  border-bottom: 1px solid var(--ink-soft);
+  background: no-repeat center bottom 3px / 80px 14px
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 14'%3E%3Cpath d='M2 10c6-8 10 2 14-4s6 6 11 1 8-6 12 0 7 3 11-3 9 5 14 1 7-4 14-2' fill='none' stroke='%2315181E' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .idc-sheen {
+    display: none;
+  }
+}
+
+/* ---------- Preview block on the ID Cards tab ---------- */
+.idc-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-8);
+  align-items: center;
+  padding: var(--space-8);
+  margin-bottom: var(--space-12);
+  background-color: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+@media (min-width: 768px) {
+  .idc-preview {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-12);
+    padding: var(--space-12);
+  }
+}
+
+.idc-preview-copy {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.idc-preview-copy h2 {
+  margin: 0;
+  font-size: var(--text-3xl);
+}
+
+.idc-preview-copy p {
+  margin: 0;
+  max-width: 46ch;
+}
+
+.idc-preview-hint {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--brand);
+}
+
+.idc-hint-touch {
+  display: none;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .idc-hint-mouse {
+    display: none;
+  }
+  .idc-hint-touch {
+    display: inline;
+  }
+}
+
+.idc-preview-signin {
+  font-size: var(--text-sm);
+}
+
+.idc-preview-signin a {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
