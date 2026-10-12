@@ -9,11 +9,11 @@ import { SizeGuide } from './SizeGuide';
 import { QuantityStepper } from './QuantityStepper';
 import { AddToBagButton } from './AddToBagButton';
 import { useShake } from '../../motion/useShake';
-import type { SeedProduct } from '../../data/seedData';
+import type { CardProduct } from './ProductCard';
 import './product.css';
 
 export interface ProductSheetProps {
-  product: SeedProduct | null;
+  product: CardProduct | null;
   isOpen: boolean;
   onClose: () => void;
   onOpenBag?: () => void;
@@ -45,6 +45,8 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
   }, [isOpen, sizeGuideOpen, onClose]);
 
   if (!isOpen || !product) return null;
+
+  const orderable = product.sizes.some((size) => size.inStock) && !product.needsDetails;
 
   const handleAdd = (): boolean => {
     if (product.sizes.length > 1 && !selectedSizeId) {
@@ -99,7 +101,7 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
             {/* Gallery Left */}
             <div className="sheet-gallery-col">
               <motion.div layoutId={`product-image-${product.id}`} style={{ width: '100%' }}>
-                <ProductImage id={product.id} name={product.name} category={product.category} priority />
+                <ProductImage id={product.id} name={product.name} category={product.category} imageUrl={product.imageUrl} priority />
               </motion.div>
             </div>
 
@@ -116,6 +118,12 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
               <div className="product-sheet-price">{formatINR(product.pricePaise)}</div>
               <p className="product-sheet-desc">{product.description}</p>
 
+              {!orderable ? (
+                <p className="card-unavailable sheet-unavailable">
+                  {product.needsDetails ? 'Needs your child’s photo. Order this at your school.' : 'Out of stock'}
+                </p>
+              ) : (
+                <>
               {/* Sizing Radio Group */}
               {product.sizes.length > 0 && (
                 <div ref={sizeRowRef}>
@@ -154,6 +162,8 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
                   Add to Bag · {formatINR(product.pricePaise * quantity)}
                 </AddToBagButton>
               </div>
+                </>
+              )}
 
               {/* Accordions */}
               <div className="product-accordions">

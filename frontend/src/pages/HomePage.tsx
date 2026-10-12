@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Search, ArrowRight, MessageCircle } from '../components/ui/icons';
 import { motion, AnimatePresence } from 'motion/react';
-import { seedSchools, type SeedSchool } from '../data/seedData';
+import { useStoreSchools, type StoreSchool } from '../data/catalog';
 import { useStoreState } from '../store/storeState';
 import { SchoolCrest } from '../components/school/SchoolCrest';
 import { KitIllustration, type KitKind } from '../components/home/KitIllustration';
@@ -56,15 +56,16 @@ export function HomePage() {
   ];
 
   // Filtered schools
+  const { data: schools = [] } = useStoreSchools();
   const filteredSchools = query.trim()
-    ? seedSchools.filter(
+    ? schools.filter(
         (s) =>
           s.name.toLowerCase().includes(query.toLowerCase()) ||
           s.city.toLowerCase().includes(query.toLowerCase())
       )
-    : seedSchools.slice(0, 5); // Popular schools
+    : schools.slice(0, 5); // Popular schools
 
-  const handleSelectSchool = (school: SeedSchool) => {
+  const handleSelectSchool = (school: StoreSchool) => {
     setSelection({
       schoolId: school.id,
       schoolName: school.name,
@@ -265,7 +266,7 @@ export function HomePage() {
                                 <div className="school-option-text">
                                   <span className="school-option-name">{school.name}</span>
                                   <span className="school-option-meta">
-                                    {school.city} · {school.board}
+                                    {[school.city, school.board].filter(Boolean).join(' · ')}
                                   </span>
                                 </div>
                               </div>
@@ -340,7 +341,7 @@ export function HomePage() {
         </Reveal>
 
         <Stagger className="schools-grid">
-          {seedSchools.slice(0, 8).map((school) => (
+          {schools.slice(0, 8).map((school) => (
             <div
               key={school.id}
               className="featured-school-card"
@@ -354,7 +355,7 @@ export function HomePage() {
               <div className="featured-school-info">
                 <h3 className="featured-school-name">{school.name}</h3>
                 <span className="featured-school-meta">
-                  {school.city} · {school.board}
+                  {[school.city, school.board].filter(Boolean).join(' · ')}
                 </span>
               </div>
             </div>

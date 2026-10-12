@@ -29,10 +29,15 @@ export interface StoredSelection {
 const CART_STORAGE_KEY = 'schoolstore_cart';
 const SELECTION_STORAGE_KEY = 'schoolstore_active_selection';
 
+// Real items and schools have server ids (UUIDs). Bags and choices saved by the
+// earlier demo store hold sample ids the server would refuse, so they are dropped.
+const SERVER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function loadStoredCart(): CartItem[] {
   try {
     const raw = localStorage.getItem(CART_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const items: CartItem[] = raw ? JSON.parse(raw) : [];
+    return items.filter((item) => SERVER_ID.test(item.variantId));
   } catch {
     return [];
   }
@@ -41,7 +46,8 @@ function loadStoredCart(): CartItem[] {
 function loadStoredSelection(): StoredSelection | null {
   try {
     const raw = localStorage.getItem(SELECTION_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const selection: StoredSelection | null = raw ? JSON.parse(raw) : null;
+    return selection && SERVER_ID.test(selection.schoolId) ? selection : null;
   } catch {
     return null;
   }

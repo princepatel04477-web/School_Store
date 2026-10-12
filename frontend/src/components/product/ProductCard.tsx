@@ -11,9 +11,12 @@ import { EASING, DURATION_FAST } from '../../motion/motionConfig';
 import type { SeedProduct } from '../../data/seedData';
 import './product.css';
 
+/** Real store items add a photo and whether the parent can order them here. */
+export type CardProduct = SeedProduct & { imageUrl?: string; needsDetails?: boolean };
+
 export interface ProductCardProps {
-  product: SeedProduct;
-  onOpenDetails?: (product: SeedProduct) => void;
+  product: CardProduct;
+  onOpenDetails?: (product: CardProduct) => void;
 }
 
 export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
@@ -30,6 +33,8 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
   // Check if this product is in the cart
   const cartMatches = cart.filter((c) => c.productId === product.id);
   const currentTotalQty = cartMatches.reduce((acc, c) => acc + c.quantity, 0);
+  const inStock = product.sizes.some((s) => s.inStock);
+  const orderable = inStock && !product.needsDetails;
 
   const handleAdd = (): boolean => {
     if (product.sizes.length > 1 && !selectedSizeId) {
@@ -76,7 +81,7 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
         onClick={() => onOpenDetails && onOpenDetails(product)}
       >
         <motion.div layoutId={`product-image-${product.id}`}>
-          <ProductImage id={product.id} name={product.name} category={product.category} />
+          <ProductImage id={product.id} name={product.name} category={product.category} imageUrl={product.imageUrl} />
         </motion.div>
         {product.required && (
           <span className="required-badge">Required</span>
@@ -95,7 +100,7 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
         <div className="product-card-price">{formatINR(product.pricePaise)}</div>
 
         {/* Compact Size Selector if multiple sizes */}
-        {product.sizes.length > 1 && (currentTotalQty === 0 || settling) && (
+        {orderable && product.sizes.length > 1 && (currentTotalQty === 0 || settling) && (
           <div className="card-size-row" ref={sizeRowRef}>
             <span className="label">Size:</span>
             <div className="card-size-chips">
@@ -119,6 +124,11 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
         )}
 
         {/* Add Button or Stepper */}
+        {!orderable ? (
+          <p className="card-unavailable">
+            {product.needsDetails ? 'Needs your child’s photo. Order this at your school.' : 'Out of stock'}
+          </p>
+        ) : (
         <div className="product-card-action">
           <AnimatePresence mode="popLayout" initial={false}>
             {currentTotalQty > 0 && !settling ? (
@@ -155,6 +165,7 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
             )}
           </AnimatePresence>
         </div>
+        )}
       </div>
     </article>
   );

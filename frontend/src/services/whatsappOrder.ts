@@ -16,9 +16,6 @@ export interface WhatsAppOrder {
   deliveryType: 'HOME' | 'SCHOOL';
   address?: string;
   items: CartItem[];
-  subtotalPaise: number;
-  gstPaise: number;
-  deliveryPaise: number;
   totalPaise: number;
 }
 
@@ -34,10 +31,6 @@ export function buildOrderMessage(order: WhatsAppOrder): string {
       (item) =>
         `${item.quantity} x ${item.name}${item.size ? ` (size ${item.size})` : ''} = ${formatINR(item.pricePaise * item.quantity)}`,
     ),
-    '',
-    `Items: ${formatINR(order.subtotalPaise)}`,
-    `GST: ${formatINR(order.gstPaise)}`,
-    `Delivery: ${order.deliveryPaise === 0 ? 'Free' : formatINR(order.deliveryPaise)}`,
     `Total: ${formatINR(order.totalPaise)}`,
     '',
     order.deliveryType === 'HOME' ? `Deliver to: ${order.address}` : 'Collect at school',

@@ -2,7 +2,9 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Search, Check, ArrowRight, ArrowLeft } from '../components/ui/icons';
 import { motion } from 'motion/react';
-import { seedSchools, seedClasses, seedProducts, type SeedSchool, type SeedClass, type SeedProduct } from '../data/seedData';
+import { seedClasses, type SeedClass } from '../data/seedData';
+import { useStoreSchools, useStoreProducts, type StoreSchool } from '../data/catalog';
+import type { CardProduct } from '../components/product/ProductCard';
 import { useStoreState, storeState } from '../store/storeState';
 import { SchoolCrest } from '../components/school/SchoolCrest';
 import { ProductCard } from '../components/product/ProductCard';
@@ -34,14 +36,18 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const activeClassId = searchParams.get('class') || selection?.gradeId || '';
   const activeGender = (searchParams.get('gender') as 'boy' | 'girl' | null) || selection?.gender || null;
 
+  const schoolsQuery = useStoreSchools();
+  const schools = useMemo(() => schoolsQuery.data ?? [], [schoolsQuery.data]);
   const activeSchool = useMemo(
-    () => seedSchools.find((s) => s.id === activeSchoolId) || null,
-    [activeSchoolId]
+    () => schools.find((s) => s.id === activeSchoolId) || null,
+    [schools, activeSchoolId]
   );
   const activeClass = useMemo(
     () => seedClasses.find((c) => c.id === activeClassId) || null,
     [activeClassId]
   );
+  const productsQuery = useStoreProducts(activeSchool?.id, activeClass?.name, activeGender);
+  const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
 
   // A link from the school (?school=…&class=…) counts as the parent's choice, so the
   // bag and checkout know which school and class the order is for.
@@ -74,7 +80,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const [activeTab, setActiveTab] = useState<string>('Uniform');
 
   // Product Sheet Modal
-  const [activeProductForSheet, setActiveProductForSheet] = useState<SeedProduct | null>(null);
+  const [activeProductForSheet, setActiveProductForSheet] = useState<CardProduct | null>(null);
 
   // Sync step param
   useEffect(() => {
@@ -112,7 +118,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     }
   };
 
-  const handleSelectSchool = (school: SeedSchool) => {
+  const handleSelectSchool = (school: StoreSchool) => {
     setSelection({
       schoolId: school.id,
       schoolName: school.name,
@@ -176,11 +182,11 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   // Filtered Schools for Step 1
   const filteredSchools = useMemo(() => {
     const q = schoolQuery.trim().toLowerCase();
-    if (!q) return seedSchools;
-    return seedSchools.filter(
+    if (!q) return schools;
+    return schools.filter(
       (s) => s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q)
     );
-  }, [schoolQuery]);
+  }, [schoolQuery, schools]);
 
   // Grouped Classes for Step 2
   const groupedClasses = useMemo(() => {
@@ -200,12 +206,9 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
 
   // Filtered Products for Step 4 (Category + Gender filter)
   const step4Products = useMemo(() => {
-    return seedProducts.filter((p) => {
-      if (p.category !== activeTab) return false;
-      if (!activeGender) return true;
-      return p.gender === activeGender || p.gender === 'unisex';
-    });
-  }, [activeTab, activeGender]);
+    // The server already sends only this school, class and boy/girl's items.
+    return products.filter((p) => p.category === activeTab);
+  }, [products, activeTab]);
 
   const requiredProducts = useMemo(() => {
     return step4Products.filter((p) => p.required);
@@ -328,7 +331,19 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
               />
             </div>
 
-            {filteredSchools.length > 0 ? (
+            {schoolsQuery.isLoading ? (
+              <div className="flow-empty-state" role="status">
+                <p>Loading schools…</p>
+              </div>
+            ) : schoolsQuery.isError ? (
+              <div className="flow-empty-state" role="alert">
+                <h3>We couldn’t load the schools</h3>
+                <p>Check your internet connection and try again.</p>
+                <button type="button" className="btn btn-primary" onClick={() => schoolsQuery.refetch()}>
+                  Try again
+                </button>
+              </div>
+            ) : filteredSchools.length > 0 ? (
               <Stagger className="schools-select-grid">
                 {filteredSchools.map((s) => {
                   const isSelected = activeSchool?.id === s.id;
@@ -341,7 +356,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                       <SchoolCrest id={s.id} color={s.color} name={s.name} code={s.code} size={52} />
                       <div className="school-select-details">
                         <h3 className="school-select-name">{s.name}</h3>
-                        <span className="school-select-meta">{s.city} · {s.board}</span>
+                        <span className="school-select-meta">{[s.city, s.board].filter(Boolean).join(' · ')}</span>
                       </div>
                       <ArrowRight className="school-select-arrow" width={18} height={18} />
                     </div>
@@ -361,6 +376,30 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         )}
 
         {/* ================= STEP 2: CLASS ================= */}
+        {currentStep > 1 && !activeSchool && (
+          <div className="flow-empty-state" role={schoolsQuery.isLoading ? 'status' : 'alert'}>
+            {schoolsQuery.isLoading ? (
+              <p>Loading your school…</p>
+            ) : schoolsQuery.isError ? (
+              <>
+                <h3>We couldn’t load your school</h3>
+                <p>Check your internet connection and try again.</p>
+                <button type="button" className="btn btn-primary" onClick={() => schoolsQuery.refetch()}>
+                  Try again
+                </button>
+              </>
+            ) : (
+              <>
+                <h3>We couldn’t find this school</h3>
+                <p>The link may be old. Please choose your school from the list.</p>
+                <button type="button" className="btn btn-primary" onClick={() => goToStep(1)}>
+                  Choose school
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         {currentStep === 2 && activeSchool && (
           <div className="step-panel step-class-panel">
             <button
@@ -541,7 +580,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
               <div className="items-main-col">
                 <div className="step-title-row">
                   <span className="label">
-                    {activeSchool.name} · {activeClass?.name || 'Class 5'} · {activeGender === 'boy' ? 'Boy' : 'Girl'}
+                    {activeSchool.name} · {activeClass?.name} · {activeGender === 'boy' ? 'Boy' : 'Girl'}
                   </span>
                   <h1 className="step-heading">Approved Store Items</h1>
                 </div>
@@ -575,7 +614,19 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                 )}
 
                 {/* Empty State when no items match */}
-                {step4Products.length === 0 ? (
+                {productsQuery.isLoading ? (
+                  <div className="flow-empty-state" role="status" style={{ padding: '48px 24px', textAlign: 'center' }}>
+                    <p>Loading your school’s items…</p>
+                  </div>
+                ) : productsQuery.isError ? (
+                  <div className="flow-empty-state" role="alert" style={{ padding: '48px 24px', textAlign: 'center' }}>
+                    <h3>We couldn’t load the items</h3>
+                    <p>Check your internet connection and try again.</p>
+                    <button type="button" className="btn btn-primary" onClick={() => productsQuery.refetch()}>
+                      Try again
+                    </button>
+                  </div>
+                ) : step4Products.length === 0 ? (
                   <div className="flow-empty-state" style={{ padding: '48px 24px', textAlign: 'center' }}>
                     <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 8px', color: 'var(--ink)' }}>
                       {`No items listed yet for ${
@@ -616,7 +667,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                         <div className="required-head-row">
                           <div>
                             <span className="label">Prescribed Checklist</span>
-                            <h2 className="required-heading">Required Kit for {activeClass?.name || 'Class 5'}</h2>
+                            <h2 className="required-heading">Required Kit for {activeClass?.name}</h2>
                           </div>
                         </div>
 
@@ -635,7 +686,11 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                     {/* Optional items */}
                     {optionalProducts.length > 0 && (
                       <div className="optional-section-block">
-                        <h2 className="optional-heading">Additional Essentials & Spares</h2>
+                        <h2 className="optional-heading">
+                          {requiredProducts.length > 0
+                            ? 'Additional Essentials & Spares'
+                            : `Your school’s list for ${activeClass?.name ?? 'your class'}`}
+                        </h2>
                         <Stagger key={`opt-${activeTab}`} className="products-grid">
                           {optionalProducts.map((p) => (
                             <ProductCard
@@ -658,7 +713,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                     <SchoolCrest id={activeSchool.id} color={activeSchool.color} name={activeSchool.name} code={activeSchool.code} size={40} />
                     <div>
                       <h3 className="summary-school-name">{activeSchool.name}</h3>
-                      <span className="summary-class-tag">{activeClass?.name || 'Class 5'} · {activeGender === 'boy' ? 'Boy' : 'Girl'}</span>
+                      <span className="summary-class-tag">{activeClass?.name} · {activeGender === 'boy' ? 'Boy' : 'Girl'}</span>
                     </div>
                   </div>
 

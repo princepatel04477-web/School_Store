@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { seedSchools } from '../data/seedData';
 import { useStoreState } from '../store/storeState';
 
 /**
@@ -55,8 +54,7 @@ export function getSchoolColor(school: { id: string; color?: string }): string {
 }
 
 export function getSchoolColorById(schoolId: string): string {
-  const school = seedSchools.find((s) => s.id === schoolId);
-  return getSchoolColor(school ?? { id: schoolId });
+  return getSchoolColor({ id: schoolId });
 }
 
 /**
@@ -67,8 +65,8 @@ export function getSchoolColorById(schoolId: string): string {
 export function useSchoolTheme(enabled = true) {
   const { selection } = useStoreState();
   const location = useLocation();
-  // A shared link like /flow?school=sch-1 shows that school even before it is saved
-  const linkedSchool = location.pathname.startsWith('/flow')
+  // A shared link like /shop?school=… shows that school even before it is saved
+  const linkedSchool = location.pathname.startsWith('/flow') || location.pathname.startsWith('/shop')
     ? new URLSearchParams(location.search).get('school')
     : null;
   const schoolId = enabled ? linkedSchool || selection?.schoolId : undefined;

@@ -4,7 +4,7 @@ export interface SeedSchool {
   id: string;
   name: string;
   city: string;
-  board: 'CBSE' | 'ICSE' | 'State Board' | 'IB';
+  board?: 'CBSE' | 'ICSE' | 'State Board' | 'IB';
   code: string;
   slug: string;
   logoUrl?: string;

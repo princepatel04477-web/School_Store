@@ -206,7 +206,7 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
               <span className="label">Subtotal</span>
               <span className="bag-subtotal-value">{formatINR(subtotalPaise)}</span>
             </div>
-            <p className="bag-shipping-note">Taxes and delivery calculated at checkout.</p>
+            <p className="bag-shipping-note">Free delivery. Pay cash when it arrives.</p>
             <button
               type="button"
               className="btn btn-primary bag-checkout-btn"
