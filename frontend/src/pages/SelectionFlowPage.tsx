@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Search, Check, ArrowRight, ArrowLeft } from '../components/ui/icons';
 import { motion } from 'motion/react';
@@ -94,6 +94,14 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     const cat = searchParams.get('cat');
     return cat && CATEGORY_PHOTOS[cat] ? cat : 'Uniform';
   });
+
+  // Changing category while scrolled down jumps back to the start of that category's list
+  const tabsTopRef = useRef<HTMLDivElement>(null);
+  const selectTab = (cat: string) => {
+    setActiveTab(cat);
+    const top = tabsTopRef.current ? tabsTopRef.current.getBoundingClientRect().top + window.scrollY - 60 : 0;
+    if (window.scrollY > top) window.scrollTo({ top });
+  };
 
   // Product Sheet Modal
   const [activeProductForSheet, setActiveProductForSheet] = useState<CardProduct | null>(null);
@@ -611,6 +619,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                 )}
 
                 {/* Sticky Category Tabs */}
+                <div ref={tabsTopRef} aria-hidden="true" />
                 <div className="category-tabs-sticky" role="tablist" aria-label={t('home.shopByCategory')}>
                   {(['Uniform', 'School Shoes', 'Uniform Accessories', 'Stationery', 'ID Cards'] as const).map(
                     (cat) => {
@@ -622,7 +631,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                           role="tab"
                           aria-selected={activeTab === cat}
                           className={`cat-tab ${activeTab === cat ? 'is-active' : ''}`}
-                          onClick={() => setActiveTab(cat)}
+                          onClick={() => selectTab(cat)}
                         >
                           {activeTab === cat && (
                             <motion.span

@@ -456,9 +456,16 @@
   }
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 960px) {
   .products-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* The list has the full width (no side card), so four items fit on wide screens */
+@media (min-width: 1200px) {
+  .products-grid {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
