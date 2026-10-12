@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useStoreSchools, type StoreSchool } from '../data/catalog';
 import { useStoreState } from '../store/storeState';
 import { SchoolCrest } from '../components/school/SchoolCrest';
-import { KitIllustration, type KitKind } from '../components/home/KitIllustration';
+import { CATEGORY_PHOTOS } from '../data/categoryPhotos';
 import { EASING } from '../motion/motionConfig';
 import { prefetchFlowPage, prefetchSchoolData } from '../utils/prefetch';
 import {
@@ -33,27 +33,27 @@ export function HomePage() {
   const categoryTiles = [
     {
       title: t('cat.uniform'),
-      kind: 'uniform' as KitKind,
+      photo: CATEGORY_PHOTOS['Uniform'],
       href: '/shop?cat=Uniform',
     },
     {
       title: t('cat.shoes'),
-      kind: 'shoes' as KitKind,
+      photo: CATEGORY_PHOTOS['School Shoes'],
       href: '/shop?cat=School%20Shoes',
     },
     {
       title: t('cat.accessories'),
-      kind: 'accessories' as KitKind,
+      photo: CATEGORY_PHOTOS['Uniform Accessories'],
       href: '/shop?cat=Uniform%20Accessories',
     },
     {
       title: t('cat.stationery'),
-      kind: 'stationery' as KitKind,
+      photo: CATEGORY_PHOTOS['Stationery'],
       href: '/shop?cat=Stationery',
     },
     {
       title: t('cat.idcard'),
-      kind: 'idcard' as KitKind,
+      photo: CATEGORY_PHOTOS['ID Cards'],
       href: '/shop?cat=ID%20Cards',
     },
   ];
@@ -312,7 +312,7 @@ export function HomePage() {
               onMouseEnter={prefetchFlowPage}
             >
               <div className="cat-tile-media">
-                <KitIllustration kind={cat.kind} color="var(--tile)" />
+                <img src={cat.photo} alt="" width={400} height={400} loading="lazy" />
               </div>
               <div className="cat-tile-body">
                 <h3 className="cat-title">{cat.title}</h3>

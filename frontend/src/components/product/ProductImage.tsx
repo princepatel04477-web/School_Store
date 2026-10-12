@@ -30,7 +30,8 @@ export function ProductImage({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '8%',
+        // A real photo fills the frame; the drawn stand-in keeps a margin.
+        padding: imageUrl ? 0 : '8%',
       }}
     >
       {imageUrl ? (
@@ -44,7 +45,7 @@ export function ProductImage({
           style={{
             width: '100%',
             height: '100%',
-            objectFit: 'contain',
+            objectFit: 'cover',
             transition: 'transform var(--duration-ui) var(--ease-spring)',
           }}
         />

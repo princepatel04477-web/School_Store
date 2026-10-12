@@ -373,18 +373,18 @@ class Command(BaseCommand):
                 ],
             },
             {
-                "name": "DPS Girls Pleated Pinafore (Class 1-5)",
+                "name": "DPS Girls Box-Pleated Skirt",
                 "category": categories["uniform"],
                 "school": dps_surat,
                 "gender": Product.Gender.GIRL,
-                "grades": [grades_by_name[str(i)] for i in range(1, 6)],
-                "description": "Navy pleated pinafore with DPS crest, for junior girls.",
+                "grades": [grades_by_name[str(i)] for i in range(1, 9)],
+                "description": "Knee-length grey box-pleated skirt with a flat waistband, side button and zip.",
                 "cost_price": Decimal("360.00"),
                 "selling_price": Decimal("590.00"),
                 "customisation_schema": {},
                 "variants": [
-                    ("22", "DPS-PIN-22", 160),
-                    ("24", "DPS-PIN-24", 180),
+                    ("22", "DPS-SKT-22", 160),
+                    ("24", "DPS-SKT-24", 180),
                 ],
             },
             {
@@ -730,6 +730,14 @@ class Command(BaseCommand):
                 f"Seeded {len(products_spec)} products and {len(all_variants)} variants across 5 categories."
             )
         )
+
+        # Real photos for every item, and each school's full uniform set
+        from catalog.showcase_catalog import apply_showcase_catalog
+
+        added = apply_showcase_catalog(
+            School, SchoolBranch, Grade, Category, Product, ProductVariant, StockBalance, StockMovement
+        )
+        self.stdout.write(self.style.SUCCESS(f"Attached product photos; added {added} uniform items."))
 
         # 8. Seed a couple of sample orders if none exist yet
         if not Order.objects.filter(order_number__startswith="ORD-SEED-").exists():
