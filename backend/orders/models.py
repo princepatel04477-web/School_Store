@@ -26,6 +26,10 @@ class Order(UUIDModel):
         FAILED = "FAILED", "Failed"
         REFUNDED = "REFUNDED", "Refunded"
 
+    class PaymentMethod(models.TextChoices):
+        ONLINE = "ONLINE", "Online"
+        CASH_ON_DELIVERY = "COD", "Cash on delivery"
+
     class FulfillmentType(models.TextChoices):
         HOME_DELIVERY = "HOME_DELIVERY", "Home delivery"
         SCHOOL_PICKUP = "SCHOOL_PICKUP", "School pickup"
@@ -98,6 +102,12 @@ class Order(UUIDModel):
         max_length=24,
         choices=FulfillmentType.choices,
         default=FulfillmentType.HOME_DELIVERY,
+    )
+    # Cash-on-delivery orders are paid at the door, so they never expire unpaid.
+    payment_method = models.CharField(
+        max_length=12,
+        choices=PaymentMethod.choices,
+        default=PaymentMethod.ONLINE,
     )
     razorpay_order_id = models.CharField(max_length=80, blank=True, default="")
     razorpay_payment_id = models.CharField(max_length=80, blank=True, default="")

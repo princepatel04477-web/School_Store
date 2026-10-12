@@ -47,6 +47,14 @@ class PublicCatalogTests(TestCase):
         names = [s["name"] for s in schools]
         self.assertEqual(names, sorted(names))
 
+    def test_public_schools_carry_city_and_delivery_options(self):
+        schools = {s["code"]: s for s in APIClient().get("/api/public/schools/").json()}
+        dps = schools["DPS-SUR"]
+        self.assertEqual(dps["city"], str(self.surat.id))
+        self.assertEqual(dps["city_name"], self.surat.name)
+        self.assertEqual(dps["home_delivery"], self.dps.home_delivery_enabled)
+        self.assertEqual(dps["school_pickup"], self.dps.school_pickup_enabled)
+
     def test_public_step_school_cities(self):
         res = APIClient().get(f"/api/public/schools/{self.dps.id}/cities/")
         self.assertEqual(res.status_code, 200)

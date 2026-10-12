@@ -10,6 +10,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from common.permissions import RoleScopedPermission
 from common.phone import normalize_in_mobile
 from common.scoping import ScopedQuerysetMixin
+from . import sms
 from .models import User
 from .serializers import (
     CustomTokenObtainPairSerializer,
@@ -56,6 +57,18 @@ class SendOTPView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         otp_code = f"{secrets.randbelow(900000) + 100000}"
+        try:
+            sms.send_otp(phone, otp_code)
+        except sms.SmsNotConfigured:
+            return Response(
+                {"detail": "Sign-in by mobile number is not available yet.", "code": "sms_unavailable"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except sms.SmsSendFailed:
+            return Response(
+                {"detail": "We could not send the code. Please try again in a minute.", "code": "sms_failed"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
         cache.set(f"otp:{phone}", otp_code, timeout=OTP_TTL_SECONDS)
         cache.delete(f"otp_attempts:{phone}")
         payload = {"detail": "OTP sent successfully.", "phone": phone}

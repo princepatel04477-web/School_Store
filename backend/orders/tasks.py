@@ -13,8 +13,18 @@ from .models import Order, OrderStatusEvent
 
 @shared_task
 def send_order_confirmation(order_id):
-    # Adapter boundary for SMS/email providers; deliberately no network call in checkout.
-    return order_id
+    """Texts the parent their order number. Runs after commit, never inside checkout."""
+    from accounts.sms import send_order_confirmation as send_sms
+    from common.phone import normalize_in_mobile
+
+    order = (
+        Order.objects.select_related("parent", "payer")
+        .only("order_number", "total", "parent__phone", "payer__phone")
+        .get(pk=order_id)
+    )
+    recipient = order.parent or order.payer
+    phone = normalize_in_mobile(recipient.phone if recipient else "")
+    return send_sms(phone, order.order_number, order.total)
 
 
 @shared_task
@@ -31,6 +41,8 @@ def release_expired_reservation(order_id):
     """Release unpaid city stock exactly once after the 15-minute reservation window."""
     with transaction.atomic():
         order = Order.objects.select_for_update().get(pk=order_id)
+        if order.payment_method == Order.PaymentMethod.CASH_ON_DELIVERY:
+            return False
         if order.payment_status == Order.PaymentStatus.PAID or order.status in (
             Order.Status.CANCELLED,
             Order.Status.RETURNED,

@@ -117,6 +117,7 @@ class OrderListSerializer(serializers.ModelSerializer):
             "status",
             "payment_status",
             "fulfillment_type",
+            "payment_method",
             "subtotal",
             "total",
             "created_at",
@@ -155,6 +156,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "status",
             "payment_status",
             "fulfillment_type",
+            "payment_method",
             "subtotal",
             "total",
             "delivery_details",
@@ -184,6 +186,10 @@ class OrderCreateSerializer(serializers.Serializer):
     fulfillment_type = serializers.ChoiceField(
         choices=Order.FulfillmentType.choices,
         default=Order.FulfillmentType.HOME_DELIVERY,
+    )
+    payment_method = serializers.ChoiceField(
+        choices=Order.PaymentMethod.choices,
+        default=Order.PaymentMethod.ONLINE,
     )
     delivery_details = serializers.JSONField(required=False, default=dict)
     items = OrderCreateItemInputSerializer(many=True, allow_empty=False)
@@ -333,6 +339,7 @@ class OrderCreateSerializer(serializers.Serializer):
                     school_id=student.school_id,
                     city_id=city_id,
                     fulfillment_type=fulfillment_type,
+                    payment_method=validated_data["payment_method"],
                     status=Order.Status.PLACED,
                     payment_status=Order.PaymentStatus.PENDING,
                     subtotal=subtotal,
@@ -424,11 +431,12 @@ class OrderCreateSerializer(serializers.Serializer):
 
         transaction.on_commit(lambda: send_order_confirmation.delay(str(order.id)))
         transaction.on_commit(lambda: refresh_order_summary.delay(str(order.id)))
-        transaction.on_commit(
-            lambda: release_expired_reservation.apply_async(
-                args=[str(order.id)], countdown=15 * 60
+        if order.payment_method == Order.PaymentMethod.ONLINE:
+            transaction.on_commit(
+                lambda: release_expired_reservation.apply_async(
+                    args=[str(order.id)], countdown=15 * 60
+                )
             )
-        )
         return order
 
     @staticmethod

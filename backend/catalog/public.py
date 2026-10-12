@@ -58,13 +58,23 @@ class PublicSchoolListView(APIView):
             except Exception:
                 pass
 
-        qs = School.objects.filter(active=True).order_by("name")
+        qs = School.objects.filter(active=True).select_related("city").order_by("name")
         if search:
             qs = qs.filter(name__icontains=search)
 
         data = [
-            {"id": str(s.id), "name": s.name, "code": s.code}
-            for s in qs.only("id", "name", "code")
+            {
+                "id": str(s.id),
+                "name": s.name,
+                "code": s.code,
+                "city": str(s.city_id) if s.city_id else None,
+                "city_name": s.city.name if s.city_id else "",
+                "home_delivery": s.home_delivery_enabled,
+                "school_pickup": s.school_pickup_enabled,
+            }
+            for s in qs.only(
+                "id", "name", "code", "home_delivery_enabled", "school_pickup_enabled", "city__id", "city__name"
+            )
         ]
 
         if cache_key and not search:

@@ -375,3 +375,11 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CUSTOMISATION_STORAGE_BUCKET = os.environ.get("CUSTOMISATION_STORAGE_BUCKET", "")
 CUSTOMISATION_LOCAL_DIR = BASE_DIR / "media" / "customisations"
 CUSTOMISATION_MAX_IMAGE_BYTES = int(os.environ.get("CUSTOMISATION_MAX_IMAGE_BYTES", 1_500_000))  # ~1.5 MB client max
+
+# --------------------------------------------------------------------------- #
+# SMS (sign-in codes and order confirmations), see accounts/sms.py
+# --------------------------------------------------------------------------- #
+SMS_PROVIDER = os.environ.get("SMS_PROVIDER", "")  # "msg91", or "console" to only log
+MSG91_AUTH_KEY = os.environ.get("MSG91_AUTH_KEY", "")
+MSG91_OTP_TEMPLATE_ID = os.environ.get("MSG91_OTP_TEMPLATE_ID", "")
+MSG91_ORDER_TEMPLATE_ID = os.environ.get("MSG91_ORDER_TEMPLATE_ID", "")
