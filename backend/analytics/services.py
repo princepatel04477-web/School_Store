@@ -102,7 +102,7 @@ def rollup_sales(target_date: date | None = None) -> dict:
     Rebuild summary tables:
     * DailySalesSummary (date, school, category)
     * DailySchoolTotal  (date, school)
-    * DailyProductTotal (date, product)
+    * DailyProductTotal (date, product, school)
 
     * `target_date is None` -> full rebuild (used by backfill command).
     * otherwise           -> just that local calendar day.
@@ -220,8 +220,8 @@ def rollup_sales(target_date: date | None = None) -> dict:
             product_rows,
             batch_size=500,
             update_conflicts=True,
-            update_fields=("units", "revenue", "cost", "category", "school", "city"),
-            unique_fields=("date", "product"),
+            update_fields=("units", "revenue", "cost", "category", "city"),
+            unique_fields=("date", "product", "school"),
         )
 
     return {

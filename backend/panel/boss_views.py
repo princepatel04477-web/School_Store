@@ -424,7 +424,7 @@ class BossTopSchoolsView(APIView):
 class BossTopProductsView(APIView):
     """
     Chart: top products by units sold.
-    Requirement 5: Reads from DailyProductTotal summary table keyed by (date, product).
+    Requirement 5: Reads from DailyProductTotal summary table keyed by (date, product, school).
     """
 
     permission_classes = [RoleScopedPermission]

@@ -62,6 +62,7 @@ class CustomisationEndToEndTests(TestCase):
         # Example 1: Photo Notebook (customisation_schema as JSON list of fields)
         self.notebook_product = Product.objects.create(
             name="Personalised Photo Notebook",
+            gender=Product.Gender.UNISEX,  # products without a gender are "under review" and cannot be ordered
             category=self.cat_stationery,
             school=None,
             cost_price=Decimal("150.00"),
@@ -92,6 +93,7 @@ class CustomisationEndToEndTests(TestCase):
         # Example 2: ID Card (student photo, name, class, blood group, emergency phone)
         self.idcard_product = Product.objects.create(
             name="Smart PVC Student ID Card",
+            gender=Product.Gender.UNISEX,  # products without a gender are "under review" and cannot be ordered
             category=self.cat_idcards,
             school=None,
             cost_price=Decimal("40.00"),

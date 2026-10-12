@@ -17,6 +17,7 @@ from orders.models import Order
 
 from .import_service import TEMPLATE_COLUMNS, commit_import, validate_import
 from .models import School, Student
+from common.testing import requires_postgres
 
 BASE_SCHOOL_A_STUDENTS = 0  # filled in setUpTestData
 
@@ -274,6 +275,7 @@ class StudentListTests(StudentManagementTestBase):
             [r["gr_number"] for r in by_section_and_class.data["results"]], ["GR-7003"]
         )
 
+    @requires_postgres
     def test_class_and_section_filter_plan_uses_composite_index(self):
         """Rule P3: the (school, class, section) filter is an indexed lookup."""
         Student.objects.bulk_create(
@@ -304,15 +306,25 @@ class StudentListTests(StudentManagementTestBase):
                 [str(self.school_a.id), "5", "A"],
             )
             plan = "\n".join(r[0] for r in cursor.fetchall())
-        # The (school, class, section) prefix is served by the composite index.
-        # `idx_student_school_roster` extends it with name + id so the admin
-        # roster's cursor ordering needs no sort; either one satisfies rule P3.
+        # The (school, class) prefix is served by a composite index. Classes are now a
+        # grade FK, so the old (school, class, section) index was replaced by
+        # `idx_stud_sch_cls_gen` (school, class, gender) and `idx_student_school_grd_sec`;
+        # `idx_student_school_roster` still serves the roster ordering. Any of them
+        # satisfies rule P3 (indexed lookup, never a sequential scan).
         self.assertTrue(
-            "idx_student_school_cls_sec" in plan
-            or "idx_student_school_roster" in plan,
+            any(
+                name in plan
+                for name in (
+                    "idx_stud_sch_cls_gen",
+                    "idx_student_school_grd_sec",
+                    "idx_student_school_roster",
+                )
+            ),
             plan,
         )
+        self.assertNotIn("Seq Scan on schools_student", plan)
 
+    @requires_postgres
     def test_search_plan_uses_expression_index(self):
         Student.objects.bulk_create(
             [
@@ -407,6 +419,7 @@ class StudentBulkImportTests(StudentManagementTestBase):
         self.assertIn("school_id", student_selects[0])
         self.assertEqual(job.valid_count, 300)
 
+    @requires_postgres
     def test_confirm_inserts_in_batches_of_500_with_on_conflict(self):
         rows = [row(f"Batch Child {i:04d}", f"GR-BATCH-{i:04d}") for i in range(1200)]
         client = login(self.school_admin_a)

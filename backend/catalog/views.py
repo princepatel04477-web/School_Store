@@ -41,7 +41,8 @@ class ProductViewSet(
     cache_namespace = "catalog:products"
     queryset = (
         Product.objects.select_related("category", "school")
-        .prefetch_related("variants")
+        # `grades` is serialised for every product: prefetch it or each row costs an extra query
+        .prefetch_related("variants", "grades")
         .order_by("id")
     )
     serializer_class = ProductSerializer

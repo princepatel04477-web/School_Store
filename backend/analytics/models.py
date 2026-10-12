@@ -121,7 +121,9 @@ class DailySchoolTotal(UUIDModel):
 
 class DailyProductTotal(UUIDModel):
     """
-    Requirement 5: Top products summary table keyed by (date, product).
+    Requirement 5: Top products summary table keyed by (date, product, school):
+    the same product can sell in several schools on one day, and the Boss chart
+    filters by school/city, so one row per school is kept.
     Maintained incrementally by order/cancel events, nightly 7-day rebuild,
     and the full backfill command.
     """
@@ -160,8 +162,8 @@ class DailyProductTotal(UUIDModel):
         ordering = ["-date"]
         constraints = [
             models.UniqueConstraint(
-                fields=["date", "product"],
-                name="uniq_dailyprodtotal_date_prod",
+                fields=["date", "product", "school"],
+                name="uniq_dailyprodtotal_date_prod_school",
             ),
         ]
         indexes = [

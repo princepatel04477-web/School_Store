@@ -113,10 +113,11 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
 
     List endpoint: 50 rows/page, `?search=` on name + GR number (served by the
     functional `UPPER(...) varchar_pattern_ops` indexes), `?class_name=` /
-    `?section=` filters served by the composite (school, class, section) index.
+    `?section=` filters served by the composite (school, class, gender) / (school, grade, section) indexes.
     """
 
-    queryset = Student.objects.select_related("school", "parent").order_by(
+    # `grade` is read by the serializer (grade_name) for every row: load it in the same query.
+    queryset = Student.objects.select_related("school", "parent", "grade").order_by(
         "school_id", "class_name", "section", "name"
     )
     serializer_class = StudentSerializer

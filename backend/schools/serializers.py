@@ -2,6 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
+from common.constants import normalize_class_name
 from common.exceptions import Conflict
 from common.models import ImportJob
 
@@ -311,8 +312,14 @@ class StudentClaimSerializer(serializers.Serializer):
         else:
             class_name = (self.validated_data.get("class_name") or "").strip()
             section = (self.validated_data.get("section") or "").strip()
+            # Classes are stored as canonical names ("Class 5"); parents may type "5",
+            # "std 5", "Class 5"... so compare the normalised forms.
+            def _canonical(value: str) -> str:
+                value = (value or "").strip()
+                return (normalize_class_name(value) or value).lower()
+
             if (
-                student.class_name.strip().lower() != class_name.lower()
+                _canonical(student.class_name) != _canonical(class_name)
                 or student.section.strip().lower() != section.lower()
             ):
                 raise not_found

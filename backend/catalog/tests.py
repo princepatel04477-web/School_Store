@@ -444,7 +444,7 @@ class PublicCatalogTests(TestCase):
         sql = (
             "EXPLAIN SELECT p.id, p.name FROM catalog_product p "
             "INNER JOIN catalog_product_grades pg ON pg.product_id = p.id "
-            "WHERE p.active = 1 AND (p.school_id = %s OR p.school_id IS NULL) "
+            "WHERE p.active = TRUE AND (p.school_id = %s OR p.school_id IS NULL) "
             "AND pg.grade_id = %s"
         )
         with connection.cursor() as cursor:
