@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, ChevronDown, ChevronUp } from '../ui/icons';
 import { motion } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
@@ -32,6 +32,17 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
   const [openFabric, setOpenFabric] = useState(true);
   const [openDelivery, setOpenDelivery] = useState(false);
   const [openExchange, setOpenExchange] = useState(false);
+
+  // Escape key closes the sheet
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen && !sizeGuideOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, sizeGuideOpen, onClose]);
 
   if (!isOpen || !product) return null;
 

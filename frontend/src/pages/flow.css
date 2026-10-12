@@ -278,6 +278,21 @@
   color: var(--ink);
 }
 
+/* Phones: three classes per row, so all fifteen fit in about one screen */
+@media (max-width: 640px) {
+  .classes-tiles-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-2);
+  }
+  .class-tile {
+    min-height: 52px;
+    padding: var(--space-2);
+  }
+  .class-tile-name {
+    font-size: var(--text-sm);
+  }
+}
+
 /* Step 3: Items Grid & Sticky Tabs */
 .step-3-layout {
   display: grid;
@@ -293,7 +308,7 @@
 
 .category-tabs-sticky {
   position: sticky;
-  top: 72px;
+  top: 60px; /* the header's height once the page is scrolled */
   background-color: var(--paper);
   z-index: 30;
   padding: var(--space-3) 0;
@@ -302,6 +317,17 @@
   overflow-x: auto;
   border-bottom: 1px solid var(--line);
   margin-bottom: var(--space-8);
+  scrollbar-width: none;
+}
+
+.category-tabs-sticky::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .category-tabs-sticky {
+    margin-bottom: var(--space-6);
+  }
 }
 
 .cat-tab {

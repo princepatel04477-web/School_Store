@@ -125,3 +125,7 @@ table.data small.gr{display:block;color:var(--muted);font-size:10px;margin-top:2
 /* Import preview: the plan is information, not an error list */
 .preview-list.is-plan small{color:var(--ink-soft)}
 .preview-list.is-plan .check{display:flex;gap:8px;align-items:flex-start;margin-top:8px;font-size:13px;color:var(--ink);text-transform:none;letter-spacing:0}
+
+/* Login banner: base.css greys every <p>; the banner line must stay light on green */
+.login-art p{color:inherit}
+.login-card a.link-button{text-align:center}

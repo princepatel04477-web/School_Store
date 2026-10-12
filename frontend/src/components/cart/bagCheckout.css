@@ -351,6 +351,13 @@
   align-self: flex-start;
 }
 
+@media (max-width: 640px) {
+  .step-next-btn {
+    align-self: stretch;
+    width: 100%;
+  }
+}
+
 .step-summary-view {
   margin-top: var(--space-3);
   display: flex;

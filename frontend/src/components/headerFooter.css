@@ -389,8 +389,9 @@
   .selected-school-pill {
     display: none;
   }
-  /* Sign in lives in the menu drawer on phones */
-  .action-signin-link {
+  /* Sign in and My Account live in the menu drawer on phones */
+  .action-signin-link,
+  .action-account-btn {
     display: none;
   }
   .brand-wordmark {
@@ -449,6 +450,17 @@
   color: var(--ink-soft);
   font-size: var(--text-sm);
   text-decoration: none;
+}
+
+/* Phones: taller rows so each link is an easy thumb target */
+@media (max-width: 640px) {
+  .footer-list {
+    gap: 0;
+  }
+  .footer-list a {
+    display: block;
+    padding: 10px 0;
+  }
 }
 
 .footer-list a:hover {

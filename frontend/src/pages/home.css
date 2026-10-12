@@ -511,6 +511,21 @@
   color: var(--ink-soft);
 }
 
+/* Phones: compact rows (crest beside the name) like the shop's school list */
+@media (max-width: 639px) {
+  .schools-grid {
+    gap: var(--space-2);
+  }
+  .featured-school-card {
+    flex-direction: row;
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+  }
+  .featured-school-name {
+    margin: 0 0 2px;
+  }
+}
+
 /* ================== Reassurance ================== */
 .reassurance-line {
   max-width: 62ch;
