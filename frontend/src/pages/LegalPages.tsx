@@ -18,10 +18,17 @@ function LegalPage({ title, children }: { title: string; children: ReactNode }) 
       <p className="legal-meta">Last updated {UPDATED}</p>
       <h1>{title}</h1>
       {children}
-      <p className="legal-contact">
-        Questions? Write to <a href={siteConfig.supportEmailHref}>{siteConfig.supportEmail}</a> or call{' '}
-        <a href={siteConfig.supportPhoneHref}>{siteConfig.supportPhone}</a>.
-      </p>
+      {(siteConfig.supportEmail || siteConfig.supportPhone) && (
+        <p className="legal-contact">
+          Questions?{' '}
+          {siteConfig.supportEmail && (
+            <>Write to <a href={siteConfig.supportEmailHref}>{siteConfig.supportEmail}</a>{siteConfig.supportPhone ? ' or call ' : '.'}</>
+          )}
+          {siteConfig.supportPhone && (
+            <>{!siteConfig.supportEmail && 'Call '}<a href={siteConfig.supportPhoneHref}>{siteConfig.supportPhone}</a>.</>
+          )}
+        </p>
+      )}
     </article>
   );
 }

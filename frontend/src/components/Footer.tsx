@@ -5,6 +5,7 @@ import './headerFooter.css';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
+  const hasContact = Boolean(siteConfig.supportPhone || siteConfig.whatsappHref || siteConfig.supportEmail);
 
   return (
     <footer className="site-footer">
@@ -44,17 +45,21 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Col 4: Contact */}
+          {/* Col 4: Contact (only details that are filled in; see siteConfig) */}
+          {hasContact && (
           <div className="footer-col footer-contact-col">
             <h4 className="footer-title">Contact</h4>
             <p className="footer-hours">{siteConfig.hours}</p>
             <div className="footer-contact-links">
+              {siteConfig.supportPhone && (
               <div>
                 <span className="label">Phone</span>
                 <a href={siteConfig.supportPhoneHref} className="plain-link">
                   {siteConfig.supportPhone}
                 </a>
               </div>
+              )}
+              {siteConfig.whatsappHref && (
               <div>
                 <span className="label">WhatsApp</span>
                 <a
@@ -66,15 +71,19 @@ export function Footer() {
                   Message support
                 </a>
               </div>
+              )}
+              {siteConfig.supportEmail && (
               <div>
                 <span className="label">Email</span>
                 <a href={siteConfig.supportEmailHref} className="plain-link">
                   {siteConfig.supportEmail}
                 </a>
               </div>
+              )}
             </div>
-            <p className="footer-address">{siteConfig.address}</p>
+            {siteConfig.address && <p className="footer-address">{siteConfig.address}</p>}
           </div>
+          )}
         </div>
 
         {/* Full-width Thread sitting above copyright */}

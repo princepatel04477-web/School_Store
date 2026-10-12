@@ -43,6 +43,29 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     [activeClassId]
   );
 
+  // A link from the school (?school=…&class=…) counts as the parent's choice, so the
+  // bag and checkout know which school and class the order is for.
+  useEffect(() => {
+    if (!activeSchool) return;
+    if (
+      selection?.schoolId === activeSchool.id &&
+      selection?.gradeId === activeClass?.id &&
+      (selection?.gender ?? null) === activeGender
+    ) {
+      return;
+    }
+    setSelection({
+      schoolId: activeSchool.id,
+      schoolName: activeSchool.name,
+      schoolCode: activeSchool.code,
+      cityName: activeSchool.city,
+      gradeId: activeClass?.id,
+      gradeName: activeClass?.name,
+      gender: activeGender,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSchool, activeClass, activeGender]);
+
   // Cart clear warning state
   const [showCartWarning, setShowCartWarning] = useState(false);
   const [pendingTargetStep, setPendingTargetStep] = useState<number | null>(null);

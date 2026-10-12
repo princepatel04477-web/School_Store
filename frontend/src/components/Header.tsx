@@ -277,6 +277,7 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
               )}
             </div>
 
+            {siteConfig.supportPhone && (
             <div className="sheet-footer">
               <div className="sheet-support-row">
                 <span className="label">Need assistance?</span>
@@ -285,6 +286,7 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
                 </a>
               </div>
             </div>
+            )}
           </div>
         </div>
       )}

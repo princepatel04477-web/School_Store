@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, ShieldCheck } from '../components/ui/icons';
+import { ArrowLeft } from '../components/ui/icons';
 import { formatINR } from '../utils/formatINR';
 import { useStoreState } from '../store/storeState';
-import { paymentAdapter } from '../services/paymentAdapter';
-import { motion, AnimatePresence } from 'motion/react';
-import { Thread } from '../motion/Thread';
-import { EASING, DURATION_FAST, DURATION_BASE } from '../motion/motionConfig';
+import { siteConfig } from '../siteConfig';
+import { buildOrderMessage, whatsappOrderUrl } from '../services/whatsappOrder';
 import { useAuth } from '../auth';
 import type { ParentChild } from '../api';
 import { ParentSignInSheet } from '../components/parent/ParentSignInSheet';
@@ -18,26 +16,23 @@ export function CheckoutPage() {
 
   // Current active accordion step: 1, 2, or 3
   const [activeStep, setActiveStep] = useState<number>(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [orderComplete, setOrderComplete] = useState<any | null>(null);
+  // Orders are not saved on the server yet: the parent sends them to our WhatsApp.
+  const [reference] = useState(() => `SS-${Date.now().toString(36).toUpperCase()}`);
+  const [sent, setSent] = useState(false);
 
   // Form Fields State
   const [parentName, setParentName] = useState('');
   const [parentMobile, setParentMobile] = useState('');
-  const [parentEmail, setParentEmail] = useState('');
   const [studentName, setStudentName] = useState('');
-  const [studentClass, setStudentClass] = useState(selection?.gradeName || 'Class 5');
+  const [studentClass, setStudentClass] = useState(selection?.gradeName || '');
 
   // Delivery State
   const [deliveryType, setDeliveryType] = useState<'HOME' | 'SCHOOL'>('HOME');
   const [pinCode, setPinCode] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
   const [addressLine2, setAddressLine2] = useState('');
-  const [city, setCity] = useState(selection?.cityName || 'Gurugram');
-  const [state, setState] = useState('Haryana');
-
-  // Payment Method
-  const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'CARD' | 'NETBANKING' | 'COD'>('UPI');
+  const [city, setCity] = useState(selection?.cityName || '');
+  const [state, setState] = useState('Gujarat');
 
   // Validation Errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -75,9 +70,8 @@ export function CheckoutPage() {
     const errs: Record<string, string> = {};
     if (!parentName.trim()) errs.parentName = 'Parent name is required';
     if (!/^\d{10}$/.test(parentMobile.trim())) errs.parentMobile = 'Enter a valid 10-digit mobile number';
-    // Optional: order updates go to WhatsApp; email is only for a copy of the receipt
-    if (parentEmail.trim() && !parentEmail.includes('@')) errs.parentEmail = 'Enter a valid email address';
     if (!studentName.trim()) errs.studentName = 'Student name is required';
+    if (!studentClass.trim()) errs.studentClass = 'Class is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -94,92 +88,66 @@ export function CheckoutPage() {
     return Object.keys(errs).length === 0;
   };
 
-  const handlePay = async () => {
-    if (isSubmitting) return; // Prevent double submit
-    setIsSubmitting(true);
+  const orderMessage = buildOrderMessage({
+    reference,
+    schoolName: selection?.schoolName,
+    studentName,
+    studentClass,
+    parentName,
+    parentMobile,
+    deliveryType,
+    address: [addressLine1, addressLine2, city, state, pinCode].map((part) => part.trim()).filter(Boolean).join(', '),
+    items: cart,
+    subtotalPaise,
+    gstPaise,
+    deliveryPaise,
+    totalPaise: grandTotalPaise,
+  });
+  const whatsappUrl = siteConfig.whatsappNumber ? whatsappOrderUrl(siteConfig.whatsappNumber, orderMessage) : '';
 
-    try {
-      const orderId = `ORD-${Date.now().toString().slice(-6)}`;
-      const res = await paymentAdapter.initiatePayment({
-        orderId,
-        amountPaise: grandTotalPaise,
-        currency: 'INR',
-        method: paymentMethod,
-        customer: {
-          name: parentName,
-          phone: parentMobile,
-          email: parentEmail,
-        },
-      });
-
-      if (res.success) {
-        setOrderComplete({
-          orderNumber: orderId,
-          totalPaise: grandTotalPaise,
-          studentName,
-          itemsCount: cart.length,
-          deliveryType,
-        });
-        clearCart();
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  if (orderComplete) {
+  // Honest hand-off: the order counts only once the parent presses Send in WhatsApp.
+  if (sent) {
     return (
       <div className="order-confirmed-wrap container">
         <div className="order-confirmed-card">
-          <motion.div
-            className="confirmed-badge"
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: DURATION_BASE, ease: EASING }}
-          >
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <motion.path
-                d="M5 12.5l4.5 4.5L19 7.5"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                initial={{ pathLength: 0 }}
-                animate={{ pathLength: 1 }}
-                transition={{ duration: DURATION_BASE, delay: 0.2, ease: EASING }}
-              />
-            </svg>
-          </motion.div>
-          <h1 className="confirmed-heading">Order placed</h1>
-          <Thread className="confirmed-thread" />
-          <div className="order-num-label">Order Reference #{orderComplete.orderNumber}</div>
+          <h1 className="confirmed-heading">Now press Send in WhatsApp</h1>
+          <div className="order-num-label">Reference {reference}</div>
 
           <div className="confirmed-steps">
             <div className="confirmed-step-row">
               <span className="step-circle">1</span>
-              <span>We’ve sent the invoice and tracking details to {parentEmail}.</span>
+              <span>Your order is written out in WhatsApp. Tap the green Send button there. The order is booked only after you send it.</span>
             </div>
             <div className="confirmed-step-row">
               <span className="step-circle">2</span>
               <span>
-                {orderComplete.deliveryType === 'HOME'
-                  ? 'Your items will be inspected and dispatched via express courier.'
-                  : 'Your package will be ready for pickup at your school distribution counter.'}
+                We will call you on {parentMobile} to confirm the order
+                {deliveryType === 'HOME' ? ' and your address.' : ' and when to collect it at school.'}
               </span>
             </div>
             <div className="confirmed-step-row">
               <span className="step-circle">3</span>
-              <span>Easy size exchange available within 7 days of package delivery.</span>
+              <span>Pay {formatINR(grandTotalPaise)} in cash when you get it. Wrong size? Exchange it within 7 days.</span>
             </div>
           </div>
 
           <div className="confirmed-actions">
-            <Link to="/parent/orders" className="btn btn-outline">
-              Track order
-            </Link>
-            <Link to="/" className="btn btn-text">
-              Back to home
-            </Link>
+            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+              Open WhatsApp again
+            </a>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => {
+                clearCart();
+                navigate('/');
+              }}
+            >
+              I have sent it
+            </button>
+            <button type="button" className="btn btn-text" onClick={() => setSent(false)}>
+              Change my order
+            </button>
           </div>
         </div>
       </div>
@@ -299,20 +267,6 @@ export function CheckoutPage() {
                   )}
                 </div>
 
-                <div className="form-group">
-                  <label className="input-label" htmlFor="parent-email">Email (optional, for the receipt)</label>
-                  <input
-                    id="parent-email"
-                    type="email"
-                    autoComplete="email"
-                    className={`input-control ${errors.parentEmail ? 'input-has-err' : ''}`}
-                    placeholder="name@domain.com"
-                    value={parentEmail}
-                    onChange={(e) => setParentEmail(e.target.value)}
-                  />
-                  {errors.parentEmail && <span className="field-err">{errors.parentEmail}</span>}
-                </div>
-
                 {/* A child from the school's records needs no student fields */}
                 {!child && (
                 <div className="form-grid-2">
@@ -334,10 +288,12 @@ export function CheckoutPage() {
                     <input
                       id="student-class"
                       type="text"
-                      className="input-control"
+                      className={`input-control ${errors.studentClass ? 'input-has-err' : ''}`}
+                      placeholder="e.g. Class 4 B"
                       value={studentClass}
                       onChange={(e) => setStudentClass(e.target.value)}
                     />
+                    {errors.studentClass && <span className="field-err">{errors.studentClass}</span>}
                   </div>
                 </div>
                 )}
@@ -486,103 +442,45 @@ export function CheckoutPage() {
           <section className={`checkout-section ${activeStep === 3 ? 'is-active' : 'is-collapsed'}`}>
             <div className="section-step-header">
               <div className="step-badge">3</div>
-              <h2 className="step-header-title">Payment Method</h2>
+              <h2 className="step-header-title">Payment</h2>
             </div>
 
             {activeStep === 3 && (
               <div className="step-body">
                 <div className="payment-options-grid">
-                  <label className={`payment-option ${paymentMethod === 'UPI' ? 'is-selected' : ''}`}>
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      checked={paymentMethod === 'UPI'}
-                      onChange={() => setPaymentMethod('UPI')}
-                    />
+                  <div className="payment-option is-selected">
                     <div>
-                      <strong>UPI (GPay / PhonePe / Paytm / QR)</strong>
-                      <p>Instant contactless authorization</p>
+                      <strong>Pay cash when it arrives</strong>
+                      <p>Cash on delivery. Paying online by UPI is coming soon.</p>
                     </div>
-                  </label>
-
-                  <label className={`payment-option ${paymentMethod === 'CARD' ? 'is-selected' : ''}`}>
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      checked={paymentMethod === 'CARD'}
-                      onChange={() => setPaymentMethod('CARD')}
-                    />
-                    <div>
-                      <strong>Credit / Debit Card</strong>
-                      <p>Visa, MasterCard, RuPay (Hosted security)</p>
-                    </div>
-                  </label>
-
-                  <label className={`payment-option ${paymentMethod === 'NETBANKING' ? 'is-selected' : ''}`}>
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      checked={paymentMethod === 'NETBANKING'}
-                      onChange={() => setPaymentMethod('NETBANKING')}
-                    />
-                    <div>
-                      <strong>Net Banking</strong>
-                      <p>All major Indian banks</p>
-                    </div>
-                  </label>
-
-                  <label className={`payment-option ${paymentMethod === 'COD' ? 'is-selected' : ''}`}>
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      checked={paymentMethod === 'COD'}
-                      onChange={() => setPaymentMethod('COD')}
-                    />
-                    <div>
-                      <strong>Cash on Delivery (COD)</strong>
-                      <p>Pay upon physical receipt</p>
-                    </div>
-                  </label>
+                  </div>
                 </div>
 
-                <div className="payment-security-note">
-                  <ShieldCheck width={18} height={18} />
-                  <span>256-bit encrypted checkout. Card details never stored on servers.</span>
-                </div>
-
-                <button
-                  type="button"
-                  className={`btn btn-primary pay-now-btn ${isSubmitting ? 'is-paying' : ''}`}
-                  onClick={handlePay}
-                  disabled={isSubmitting}
-                  aria-busy={isSubmitting}
-                >
-                  <span className="pay-btn-labels">
-                    <AnimatePresence mode="popLayout" initial={false}>
-                      <motion.span
-                        key={isSubmitting ? 'paying' : 'pay'}
-                        className="pay-btn-label"
-                        initial={{ y: '110%', opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: '-110%', opacity: 0 }}
-                        transition={{ duration: DURATION_FAST, ease: EASING }}
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <span className="pay-btn-spinner" aria-hidden="true" />
-                            Authorizing payment…
-                          </>
-                        ) : (
-                          `Pay ${formatINR(grandTotalPaise)}`
-                        )}
-                      </motion.span>
-                    </AnimatePresence>
-                  </span>
-                </button>
-                <p className="checkout-legal-note">
-                  By paying you agree to our <Link to="/terms">Terms</Link>, <Link to="/refunds">Refund Policy</Link> and{' '}
-                  <Link to="/privacy">Privacy Policy</Link>.
-                </p>
+                {whatsappUrl ? (
+                  <>
+                    <a
+                      href={whatsappUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-primary pay-now-btn"
+                      onClick={() => {
+                        setSent(true);
+                        window.scrollTo(0, 0);
+                      }}
+                    >
+                      Send order on WhatsApp · {formatINR(grandTotalPaise)}
+                    </a>
+                    <p className="checkout-legal-note">
+                      WhatsApp opens with your order written out; press Send there to book it. By ordering you agree to
+                      our <Link to="/terms">Terms</Link>, <Link to="/refunds">Refund Policy</Link> and{' '}
+                      <Link to="/privacy">Privacy Policy</Link>.
+                    </p>
+                  </>
+                ) : (
+                  <p className="checkout-closed-note" role="status">
+                    Online ordering opens soon. Your items stay saved in your bag.
+                  </p>
+                )}
               </div>
             )}
           </section>
