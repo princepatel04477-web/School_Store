@@ -31,6 +31,7 @@ export function buildOrderMessage(order: WhatsAppOrder): string {
       (item) =>
         `${item.quantity} x ${item.name}${item.size ? ` (size ${item.size})` : ''} = ${formatINR(item.pricePaise * item.quantity)}`,
     ),
+    '',
     `Total: ${formatINR(order.totalPaise)}`,
     '',
     order.deliveryType === 'HOME' ? `Deliver to: ${order.address}` : 'Collect at school',
