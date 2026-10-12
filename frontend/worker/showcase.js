@@ -248,6 +248,10 @@ export default {
     if (/^\/(admin|static|media)(\/|$)/.test(url.pathname)) return notHere();
 
     const res = await env.ASSETS.fetch(request);
+    // A code or photo file that isn't there is a 404, not the app's page (an old page can then reload)
+    if (/^\/(assets|products)\//.test(url.pathname) && (res.headers.get('content-type') || '').includes('text/html')) {
+      return new Response('Not found', { status: 404, headers: { 'cache-control': 'no-store' } });
+    }
     const out = new Response(res.body, res);
     out.headers.set('x-served-by', 'showcase');
     if (!url.pathname.startsWith('/assets/') && !url.pathname.startsWith('/products/')) {
