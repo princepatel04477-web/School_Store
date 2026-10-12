@@ -3,9 +3,9 @@
   "name": "school-store",
   "main": "worker/index.js",
   "compatibility_date": "2026-09-01",
-  // The Worker (worker/index.js) is the permanent public address. It forwards every request through a
-  // Cloudflare tunnel to the store running on our own server (Django serves the API AND the React app).
-  // The React build below is bundled but only used if the Worker is changed to serve it directly.
+  // The Worker (worker/index.js) is the permanent public address. It serves the React build below and
+  // forwards /api, /admin, /static and /media through a Cloudflare tunnel to Django on our own server.
+  // Frontend release: `vite build` (VITE_API_URL=/api) then `wrangler deploy`.
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",

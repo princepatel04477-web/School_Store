@@ -1,12 +1,16 @@
 // Cloudflare Worker = the permanent public address of School Store.
 //
-//   visitor -> this Worker -> tunnel -> the store running on OUR OWN SERVER (E: drive machine)
+//   visitor -> this Worker -> React app (bundled assets, frontend/dist)
+//                          -> /api /admin /static /media -> tunnel -> Django on OUR OWN SERVER (E: drive machine)
 //
 // The server's current tunnel address lives in KV key "origin". The server (deploy/publish.ps1)
 // refreshes it by POSTing to /__origin with the shared secret every time its tunnel (re)starts.
-// If the server or its tunnel is down, visitors get a clear "offline" page (never a different copy of the store).
+// If the server or its tunnel is down, server paths get a clear "offline" page (never a different copy of the store).
 
-const TUNNEL_DOWN = new Set([502, 503, 504, 521, 522, 523, 524, 530]);
+// Paths Django answers on the server; everything else is the React app.
+const SERVER_PATH = /^\/(api|admin|static|media)(\/|$)/;
+
+const TUNNEL_DOWN =new Set([502, 503, 504, 521, 522, 523, 524, 530]);
 
 // Only accept tunnel addresses (quick tunnels now; add your own domain here later).
 const ORIGIN_OK = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/;
@@ -42,6 +46,16 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/__origin') return register(request, env);
+
+    // The React app is served from the assets bundled with this Worker (frontend/dist), so a frontend
+    // change goes live with `wrangler deploy` alone. Only the server's own paths go through the tunnel.
+    if (!SERVER_PATH.test(url.pathname)) {
+      const res = await env.ASSETS.fetch(request);
+      const out = new Response(res.body, res);
+      out.headers.set('x-served-by', 'worker');
+      if (!url.pathname.startsWith('/assets/')) out.headers.set('cache-control', 'no-cache');
+      return out;
+    }
 
     const origin = await env.CONFIG.get('origin', { cacheTtl: 60 });
     if (!origin) return offline();
