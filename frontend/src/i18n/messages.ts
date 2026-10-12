@@ -179,6 +179,7 @@ export const messages = {
   'product.pickSize': { en: 'Please choose a size', gu: 'સાઈઝ પસંદ કરો', hi: 'साइज़ चुनें' },
   'product.sizeGuide': { en: 'Size guide', gu: 'સાઈઝ માર્ગદર્શન', hi: 'साइज़ गाइड' },
   'product.add': { en: 'Add to bag', gu: 'બેગમાં ઉમેરો', hi: 'बैग में डालें' },
+  'product.chooseSize': { en: 'Choose size', gu: 'સાઈઝ પસંદ કરો', hi: 'साइज़ चुनें' },
   'product.addWithPrice': { en: 'Add to bag · {price}', gu: 'બેગમાં ઉમેરો · {price}', hi: 'बैग में डालें · {price}' },
   'product.added': { en: 'Added', gu: 'ઉમેરાયું', hi: 'डाल दिया' },
   'product.addedToBag': { en: 'Added to bag', gu: 'બેગમાં ઉમેરાયું', hi: 'बैग में डाल दिया' },

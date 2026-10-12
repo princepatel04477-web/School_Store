@@ -6,7 +6,6 @@ import { useStoreState } from '../../store/storeState';
 import { ProductImage } from './ProductImage';
 import { QuantityStepper } from './QuantityStepper';
 import { AddToBagButton } from './AddToBagButton';
-import { useShake } from '../../motion/useShake';
 import { EASING, DURATION_FAST } from '../../motion/motionConfig';
 import type { SeedProduct } from '../../data/seedData';
 import './product.css';
@@ -24,29 +23,23 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
   const { cart, addItem, updateQuantity } = useStoreState();
   const { t } = useLang();
 
-  const [selectedSizeId, setSelectedSizeId] = useState<string>(
-    product.sizes.length === 1 ? product.sizes[0].id : ''
-  );
-  const [sizeError, setSizeError] = useState(false);
   // Keeps the add button on screen while it shows "Added", before the stepper takes over
   const [settling, setSettling] = useState(false);
-  const [sizeRowRef, shakeSizeRow] = useShake();
 
   // Check if this product is in the cart
   const cartMatches = cart.filter((c) => c.productId === product.id);
   const currentTotalQty = cartMatches.reduce((acc, c) => acc + c.quantity, 0);
   const inStock = product.sizes.some((s) => s.inStock);
   const orderable = inStock && !product.needsDetails;
+  // The card shows the photo; sizes are chosen in the item's sheet
+  const needsSizeChoice = product.sizes.length > 1;
 
   const handleAdd = (): boolean => {
-    if (product.sizes.length > 1 && !selectedSizeId) {
-      setSizeError(true);
-      shakeSizeRow();
+    if (needsSizeChoice) {
+      onOpenDetails?.(product);
       return false;
     }
-    setSizeError(false);
-    const chosenSize = product.sizes.find((s) => s.id === selectedSizeId) || product.sizes[0];
-
+    const chosenSize = product.sizes[0];
     addItem({
       productId: product.id,
       variantId: chosenSize.id,
@@ -101,30 +94,6 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
         <p className="product-card-descriptor">{product.descriptor}</p>
         <div className="product-card-price">{formatINR(product.pricePaise)}</div>
 
-        {/* Compact Size Selector if multiple sizes */}
-        {orderable && product.sizes.length > 1 && (currentTotalQty === 0 || settling) && (
-          <div className="card-size-row" ref={sizeRowRef}>
-            <span className="label">{t('product.size')}</span>
-            <div className="card-size-chips">
-              {product.sizes.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  disabled={!s.inStock}
-                  className={`card-size-chip ${selectedSizeId === s.id ? 'is-selected' : ''}`}
-                  onClick={() => {
-                    setSelectedSizeId(s.id);
-                    setSizeError(false);
-                  }}
-                >
-                  {s.size}
-                </button>
-              ))}
-            </div>
-            {sizeError && <span className="card-size-error">{t('product.pickSize')}</span>}
-          </div>
-        )}
-
         {/* Add Button or Stepper */}
         {!orderable ? (
           <p className="card-unavailable">
@@ -145,6 +114,12 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
                   onIncrement={handleIncrement}
                   onDecrement={handleDecrement}
                 />
+              </motion.div>
+            ) : needsSizeChoice ? (
+              <motion.div key="choose" exit={{ opacity: 0 }} transition={{ duration: DURATION_FAST, ease: EASING }}>
+                <button type="button" className="btn btn-outline card-add-btn" onClick={() => onOpenDetails?.(product)}>
+                  {t('product.chooseSize')}
+                </button>
               </motion.div>
             ) : (
               <motion.div

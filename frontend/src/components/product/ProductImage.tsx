@@ -22,7 +22,8 @@ export function ProductImage({
     <div
       className={`product-image-container ${className}`.trim()}
       style={{
-        aspectRatio: '4 / 5',
+        // Photos are square; the drawn stand-in keeps the taller frame
+        aspectRatio: imageUrl ? '1 / 1' : '4 / 5',
         backgroundColor: 'var(--paper-sunk)',
         borderRadius: 'var(--radius-md)',
         overflow: 'hidden',
