@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useStoreSchools, type StoreSchool } from '../data/catalog';
 import { useStoreState } from '../store/storeState';
 import { SchoolCrest } from '../components/school/SchoolCrest';
-import { CATEGORY_PHOTOS } from '../data/categoryPhotos';
+import { KitIllustration, type KitKind } from '../components/home/KitIllustration';
+import { CategoryPhoto } from '../components/CategoryPhoto';
 import { EASING } from '../motion/motionConfig';
 import { prefetchFlowPage, prefetchSchoolData } from '../utils/prefetch';
 import {
@@ -33,27 +34,32 @@ export function HomePage() {
   const categoryTiles = [
     {
       title: t('cat.uniform'),
-      photo: CATEGORY_PHOTOS['Uniform'],
+      category: 'Uniform',
+      kind: 'uniform' as KitKind,
       href: '/shop?cat=Uniform',
     },
     {
       title: t('cat.shoes'),
-      photo: CATEGORY_PHOTOS['School Shoes'],
+      category: 'School Shoes',
+      kind: 'shoes' as KitKind,
       href: '/shop?cat=School%20Shoes',
     },
     {
       title: t('cat.accessories'),
-      photo: CATEGORY_PHOTOS['Uniform Accessories'],
+      category: 'Uniform Accessories',
+      kind: 'accessories' as KitKind,
       href: '/shop?cat=Uniform%20Accessories',
     },
     {
       title: t('cat.stationery'),
-      photo: CATEGORY_PHOTOS['Stationery'],
+      category: 'Stationery',
+      kind: 'stationery' as KitKind,
       href: '/shop?cat=Stationery',
     },
     {
       title: t('cat.idcard'),
-      photo: CATEGORY_PHOTOS['ID Cards'],
+      category: 'ID Cards',
+      kind: 'idcard' as KitKind,
       href: '/shop?cat=ID%20Cards',
     },
   ];
@@ -312,7 +318,12 @@ export function HomePage() {
               onMouseEnter={prefetchFlowPage}
             >
               <div className="cat-tile-media">
-                <img src={cat.photo} alt="" width={400} height={400} loading="lazy" />
+                <CategoryPhoto
+                  category={cat.category}
+                  size={400}
+                  lazy
+                  fallback={<KitIllustration kind={cat.kind} color="var(--tile)" />}
+                />
               </div>
               <div className="cat-tile-body">
                 <h3 className="cat-title">{cat.title}</h3>

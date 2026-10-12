@@ -19,6 +19,7 @@ import { categoryLabel, classLabel, genderLabel } from '../i18n/labels';
 import { ListenButton } from '../components/ListenButton';
 import { FullSetSheet } from '../components/product/FullSetSheet';
 import { CATEGORY_PHOTOS } from '../data/categoryPhotos';
+import { CategoryPhoto } from '../components/CategoryPhoto';
 import './flow.css';
 
 const GROUP_KEYS: Record<string, MessageKey> = {
@@ -640,7 +641,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                               transition={{ duration: 0.2, ease: EASING }}
                             />
                           )}
-                          <img className="cat-tab-photo" src={CATEGORY_PHOTOS[cat]} alt="" width={56} height={56} />
+                          <CategoryPhoto category={cat} className="cat-tab-photo" size={56} />
                           <span className="cat-tab-label">{categoryLabel(cat, t)}</span>
                           {count ? <span className="cat-tab-count">{count}</span> : null}
                         </button>

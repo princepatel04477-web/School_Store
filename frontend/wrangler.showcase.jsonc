@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // The showcase store: everything on Cloudflare, no store server needed (see worker/showcase.js).
+  // Release: vite build, refresh worker/showcase-photos.json, then
+  //   npx wrangler deploy -c wrangler.showcase.jsonc
+  "name": "schoolstore-showcase",
+  "main": "worker/showcase.js",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  },
+  // Orders placed in the showcase, kept for 90 days. SHOWCASE_SECRET (wrangler secret put) signs
+  // sign-in codes and sessions.
+  "kv_namespaces": [{ "binding": "ORDERS", "id": "08e34c8b7a52456386f743a9d1f9f91e" }]
+}
