@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from common.permissions import RoleScopedPermission
+from common.phone import normalize_in_mobile
 from common.scoping import ScopedQuerysetMixin
 from .models import User
 from .serializers import (
@@ -48,18 +49,105 @@ class SendOTPView(APIView):
     throttle_classes = [OTPRateThrottle]
 
     def post(self, request):
-        phone = (request.data.get("phone") or "").strip()
+        phone = normalize_in_mobile(request.data.get("phone"))
         if not phone:
             return Response(
-                {"phone": ["Phone number is required."]},
+                {"phone": ["Enter a valid 10-digit mobile number."]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         otp_code = f"{secrets.randbelow(900000) + 100000}"
-        cache.set(f"otp:{phone}", otp_code, timeout=300)
+        cache.set(f"otp:{phone}", otp_code, timeout=OTP_TTL_SECONDS)
+        cache.delete(f"otp_attempts:{phone}")
         payload = {"detail": "OTP sent successfully.", "phone": phone}
         if settings.DEBUG:
             payload["otp_debug"] = otp_code
         return Response(payload, status=status.HTTP_200_OK)
+
+
+OTP_TTL_SECONDS = 300
+OTP_MAX_ATTEMPTS = 5
+
+
+class OTPLoginView(APIView):
+    """
+    Parent sign-in with mobile number + OTP. Signs in an existing parent or
+    creates the account on first use, so there is no separate sign-up step.
+    The number becomes verified, and any roster children whose school record
+    carries this number are linked straight away.
+
+    POST /api/auth/otp/verify/  {"phone": "...", "otp": "123456"}
+    """
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [OTPRateThrottle]
+
+    def post(self, request):
+        phone = normalize_in_mobile(request.data.get("phone"))
+        otp = str(request.data.get("otp") or "").strip()
+        if not phone or not otp:
+            return Response(
+                {"detail": "Enter your mobile number and the OTP we sent."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cached = cache.get(f"otp:{phone}")
+        if not cached or str(cached) != otp:
+            # Burn the code after a few wrong tries so it can't be guessed
+            attempts_key = f"otp_attempts:{phone}"
+            attempts = (cache.get(attempts_key) or 0) + 1
+            cache.set(attempts_key, attempts, timeout=OTP_TTL_SECONDS)
+            if attempts >= OTP_MAX_ATTEMPTS:
+                cache.delete(f"otp:{phone}")
+            return Response(
+                {"detail": "That OTP is wrong or has expired. Request a new one."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        cache.delete(f"otp:{phone}")
+        cache.delete(f"otp_attempts:{phone}")
+
+        user = (
+            User.objects.filter(phone__endswith=phone, is_active=True)
+            .order_by("created_at")
+            .first()
+        )
+        created = False
+        if user is None:
+            username = f"parent_{phone}"
+            if User.objects.filter(username=username).exists():
+                username = f"parent_{phone}_{secrets.token_hex(3)}"
+            user = User(
+                username=username,
+                phone=phone,
+                role=User.Role.PARENT,
+                is_active=True,
+                phone_verified=True,
+            )
+            user.set_unusable_password()
+            user.save()
+            created = True
+        elif user.role != User.Role.PARENT:
+            return Response(
+                {"detail": "Staff accounts sign in with a username and password."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        elif not user.phone_verified:
+            user.phone_verified = True
+            user.save(update_fields=["phone_verified", "updated_at"])
+
+        from schools.linking import link_children_by_phone
+
+        linked = link_children_by_phone(user)
+        tokens = build_tokens_for_user(user)
+        return Response(
+            {
+                "user": UserSerializer(user).data,
+                "access": tokens["access"],
+                "refresh": tokens["refresh"],
+                "created": created,
+                "children_linked": linked,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class ParentRegistrationView(APIView):

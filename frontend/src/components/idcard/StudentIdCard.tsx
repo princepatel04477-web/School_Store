@@ -69,22 +69,10 @@ export function StudentIdCard({ school, student, session, isExample = false }: S
   const [flipped, setFlipped] = useState(false);
   // Last input used on the card; keyboard until a pointer touches it
   const lastPointer = useRef<string>('keyboard');
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const hoverTimer = useRef<number>();
   useEffect(() => () => window.clearTimeout(hoverTimer.current), []);
 
   const canHover = typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-
-  // Mouse: hovering flips the card; moving tilts it slightly and moves the sheen
-  const handlePointerMove = (e: PointerEvent<HTMLButtonElement>) => {
-    if (e.pointerType !== 'mouse' || shouldReduceMotion) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    const px = (e.clientX - r.left) / r.width;
-    const py = (e.clientY - r.top) / r.height;
-    setTilt({ x: (0.5 - py) * 8, y: (px - 0.5) * 8 });
-    e.currentTarget.style.setProperty('--sheen-x', `${px * 100}%`);
-    e.currentTarget.style.setProperty('--sheen-y', `${py * 100}%`);
-  };
 
   const cardStyle = { '--idc': school.color } as CSSProperties;
   const bars = scanBars(student.grNumber || school.id);
@@ -109,11 +97,7 @@ export function StudentIdCard({ school, student, session, isExample = false }: S
         </div>
         <div className="idc-clip" aria-hidden="true" />
 
-        <motion.div
-          className="idc-tilt"
-          animate={{ rotateX: tilt.x, rotateY: tilt.y }}
-          transition={{ duration: 0.4, ease: EASING }}
-        >
+        <div className="idc-tilt">
           <motion.button
             type="button"
             className="idc-card"
@@ -131,10 +115,8 @@ export function StudentIdCard({ school, student, session, isExample = false }: S
               if (e.pointerType === 'mouse' && canHover) {
                 window.clearTimeout(hoverTimer.current);
                 setFlipped(false);
-                setTilt({ x: 0, y: 0 });
               }
             }}
-            onPointerMove={handlePointerMove}
             onClick={() => {
               // Touch and keyboard toggle; a mouse already flips on hover
               if (lastPointer.current !== 'mouse' || !canHover) setFlipped((f) => !f);
@@ -186,15 +168,15 @@ export function StudentIdCard({ school, student, session, isExample = false }: S
               <dl className="idc-details">
                 <div>
                   <dt>GR no.</dt>
-                  <dd>{student.grNumber || '—'}</dd>
+                  <dd>{student.grNumber || 'Not added'}</dd>
                 </div>
                 <div>
                   <dt>Date of birth</dt>
-                  <dd>{student.dateOfBirth || '—'}</dd>
+                  <dd>{student.dateOfBirth || 'Not added'}</dd>
                 </div>
                 <div>
                   <dt>Gender</dt>
-                  <dd>{student.gender || '—'}</dd>
+                  <dd>{student.gender || 'Not added'}</dd>
                 </div>
                 <div>
                   <dt>Valid till</dt>
@@ -215,7 +197,6 @@ export function StudentIdCard({ school, student, session, isExample = false }: S
 
               <div className="idc-foot" aria-hidden="true" />
               {isExample && <span className="idc-example">Example</span>}
-              <span className="idc-sheen" aria-hidden="true" />
             </div>
 
             {/* ---------- Back ---------- */}
@@ -225,8 +206,8 @@ export function StudentIdCard({ school, student, session, isExample = false }: S
 
               <div className="idc-back-block">
                 <span className="idc-back-label">Parent or guardian</span>
-                <strong>{student.parentName || '—'}</strong>
-                <span className="idc-back-phone">{student.parentPhone || '—'}</span>
+                <strong>{student.parentName || 'Not added'}</strong>
+                <span className="idc-back-phone">{student.parentPhone || 'Not added'}</span>
               </div>
 
               <div className="idc-back-block">
@@ -257,7 +238,7 @@ export function StudentIdCard({ school, student, session, isExample = false }: S
               {isExample && <span className="idc-example">Example</span>}
             </div>
           </motion.button>
-        </motion.div>
+        </div>
       </motion.div>
     </div>
   );

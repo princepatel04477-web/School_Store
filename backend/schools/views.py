@@ -8,7 +8,7 @@ from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -163,6 +163,15 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             qs = qs.filter(approval_status=Student.ApprovalStatus.PENDING)
         return qs
 
+    def list(self, request, *args, **kwargs):
+        # A parent whose verified number appears on a roster sees those children
+        # without claiming anything (one UPDATE, usually touching no rows).
+        if request.user.is_authenticated and request.user.role == User.Role.PARENT:
+            from .linking import link_children_by_phone
+
+            link_children_by_phone(request.user)
+        return super().list(request, *args, **kwargs)
+
     def check_permissions(self, request):
         if request.user.is_authenticated and request.user.role == User.Role.PARENT:
             if request.method not in ("GET", "HEAD", "OPTIONS") and self.action not in ("claim", "manual_add"):
@@ -312,6 +321,9 @@ class StudentImportViewSet(ScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
     GET    /api/student-imports/                list jobs (paginated)
     GET    /api/student-imports/{id}/           poll status + preview
     POST   /api/student-imports/{id}/confirm/   confirm -> second background job
+                                                 body: {"mark_missing_as_left": true}
+                                                 when the file is the school's
+                                                 complete list (yearly upload)
     GET    /api/student-imports/{id}/report/    CSV of errors + duplicates
     GET    /api/student-imports/template/       downloadable template (.xlsx/.csv)
     """
@@ -321,7 +333,7 @@ class StudentImportViewSet(ScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
     )
     serializer_class = StudentImportJobSerializer
     permission_classes = [IsSchoolAdmin]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     pagination_class = BoundedPageNumberPagination
 
     scope_city_field = "city_id"
@@ -392,6 +404,11 @@ class StudentImportViewSet(ScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
             raise ValidationError(
                 {"detail": "The file is still being validated. Try again shortly."}
             )
+
+        raw_flag = request.data.get("mark_missing_as_left", False)
+        mark_missing = str(raw_flag).lower() in ("1", "true", "yes", "on")
+        job.preview = {**(job.preview or {}), "mark_missing_as_left": mark_missing}
+        job.save(update_fields=["preview", "updated_at"])
 
         commit_student_import.delay(str(job.id))
         job.refresh_from_db()

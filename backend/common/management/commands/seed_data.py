@@ -283,17 +283,22 @@ class Command(BaseCommand):
         )
 
         # 5. Students across schools with grade, branch, and gender (Male/Female)
+        # Demo sign-in paths (OTP is shown on screen in test mode):
+        # - 98200 11223 is on the school list for Kabir and Vivaan: they appear after OTP.
+        # - Any other number: "Find your child" with Riya Desai, GR UDG-2026-003, born 14 Mar 2016.
+        demo_phone = "9820011223"
         students_spec = [
-            ("Aarav Patel", "DPS-2026-001", grades_by_name["5"], "A", Student.Gender.MALE, dps_surat, branch_dps_surat, created_users["parent_rahul"]),
-            ("Diya Patel", "DPS-2026-002", grades_by_name["8"], "B", Student.Gender.FEMALE, dps_surat, branch_dps_surat, created_users["parent_rahul"]),
-            ("Kabir Verma", "DPS-2026-003", grades_by_name["5"], "A", Student.Gender.MALE, dps_surat, branch_dps_surat, None),
-            ("Ananya Nair", "FHS-2026-001", grades_by_name["6"], "A", Student.Gender.FEMALE, fhs_surat, branch_fhs_surat, created_users["parent_rahul"]),
-            ("Vivaan Modi", "FHS-2026-002", grades_by_name["4"], "C", Student.Gender.MALE, fhs_surat, branch_fhs_surat, None),
-            ("Ishaan Shah", "UDG-2026-001", grades_by_name["7"], "B", Student.Gender.MALE, udgam_amd, branch_udgam_amd, created_users["parent_priya"]),
-            ("Meera Shah", "UDG-2026-002", grades_by_name["3"], "A", Student.Gender.FEMALE, udgam_amd, branch_udgam_amd, created_users["parent_priya"]),
+            ("Aarav Patel", "DPS-2026-001", grades_by_name["5"], "A", Student.Gender.MALE, dps_surat, branch_dps_surat, created_users["parent_rahul"], "2015-06-12", ""),
+            ("Diya Patel", "DPS-2026-002", grades_by_name["8"], "B", Student.Gender.FEMALE, dps_surat, branch_dps_surat, created_users["parent_rahul"], "2012-09-03", ""),
+            ("Kabir Verma", "DPS-2026-003", grades_by_name["5"], "A", Student.Gender.MALE, dps_surat, branch_dps_surat, None, "2015-01-20", demo_phone),
+            ("Ananya Nair", "FHS-2026-001", grades_by_name["6"], "A", Student.Gender.FEMALE, fhs_surat, branch_fhs_surat, created_users["parent_rahul"], "2014-11-08", ""),
+            ("Vivaan Modi", "FHS-2026-002", grades_by_name["4"], "C", Student.Gender.MALE, fhs_surat, branch_fhs_surat, None, "2016-07-30", demo_phone),
+            ("Ishaan Shah", "UDG-2026-001", grades_by_name["7"], "B", Student.Gender.MALE, udgam_amd, branch_udgam_amd, created_users["parent_priya"], "2013-04-17", ""),
+            ("Meera Shah", "UDG-2026-002", grades_by_name["3"], "A", Student.Gender.FEMALE, udgam_amd, branch_udgam_amd, created_users["parent_priya"], "2017-02-25", ""),
+            ("Riya Desai", "UDG-2026-003", grades_by_name["4"], "A", Student.Gender.FEMALE, udgam_amd, branch_udgam_amd, None, "2016-03-14", ""),
         ]
         seeded_students = []
-        for name, gr, grd, sec, gender, school, branch, parent in students_spec:
+        for name, gr, grd, sec, gender, school, branch, parent, dob, phone in students_spec:
             st, _ = Student.objects.update_or_create(
                 school=school,
                 gr_number=gr,
@@ -304,10 +309,15 @@ class Command(BaseCommand):
                     "branch": branch,
                     "section": sec,
                     "gender": gender,
-                    "parent": parent,
+                    "date_of_birth": dob,
+                    "roster_phone": phone,
                     "active": True,
                 },
             )
+            # Keep a parent link someone already made by signing in
+            if parent and st.parent_id is None:
+                st.parent = parent
+                st.save(update_fields=["parent"])
             seeded_students.append(st)
 
         # 6. Categories: Uniform, School Shoes, Uniform Accessories, Stationery, ID Cards

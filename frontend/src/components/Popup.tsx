@@ -69,12 +69,10 @@ export function Popup({
           width: 'min(450px, 92vw)',
           padding: '28px 24px',
           textAlign: 'center',
-          borderRadius: '16px',
-          boxShadow: '0 20px 45px rgba(23, 34, 31, 0.28)',
+          borderRadius: '6px',
           background: '#ffffff',
         }}
       >
-        <div style={{ fontSize: '32px', marginBottom: '10px' }}>📚</div>
         {title && (
           <h3
             style={{
@@ -115,7 +113,7 @@ export function Popup({
             style={{
               width: '130px',
               padding: '10px 18px',
-              borderRadius: '8px',
+              borderRadius: '4px',
               fontWeight: 600,
               fontSize: '14px',
             }}
@@ -136,7 +134,7 @@ export function Popup({
             style={{
               width: '130px',
               padding: '10px 18px',
-              borderRadius: '8px',
+              borderRadius: '4px',
               fontWeight: 600,
               fontSize: '14px',
             }}

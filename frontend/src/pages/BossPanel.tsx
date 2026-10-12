@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { X } from '../components/ui/icons';
 import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -14,11 +15,11 @@ import {
 } from '../api';
 
 const NAV = [
-  { to: '', label: 'Executive Overview', icon: '✦', end: true },
-  { to: 'analytics', label: 'Detailed Charts', icon: '📈' },
-  { to: 'management', label: 'Staff & Cities', icon: '⚙' },
-  { to: 'schools', label: 'School Commissions', icon: '🏛' },
-  { to: 'view-as', label: 'View As (Audit)', icon: '👁' },
+  { to: '', label: 'Executive Overview', end: true },
+  { to: 'analytics', label: 'Detailed Charts' },
+  { to: 'management', label: 'Staff & Cities' },
+  { to: 'schools', label: 'School Commissions' },
+  { to: 'view-as', label: 'View As (Audit)' },
 ];
 
 const COLORS = ['#275b4c', '#f4a261', '#4b7c9e', '#9a7742', '#7fae97', '#e76f51', '#2a9d8f', '#e9c46a'];
@@ -48,7 +49,7 @@ export default function BossPanel() {
       <div className="admin-body">
         <nav className="admin-nav">
           {NAV.map((n) => (
-            <BossNavLink key={n.to} to={n.to} end={n.end}>{n.icon}<span>{n.label}</span></BossNavLink>
+            <BossNavLink key={n.to} to={n.to} end={n.end}><span>{n.label}</span></BossNavLink>
           ))}
         </nav>
         <main className="admin-main">
@@ -259,7 +260,7 @@ function BossOverviewView() {
         </div>
         <div className="stat">
           <span>GROSS MARGIN %</span>
-          <strong>{kpis?.gross_margin_pct ?? '—'}%</strong>
+          <strong>{kpis?.gross_margin_pct ?? '-'}%</strong>
           <small>Profit / Revenue</small>
         </div>
         <div className="stat">
@@ -581,14 +582,14 @@ function BossStaffManagementView() {
                       <span className="badge s-confirmed">{a.city_name || 'Unassigned'}</span>
                     </td>
                     <td>
-                      <div>{a.email || '—'}</div>
-                      <small className="muted">{a.phone || '—'}</small>
+                      <div>{a.email || '-'}</div>
+                      <small className="muted">{a.phone || '-'}</small>
                     </td>
                     <td>
                       {a.is_active ? <span className="badge s-delivered">Active</span> : <span className="badge s-cancelled">Inactive</span>}
                     </td>
                     <td className="mono" style={{ fontSize: '12px' }}>
-                      {a.created_at ? new Date(a.created_at).toLocaleDateString('en-IN') : '—'}
+                      {a.created_at ? new Date(a.created_at).toLocaleDateString('en-IN') : '-'}
                     </td>
                   </tr>
                 ))
@@ -621,7 +622,7 @@ function BossStaffManagementView() {
                     <b>{c.name}</b>
                     <small className="gr mono">{c.code}</small>
                   </td>
-                  <td>{c.state || '—'}</td>
+                  <td>{c.state || '-'}</td>
                   <td>
                     {c.active ? <span className="badge s-delivered">Active</span> : <span className="badge s-cancelled">Inactive</span>}
                   </td>
@@ -700,7 +701,7 @@ function CreateAdminModal({
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="card-head">
           <h2>Create City Admin</h2>
-          <button className="icon-btn" onClick={onClose}>✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X width={18} height={18} /></button>
         </div>
         <form
           onSubmit={(e) => {
@@ -776,7 +777,7 @@ function CreateCityModal({
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="card-head">
           <h2>Add New City</h2>
-          <button className="icon-btn" onClick={onClose}>✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X width={18} height={18} /></button>
         </div>
         <form
           onSubmit={(e) => {
@@ -922,7 +923,7 @@ function EditCommissionModal({
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="card-head">
           <h2>Update Commission Rate</h2>
-          <button className="icon-btn" onClick={onClose}>✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X width={18} height={18} /></button>
         </div>
         <form
           onSubmit={(e) => {
@@ -1014,7 +1015,7 @@ function BossViewAsView() {
                     alignItems: 'center',
                     padding: '10px 14px',
                     border: '1px solid var(--line)',
-                    borderRadius: '8px',
+                    borderRadius: '4px',
                     background: '#fafbf8',
                   }}
                 >
@@ -1050,7 +1051,7 @@ function BossViewAsView() {
                     alignItems: 'center',
                     padding: '10px 14px',
                     border: '1px solid var(--line)',
-                    borderRadius: '8px',
+                    borderRadius: '4px',
                     background: '#fafbf8',
                   }}
                 >

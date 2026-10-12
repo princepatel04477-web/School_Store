@@ -6,8 +6,8 @@
  * - Press depth depends on the role: big buttons 97%, chips 95%, icon buttons 90%.
  * - Uses the individual `scale` / `translate` / `rotate` properties so it never
  *   overwrites a component's own `transform` (e.g. Magnetic, layout animations).
- * - Hover effects only on devices with a real pointer, so phones never get
- *   stuck hover states.
+ * - Hover changes colour only, never position or size (design rule: no hover
+ *   animations, no animated arrows). Movement is reserved for press feedback.
  * - Pressing is quicker (100ms) than releasing (200ms), which reads as "snappy".
  * - Selectors are prefixed with `html` so this layer wins over component CSS
  *   that loads later (lazy routes), without needing !important.
@@ -27,13 +27,6 @@ html :is(
   transition-duration: var(--duration-fast);
   transition-timing-function: var(--ease-standard);
   -webkit-tap-highlight-color: transparent;
-}
-
-/* Icons inside buttons move on their own (arrow nudge, close rotate) */
-html :is(.btn, .plain-link, .checkout-back-link, .step-back-btn, .request-link, .sheet-nav-item,
-  .bag-close-btn, .sheet-close-btn, .sheet-close-floating, .size-guide-close) svg {
-  transition: translate var(--duration-fast) var(--ease-standard),
-    rotate var(--duration-fast) var(--ease-standard);
 }
 
 /* ---------- Press ---------- */
@@ -76,27 +69,14 @@ html :is(.link-button, .text-button, .action-signin-link, .back, .cell-link, .bt
     text-decoration-color: currentColor;
   }
 
-  /* Forward arrows nudge right, back arrows nudge left */
-  html :is(.btn, .plain-link, .request-link, .sheet-nav-item):hover svg:last-child {
-    translate: 3px 0;
-  }
-  html :is(.checkout-back-link, .step-back-btn):hover svg:first-child {
-    translate: -3px 0;
-  }
-
-  /* Close buttons: soft circle behind the X, which turns a quarter */
+  /* Close buttons: tinted square behind the X. Hover never moves anything. */
   html :is(.bag-close-btn, .sheet-close-btn, .size-guide-close):hover {
     background-color: var(--paper-sunk);
-    border-radius: var(--radius-full);
-  }
-  html :is(.bag-close-btn, .sheet-close-btn, .sheet-close-floating, .size-guide-close):hover svg {
-    rotate: 90deg;
   }
 
-  /* Icon buttons get a tinted circle */
+  /* Icon buttons get a tinted square */
   html :is(.mobile-menu-trigger, .action-account-btn):hover {
     background-color: var(--paper-sunk);
-    border-radius: var(--radius-full);
   }
 
   /* Admin filter chips take the brand colour on hover */
@@ -119,10 +99,5 @@ html :is(.btn-loading, .is-paying):active {
     .sheet-close-floating, .size-guide-close, .mobile-menu-trigger, .icon-btn, .nav-link
   ):active {
     scale: none;
-  }
-  html :is(.btn, .plain-link, .checkout-back-link, .step-back-btn, .request-link, .sheet-nav-item,
-    .bag-close-btn, .sheet-close-btn, .sheet-close-floating, .size-guide-close) svg {
-    translate: none !important;
-    rotate: none !important;
   }
 }

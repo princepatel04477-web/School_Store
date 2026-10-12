@@ -1,11 +1,11 @@
-import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api';
 import { useAuth } from '../../auth';
 import type { SeedSchool } from '../../data/seedData';
 import { getSchoolColor } from '../../theme/schoolTheme';
 import { StudentIdCard, type IdCardStudent } from './StudentIdCard';
+import { ParentSignInSheet } from '../parent/ParentSignInSheet';
 
 interface ApiStudent {
   id: string;
@@ -58,6 +58,10 @@ export function IdCardPreview({ school, className, gender }: IdCardPreviewProps)
   const { user } = useAuth();
   const isParent = user?.role === 'PARENT';
 
+  const [signInOpen, setSignInOpen] = useState(false);
+  // A child the parent just picked in the sign-in sheet wins over the lookup
+  const [picked, setPicked] = useState<ApiStudent | null>(null);
+
   const { data } = useQuery({
     queryKey: ['parent-students'],
     queryFn: () => api<{ results: ApiStudent[] }>('/students/').catch(() => null),
@@ -65,9 +69,10 @@ export function IdCardPreview({ school, className, gender }: IdCardPreviewProps)
   });
 
   const ownChild = useMemo(() => {
+    if (picked) return picked;
     const kids = data?.results ?? [];
     return kids.find((k) => k.school_name?.trim().toLowerCase() === school.name.trim().toLowerCase());
-  }, [data, school.name]);
+  }, [picked, data, school.name]);
 
   const student: IdCardStudent = ownChild
     ? {
@@ -111,15 +116,33 @@ export function IdCardPreview({ school, className, gender }: IdCardPreviewProps)
         {isExample && (
           <p className="idc-preview-signin">
             {user ? (
-              'We couldn’t find a child at this school on your account, so these are example details.'
+              <>
+                These are example details.{' '}
+                <button type="button" className="psi-link" onClick={() => setSignInOpen(true)}>
+                  Choose your child
+                </button>
+              </>
             ) : (
               <>
-                <Link to="/login">Sign in</Link> and we’ll fill in your child’s card.
+                <button type="button" className="psi-link" onClick={() => setSignInOpen(true)}>
+                  Sign in with your mobile number
+                </button>{' '}
+                and we’ll fill in your child’s card.
               </>
             )}
           </p>
         )}
       </div>
+
+      <ParentSignInSheet
+        open={signInOpen}
+        onClose={() => setSignInOpen(false)}
+        onDone={(child) => {
+          setSignInOpen(false);
+          if (child) setPicked(child as unknown as ApiStudent);
+        }}
+        schoolName={school.name}
+      />
 
       <StudentIdCard
         school={{

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Search, ShoppingBag, Menu, X, ArrowRight, User } from 'lucide-react';
+import { Search, ShoppingBag, Menu, X, ArrowRight, User } from './ui/icons';
 import { motion, AnimatePresence, useAnimate, useReducedMotion } from 'motion/react';
 import { useAuth } from '../auth';
 import { siteConfig } from '../siteConfig';

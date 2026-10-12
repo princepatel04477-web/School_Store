@@ -14,9 +14,7 @@
 }
 
 .product-card:hover {
-  transform: translateY(-2px);
   border-color: var(--brand);
-  box-shadow: var(--shadow-sm);
 }
 
 .product-card-media {
@@ -25,9 +23,6 @@
   overflow: hidden;
 }
 
-.product-card-media:hover img {
-  transform: scale(1.03);
-}
 
 .required-badge {
   position: absolute;

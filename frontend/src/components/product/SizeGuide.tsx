@@ -1,4 +1,4 @@
-import { X, Ruler } from 'lucide-react';
+import { X, Ruler } from '../ui/icons';
 import './product.css';
 
 export interface SizeGuideProps {

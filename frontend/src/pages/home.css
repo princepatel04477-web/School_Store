@@ -151,7 +151,7 @@
   height: 48px;
   padding: 0 var(--space-6);
   flex-shrink: 0;
-  border-radius: 12px;
+  border-radius: 6px;
   background-color: var(--brand);
   color: var(--paper-raised);
   border: 1px solid var(--brand);
@@ -246,7 +246,7 @@
 .hero-continue-btn {
   height: 48px;
   padding: 0 var(--space-6);
-  border-radius: 12px;
+  border-radius: 6px;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -412,8 +412,6 @@
 }
 
 .cat-tile:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-md);
   border-color: var(--brand);
 }
 
@@ -426,7 +424,7 @@
   background-color: var(--paper-sunk);
 }
 
-/* Drawn kit on white; it tilts and lifts a little on hover */
+/* Drawn kit on the tile; it stays still (no hover motion) */
 .cat-tile-media {
   display: grid;
   place-items: center;
@@ -439,17 +437,6 @@
   transition: transform var(--duration-base) var(--ease-standard);
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .cat-tile:hover .cat-tile-media .kit-illustration {
-    transform: translateY(-6px) rotate(-4deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cat-tile:hover .cat-tile-media .kit-illustration {
-    transform: none;
-  }
-}
 
 .cat-tile-body {
   padding: var(--space-3) 4px 4px;
@@ -473,9 +460,6 @@
   transition: transform var(--duration-fast) var(--ease-standard);
 }
 
-.cat-tile:hover .cat-arrow {
-  transform: translateX(4px);
-}
 
 /* ================== Featured Schools ================== */
 .schools-grid {
@@ -512,7 +496,6 @@
 }
 
 .featured-school-card:hover {
-  transform: translateY(-2px);
   border-color: var(--brand);
 }
 
@@ -529,45 +512,14 @@
 }
 
 /* ================== Reassurance ================== */
-.reassurance-row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-8);
-  background-color: var(--paper-raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  padding: var(--space-8);
-}
-
-@media (min-width: 768px) {
-  .reassurance-row {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.reassurance-item {
-  display: flex;
-  gap: var(--space-4);
-  align-items: flex-start;
-}
-
-.reassurance-icon {
-  color: var(--brand);
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.reassurance-title {
+.reassurance-line {
+  max-width: 62ch;
+  margin: 0;
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--line);
   font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--ink);
-  margin-bottom: var(--space-1);
-}
-
-.reassurance-text {
-  font-size: var(--text-sm);
+  line-height: 1.6;
   color: var(--ink-soft);
-  line-height: 1.5;
 }
 
 /* ================== For Schools Band ================== */

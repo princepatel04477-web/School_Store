@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { X } from '../components/ui/icons';
 import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../auth';
@@ -12,10 +13,10 @@ import {
  * City Admin Navigation & Shell
  * ------------------------------------------------------------------ */
 const NAV = [
-  { to: '', label: 'Daily Sales', icon: '▤', end: true },
-  { to: 'inventory', label: 'Inventory & Stock', icon: '▥' },
-  { to: 'orders', label: 'Orders', icon: '▣' },
-  { to: 'schools', label: 'Schools', icon: '🏛' },
+  { to: '', label: 'Daily Sales', end: true },
+  { to: 'inventory', label: 'Inventory & Stock' },
+  { to: 'orders', label: 'Orders' },
+  { to: 'schools', label: 'Schools' },
 ];
 
 export default function CityAdmin() {
@@ -38,7 +39,7 @@ export default function CityAdmin() {
       <div className="admin-body">
         <nav className="admin-nav">
           {NAV.map((n) => (
-            <CityNavLink key={n.to} to={n.to} end={n.end}>{n.icon}<span>{n.label}</span></CityNavLink>
+            <CityNavLink key={n.to} to={n.to} end={n.end}><span>{n.label}</span></CityNavLink>
           ))}
         </nav>
         <main className="admin-main">
@@ -277,7 +278,7 @@ function CityInventoryView() {
               {balances.length === 0 && !isLoading ? (
                 <tr>
                   <td colSpan={6} style={{ textAlign: 'center', padding: '32px' }} className="muted">
-                    {activeTab === 'LOW' ? 'No variants currently under low stock threshold! 👍' : 'No inventory records found.'}
+                    {activeTab === 'LOW' ? 'No variants currently under low stock threshold! ' : 'No inventory records found.'}
                   </td>
                 </tr>
               ) : (
@@ -422,7 +423,7 @@ function StockMovementModal({
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="card-head">
           <h2>{mode === 'STOCK_IN' ? 'Add Stock (Stock-In)' : 'Manual Stock Adjustment'}</h2>
-          <button className="icon-btn" onClick={onClose}>✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X width={18} height={18} /></button>
         </div>
         <form onSubmit={handleSubmit} className="form-card" style={{ padding: '20px' }}>
           <div>
@@ -511,7 +512,7 @@ function VariantMovementHistoryModal({
             <h2>Stock Movement History</h2>
             <div className="muted" style={{ fontSize: '12px' }}>{variant.product_name} · <span className="mono">{variant.sku}</span></div>
           </div>
-          <button className="icon-btn" onClick={onClose}>✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X width={18} height={18} /></button>
         </div>
         <div className="pad-tight" style={{ paddingTop: '12px' }}>
           <p className="muted" style={{ fontSize: '12px', margin: '0 0 12px' }}>
@@ -545,7 +546,7 @@ function VariantMovementHistoryModal({
                         <span className="badge s-processing">{m.reason}</span>
                       </td>
                       <td className="mono" style={{ fontSize: '11px' }}>
-                        {m.reference_order ? `Order ${m.reference_order.slice(0, 8)}…` : '—'}
+                        {m.reference_order ? `Order ${m.reference_order.slice(0, 8)}…` : '-'}
                       </td>
                     </tr>
                   ))
@@ -870,7 +871,7 @@ function BulkStatusUpdateModal({
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="card-head">
           <h2>Bulk Status Update ({orderIds.length} Orders)</h2>
-          <button className="icon-btn" onClick={onClose}>✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X width={18} height={18} /></button>
         </div>
         <form
           onSubmit={(e) => {
@@ -969,7 +970,7 @@ function OrderDetailModal({
               {order.school_name} · Student: {order.student_name} ({order.student_gr})
             </div>
           </div>
-          <button className="icon-btn" onClick={onClose}>✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X width={18} height={18} /></button>
         </div>
 
         <div className="pad-tight" style={{ paddingTop: '16px' }}>
@@ -1082,7 +1083,7 @@ function OrderDetailModal({
                     padding: '8px 12px',
                     background: '#fafbf8',
                     border: '1px solid var(--line)',
-                    borderRadius: '8px',
+                    borderRadius: '4px',
                     fontSize: '13px',
                   }}
                 >
@@ -1177,8 +1178,8 @@ function CitySchoolsView() {
                       </small>
                     </td>
                     <td>
-                      <div style={{ fontSize: '12px' }}>{s.contact_email || '—'}</div>
-                      <small className="muted">{s.contact_phone || '—'}</small>
+                      <div style={{ fontSize: '12px' }}>{s.contact_email || '-'}</div>
+                      <small className="muted">{s.contact_phone || '-'}</small>
                     </td>
                     <td className="r actions">
                       <button
@@ -1271,7 +1272,7 @@ function AddSchoolModal({
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="card-head">
           <h2>Add New School in City</h2>
-          <button className="icon-btn" onClick={onClose}>✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X width={18} height={18} /></button>
         </div>
         <form
           onSubmit={(e) => {
@@ -1364,12 +1365,12 @@ function CreateSchoolAdminModal({
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="card-head">
           <h2>Create School Admin Login</h2>
-          <button className="icon-btn" onClick={onClose}>✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X width={18} height={18} /></button>
         </div>
         {createdResult ? (
           <div className="pad" style={{ textAlign: 'center' }}>
             <div className="badge s-delivered" style={{ fontSize: '13px', padding: '8px 12px', marginBottom: '12px' }}>
-              ✓ Account Created!
+              Account Created!
             </div>
             <p>School Admin user <b>{createdResult.username}</b> is ready to login.</p>
             <button className="primary" style={{ width: 'auto', marginTop: '12px' }} onClick={onClose}>
@@ -1460,7 +1461,7 @@ function ResetSchoolAdminPasswordModal({
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="card-head">
           <h2>Reset School Admin Password</h2>
-          <button className="icon-btn" onClick={onClose}>✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X width={18} height={18} /></button>
         </div>
         <form
           onSubmit={(e) => {
