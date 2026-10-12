@@ -1,4 +1,12 @@
 import { defineConfig } from 'vite'; import react from '@vitejs/plugin-react';
+// Stop a build whose API address is a file path. Git Bash on Windows silently rewrites
+// VITE_API_URL=/api into "C:/Program Files/Git/api" for native programs, which produced a
+// site that could not reach the server.
+const apiUrl = process.env.VITE_API_URL;
+if (apiUrl && !/^(\/|https?:\/\/)/.test(apiUrl)) {
+  throw new Error(`VITE_API_URL must be "/api" or an http(s) URL, got "${apiUrl}"`);
+}
+
 export default defineConfig({
   plugins: [react()],
   server: {
