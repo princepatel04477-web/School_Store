@@ -10,6 +10,7 @@ import { useShake } from '../../motion/useShake';
 import { EASING, DURATION_FAST } from '../../motion/motionConfig';
 import type { SeedProduct } from '../../data/seedData';
 import './product.css';
+import { useLang } from '../../i18n';
 
 /** Real store items add a photo and whether the parent can order them here. */
 export type CardProduct = SeedProduct & { imageUrl?: string; needsDetails?: boolean };
@@ -21,6 +22,7 @@ export interface ProductCardProps {
 
 export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
   const { cart, addItem, updateQuantity } = useStoreState();
+  const { t } = useLang();
 
   const [selectedSizeId, setSelectedSizeId] = useState<string>(
     product.sizes.length === 1 ? product.sizes[0].id : ''
@@ -84,7 +86,7 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
           <ProductImage id={product.id} name={product.name} category={product.category} imageUrl={product.imageUrl} />
         </motion.div>
         {product.required && (
-          <span className="required-badge">Required</span>
+          <span className="required-badge">{t('product.required')}</span>
         )}
       </div>
 
@@ -102,7 +104,7 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
         {/* Compact Size Selector if multiple sizes */}
         {orderable && product.sizes.length > 1 && (currentTotalQty === 0 || settling) && (
           <div className="card-size-row" ref={sizeRowRef}>
-            <span className="label">Size:</span>
+            <span className="label">{t('product.size')}</span>
             <div className="card-size-chips">
               {product.sizes.map((s) => (
                 <button
@@ -119,14 +121,14 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
                 </button>
               ))}
             </div>
-            {sizeError && <span className="card-size-error">Please pick a size</span>}
+            {sizeError && <span className="card-size-error">{t('product.pickSize')}</span>}
           </div>
         )}
 
         {/* Add Button or Stepper */}
         {!orderable ? (
           <p className="card-unavailable">
-            {product.needsDetails ? 'Needs your child’s photo. Order this at your school.' : 'Out of stock'}
+            {product.needsDetails ? t('product.needsPhoto') : t('product.outOfStock')}
           </p>
         ) : (
         <div className="product-card-action">
@@ -159,7 +161,7 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
                   }}
                   onSettled={() => setSettling(false)}
                 >
-                  Add to bag
+                  {t('product.add')}
                 </AddToBagButton>
               </motion.div>
             )}

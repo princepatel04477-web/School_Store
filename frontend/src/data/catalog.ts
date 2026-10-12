@@ -18,6 +18,8 @@ export interface StoreProduct extends SeedProduct {
   imageUrl?: string;
   /** Needs a photo or details the parent can't give here (ID card, photo notebook). */
   needsDetails: boolean;
+  /** Made for this school (its own shirt, tie, belt…), as opposed to a general item. */
+  official: boolean;
 }
 
 type PublicSchool = {
@@ -38,6 +40,7 @@ type PublicProduct = {
   description: string;
   category: string;
   gender: string | null;
+  school: string | null;
   price: number;
   thumbnail: string | null;
   customisation_schema: CustomisationField[] | { fields?: CustomisationField[] } | null;
@@ -90,6 +93,7 @@ function toProduct(product: PublicProduct): StoreProduct {
     })),
     imageUrl: product.thumbnail || undefined,
     needsDetails: needsDetails(product.customisation_schema),
+    official: Boolean(product.school),
   };
 }
 

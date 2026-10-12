@@ -8,6 +8,8 @@ import { useStoreSchools } from '../data/catalog';
 import { buildOrderMessage, whatsappOrderUrl } from '../services/whatsappOrder';
 import { orderErrorMessage, prepareOrder, submitOrder, type PlacedOrder } from '../services/placeOrder';
 import { useAuth } from '../auth';
+import { useLang } from '../i18n';
+import { classLabel } from '../i18n/labels';
 import type { ParentChild } from '../api';
 import { ParentSignInSheet } from '../components/parent/ParentSignInSheet';
 import '../components/cart/bagCheckout.css';
@@ -22,6 +24,7 @@ import '../components/cart/bagCheckout.css';
 export function CheckoutPage() {
   const navigate = useNavigate();
   const { cart, subtotalPaise, clearCart, selection } = useStoreState();
+  const { t } = useLang();
 
   const [activeStep, setActiveStep] = useState<number>(1);
   const [mode, setMode] = useState<'account' | 'whatsapp'>('account');
@@ -30,7 +33,7 @@ export function CheckoutPage() {
   const [parentName, setParentName] = useState('');
   const [parentMobile, setParentMobile] = useState('');
   const [studentName, setStudentName] = useState('');
-  const [studentClass, setStudentClass] = useState(selection?.gradeName || '');
+  const [studentClass, setStudentClass] = useState(selection?.gradeName ? classLabel(selection.gradeName, t) : '');
 
   // Delivery State
   const [deliveryType, setDeliveryType] = useState<'HOME' | 'SCHOOL'>('HOME');
@@ -75,7 +78,7 @@ export function CheckoutPage() {
     setMode('account');
     setChild(picked);
     setStudentName(picked.name);
-    setStudentClass(picked.grade_name || picked.class_name);
+    setStudentClass(classLabel(picked.grade_name || picked.class_name, t));
   };
 
   // Only offer the delivery choices the child's school accepts.
@@ -97,14 +100,14 @@ export function CheckoutPage() {
 
   const validateStep1 = () => {
     const errs: Record<string, string> = {};
-    if (!parentName.trim()) errs.parentName = 'Please write your name';
+    if (!parentName.trim()) errs.parentName = t('co.err.name');
     if (mode === 'account') {
-      if (!child) errs.child = 'Please choose your child';
-      else if (wrongSchool) errs.child = 'Your bag has items for another school';
+      if (!child) errs.child = t('co.err.child');
+      else if (wrongSchool) errs.child = t('co.err.otherSchool');
     } else {
-      if (!/^\d{10}$/.test(parentMobile.trim())) errs.parentMobile = 'Enter a valid 10-digit mobile number';
-      if (!studentName.trim()) errs.studentName = 'Student name is required';
-      if (!studentClass.trim()) errs.studentClass = 'Class is required';
+      if (!/^\d{10}$/.test(parentMobile.trim())) errs.parentMobile = t('co.err.mobile');
+      if (!studentName.trim()) errs.studentName = t('co.err.student');
+      if (!studentClass.trim()) errs.studentClass = t('co.err.class');
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -113,10 +116,10 @@ export function CheckoutPage() {
   const validateStep2 = () => {
     const errs: Record<string, string> = {};
     if (deliveryType === 'HOME') {
-      if (!/^\d{6}$/.test(pinCode.trim())) errs.pinCode = 'Enter a 6-digit PIN code';
-      if (!addressLine1.trim()) errs.addressLine1 = 'Street address is required';
-      if (!city.trim()) errs.city = 'City is required';
-      if (!state.trim()) errs.state = 'State is required';
+      if (!/^\d{6}$/.test(pinCode.trim())) errs.pinCode = t('co.err.pin');
+      if (!addressLine1.trim()) errs.addressLine1 = t('co.err.address');
+      if (!city.trim()) errs.city = t('co.err.city');
+      if (!state.trim()) errs.state = t('co.err.state');
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -152,7 +155,7 @@ export function CheckoutPage() {
       clearCart();
       window.scrollTo(0, 0);
     } catch (error) {
-      setOrderError(orderErrorMessage(error));
+      setOrderError(t(orderErrorMessage(error)));
     } finally {
       setPlacing(false);
       setRetrying(false);
@@ -180,34 +183,34 @@ export function CheckoutPage() {
     return (
       <div className="order-confirmed-wrap container">
         <div className="order-confirmed-card">
-          <h1 className="confirmed-heading">Order placed</h1>
-          <div className="order-num-label">Order number {placed.order_number}</div>
+          <h1 className="confirmed-heading">{t('co.placed.title')}</h1>
+          <div className="order-num-label">{t('co.placed.number', { n: placed.order_number })}</div>
 
           <div className="confirmed-steps">
             <div className="confirmed-step-row">
               <span className="step-circle">1</span>
-              <span>Your order for {placed.student_name || studentName} is saved. Your school can see it.</span>
+              <span>{t('co.placed.saved', { name: placed.student_name || studentName })}</span>
             </div>
             <div className="confirmed-step-row">
               <span className="step-circle">2</span>
               <span>
                 {collect
-                  ? `Collect it at ${school?.name || 'your school'}. Pay ${placedTotal} in cash when you collect it.`
-                  : `We will bring it to your home. Pay ${placedTotal} in cash when it arrives.`}
+                  ? t('co.placed.collect', { school: school?.name || t('co.yourSchool'), total: placedTotal })
+                  : t('co.placed.home', { total: placedTotal })}
               </span>
             </div>
             <div className="confirmed-step-row">
               <span className="step-circle">3</span>
-              <span>Wrong size? Exchange it within 7 days.</span>
+              <span>{t('co.exchange')}</span>
             </div>
           </div>
 
           <div className="confirmed-actions">
             <Link to="/parent/orders" className="btn btn-primary">
-              See my orders
+              {t('co.placed.myOrders')}
             </Link>
             <Link to="/" className="btn btn-text">
-              Back to home
+              {t('co.backHome')}
             </Link>
           </div>
         </div>
@@ -220,30 +223,31 @@ export function CheckoutPage() {
     return (
       <div className="order-confirmed-wrap container">
         <div className="order-confirmed-card">
-          <h1 className="confirmed-heading">Now press Send in WhatsApp</h1>
-          <div className="order-num-label">Reference {reference}</div>
+          <h1 className="confirmed-heading">{t('co.wa.title')}</h1>
+          <div className="order-num-label">{t('co.wa.ref', { ref: reference })}</div>
 
           <div className="confirmed-steps">
             <div className="confirmed-step-row">
               <span className="step-circle">1</span>
-              <span>Your order is written out in WhatsApp. Tap the green Send button there. The order is booked only after you send it.</span>
+              <span>{t('co.wa.step1')}</span>
             </div>
             <div className="confirmed-step-row">
               <span className="step-circle">2</span>
               <span>
-                We will call you on {parentMobile} to confirm the order
-                {deliveryType === 'HOME' ? ' and your address.' : ' and when to collect it at school.'}
+                {deliveryType === 'HOME'
+                  ? t('co.wa.step2home', { mobile: parentMobile })
+                  : t('co.wa.step2school', { mobile: parentMobile })}
               </span>
             </div>
             <div className="confirmed-step-row">
               <span className="step-circle">3</span>
-              <span>Pay {formatINR(totalPaise)} in cash when you get it. Wrong size? Exchange it within 7 days.</span>
+              <span>{t('co.wa.step3', { total: formatINR(totalPaise) })}</span>
             </div>
           </div>
 
           <div className="confirmed-actions">
             <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
-              Open WhatsApp again
+              {t('co.wa.again')}
             </a>
             <button
               type="button"
@@ -253,10 +257,10 @@ export function CheckoutPage() {
                 navigate('/');
               }}
             >
-              I have sent it
+              {t('co.wa.sent')}
             </button>
             <button type="button" className="btn btn-text" onClick={() => setSentOnWhatsApp(false)}>
-              Change my order
+              {t('co.wa.change')}
             </button>
           </div>
         </div>
@@ -267,10 +271,10 @@ export function CheckoutPage() {
   if (cart.length === 0) {
     return (
       <div className="checkout-empty container">
-        <h2>Your bag is empty</h2>
-        <p>Please select items from your school's catalog before checking out.</p>
+        <h2>{t('bag.empty')}</h2>
+        <p>{t('bag.emptySub')}</p>
         <Link to="/" className="btn btn-primary">
-          Return to home
+          {t('co.backHome')}
         </Link>
       </div>
     );
@@ -284,9 +288,9 @@ export function CheckoutPage() {
           className="checkout-back-link"
           onClick={() => navigate(-1)}
         >
-          <ArrowLeft width={16} height={16} /> Back to shopping
+          <ArrowLeft width={16} height={16} /> {t('co.back')}
         </button>
-        <h1 className="checkout-title">Express Checkout</h1>
+        <h1 className="checkout-title">{t('co.title')}</h1>
       </div>
 
       <ParentSignInSheet
@@ -306,8 +310,8 @@ export function CheckoutPage() {
               onClick={() => activeStep > 1 && setActiveStep(1)}
             >
               <div className="step-badge">1</div>
-              <h2 className="step-header-title">Parent & Student Details</h2>
-              {activeStep > 1 && <span className="step-edit-btn">Edit</span>}
+              <h2 className="step-header-title">{t('co.s1')}</h2>
+              {activeStep > 1 && <span className="step-edit-btn">{t('co.edit')}</span>}
             </div>
 
             {activeStep === 1 ? (
@@ -317,51 +321,50 @@ export function CheckoutPage() {
                     {!isParent ? (
                       <div className="checkout-signin">
                         <div>
-                          <strong>Sign in with your mobile number</strong>
-                          <span>We'll fill in your child's details from the school's records.</span>
+                          <strong>{t('co.signin.title')}</strong>
+                          <span>{t('co.signin.sub')}</span>
                         </div>
                         <button type="button" className="btn btn-primary" onClick={() => setSignInOpen(true)}>
-                          Continue with OTP
+                          {t('co.signin.btn')}
                         </button>
                       </div>
                     ) : child ? (
                       <div className="checkout-child">
-                        <span>Ordering for</span>
+                        <span>{t('co.orderingFor')}</span>
                         <strong>{child.name}</strong>
                         <span>
-                          {[child.grade_name || child.class_name, child.section && `Section ${child.section}`]
+                          {[classLabel(child.grade_name || child.class_name, t), child.section && t('co.section', { s: child.section })]
                             .filter(Boolean)
                             .join(' · ')}{' '}
                           · {child.school_name}
                         </span>
-                        {parentMobile && <span>Mobile {parentMobile.slice(0, 5)} {parentMobile.slice(5)} · verified</span>}
+                        {parentMobile && <span>{t('co.verified', { mobile: `${parentMobile.slice(0, 5)} ${parentMobile.slice(5)}` })}</span>}
                         <button type="button" className="psi-link" onClick={() => setSignInOpen(true)}>
-                          Change
+                          {t('nav.change')}
                         </button>
                       </div>
                     ) : (
                       <button type="button" className="btn btn-primary" onClick={() => setSignInOpen(true)}>
-                        Choose your child
+                        {t('co.chooseChild')}
                       </button>
                     )}
 
                     {wrongSchool && (
                       <p className="field-err" role="alert">
-                        Your bag has items for {selection?.schoolName}, but {child?.name} is at {child?.school_name}.
-                        Choose another child, or empty your bag and shop for {child?.school_name}.
+                        {t('co.wrongSchool', { bagSchool: selection?.schoolName ?? '', name: child?.name ?? '', childSchool: child?.school_name ?? '' })}
                       </p>
                     )}
                     {errors.child && !wrongSchool && <span className="field-err">{errors.child}</span>}
 
                     {isParent && (
                       <div className="form-group">
-                        <label className="input-label" htmlFor="parent-name">Your Name</label>
+                        <label className="input-label" htmlFor="parent-name">{t('co.yourName')}</label>
                         <input
                           id="parent-name"
                           type="text"
                           autoComplete="name"
                           className={`input-control ${errors.parentName ? 'input-has-err' : ''}`}
-                          placeholder="e.g. Ramesh Sharma"
+                          placeholder={t('co.namePlaceholder')}
                           value={parentName}
                           onChange={(e) => setParentName(e.target.value)}
                         />
@@ -371,7 +374,7 @@ export function CheckoutPage() {
 
                     {whatsappAvailable && !child && (
                       <button type="button" className="psi-link" onClick={() => setMode('whatsapp')}>
-                        Can't sign in? Send your order on WhatsApp instead
+                        {t('co.useWhatsApp')}
                       </button>
                     )}
                   </>
@@ -379,13 +382,13 @@ export function CheckoutPage() {
                   <>
                     <div className="form-grid-2">
                       <div className="form-group">
-                        <label className="input-label" htmlFor="parent-name">Parent Name</label>
+                        <label className="input-label" htmlFor="parent-name">{t('co.yourName')}</label>
                         <input
                           id="parent-name"
                           type="text"
                           autoComplete="name"
                           className={`input-control ${errors.parentName ? 'input-has-err' : ''}`}
-                          placeholder="e.g. Ramesh Sharma"
+                          placeholder={t('co.namePlaceholder')}
                           value={parentName}
                           onChange={(e) => setParentName(e.target.value)}
                         />
@@ -393,7 +396,7 @@ export function CheckoutPage() {
                       </div>
 
                       <div className="form-group">
-                        <label className="input-label" htmlFor="parent-mobile">Mobile Number</label>
+                        <label className="input-label" htmlFor="parent-mobile">{t('co.mobile')}</label>
                         <input
                           id="parent-mobile"
                           type="tel"
@@ -401,7 +404,7 @@ export function CheckoutPage() {
                           autoComplete="tel"
                           maxLength={10}
                           className={`input-control ${errors.parentMobile ? 'input-has-err' : ''}`}
-                          placeholder="10-digit mobile number"
+                          placeholder={t('co.mobilePlaceholder')}
                           value={parentMobile}
                           onChange={(e) => setParentMobile(e.target.value.replace(/\D/g, ''))}
                         />
@@ -411,12 +414,12 @@ export function CheckoutPage() {
 
                     <div className="form-grid-2">
                       <div className="form-group">
-                        <label className="input-label" htmlFor="student-name">Student Name</label>
+                        <label className="input-label" htmlFor="student-name">{t('co.childName')}</label>
                         <input
                           id="student-name"
                           type="text"
                           className={`input-control ${errors.studentName ? 'input-has-err' : ''}`}
-                          placeholder="Full name for tags & records"
+                          placeholder={t('co.childNamePlaceholder')}
                           value={studentName}
                           onChange={(e) => setStudentName(e.target.value)}
                         />
@@ -424,12 +427,12 @@ export function CheckoutPage() {
                       </div>
 
                       <div className="form-group">
-                        <label className="input-label" htmlFor="student-class">Class / Section</label>
+                        <label className="input-label" htmlFor="student-class">{t('co.class')}</label>
                         <input
                           id="student-class"
                           type="text"
                           className={`input-control ${errors.studentClass ? 'input-has-err' : ''}`}
-                          placeholder="e.g. Class 4 B"
+                          placeholder={t('co.classPlaceholder')}
                           value={studentClass}
                           onChange={(e) => setStudentClass(e.target.value)}
                         />
@@ -438,7 +441,7 @@ export function CheckoutPage() {
                     </div>
 
                     <button type="button" className="psi-link" onClick={() => setMode('account')}>
-                      Sign in with your mobile number instead
+                      {t('co.useSignIn')}
                     </button>
                   </>
                 )}
@@ -450,13 +453,13 @@ export function CheckoutPage() {
                     if (validateStep1()) setActiveStep(2);
                   }}
                 >
-                  Continue to Delivery
+                  {t('co.next')}
                 </button>
               </div>
             ) : (
               <div className="step-summary-view">
                 <span>{parentName} · {parentMobile}</span>
-                <span>Student: {studentName} ({studentClass})</span>
+                <span>{t('co.summaryChild', { name: studentName, cls: studentClass })}</span>
               </div>
             )}
           </section>
@@ -468,8 +471,8 @@ export function CheckoutPage() {
               onClick={() => activeStep > 2 && setActiveStep(2)}
             >
               <div className="step-badge">2</div>
-              <h2 className="step-header-title">Delivery Method</h2>
-              {activeStep > 2 && <span className="step-edit-btn">Edit</span>}
+              <h2 className="step-header-title">{t('co.s2')}</h2>
+              {activeStep > 2 && <span className="step-edit-btn">{t('co.edit')}</span>}
             </div>
 
             {activeStep === 2 ? (
@@ -484,8 +487,8 @@ export function CheckoutPage() {
                         onChange={() => setDeliveryType('HOME')}
                       />
                       <div>
-                        <strong>Home Delivery</strong>
-                        <p>Brought to your door.</p>
+                        <strong>{t('co.home')}</strong>
+                        <p>{t('co.homeSub')}</p>
                       </div>
                     </label>
                   )}
@@ -499,8 +502,8 @@ export function CheckoutPage() {
                         onChange={() => setDeliveryType('SCHOOL')}
                       />
                       <div>
-                        <strong>Collect at School</strong>
-                        <p>Pick it up at {school?.name || 'your school'}.</p>
+                        <strong>{t('co.collect')}</strong>
+                        <p>{t('co.collectSub', { school: school?.name || t('co.yourSchool') })}</p>
                       </div>
                     </label>
                   )}
@@ -510,7 +513,7 @@ export function CheckoutPage() {
                   <div className="address-form-fields">
                     <div className="form-grid-2">
                       <div className="form-group">
-                        <label className="input-label" htmlFor="pincode">PIN Code</label>
+                        <label className="input-label" htmlFor="pincode">{t('co.pin')}</label>
                         <input
                           id="pincode"
                           type="text"
@@ -518,7 +521,7 @@ export function CheckoutPage() {
                           maxLength={6}
                           autoComplete="postal-code"
                           className={`input-control ${errors.pinCode ? 'input-has-err' : ''}`}
-                          placeholder="6 digits"
+                          placeholder={t('co.pinPlaceholder')}
                           value={pinCode}
                           onChange={(e) => setPinCode(e.target.value.replace(/\D/g, ''))}
                         />
@@ -526,7 +529,7 @@ export function CheckoutPage() {
                       </div>
 
                       <div className="form-group">
-                        <label className="input-label" htmlFor="city">City</label>
+                        <label className="input-label" htmlFor="city">{t('co.city')}</label>
                         <input
                           id="city"
                           type="text"
@@ -540,13 +543,13 @@ export function CheckoutPage() {
                     </div>
 
                     <div className="form-group">
-                      <label className="input-label" htmlFor="addr-1">Address Line 1</label>
+                      <label className="input-label" htmlFor="addr-1">{t('co.addr1')}</label>
                       <input
                         id="addr-1"
                         type="text"
                         autoComplete="street-address"
                         className={`input-control ${errors.addressLine1 ? 'input-has-err' : ''}`}
-                        placeholder="House / Flat No., Society / Building"
+                        placeholder={t('co.addr1Placeholder')}
                         value={addressLine1}
                         onChange={(e) => setAddressLine1(e.target.value)}
                       />
@@ -554,12 +557,12 @@ export function CheckoutPage() {
                     </div>
 
                     <div className="form-group">
-                      <label className="input-label" htmlFor="addr-2">Address Line 2 (Optional)</label>
+                      <label className="input-label" htmlFor="addr-2">{t('co.addr2')}</label>
                       <input
                         id="addr-2"
                         type="text"
                         className="input-control"
-                        placeholder="Landmark, Area / Sector"
+                        placeholder={t('co.addr2Placeholder')}
                         value={addressLine2}
                         onChange={(e) => setAddressLine2(e.target.value)}
                       />
@@ -574,15 +577,15 @@ export function CheckoutPage() {
                     if (validateStep2()) setActiveStep(3);
                   }}
                 >
-                  Continue to Payment
+                  {t('co.next')}
                 </button>
               </div>
             ) : activeStep > 2 ? (
               <div className="step-summary-view">
                 <span>
                   {deliveryType === 'HOME'
-                    ? `Home Delivery: ${addressLine1}, ${city} (${pinCode})`
-                    : `Collect at ${school?.name || 'school'}`}
+                    ? t('co.summaryHome', { address: `${addressLine1}, ${city} (${pinCode})` })
+                    : t('co.summaryCollect', { school: school?.name || t('co.yourSchool') })}
                 </span>
               </div>
             ) : null}
@@ -592,7 +595,7 @@ export function CheckoutPage() {
           <section className={`checkout-section ${activeStep === 3 ? 'is-active' : 'is-collapsed'}`}>
             <div className="section-step-header">
               <div className="step-badge">3</div>
-              <h2 className="step-header-title">Payment</h2>
+              <h2 className="step-header-title">{t('co.s3')}</h2>
             </div>
 
             {activeStep === 3 && (
@@ -600,8 +603,8 @@ export function CheckoutPage() {
                 <div className="payment-options-grid">
                   <div className="payment-option is-selected">
                     <div>
-                      <strong>Pay cash when it arrives</strong>
-                      <p>Cash on delivery. Paying online by UPI is coming soon.</p>
+                      <strong>{t('co.cash')}</strong>
+                      <p>{t('co.cashSub')}</p>
                     </div>
                   </div>
                 </div>
@@ -617,9 +620,9 @@ export function CheckoutPage() {
                     >
                       {placing
                         ? retrying
-                          ? 'Weak signal, still trying…'
-                          : 'Placing your order…'
-                        : `Place order · ${formatINR(totalPaise)}`}
+                          ? t('co.retrying')
+                          : t('co.placing')
+                        : t('co.place', { total: formatINR(totalPaise) })}
                     </button>
                     {orderError && (
                       <p className="field-err checkout-order-error" role="alert">
@@ -627,8 +630,8 @@ export function CheckoutPage() {
                       </p>
                     )}
                     <p className="checkout-legal-note">
-                      By ordering you agree to our <Link to="/terms">Terms</Link>, <Link to="/refunds">Refund Policy</Link>{' '}
-                      and <Link to="/privacy">Privacy Policy</Link>.
+                      {t('co.legal')} <Link to="/terms">{t('co.terms')}</Link> · <Link to="/refunds">{t('co.refunds')}</Link> ·{' '}
+                      <Link to="/privacy">{t('co.privacy')}</Link>
                     </p>
                   </>
                 ) : whatsappUrl ? (
@@ -643,17 +646,16 @@ export function CheckoutPage() {
                         window.scrollTo(0, 0);
                       }}
                     >
-                      Send order on WhatsApp · {formatINR(totalPaise)}
+                      {t('co.wa.send', { total: formatINR(totalPaise) })}
                     </a>
                     <p className="checkout-legal-note">
-                      WhatsApp opens with your order written out; press Send there to book it. By ordering you agree to
-                      our <Link to="/terms">Terms</Link>, <Link to="/refunds">Refund Policy</Link> and{' '}
-                      <Link to="/privacy">Privacy Policy</Link>.
+                      {t('co.wa.note')} {t('co.legal')} <Link to="/terms">{t('co.terms')}</Link> ·{' '}
+                      <Link to="/refunds">{t('co.refunds')}</Link> · <Link to="/privacy">{t('co.privacy')}</Link>
                     </p>
                   </>
                 ) : (
                   <p className="checkout-closed-note" role="status">
-                    Online ordering opens soon. Your items stay saved in your bag.
+                    {t('co.closed')}
                   </p>
                 )}
               </div>
@@ -664,7 +666,7 @@ export function CheckoutPage() {
         {/* Right Column: Sticky Order Summary */}
         <aside className="checkout-summary-col">
           <div className="order-summary-box">
-            <h3 className="summary-title">Order Summary</h3>
+            <h3 className="summary-title">{t('co.summary')}</h3>
 
             <div className="summary-items-list">
               {cart.map((item) => (
@@ -682,12 +684,12 @@ export function CheckoutPage() {
 
             <div className="summary-math-table">
               <div className="math-row">
-                <span>Delivery</span>
-                <span>Free</span>
+                <span>{t('co.delivery')}</span>
+                <span>{t('co.free')}</span>
               </div>
 
               <div className="math-total-row">
-                <span>Total</span>
+                <span>{t('bag.total')}</span>
                 <span className="total-amount">{formatINR(totalPaise)}</span>
               </div>
             </div>

@@ -120,6 +120,31 @@ button, input, select, textarea {
   font: inherit;
 }
 
+/* Gujarati and Hindi letters join into one another: letter-spacing breaks them apart,
+   and capitals don't exist. Undo both for those languages. */
+:root:is(:lang(gu), :lang(hi)) body * {
+  letter-spacing: normal !important;
+  text-transform: none !important;
+}
+
+:root:is(:lang(gu), :lang(hi)) body {
+  line-height: 1.6;
+}
+
+/* Their vowel marks sit above and below the line: headings set tight for condensed
+   English capitals would collide and get clipped. */
+:root:is(:lang(gu), :lang(hi)) :is(h1, h2, h3, h4, .hero-heading, .display-condensed, .cat-title, .step-heading) {
+  line-height: 1.3 !important;
+}
+
+:root:is(:lang(gu), :lang(hi)) .hero-heading {
+  font-size: clamp(2.25rem, 1.4rem + 4vw, 4.5rem);
+}
+
+:root:is(:lang(gu), :lang(hi)) .hero-heading > * {
+  padding-block: 0.08em;
+}
+
 /* Phones: iOS zooms the whole page into any field under 16px when it is tapped.
    !important because many forms set their own smaller field size. */
 @media (max-width: 767px) {

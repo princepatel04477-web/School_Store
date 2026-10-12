@@ -16,12 +16,25 @@ import { Stagger, Reveal, Hairline } from '../motion';
 import { EASING } from '../motion/motionConfig';
 import { prefetchBagDrawer, prefetchCheckoutPage } from '../utils/prefetch';
 import { formatINR } from '../utils/formatINR';
+import { useLang, type MessageKey } from '../i18n';
+import { categoryLabel, classLabel, genderLabel } from '../i18n/labels';
+import { ListenButton } from '../components/ListenButton';
+import { FullSetSheet } from '../components/product/FullSetSheet';
 import './flow.css';
+
+const GROUP_KEYS: Record<string, MessageKey> = {
+  'Pre-primary': 'grp.preprimary',
+  Primary: 'grp.primary',
+  Middle: 'grp.middle',
+  Secondary: 'grp.secondary',
+};
 
 export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { selection, setSelection, subtotalPaise, cart, clearCart } = useStoreState();
+  const { t } = useLang();
+  const [fullSetOpen, setFullSetOpen] = useState(false);
 
   // Read URL params or fallback to active stored selection
   const stepParam = parseInt(searchParams.get('step') || '1', 10);
@@ -210,6 +223,12 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     return products.filter((p) => p.category === activeTab);
   }, [products, activeTab]);
 
+  // "Order full set": the items made for this school that can be ordered here.
+  const fullSetProducts = useMemo(
+    () => products.filter((p) => p.official && !p.needsDetails && p.sizes.some((size) => size.inStock)),
+    [products]
+  );
+
   const requiredProducts = useMemo(() => {
     return step4Products.filter((p) => p.required);
   }, [step4Products]);
@@ -222,7 +241,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     <div className="selection-flow-page container" id="main">
       {/* Top Stepper Nav */}
       <div className="flow-stepper-wrap">
-        <div className="flow-stepper" role="navigation" aria-label="Selection progress">
+        <div className="flow-stepper" role="navigation" aria-label={t('flow.progress')}>
           {/* Step 1 Node */}
           <button
             type="button"
@@ -233,7 +252,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
             <span className="step-node-bubble">
               {currentStep > 1 ? <Check width={14} height={14} /> : '1'}
             </span>
-            <span className="step-node-label">School</span>
+            <span className="step-node-label">{t('flow.school')}</span>
           </button>
 
           {/* Stepper Thread Connector */}
@@ -252,7 +271,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
             <span className="step-node-bubble">
               {currentStep > 2 ? <Check width={14} height={14} /> : '2'}
             </span>
-            <span className="step-node-label">Class</span>
+            <span className="step-node-label">{t('flow.class')}</span>
           </button>
 
           {/* Stepper Thread Connector */}
@@ -271,7 +290,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
             <span className="step-node-bubble">
               {currentStep > 3 ? <Check width={14} height={14} /> : '3'}
             </span>
-            <span className="step-node-label">Boy / Girl</span>
+            <span className="step-node-label">{t('flow.boyGirl')}</span>
           </button>
 
           {/* Stepper Thread Connector */}
@@ -288,21 +307,21 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
             aria-current={currentStep === 4 ? 'step' : undefined}
           >
             <span className="step-node-bubble">4</span>
-            <span className="step-node-label">Items</span>
+            <span className="step-node-label">{t('flow.items')}</span>
           </button>
         </div>
 
         {/* Mobile Stepper Header */}
         <div className="mobile-stepper-title">
           <span>
-            Step {currentStep} of 4 ·{' '}
+            {t('flow.stepOf', { n: currentStep })} ·{' '}
             {currentStep === 1
-              ? 'Select School'
+              ? t('flow.school')
               : currentStep === 2
-              ? 'Pick Class'
+              ? t('flow.class')
               : currentStep === 3
-              ? 'Boy or Girl'
-              : 'Prescribed Items'}
+              ? t('flow.boyGirl')
+              : t('flow.items')}
           </span>
         </div>
       </div>
@@ -313,18 +332,17 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         {currentStep === 1 && (
           <div className="step-panel step-school-panel">
             <div className="step-title-row">
-              <span className="label">Step 01</span>
-              <h1 className="step-heading">Select your school</h1>
-              <p className="step-subtitle">
-                Choose your child’s educational campus to view authorized uniform patterns and book bundles.
-              </p>
+              <h1 className="step-heading">{t('flow.s1.title')}</h1>
+              <p className="step-subtitle">{t('flow.s1.sub')}</p>
+              <ListenButton text={`${t('flow.s1.title')}. ${t('flow.s1.sub')}`} />
             </div>
 
             <div className="school-filter-search">
               <Search className="search-filter-icon" width={20} height={20} />
               <input
                 type="text"
-                placeholder="Search school name or city..."
+                placeholder={t('flow.s1.search')}
+                aria-label={t('flow.s1.search')}
                 className="school-search-field"
                 value={schoolQuery}
                 onChange={(e) => setSchoolQuery(e.target.value)}
@@ -333,14 +351,14 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
 
             {schoolsQuery.isLoading ? (
               <div className="flow-empty-state" role="status">
-                <p>Loading schools…</p>
+                <p>{t('flow.loadingSchools')}</p>
               </div>
             ) : schoolsQuery.isError ? (
               <div className="flow-empty-state" role="alert">
-                <h3>We couldn’t load the schools</h3>
-                <p>Check your internet connection and try again.</p>
+                <h3>{t('flow.schoolsError')}</h3>
+                <p>{t('common.checkInternet')}</p>
                 <button type="button" className="btn btn-primary" onClick={() => schoolsQuery.refetch()}>
-                  Try again
+                  {t('common.tryAgain')}
                 </button>
               </div>
             ) : filteredSchools.length > 0 ? (
@@ -365,10 +383,10 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
               </Stagger>
             ) : (
               <div className="flow-empty-state">
-                <h3>We couldn’t find that school</h3>
-                <p>We are constantly onboarding new campuses across India.</p>
+                <h3>{t('flow.noSchool')}</h3>
+                <p>{t('flow.noSchoolSub')}</p>
                 <Link to="/contact?reason=request-school" className="plain-link">
-                  Request your school on SchoolStore →
+                  {t('home.requestSchool')} →
                 </Link>
               </div>
             )}
@@ -379,21 +397,21 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         {currentStep > 1 && !activeSchool && (
           <div className="flow-empty-state" role={schoolsQuery.isLoading ? 'status' : 'alert'}>
             {schoolsQuery.isLoading ? (
-              <p>Loading your school…</p>
+              <p>{t('flow.loadingSchool')}</p>
             ) : schoolsQuery.isError ? (
               <>
-                <h3>We couldn’t load your school</h3>
-                <p>Check your internet connection and try again.</p>
+                <h3>{t('flow.schoolError')}</h3>
+                <p>{t('common.checkInternet')}</p>
                 <button type="button" className="btn btn-primary" onClick={() => schoolsQuery.refetch()}>
-                  Try again
+                  {t('common.tryAgain')}
                 </button>
               </>
             ) : (
               <>
-                <h3>We couldn’t find this school</h3>
-                <p>The link may be old. Please choose your school from the list.</p>
+                <h3>{t('flow.linkSchoolMissing')}</h3>
+                <p>{t('flow.linkSchoolMissingSub')}</p>
                 <button type="button" className="btn btn-primary" onClick={() => goToStep(1)}>
-                  Choose school
+                  {t('flow.chooseSchool')}
                 </button>
               </>
             )}
@@ -407,21 +425,19 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
               className="step-back-btn"
               onClick={() => goToStep(1)}
             >
-              <ArrowLeft width={16} height={16} /> Change School
+              <ArrowLeft width={16} height={16} /> {t('home.changeSchool')}
             </button>
 
             <div className="step-title-row">
               <span className="label">{activeSchool.name}</span>
-              <h1 className="step-heading">Pick your child's class</h1>
-              <p className="step-subtitle">
-                Prescribed uniform fabrics and syllabus notebooks are configured per grade tier.
-              </p>
+              <h1 className="step-heading">{t('flow.s2.title')}</h1>
+              <ListenButton text={t('flow.s2.title')} />
             </div>
 
             <div className="class-groups-container">
               {Object.entries(groupedClasses).map(([groupTitle, classesInGroup]) => (
                 <div key={groupTitle} className="class-group-block">
-                  <span className="label class-group-label">{groupTitle}</span>
+                  <span className="label class-group-label">{t(GROUP_KEYS[groupTitle] ?? 'grp.primary')}</span>
                   <div className="classes-tiles-grid">
                     {classesInGroup.map((c) => {
                       const isSelected = activeClass?.id === c.id;
@@ -432,7 +448,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                           className={`class-tile ${isSelected ? 'is-selected' : ''}`}
                           onClick={() => handleSelectClass(c)}
                         >
-                          <span className="class-tile-name">{c.name}</span>
+                          <span className="class-tile-name">{classLabel(c.name, t)}</span>
                         </button>
                       );
                     })}
@@ -451,15 +467,13 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
               className="step-back-btn"
               onClick={() => goToStep(2)}
             >
-              <ArrowLeft width={16} height={16} /> Change Class ({activeClass.name})
+              <ArrowLeft width={16} height={16} /> {t('flow.changeClass')} ({classLabel(activeClass.name, t)})
             </button>
 
             <div className="step-title-row">
-              <span className="label">{activeSchool.name} · {activeClass.name}</span>
-              <h1 className="step-heading">Who are you shopping for?</h1>
-              <p className="step-subtitle">
-                Please choose Boy or Girl to view tailored uniforms and approved items. You cannot continue without choosing.
-              </p>
+              <span className="label">{activeSchool.name} · {classLabel(activeClass.name, t)}</span>
+              <h1 className="step-heading">{t('flow.s3.title')}</h1>
+              <ListenButton text={t('flow.s3.title')} />
             </div>
 
             <div
@@ -491,8 +505,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   transition: 'all 0.2s ease',
                 }}
               >
-                <strong className="gender-card-title">Boy</strong>
-                <small style={{ color: 'var(--ink-soft)', fontSize: '13px', marginTop: '6px' }}>Boys' &amp; unisex essentials</small>
+                <strong className="gender-card-title">{t('g.boy')}</strong>
               </button>
 
               {/* Girl Card */}
@@ -515,8 +528,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   transition: 'all 0.2s ease',
                 }}
               >
-                <strong className="gender-card-title">Girl</strong>
-                <small style={{ color: 'var(--ink-soft)', fontSize: '13px', marginTop: '6px' }}>Girls' &amp; unisex essentials</small>
+                <strong className="gender-card-title">{t('g.girl')}</strong>
               </button>
             </div>
           </div>
@@ -542,9 +554,6 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
               }}
             >
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '11px', color: 'var(--ink-soft)', fontWeight: 600, textTransform: 'uppercase' }}>
-                  Selection:
-                </span>
                 <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
                   {activeSchool.name}
                 </span>
@@ -553,12 +562,12 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                 </span>
                 {activeClass && (
                   <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
-                    {activeClass.name}
+                    {classLabel(activeClass.name, t)}
                   </span>
                 )}
                 {activeGender && (
                   <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
-                    {activeGender === 'boy' ? 'Boy' : 'Girl'}
+                    {genderLabel(activeGender, t)}
                   </span>
                 )}
               </div>
@@ -570,7 +579,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   style={{ margin: 0 }}
                   onClick={() => requestStepChange(3)}
                 >
-                  Change
+                  {t('nav.change')}
                 </button>
               </div>
             </div>
@@ -580,10 +589,23 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
               <div className="items-main-col">
                 <div className="step-title-row">
                   <span className="label">
-                    {activeSchool.name} · {activeClass?.name} · {activeGender === 'boy' ? 'Boy' : 'Girl'}
+                    {activeSchool.name} · {classLabel(activeClass?.name, t)} · {genderLabel(activeGender, t)}
                   </span>
-                  <h1 className="step-heading">Approved Store Items</h1>
+                  <h1 className="step-heading">{t('flow.s4.title')}</h1>
+                  <ListenButton text={`${t('flow.s4.title')}. ${t('flow.s4.listen')}`} />
                 </div>
+
+                {fullSetProducts.length > 1 && (
+                  <div className="fullset-banner">
+                    <div>
+                      <strong>{t('set.bannerTitle')}</strong>
+                      <span>{t('set.bannerSub', { count: fullSetProducts.length, school: activeSchool.name })}</span>
+                    </div>
+                    <button type="button" className="btn btn-primary" onClick={() => setFullSetOpen(true)}>
+                      {t('set.open')}
+                    </button>
+                  </div>
+                )}
 
                 {/* Sticky Category Tabs */}
                 <div className="category-tabs-sticky">
@@ -602,7 +624,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                             transition={{ duration: 0.2, ease: EASING }}
                           />
                         )}
-                        <span className="cat-tab-label">{cat}</span>
+                        <span className="cat-tab-label">{categoryLabel(cat, t)}</span>
                       </button>
                     )
                   )}
@@ -616,31 +638,23 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                 {/* Empty State when no items match */}
                 {productsQuery.isLoading ? (
                   <div className="flow-empty-state" role="status" style={{ padding: '48px 24px', textAlign: 'center' }}>
-                    <p>Loading your school’s items…</p>
+                    <p>{t('flow.loadingItems')}</p>
                   </div>
                 ) : productsQuery.isError ? (
                   <div className="flow-empty-state" role="alert" style={{ padding: '48px 24px', textAlign: 'center' }}>
-                    <h3>We couldn’t load the items</h3>
-                    <p>Check your internet connection and try again.</p>
+                    <h3>{t('flow.itemsError')}</h3>
+                    <p>{t('common.checkInternet')}</p>
                     <button type="button" className="btn btn-primary" onClick={() => productsQuery.refetch()}>
-                      Try again
+                      {t('common.tryAgain')}
                     </button>
                   </div>
                 ) : step4Products.length === 0 ? (
                   <div className="flow-empty-state" style={{ padding: '48px 24px', textAlign: 'center' }}>
                     <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 8px', color: 'var(--ink)' }}>
-                      {`No items listed yet for ${
-                        activeClass?.name
-                          ? activeClass.name.toLowerCase().startsWith('class') ||
-                            activeClass.name.toLowerCase().includes('kg') ||
-                            activeClass.name.toLowerCase().includes('nursery')
-                            ? activeClass.name
-                            : `Class ${activeClass.name}`
-                          : 'Class'
-                      } (${activeGender === 'boy' ? 'Boy' : 'Girl'})`}
+                      {t('flow.noItems', { cat: categoryLabel(activeTab, t), cls: classLabel(activeClass?.name, t), g: genderLabel(activeGender, t) })}
                     </h3>
                     <p style={{ color: 'var(--ink-soft)', fontSize: '14px', margin: '0 0 20px' }}>
-                      No approved {activeTab.toLowerCase()} items have been listed yet for this class and gender.
+                      {t('flow.noItemsSub')}
                     </p>
                     <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
                       <button
@@ -648,14 +662,14 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                         className="btn btn-primary"
                         onClick={() => requestStepChange(2)}
                       >
-                        Change class
+                        {t('flow.changeClass')}
                       </button>
                       <button
                         type="button"
                         className="btn btn-secondary"
                         onClick={() => requestStepChange(3)}
                       >
-                        Change boy / girl
+                        {t('flow.changeBoyGirl')}
                       </button>
                     </div>
                   </div>
@@ -666,8 +680,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                       <div className="required-section-block">
                         <div className="required-head-row">
                           <div>
-                            <span className="label">Prescribed Checklist</span>
-                            <h2 className="required-heading">Required Kit for {activeClass?.name}</h2>
+                            <h2 className="required-heading">{t('flow.requiredFor', { cls: classLabel(activeClass?.name, t) })}</h2>
                           </div>
                         </div>
 
@@ -688,8 +701,8 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                       <div className="optional-section-block">
                         <h2 className="optional-heading">
                           {requiredProducts.length > 0
-                            ? 'Additional Essentials & Spares'
-                            : `Your school’s list for ${activeClass?.name ?? 'your class'}`}
+                            ? t('flow.extras')
+                            : t('flow.listFor', { cls: classLabel(activeClass?.name, t) })}
                         </h2>
                         <Stagger key={`opt-${activeTab}`} className="products-grid">
                           {optionalProducts.map((p) => (
@@ -713,17 +726,17 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                     <SchoolCrest id={activeSchool.id} color={activeSchool.color} name={activeSchool.name} code={activeSchool.code} size={40} />
                     <div>
                       <h3 className="summary-school-name">{activeSchool.name}</h3>
-                      <span className="summary-class-tag">{activeClass?.name} · {activeGender === 'boy' ? 'Boy' : 'Girl'}</span>
+                      <span className="summary-class-tag">{classLabel(activeClass?.name, t)} · {genderLabel(activeGender, t)}</span>
                     </div>
                   </div>
 
                   <div className="summary-stats-row">
-                    <span>Items in Bag:</span>
+                    <span>{t('flow.itemsInBag')}</span>
                     <strong>{cart.length}</strong>
                   </div>
 
                   <div className="summary-total-row">
-                    <span>Subtotal:</span>
+                    <span>{t('bag.total')}</span>
                     <span className="summary-total-val">{formatINR(subtotalPaise)}</span>
                   </div>
 
@@ -736,7 +749,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                     }}
                     onClick={onOpenBag}
                   >
-                    View Bag · {formatINR(subtotalPaise)}
+                    {t('flow.viewBag', { total: formatINR(subtotalPaise) })}
                   </button>
                 </div>
               </aside>
@@ -749,10 +762,9 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       {showCartWarning && (
         <div className="modal-backdrop" style={{ zIndex: 100 }}>
           <div className="modal-card" style={{ maxWidth: '440px', padding: '24px' }}>
-            <h3 style={{ margin: '0 0 10px', fontSize: '18px', color: '#b91c1c' }}>Clear Bag Items?</h3>
+            <h3 style={{ margin: '0 0 10px', fontSize: '18px', color: 'var(--danger)' }}>{t('flow.clearTitle')}</h3>
             <p style={{ margin: '0 0 16px', fontSize: '14px', color: 'var(--ink)' }}>
-              You have {cart.length} item{cart.length > 1 ? 's' : ''} in your bag for {activeClass?.name} ({activeGender === 'boy' ? 'Boy' : 'Girl'}).
-              Changing your school, class, or student gender will clear items from your bag.
+              {t('flow.clearBody', { count: cart.length, cls: classLabel(activeClass?.name, t), g: genderLabel(activeGender, t) })}
             </p>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button
@@ -763,7 +775,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   setPendingTargetStep(null);
                 }}
               >
-                Keep Current
+                {t('flow.keepBag')}
               </button>
               <button
                 type="button"
@@ -771,11 +783,22 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                 style={{ backgroundColor: '#dc2626', borderColor: '#dc2626', color: '#ffffff' }}
                 onClick={handleConfirmCartClear}
               >
-                Clear &amp; Proceed
+                {t('flow.clearAndChange')}
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {activeSchool && (
+        <FullSetSheet
+          open={fullSetOpen}
+          onClose={() => setFullSetOpen(false)}
+          products={fullSetProducts}
+          schoolName={activeSchool.name}
+          className={activeClass?.name}
+          onAdded={onOpenBag}
+        />
       )}
 
       {/* Product Details Sheet */}

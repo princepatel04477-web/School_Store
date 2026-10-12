@@ -1,6 +1,7 @@
 import { motion } from 'motion/react';
 import { EASING } from '../../motion/motionConfig';
 import './product.css';
+import { useLang } from '../../i18n';
 
 export interface SizeOption {
   id: string;
@@ -25,23 +26,24 @@ export function SizeSelector({
   error,
   className = '',
 }: SizeSelectorProps) {
+  const { t } = useLang();
   return (
-    <div className={`size-selector-wrap ${className}`.trim()} role="group" aria-label="Select size">
+    <div className={`size-selector-wrap ${className}`.trim()} role="group" aria-label={t('product.size')}>
       <div className="size-selector-header">
-        <span className="label">Select Size</span>
+        <span className="label">{t('product.size')}</span>
         {onOpenSizeGuide && (
           <button
             type="button"
             className="size-guide-trigger"
             onClick={onOpenSizeGuide}
-            aria-label="Open size guide"
+            aria-label={t('product.sizeGuide')}
           >
-            Size guide
+            {t('product.sizeGuide')}
           </button>
         )}
       </div>
 
-      <div className="size-tiles-grid" role="radiogroup" aria-label="Available sizes">
+      <div className="size-tiles-grid" role="radiogroup" aria-label={t('product.size')}>
         {sizes.map((s) => {
           const isSelected = selectedSizeId === s.id;
           return (
@@ -62,7 +64,7 @@ export function SizeSelector({
                 />
               )}
               <span className="size-tile-label">{s.size}</span>
-              {!s.inStock && <span className="diagonal-strike" aria-label="Unavailable" />}
+              {!s.inStock && <span className="diagonal-strike" aria-label={t('product.outOfStock')} />}
             </button>
           );
         })}

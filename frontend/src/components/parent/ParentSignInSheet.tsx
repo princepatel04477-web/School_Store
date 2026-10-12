@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X } from '../ui/icons';
-import { auth as authApi, parentChildren, type ParentChild } from '../../api';
+import { ApiError, auth as authApi, parentChildren, type ParentChild } from '../../api';
+import { useLang, type MessageKey } from '../../i18n';
+import { classLabel as translateClass } from '../../i18n/labels';
 import { useAuth } from '../../auth';
 import { SchoolCrest } from '../school/SchoolCrest';
 import { EASING } from '../../motion/motionConfig';
@@ -20,9 +22,21 @@ export interface ParentSignInSheetProps {
 
 const RESEND_SECONDS = 30;
 
-function classLabel(child: ParentChild) {
-  const cls = child.grade_name || child.class_name;
-  return [cls, child.section && `Section ${child.section}`].filter(Boolean).join(' · ');
+type T = ReturnType<typeof useLang>['t'];
+
+function classLabel(child: ParentChild, t: T) {
+  const cls = translateClass(child.grade_name || child.class_name, t);
+  return [cls, child.section && t('co.section', { s: child.section })].filter(Boolean).join(' · ');
+}
+
+/** The server's reasons, in the parent's language. */
+function sendError(err: unknown): MessageKey {
+  if (!(err instanceof ApiError)) return 'err.offline';
+  if (err.data.code === 'sms_unavailable') return 'signin.smsOff';
+  if (err.data.code === 'sms_failed') return 'signin.smsFailed';
+  if (err.status === 429) return 'signin.tooMany';
+  if (err.status === 400) return 'co.err.mobile';
+  return 'signin.sendFailed';
 }
 
 /**
@@ -33,6 +47,7 @@ function classLabel(child: ParentChild) {
  */
 export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentSignInSheetProps) {
   const { user, signInWithOtp } = useAuth();
+  const { t } = useLang();
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
@@ -94,7 +109,7 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
       setResendIn(RESEND_SECONDS);
       window.setTimeout(() => otpRef.current?.focus(), 50);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not send the OTP. Try again.');
+      setError(t(sendError(err)));
     } finally {
       setBusy(false);
     }
@@ -108,7 +123,9 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
       await signInWithOtp(digits, code);
       await loadChildren();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'That OTP is wrong or has expired.');
+      setError(
+        t(!(err instanceof ApiError) ? 'err.offline' : err.status === 429 ? 'signin.tooMany' : 'signin.wrongOtp')
+      );
       setOtp('');
     } finally {
       setBusy(false);
@@ -147,7 +164,7 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
       if (match) setSchoolId(match.id);
       else if (list.length === 1) setSchoolId(list[0].id);
     } catch {
-      setError('Could not load the list of schools. Check your connection.');
+      setError(t('flow.schoolsError'));
     }
   }
 
@@ -160,11 +177,7 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
       const child = await parentChildren.claim(schoolId, grNumber.trim(), dob);
       onDone(child);
     } catch (err) {
-      setError(
-        err instanceof Error && err.message !== 'Something went wrong'
-          ? err.message
-          : 'We could not find your child with those details. Check the GR number on the school diary or fee receipt.'
-      );
+      setError(t(err instanceof ApiError ? 'signin.notFound' : 'err.offline'));
     } finally {
       setBusy(false);
     }
@@ -173,12 +186,12 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
   const title = useMemo(
     () =>
       ({
-        phone: 'Sign in to order',
-        otp: 'Enter the OTP',
-        children: children.length > 1 ? 'Who are you ordering for?' : 'Is this your child?',
-        find: 'Find your child',
+        phone: t('signin.title'),
+        otp: t('signin.otpTitle'),
+        children: children.length > 1 ? t('signin.whichChild') : t('signin.isThisChild'),
+        find: t('signin.findTitle'),
       })[step],
-    [step, children.length]
+    [step, children.length, t]
   );
 
   return (
@@ -206,16 +219,16 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
             <div className="psi-grab" aria-hidden="true" />
             <div className="psi-head">
               <h2 id="psi-title">{title}</h2>
-              <button type="button" className="psi-close" aria-label="Close" onClick={onClose}>
+              <button type="button" className="psi-close" aria-label={t('common.close')} onClick={onClose}>
                 <X width={20} height={20} strokeWidth={1.75} />
               </button>
             </div>
 
             {step === 'phone' && (
               <form className="psi-body" onSubmit={sendOtp}>
-                <p className="psi-lead">We'll send a 6-digit code. No password needed.</p>
+                <p className="psi-lead">{t('signin.lead')}</p>
                 <label className="psi-label" htmlFor="psi-phone">
-                  Mobile number
+                  {t('co.mobile')}
                 </label>
                 <div className="psi-phone">
                   <span className="psi-cc">+91</span>
@@ -233,7 +246,7 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
                 </div>
                 {error && <p className="psi-error" role="alert">{error}</p>}
                 <button type="submit" className="btn btn-primary psi-cta" disabled={!phoneValid || busy}>
-                  {busy ? 'Sending…' : 'Send OTP'}
+                  {busy ? t('signin.sending') : t('signin.send')}
                 </button>
               </form>
             )}
@@ -241,9 +254,9 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
             {step === 'otp' && (
               <div className="psi-body">
                 <p className="psi-lead">
-                  Sent to +91 {digits.slice(0, 5)} {digits.slice(5)}.{' '}
+                  {t('signin.sentTo', { mobile: `+91 ${digits.slice(0, 5)} ${digits.slice(5)}` })}{' '}
                   <button type="button" className="psi-link" onClick={() => setStep('phone')}>
-                    Change
+                    {t('nav.change')}
                   </button>
                 </p>
                 <input
@@ -253,29 +266,29 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
                   type="text"
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  aria-label="6-digit OTP"
+                  aria-label={t('signin.otpTitle')}
                   maxLength={6}
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 />
-                {testCode && <p className="psi-test">Test mode: your code is {testCode}</p>}
+                {testCode && <p className="psi-test">{t('signin.testCode', { code: testCode })}</p>}
                 {error && <p className="psi-error" role="alert">{error}</p>}
                 <p className="psi-resend">
                   {resendIn > 0 ? (
-                    `Resend in ${resendIn}s`
+                    t('signin.resendIn', { s: resendIn })
                   ) : (
                     <button type="button" className="psi-link" onClick={() => void sendOtp()}>
-                      Resend OTP
+                      {t('signin.resend')}
                     </button>
                   )}
                 </p>
-                {busy && <p className="psi-lead">Checking…</p>}
+                {busy && <p className="psi-lead">{t('signin.checking')}</p>}
               </div>
             )}
 
             {step === 'children' && (
               <div className="psi-body">
-                <p className="psi-lead">From your school's records. Tap to continue.</p>
+                <p className="psi-lead">{t('signin.fromRecords')}</p>
                 <ul className="psi-kids">
                   {children.map((child) => (
                     <li key={child.id}>
@@ -283,7 +296,7 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
                         <SchoolCrest name={child.school_name} code={child.school_code} size={40} />
                         <span className="psi-kid-text">
                           <strong>{child.name}</strong>
-                          <span>{classLabel(child)}</span>
+                          <span>{classLabel(child, t)}</span>
                           <span className="psi-kid-school">{child.school_name}</span>
                         </span>
                       </button>
@@ -291,7 +304,7 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
                   ))}
                 </ul>
                 <button type="button" className="psi-link psi-other" onClick={() => void openFind()}>
-                  Add another child
+                  {t('signin.addChild')}
                 </button>
               </div>
             )}
@@ -299,12 +312,12 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
             {step === 'find' && (
               <form className="psi-body" onSubmit={claim}>
                 <p className="psi-lead">
-                  Two details from the school diary or fee receipt. Everything else is filled in from the school's records.
+                  {t('signin.findLead')}
                 </p>
                 {schools.length !== 1 ? (
                   <>
                     <label className="psi-label" htmlFor="psi-school">
-                      School
+                      {t('flow.school')}
                     </label>
                     <select
                       id="psi-school"
@@ -312,7 +325,7 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
                       value={schoolId}
                       onChange={(e) => setSchoolId(e.target.value)}
                     >
-                      <option value="">Choose your school</option>
+                      <option value="">{t('flow.chooseSchool')}</option>
                       {schools.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
@@ -322,7 +335,7 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
                   </>
                 ) : null}
                 <label className="psi-label" htmlFor="psi-gr">
-                  GR number
+                  {t('signin.gr')}
                 </label>
                 <input
                   id="psi-gr"
@@ -335,7 +348,7 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
                   onChange={(e) => setGrNumber(e.target.value)}
                 />
                 <label className="psi-label" htmlFor="psi-dob">
-                  Child's date of birth
+                  {t('signin.dob')}
                 </label>
                 <input
                   id="psi-dob"
@@ -351,10 +364,10 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
                   className="btn btn-primary psi-cta"
                   disabled={!schoolId || !grNumber.trim() || !dob || busy}
                 >
-                  {busy ? 'Finding…' : 'Find my child'}
+                  {busy ? t('signin.finding') : t('signin.find')}
                 </button>
                 <button type="button" className="psi-link psi-other" onClick={() => onDone(null)}>
-                  Skip for now
+                  {t('signin.skip')}
                 </button>
               </form>
             )}

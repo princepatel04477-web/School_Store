@@ -9,15 +9,20 @@ import { SchoolCrest } from './school/SchoolCrest';
 import { Thread } from '../motion/Thread';
 import { EASING, DURATION_FAST } from '../motion/motionConfig';
 import { prefetchFlowPage, prefetchBagDrawer } from '../utils/prefetch';
+import { useLang } from '../i18n';
+import { categoryLabel, classLabel } from '../i18n/labels';
+import { languageLetter } from './LanguageChooser';
 import './headerFooter.css';
 
 export interface HeaderProps {
   onOpenBag?: () => void;
   onOpenSearch?: () => void;
+  onOpenLanguage?: () => void;
 }
 
-export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
+export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps) {
   const { user } = useAuth();
+  const { lang, t } = useLang();
   const { totalCount, selection, setSelection } = useStoreState();
 
   // Bag feedback: the count rolls up or down, and the bag tilts when something is added
@@ -71,7 +76,7 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
   return (
     <>
       <a href="#main" className="skip-link">
-        Skip to content
+        {t('nav.skip')}
       </a>
 
       <header className={`site-header ${isScrolled ? 'is-scrolled' : ''}`}>
@@ -80,7 +85,7 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
           <button
             type="button"
             className="mobile-menu-trigger"
-            aria-label="Open navigation menu"
+            aria-label={t('nav.openMenu')}
             aria-expanded={mobileMenuOpen}
             onClick={() => setMobileMenuOpen(true)}
           >
@@ -99,14 +104,14 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
               <div className="selected-school-pill">
                 <SchoolCrest id={selection.schoolId} name={selection.schoolName} code={selection.schoolCode} size={24} />
                 <span className="pill-school-info">
-                  {selection.schoolName} {selection.gradeName ? `· ${selection.gradeName}` : ''}
+                  {selection.schoolName} {selection.gradeName ? `· ${classLabel(selection.gradeName, t)}` : ''}
                 </span>
                 <Link
                   to="/flow?step=1"
                   className="pill-change-link"
-                  aria-label="Change school or class"
+                  aria-label={t('nav.changeSchool')}
                 >
-                  Change
+                  {t('nav.change')}
                 </Link>
               </div>
             )}
@@ -130,7 +135,7 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
                       transition={{ duration: 0.25, ease: EASING }}
                     />
                   )}
-                  <span>{cat.label}</span>
+                  <span>{categoryLabel(cat.slug, t)}</span>
                   {isActive && <Thread width={28} className="nav-thread" />}
                 </Link>
               );
@@ -141,27 +146,36 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
           <div className="header-actions">
             <button
               type="button"
-              className="action-icon-btn"
-              aria-label="Search items"
+              className="action-icon-btn action-search-btn"
+              aria-label={t('nav.search')}
               onClick={onOpenSearch}
             >
               <Search width={20} height={20} strokeWidth={1.5} />
             </button>
 
+            <button
+              type="button"
+              className="action-icon-btn lang-switch-btn"
+              aria-label={t('nav.language')}
+              onClick={onOpenLanguage}
+            >
+              {languageLetter(lang)}
+            </button>
+
             {user ? (
-              <Link to="/parent" className="action-account-btn" aria-label="My Account">
+              <Link to="/parent" className="action-account-btn" aria-label={t('nav.myAccount')}>
                 <User width={20} height={20} strokeWidth={1.5} />
               </Link>
             ) : (
               <Link to="/login" className="action-signin-link">
-                Sign in
+                {t('nav.signIn')}
               </Link>
             )}
 
             <button
               type="button"
               className="action-icon-btn bag-btn"
-              aria-label={`Shopping bag, ${totalCount} items`}
+              aria-label={t('nav.bag', { count: totalCount })}
               onClick={onOpenBag}
               onMouseEnter={prefetchBagDrawer}
             >
@@ -211,7 +225,7 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
             className="mobile-menu-sheet"
             role="dialog"
             aria-modal="true"
-            aria-label="Mobile Navigation"
+            aria-label={t('nav.menu')}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sheet-top">
@@ -222,7 +236,7 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
               <button
                 type="button"
                 className="sheet-close-btn"
-                aria-label="Close navigation menu"
+                aria-label={t('nav.closeMenu')}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <X width={24} height={24} strokeWidth={1.5} />
@@ -237,7 +251,7 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
                   className="sheet-nav-item"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  <span>{cat.label}</span>
+                  <span>{categoryLabel(cat.slug, t)}</span>
                   <ArrowRight width={18} height={18} strokeWidth={1.5} />
                 </Link>
               ))}
@@ -249,22 +263,32 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
                 className="sheet-secondary-item"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Size Guide
+                {t('nav.sizeGuide')}
               </Link>
               <Link
                 to="/help"
                 className="sheet-secondary-item"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Help & FAQs
+                {t('nav.help')}
               </Link>
+              <button
+                type="button"
+                className="sheet-secondary-item sheet-lang-item"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenLanguage?.();
+                }}
+              >
+                {t('nav.language')} · ગુજરાતી · हिन्दी · English
+              </button>
               {user ? (
                 <Link
                   to="/parent"
                   className="sheet-secondary-item"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  My Account
+                  {t('nav.myAccount')}
                 </Link>
               ) : (
                 <Link
@@ -272,7 +296,7 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
                   className="sheet-secondary-item"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Sign in
+                  {t('nav.signIn')}
                 </Link>
               )}
             </div>
@@ -280,7 +304,7 @@ export function Header({ onOpenBag, onOpenSearch }: HeaderProps) {
             {siteConfig.supportPhone && (
             <div className="sheet-footer">
               <div className="sheet-support-row">
-                <span className="label">Need assistance?</span>
+                <span className="label">{t('nav.needHelp')}</span>
                 <a href={siteConfig.supportPhoneHref} className="sheet-contact-link">
                   {siteConfig.supportPhone}
                 </a>

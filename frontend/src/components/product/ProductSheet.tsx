@@ -11,6 +11,8 @@ import { AddToBagButton } from './AddToBagButton';
 import { useShake } from '../../motion/useShake';
 import type { CardProduct } from './ProductCard';
 import './product.css';
+import { useLang } from '../../i18n';
+import { categoryLabel } from '../../i18n/labels';
 
 export interface ProductSheetProps {
   product: CardProduct | null;
@@ -21,6 +23,7 @@ export interface ProductSheetProps {
 
 export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductSheetProps) {
   const { addItem } = useStoreState();
+  const { t } = useLang();
 
   const [selectedSizeId, setSelectedSizeId] = useState<string>('');
   const [quantity, setQuantity] = useState(1);
@@ -50,7 +53,7 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
 
   const handleAdd = (): boolean => {
     if (product.sizes.length > 1 && !selectedSizeId) {
-      setSizeError('Please select a size to continue');
+      setSizeError(t('product.pickSize'));
       shakeSizeRow();
       return false;
     }
@@ -91,7 +94,7 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
           <button
             type="button"
             className="sheet-close-floating"
-            aria-label="Close product view"
+            aria-label={t('common.close')}
             onClick={onClose}
           >
             <X width={22} height={22} strokeWidth={1.5} />
@@ -109,7 +112,7 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
             <div className="sheet-details-col">
               {/* Breadcrumb */}
               <nav className="product-breadcrumb" aria-label="Breadcrumb">
-                <span>{product.category}</span>
+                <span>{categoryLabel(product.category, t)}</span>
                 <span className="crumb-sep">/</span>
                 <span>{product.name}</span>
               </nav>
@@ -120,7 +123,7 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
 
               {!orderable ? (
                 <p className="card-unavailable sheet-unavailable">
-                  {product.needsDetails ? 'Needs your child’s photo. Order this at your school.' : 'Out of stock'}
+                  {product.needsDetails ? t('product.needsPhoto') : t('product.outOfStock')}
                 </p>
               ) : (
                 <>
@@ -142,7 +145,7 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
 
               {/* Quantity Stepper */}
               <div className="sheet-qty-row">
-                <span className="label">Quantity</span>
+                <span className="label">{t('product.quantity')}</span>
                 <QuantityStepper
                   quantity={quantity}
                   onIncrement={() => setQuantity((q) => q + 1)}
@@ -159,7 +162,7 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
                   onAdd={handleAdd}
                   onSettled={handleSettled}
                 >
-                  Add to Bag · {formatINR(product.pricePaise * quantity)}
+                  {t('product.addWithPrice', { price: formatINR(product.pricePaise * quantity) })}
                 </AddToBagButton>
               </div>
                 </>
@@ -174,12 +177,12 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
                     onClick={() => setOpenFabric(!openFabric)}
                     aria-expanded={openFabric}
                   >
-                    <span>Fabric & Care</span>
+                    <span>{t('product.careTitle')}</span>
                     {openFabric ? <ChevronUp width={18} height={18} /> : <ChevronDown width={18} height={18} />}
                   </button>
                   {openFabric && (
                     <div className="accordion-body">
-                      <p>{product.fabricCare || 'Machine wash warm (40°C) with similar colours. Warm iron.'}</p>
+                      <p>{product.fabricCare || t('product.care')}</p>
                     </div>
                   )}
                 </div>
@@ -191,12 +194,12 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
                     onClick={() => setOpenDelivery(!openDelivery)}
                     aria-expanded={openDelivery}
                   >
-                    <span>Delivery & Collection</span>
+                    <span>{t('product.deliveryTitle')}</span>
                     {openDelivery ? <ChevronUp width={18} height={18} /> : <ChevronDown width={18} height={18} />}
                   </button>
                   {openDelivery && (
                     <div className="accordion-body">
-                      <p>{product.deliveryNotes || 'Orders dispatched within 48 hours to home address or school counter.'}</p>
+                      <p>{product.deliveryNotes || t('product.delivery')}</p>
                     </div>
                   )}
                 </div>
@@ -208,12 +211,12 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
                     onClick={() => setOpenExchange(!openExchange)}
                     aria-expanded={openExchange}
                   >
-                    <span>Exchange & Returns</span>
+                    <span>{t('product.exchangeTitle')}</span>
                     {openExchange ? <ChevronUp width={18} height={18} /> : <ChevronDown width={18} height={18} />}
                   </button>
                   {openExchange && (
                     <div className="accordion-body">
-                      <p>Free size exchange within 7 days of delivery. Unwashed with original tags intact.</p>
+                      <p>{t('product.exchange')}</p>
                     </div>
                   )}
                 </div>

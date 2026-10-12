@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EASING, DURATION_FAST } from '../../motion/motionConfig';
 import './product.css';
+import { useLang } from '../../i18n';
 
 /** How long "Added" stays on screen before the button hands over. */
 const ADDED_HOLD_MS = 700;
@@ -23,6 +24,7 @@ export function AddToBagButton({
   className = '',
   children,
 }: AddToBagButtonProps) {
+  const { t } = useLang();
   const [added, setAdded] = useState(false);
   const timer = useRef<number>();
 
@@ -78,7 +80,7 @@ export function AddToBagButton({
                     transition={{ duration: 0.25, delay: 0.1, ease: EASING }}
                   />
                 </svg>
-                Added
+                {t('product.added')}
               </>
             ) : (
               children
@@ -87,7 +89,7 @@ export function AddToBagButton({
         </AnimatePresence>
       </span>
       <span className="visually-hidden" aria-live="polite">
-        {added ? 'Added to bag' : ''}
+        {added ? t('product.addedToBag') : ''}
       </span>
     </motion.button>
   );

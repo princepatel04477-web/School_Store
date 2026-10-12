@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes, Link, useLocation } from 'react-router-dom';
 import { useAuth } from './auth';
 import { Header } from './components/Header';
@@ -6,6 +6,8 @@ import { Footer } from './components/Footer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { PageTransition } from './motion/PageTransition';
 import { useSchoolTheme } from './theme/schoolTheme';
+import { hasChosenLanguage, useLang } from './i18n';
+import { LanguageChooser } from './components/LanguageChooser';
 
 // Lazy Loaded Components
 const BagDrawer = lazy(() =>
@@ -66,6 +68,18 @@ export default function App() {
 
   useSchoolTheme(!isPortal);
 
+  // First visit to the store: ask for the language before anything else.
+  const { hasChosen, setLang } = useLang();
+  const [langOpen, setLangOpen] = useState(false);
+  useEffect(() => {
+    if (!isPortal && !hasChosen) setLangOpen(true);
+  }, [isPortal, hasChosen]);
+  const closeLanguage = () => {
+    // Closed without picking: stay in English and don't ask on every page.
+    if (!hasChosenLanguage()) setLang('en');
+    setLangOpen(false);
+  };
+
   return (
     <ErrorBoundary>
       <SmoothScroll>
@@ -74,6 +88,7 @@ export default function App() {
         {!isPortal && (
           <Header
             onOpenBag={() => setBagOpen(true)}
+            onOpenLanguage={() => setLangOpen(true)}
             onOpenSearch={() => {
               window.scrollTo({ top: 0, behavior: 'smooth' });
               const input = document.querySelector('.hero-search-input') as HTMLInputElement;
@@ -123,6 +138,8 @@ export default function App() {
 
         {/* Global Footer for storefront */}
         {!isPortal && <Footer />}
+
+        {!isPortal && <LanguageChooser open={langOpen} onClose={closeLanguage} />}
 
         {/* Global Bag Drawer (code-split) */}
         <Suspense fallback={null}>

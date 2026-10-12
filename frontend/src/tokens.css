@@ -50,8 +50,9 @@
   --danger: #B42318;
 
   /* Typography: one variable family, width does the work */
-  --font-display: 'Anek Latin', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-body: 'Anek Latin', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Gujarati and Hindi use the fonts already on the phone (no download) */
+  --font-display: 'Anek Latin', 'Noto Sans Gujarati', 'Noto Sans Devanagari', 'Nirmala UI', 'Shruti', 'Mangal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Anek Latin', 'Noto Sans Gujarati', 'Noto Sans Devanagari', 'Nirmala UI', 'Shruti', 'Mangal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --stretch-condensed: 75%;
   --stretch-numeric: 82%;
 

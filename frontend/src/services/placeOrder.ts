@@ -1,4 +1,5 @@
 import { api, ApiError } from '../api';
+import type { MessageKey } from '../i18n';
 
 /**
  * Sends a checkout to the server so that a bad signal can never lose or double an order.
@@ -112,24 +113,18 @@ export async function submitOrder(
   }
 }
 
-/** Turns a server refusal into words a parent can act on. */
-export function orderErrorMessage(error: unknown): string {
-  if (!(error instanceof ApiError)) {
-    return 'No internet connection. Your order is saved on this phone; tap Place order again when you are online.';
-  }
-  if (error.status === 401) return 'Please sign in again with your mobile number, then place the order.';
-  if (isTemporary(error)) {
-    return 'The store is not answering right now. Your order is saved on this phone; please try again in a few minutes.';
-  }
+/** Turns a server refusal into words a parent can act on (a message key, see i18n/messages). */
+export function orderErrorMessage(error: unknown): MessageKey {
+  if (!(error instanceof ApiError)) return 'err.offline';
+  if (error.status === 401) return 'err.signInAgain';
+  if (isTemporary(error)) return 'err.storeDown';
   const text = JSON.stringify(error.data).toLowerCase();
-  if (text.includes('insufficient stock') || text.includes('no stock')) {
-    return 'One of your items has just run out. Please remove it from your bag and try again.';
-  }
-  if (text.includes('home delivery')) return 'This school does not deliver home. Please choose Collect at school.';
-  if (text.includes('school pickup')) return 'This school does not offer collection at school. Please choose Home delivery.';
+  if (text.includes('insufficient stock') || text.includes('no stock')) return 'err.soldOut';
+  if (text.includes('home delivery')) return 'err.noHomeDelivery';
+  if (text.includes('school pickup')) return 'err.noPickup';
   if (['not available', 'does not match', 'not assigned', 'under review'].some((phrase) => text.includes(phrase))) {
-    return 'An item in your bag is not on your child’s school list. Please check your child’s school and class, or remove that item.';
+    return 'err.notOnList';
   }
-  if (text.includes('own children')) return 'This child is not linked to your mobile number. Please choose your child again.';
-  return 'We could not place this order. Please check your bag and try again, or ask your school for help.';
+  if (text.includes('own children')) return 'err.notYourChild';
+  return 'err.generic';
 }

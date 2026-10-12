@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EASING } from '../../motion/motionConfig';
 import './product.css';
+import { useLang } from '../../i18n';
 
 export interface QuantityStepperProps {
   quantity: number;
@@ -21,6 +22,7 @@ export function QuantityStepper({
   max = 99,
   className = '',
 }: QuantityStepperProps) {
+  const { t } = useLang();
   // Roll the number up when it grows and down when it shrinks
   const [previous, setPrevious] = useState(quantity);
   const [direction, setDirection] = useState(1);
@@ -30,11 +32,11 @@ export function QuantityStepper({
   }
 
   return (
-    <div className={`quantity-stepper ${className}`.trim()} role="group" aria-label="Change quantity">
+    <div className={`quantity-stepper ${className}`.trim()} role="group" aria-label={t('product.quantity')}>
       <button
         type="button"
         className="stepper-btn"
-        aria-label="Decrease quantity"
+        aria-label={t('product.less')}
         disabled={quantity <= min}
         onClick={onDecrement}
       >
@@ -63,7 +65,7 @@ export function QuantityStepper({
       <button
         type="button"
         className="stepper-btn"
-        aria-label="Increase quantity"
+        aria-label={t('product.more')}
         disabled={quantity >= max}
         onClick={onIncrement}
       >

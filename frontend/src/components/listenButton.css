@@ -1,0 +1,22 @@
+/* "Listen": reads the screen's instructions aloud */
+.listen-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1.5px solid var(--brand);
+  border-radius: var(--radius-full);
+  background-color: var(--paper-raised);
+  color: var(--brand);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  justify-self: start;
+  width: fit-content;
+}
+
+.listen-btn.is-speaking {
+  background-color: var(--brand);
+  color: var(--on-brand);
+}

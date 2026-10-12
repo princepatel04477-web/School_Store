@@ -16,11 +16,14 @@ import {
   Hairline,
 } from '../motion';
 import { siteConfig } from '../siteConfig';
+import { useLang } from '../i18n';
+import { classLabel, genderLabel } from '../i18n/labels';
 import './home.css';
 
 export function HomePage() {
   const navigate = useNavigate();
   const { selection, setSelection } = useStoreState();
+  const { t } = useLang();
 
   const [query, setQuery] = useState('');
   const [comboboxOpen, setComboboxOpen] = useState(false);
@@ -29,27 +32,27 @@ export function HomePage() {
 
   const categoryTiles = [
     {
-      title: 'Uniform',
+      title: t('cat.uniform'),
       kind: 'uniform' as KitKind,
       href: '/shop?cat=Uniform',
     },
     {
-      title: 'Shoes',
+      title: t('cat.shoes'),
       kind: 'shoes' as KitKind,
       href: '/shop?cat=School%20Shoes',
     },
     {
-      title: 'Accessories',
+      title: t('cat.accessories'),
       kind: 'accessories' as KitKind,
       href: '/shop?cat=Uniform%20Accessories',
     },
     {
-      title: 'Stationery',
+      title: t('cat.stationery'),
       kind: 'stationery' as KitKind,
       href: '/shop?cat=Stationery',
     },
     {
-      title: 'ID Cards',
+      title: t('cat.idcard'),
       kind: 'idcard' as KitKind,
       href: '/shop?cat=ID%20Cards',
     },
@@ -128,12 +131,12 @@ export function HomePage() {
         <div className="hero-grid">
           <div className="hero-left">
             <TextReveal
-              lines={['Everything your school asks for.', 'One order.']}
+              lines={[t('home.heroLine1'), t('home.heroLine2')]}
               className="hero-heading"
             />
             <Reveal delay={0.15}>
               <p className="hero-subtext">
-                Uniform, shoes, books and ID card from your school’s own list. Delivered home or collected at school.
+                {t('home.heroSub')}
               </p>
             </Reveal>
 
@@ -152,12 +155,12 @@ export function HomePage() {
                     <div className="hero-selected-badge">
                       <SchoolCrest id={selection.schoolId} name={selection.schoolName} code={selection.schoolCode} size={42} />
                       <div className="hero-selected-text">
-                        <span className="hero-selected-label">Current Campus</span>
-                        <h2 className="hero-selected-school">Shopping for {selection.schoolName}</h2>
+                        <span className="hero-selected-label">{t('home.currentSchool')}</span>
+                        <h2 className="hero-selected-school">{t('home.shoppingFor', { school: selection.schoolName })}</h2>
                         <span className="hero-selected-grade">
                           {selection.cityName ? `${selection.cityName} ` : ''}
-                          {selection.gradeName ? `· ${selection.gradeName}` : ''}
-                          {selection.gender ? ` · ${selection.gender === 'boy' ? 'Boy' : 'Girl'}` : ''}
+                          {selection.gradeName ? `· ${classLabel(selection.gradeName, t)}` : ''}
+                          {selection.gender ? ` · ${genderLabel(selection.gender, t)}` : ''}
                         </span>
                       </div>
                     </div>
@@ -178,7 +181,7 @@ export function HomePage() {
                             );
                           }}
                         >
-                          Continue shopping <ArrowRight width={16} height={16} />
+                          {t('home.continue')} <ArrowRight width={16} height={16} />
                         </button>
                       <button
                         type="button"
@@ -192,7 +195,7 @@ export function HomePage() {
                           }, 50);
                         }}
                       >
-                        Change school
+                        {t('home.changeSchool')}
                       </button>
                     </div>
                   </motion.div>
@@ -214,8 +217,8 @@ export function HomePage() {
                         aria-expanded={comboboxOpen}
                         aria-haspopup="listbox"
                         aria-controls="school-results-list"
-                        aria-label="Search your school"
-                        placeholder="Search your school"
+                        aria-label={t('home.searchPlaceholder')}
+                        placeholder={t('home.searchPlaceholder')}
                         className="hero-search-input"
                         value={query}
                         onChange={(e) => {
@@ -235,7 +238,7 @@ export function HomePage() {
                             }
                           }}
                         >
-                          Find my school
+                          {t('home.findSchool')}
                         </button>
                     </div>
 
@@ -244,7 +247,7 @@ export function HomePage() {
                       <div className="combobox-dropdown" id="school-results-list" role="listbox">
                         <div className="combobox-header">
                           <span className="label">
-                            {query.trim() ? 'Matching Schools' : 'Popular Schools'}
+                            {query.trim() ? t('home.matching') : t('home.schools')}
                           </span>
                         </div>
 
@@ -274,9 +277,9 @@ export function HomePage() {
                           </Stagger>
                         ) : (
                           <div className="combobox-empty">
-                            <p>We don't have that school yet.</p>
+                            <p>{t('home.noSchool')}</p>
                             <Link to="/contact?reason=request-school" className="request-link">
-                              Request your school <ArrowRight width={14} height={14} />
+                              {t('home.requestSchool')} <ArrowRight width={14} height={14} />
                             </Link>
                           </div>
                         )}
@@ -294,8 +297,8 @@ export function HomePage() {
       <section className="section-wrap container">
         <Reveal>
           <div className="section-head">
-            <span className="label">Approved Catalog</span>
-            <h2>Shop by category</h2>
+            <span className="label">{t('home.catEyebrow')}</span>
+            <h2>{t('home.shopByCategory')}</h2>
             <Hairline />
           </div>
         </Reveal>
@@ -327,15 +330,15 @@ export function HomePage() {
         <Reveal>
           <div className="section-head-split">
             <div>
-              <span className="label">Campuses onboard</span>
-              <h2>Featured schools</h2>
+              <span className="label">{t('home.schoolsEyebrow')}</span>
+              <h2>{t('home.schools')}</h2>
             </div>
             <Link
               to="/flow?step=1"
               className="plain-link"
               onMouseEnter={prefetchFlowPage}
             >
-              View all schools <ArrowRight width={16} height={16} />
+              {t('home.viewAll')} <ArrowRight width={16} height={16} />
             </Link>
           </div>
         </Reveal>
@@ -367,8 +370,7 @@ export function HomePage() {
       <section className="section-wrap container">
         <Reveal>
           <p className="reassurance-line">
-            Items approved by your school. Wrong size? Exchange it within 7 days. Delivered home or picked up at the
-            school counter.
+            {t('home.reassure')}
           </p>
         </Reveal>
       </section>
