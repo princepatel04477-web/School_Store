@@ -9,10 +9,13 @@ Production Readiness Verification Test Suite:
 """
 
 import threading
+import uuid
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.db import connection
 from django.test import TestCase, TransactionTestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -25,6 +28,7 @@ from inventory.services import apply_stock_movement
 from orders.payment import RazorpayGateway
 from orders.models import Order, OrderItem, OrderStatusEvent
 from schools.models import City, School, Student
+from common.testing import requires_postgres
 
 
 class ProductionRoleScopingTests(TestCase):
@@ -122,7 +126,7 @@ class ConcurrentStockCheckoutTests(TransactionTestCase):
         self.student2 = Student.objects.create(name="Kid B", gr_number="DEL-02", class_name="3", section="A", school=self.school, parent=self.parent2)
 
         self.cat = Category.objects.create(name="Books", slug="books")
-        self.prod = Product.objects.create(name="Math Book", category=self.cat, school=self.school, cost_price=Decimal("100.00"), selling_price=Decimal("150.00"))
+        self.prod = Product.objects.create(name="Math Book", category=self.cat, school=self.school, cost_price=Decimal("100.00"), selling_price=Decimal("150.00"), gender=Product.Gender.UNISEX)
         self.variant = ProductVariant.objects.create(product=self.prod, sku="BOOK-MATH-01", size="Standard", school=self.school)
 
         # Set stock balance to exactly 1 unit
@@ -133,24 +137,32 @@ class ConcurrentStockCheckoutTests(TransactionTestCase):
             reason=StockMovement.Reason.INITIAL_STOCK,
         )
 
+    @requires_postgres
     def test_atomic_stock_decrement_preventing_oversell(self):
         """Two checkout attempts with stock=1: exactly 1 must succeed and 1 must fail with insufficient stock."""
         success_count = [0]
         failure_count = [0]
+        failures = []
 
         def try_checkout(user, student):
-            client = APIClient()
-            client.force_authenticate(user=user)
-            payload = {
-                "student": student.id,
-                "school": self.school.id,
-                "items": [{"variant": self.variant.id, "quantity": 1}],
-            }
-            res = client.post(reverse("order-list"), payload, format="json")
-            if res.status_code == status.HTTP_201_CREATED:
-                success_count[0] += 1
-            else:
-                failure_count[0] += 1
+            try:
+                client = APIClient()
+                client.force_authenticate(user=user)
+                payload = {
+                    "idempotency_key": str(uuid.uuid4()),  # required: makes a double submit safe
+                    "student": student.id,
+                    "school": self.school.id,
+                    "items": [{"variant": self.variant.id, "quantity": 1}],
+                }
+                res = client.post(reverse("order-list"), payload, format="json")
+                if res.status_code == status.HTTP_201_CREATED:
+                    success_count[0] += 1
+                else:
+                    failure_count[0] += 1
+                    failures.append((res.status_code, getattr(res, "data", None)))
+            finally:
+                # each thread has its own DB connection; close it or the test DB cannot be dropped
+                connection.close()
 
         t1 = threading.Thread(target=try_checkout, args=(self.parent1, self.student1))
         t2 = threading.Thread(target=try_checkout, args=(self.parent2, self.student2))
@@ -160,7 +172,7 @@ class ConcurrentStockCheckoutTests(TransactionTestCase):
         t1.join()
         t2.join()
 
-        self.assertEqual(success_count[0], 1, "Exactly one concurrent checkout should succeed")
+        self.assertEqual(success_count[0], 1, f"Exactly one concurrent checkout should succeed; rejected with: {failures}")
         self.assertEqual(failure_count[0], 1, "Exactly one concurrent checkout should fail due to stock depletion")
 
         # Confirm database balance is exactly 0 and never negative
@@ -286,6 +298,12 @@ class ListEndpointQueryCountTests(TestCase):
                 status=Order.Status.CONFIRMED,
             )
 
+    def _list_orders(self, client):
+        with CaptureQueriesContext(connection) as ctx:
+            res = client.get(reverse("order-list"))
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        return len(ctx.captured_queries), res
+
     def test_orders_list_query_count_is_constant(self):
         client = APIClient()
         client.force_authenticate(user=self.parent)
@@ -293,8 +311,25 @@ class ListEndpointQueryCountTests(TestCase):
         # Warm up auth cache/connection if any
         client.get(reverse("order-list"))
 
-        # The order list endpoint should use select_related/prefetch_related and perform a bounded set of queries
-        with self.assertNumQueries(4):  # count/window, orders select_related, items prefetch, plus user
-            res = client.get(reverse("order-list"))
-            self.assertEqual(res.status_code, status.HTTP_200_OK)
-            self.assertEqual(len(res.data["results"]), 10)
+        # The order list endpoint must use a small, bounded set of queries (no N+1) ...
+        first, res = self._list_orders(client)
+        self.assertEqual(len(res.data["results"]), 10)
+        self.assertLessEqual(first, 4, "orders list should need at most a handful of queries")
+
+        # ... and that number must not grow with the number of orders.
+        for i in range(10, 20):
+            Order.objects.create(
+                order_number=f"ORD-MAA-{i:03d}",
+                school=self.school,
+                city=self.city,
+                student=self.student,
+                payer=self.parent,
+                placed_by=self.parent,
+                subtotal=Decimal("100.00"),
+                total=Decimal("100.00"),
+                payment_status=Order.PaymentStatus.PAID,
+                status=Order.Status.CONFIRMED,
+            )
+        second, res = self._list_orders(client)
+        self.assertEqual(len(res.data["results"]), 20)
+        self.assertEqual(second, first, "query count grew with the number of orders (N+1)")

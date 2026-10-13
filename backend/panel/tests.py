@@ -33,10 +33,11 @@ from analytics.services import refresh_sales_summary
 from catalog.models import Category, ProductVariant
 from common.models import ImportJob
 from orders.models import Order, OrderItem
-from schools.models import School, Student
+from schools.models import Grade, School, Student
 
 from .models import ExportJob
 from .tasks import build_export
+from common.testing import requires_postgres
 
 
 def login(user):
@@ -138,6 +139,7 @@ class PanelTestBase(TestCase):
 # Requirement 1 + 7: dashboard & commission
 # --------------------------------------------------------------------------- #
 class DashboardTests(PanelTestBase):
+    @requires_postgres
     def test_dashboard_totals_come_from_the_rollup_not_the_orders_table(self):
         self.make_order(quantity=2, days_ago=1)
         self.make_order(quantity=3, days_ago=2, role="TEACHER")
@@ -155,6 +157,7 @@ class DashboardTests(PanelTestBase):
         self.assertEqual(payload["totals"]["units"], 5)
         self.assertEqual(Decimal(payload["totals"]["gross_sales"]), Decimal("250.00"))
 
+    @requires_postgres
     def test_dashboard_reflects_the_summary_rows_even_when_orders_disagree(self):
         """
         Proves the panel never scans orders: change only the rollup and the
@@ -177,6 +180,7 @@ class DashboardTests(PanelTestBase):
             sum(item.quantity for item in OrderItem.objects.all()), 1
         )
 
+    @requires_postgres
     def test_school_day_total_is_not_the_sum_of_category_orders(self):
         """
         One order spanning two categories must be counted once in the school
@@ -206,6 +210,7 @@ class DashboardTests(PanelTestBase):
         self.assertEqual(category_orders, 2)
         self.assertEqual(total.orders, 1)
 
+    @requires_postgres
     def test_category_breakdown_sums_to_gross_sales(self):
         self.make_order(quantity=2, days_ago=1)
         self.rollup()
@@ -218,6 +223,7 @@ class DashboardTests(PanelTestBase):
         total = sum(Decimal(row["gross_sales"]) for row in payload["categories"])
         self.assertEqual(total, Decimal(payload["totals"]["gross_sales"]))
 
+    @requires_postgres
     def test_date_range_filter_is_inclusive_and_bounded(self):
         self.make_order(days_ago=0)
         self.make_order(days_ago=200, role="TEACHER")
@@ -241,6 +247,7 @@ class DashboardTests(PanelTestBase):
         )
         self.assertEqual(too_wide.status_code, 400)
 
+    @requires_postgres
     def test_dashboard_is_scoped_to_one_school(self):
         other_student = Student.objects.filter(school=self.other_school).first()
         self.make_order(student=other_student, quantity=7, days_ago=0)
@@ -256,6 +263,7 @@ class DashboardTests(PanelTestBase):
 
 
 class CommissionTests(PanelTestBase):
+    @requires_postgres
     def test_commission_uses_the_rate_stored_on_the_school(self):
         self.school.commission_rate = Decimal("12.5")
         self.school.save(update_fields=["commission_rate"])
@@ -273,6 +281,7 @@ class CommissionTests(PanelTestBase):
         self.assertEqual(Decimal(commission["rate"]), Decimal("12.5"))
         self.assertEqual(Decimal(commission["commission_amount"]), Decimal("12.50"))
 
+    @requires_postgres
     def test_commission_reports_not_set_when_the_rate_is_empty(self):
         self.school.commission_rate = None
         self.school.save(update_fields=["commission_rate"])
@@ -293,6 +302,7 @@ class CommissionTests(PanelTestBase):
         # Gross sales are still reported, only the commission is unknown.
         self.assertEqual(Decimal(payload["gross_sales"]), Decimal("100.00"))
 
+    @requires_postgres
     def test_rate_is_never_hard_coded(self):
         """Two different rates produce two different amounts."""
         self.make_order(quantity=2, days_ago=0)
@@ -735,6 +745,7 @@ class NoCountTests(PanelTestBase):
 # Rollup plumbing used by the dashboard
 # --------------------------------------------------------------------------- #
 class RollupTests(PanelTestBase):
+    @requires_postgres
     def test_rollup_writes_both_grains_and_excludes_cancelled_orders(self):
         self.make_order(quantity=2, days_ago=0)
         cancelled = self.make_order(quantity=4, days_ago=0, role="TEACHER")
@@ -748,6 +759,7 @@ class RollupTests(PanelTestBase):
         self.assertEqual(total.units, 2)
         self.assertTrue(DailySalesSummary.objects.filter(school=self.school, date=today).exists())
 
+    @requires_postgres
     def test_backfill_command_rebuilds_the_rollups(self):
         self.make_order(quantity=2, days_ago=0)
         DailySchoolTotal.objects.all().delete()
@@ -757,7 +769,11 @@ class RollupTests(PanelTestBase):
     def test_denormalised_class_stays_in_sync(self):
         order = self.make_order(quantity=1, days_ago=0)
         self.assertEqual(order.student_class, self.student.class_name)
-        self.student.class_name = "12"
+        # A student's grade is the source of truth for the class; moving the student
+        # to another grade must update the denormalised class on their orders.
+        grade12 = Grade.objects.get(name="Class 12")
+        self.student.grade = grade12
+        self.student.class_name = grade12.name
         self.student.save()
         order.refresh_from_db()
-        self.assertEqual(order.student_class, "12")
+        self.assertEqual(order.student_class, "Class 12")

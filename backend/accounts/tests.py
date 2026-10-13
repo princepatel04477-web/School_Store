@@ -107,7 +107,9 @@ class RolesPermissionsAndScopingTests(TestCase):
             self.parent_rahul,
         ):
             for model in (Order, Student):
-                qs = apply_user_scope(model.objects.all(), user)
+                # `.order_by()` drops the model's default ordering (Student orders by grade__sort_order,
+                # which needs a JOIN); this test is about the scope filter, which must add none.
+                qs = apply_user_scope(model.objects.all(), user).order_by()
                 sql = str(qs.query)
                 self.assertNotIn(
                     "JOIN",
