@@ -191,6 +191,12 @@ async function api(request, env, path) {
   }
 
   // Parent sign-in (code shown on screen)
+  // Size check: the showcase catalogue has no size charts, so there is nothing to suggest.
+  if (path === '/public/size-fit/' && method === 'POST') {
+    const body = await request.json().catch(() => ({}));
+    const ids = Array.isArray(body.products) ? body.products.slice(0, 60) : [];
+    return json({ fit: null, products: Object.fromEntries(ids.map((id) => [id, { chart: [], recommendation: null }])) });
+  }
   if (path === '/auth/otp/send/' && method === 'POST') {
     const { phone } = await readJson(request);
     const digits = String(phone || '').replace(/\D/g, '').slice(-10);

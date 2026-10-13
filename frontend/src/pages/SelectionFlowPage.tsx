@@ -19,6 +19,7 @@ import { categoryLabel, classLabel, genderLabel } from '../i18n/labels';
 import { ListenButton } from '../components/ListenButton';
 import { FullSetSheet } from '../components/product/FullSetSheet';
 import { FitCheck, FitSummary } from '../components/fit/FitCheck';
+import { ProductGridSkeleton } from '../components/ui/Skeleton';
 import { fitKey, setFit, useFitAnswer, useSizeFit } from '../data/fit';
 import { CATEGORY_PHOTOS } from '../data/categoryPhotos';
 import { CategoryPhoto } from '../components/CategoryPhoto';
@@ -75,7 +76,10 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   );
   const sizeFit = useSizeFit(sizedProductIds, fitAnswer, activeClass?.name);
   const fits = sizeFit.data?.products;
-  const askFit = sizedProductIds.length > 0 && (fitAnswer === null || editingFit);
+  // Only ask for height and weight when an item here has a size chart to read them against.
+  const hasCharts = Object.values(fits ?? {}).some((p) => p.chart.length > 0);
+  const checkingCharts = sizedProductIds.length > 0 && fitAnswer === null && sizeFit.isLoading;
+  const askFit = hasCharts && (fitAnswer === null || editingFit);
 
   // A link from the school (?school=…&class=…) counts as the parent's choice, so the
   // bag and checkout know which school and class the order is for.
@@ -622,7 +626,9 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   <ListenButton text={`${t('flow.s4.title')}. ${t('flow.s4.listen')}`} />
                 </div>
 
-                {askFit ? (
+                {checkingCharts ? (
+                  <ProductGridSkeleton count={4} />
+                ) : askFit ? (
                   <FitCheck
                     initial={fitAnswer && fitAnswer !== 'skipped' ? fitAnswer : undefined}
                     onSubmit={(fit) => {
@@ -636,7 +642,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   />
                 ) : (
                 <>
-                {sizedProductIds.length > 0 && fitAnswer && (
+                {hasCharts && fitAnswer && (
                   <FitSummary
                     answer={fitAnswer}
                     warnings={sizeFit.data?.fit?.warnings}
