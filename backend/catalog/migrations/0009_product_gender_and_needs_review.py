@@ -10,6 +10,17 @@ def reverse_set_gender(apps, schema_editor):
     pass
 
 
+def run_pending_checks(apps, schema_editor):
+    """
+    The update above leaves deferred foreign-key checks pending, and Django
+    creates the needs_review index only after the last operation. Postgres
+    refuses CREATE INDEX on a table with pending trigger events, so run the
+    checks now. (Databases that already applied this migration are unaffected.)
+    """
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute("SET CONSTRAINTS ALL IMMEDIATE")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -42,4 +53,5 @@ class Migration(migrations.Migration):
             set_existing_products_gender_null,
             reverse_code=reverse_set_gender,
         ),
+        migrations.RunPython(run_pending_checks, reverse_code=migrations.RunPython.noop),
     ]
