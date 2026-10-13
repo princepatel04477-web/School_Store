@@ -62,7 +62,8 @@
   color: var(--ink);
   text-decoration: none;
   white-space: nowrap;
-  flex-shrink: 0;
+  /* May shrink on narrow phones so the wordmark is cut off, never painted under the buttons */
+  min-width: 0;
 }
 
 .site-brand:hover {
@@ -72,6 +73,7 @@
 /* The logo stays store navy on every page, whatever school is picked.
    Scoped to .site-brand so the older .brand-mark rule in styles.css can't win. */
 .site-brand .brand-mark {
+  flex-shrink: 0;
   background-color: var(--navy);
   color: var(--paper-raised);
   width: 32px;
@@ -86,6 +88,9 @@
 }
 
 .brand-wordmark {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-family: var(--font-display);
   font-size: var(--text-2xl);
   font-weight: 800;
@@ -401,6 +406,12 @@
   }
   .header-actions {
     gap: 0;
+  }
+}
+
+@media (max-width: 380px) {
+  .brand-wordmark {
+    font-size: var(--text-lg);
   }
 }
 
