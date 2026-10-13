@@ -15,8 +15,8 @@ if errorlevel 1 (
   exit /b 1
 )
 echo Getting the latest version...
-git checkout claude/happy-darwin-53cxjf
-git pull origin claude/happy-darwin-53cxjf
+git checkout main
+git pull origin main
 cd frontend
 echo Installing anything new...
 call npm install --no-audit --no-fund

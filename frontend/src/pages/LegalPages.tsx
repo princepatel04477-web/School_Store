@@ -109,6 +109,11 @@ export function PrivacyPage() {
         school, this is not fully anonymous, so we treat it as personal data and never try to work out whose it
         was.
       </p>
+      <p>
+        Every night we copy the store's records to a private backup with our hosting partner, Cloudflare, so nothing
+        is lost if our server fails. Each copy is deleted after 30 days, and only the 14 newest are kept on our own
+        server. Backups are only used to restore the store.
+      </p>
 
       <h2>Your rights</h2>
       <p>

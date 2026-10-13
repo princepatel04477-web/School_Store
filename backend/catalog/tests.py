@@ -134,7 +134,7 @@ class PublicCatalogTests(TestCase):
         self.assertNotIn("boy", genders)
         self.assertTrue(all(not p.get("needs_review") for p in prods))
         names = {p["name"] for p in prods}
-        self.assertIn("DPS Girls Pleated Pinafore (Class 1-5)", names)
+        self.assertIn("DPS Girls Box-Pleated Skirt", names)
 
     def test_class_11_and_12_return_products(self):
         from schools.models import Grade
@@ -174,7 +174,7 @@ class PublicCatalogTests(TestCase):
         parent = User.objects.get(username="parent_rahul")
         boy = Student.objects.get(gr_number="DPS-2026-001")  # Aarav, male, class 5
         girl_pinafore_var = ProductVariant.objects.filter(
-            product__name="DPS Girls Pleated Pinafore (Class 1-5)"
+            product__name="DPS Girls Box-Pleated Skirt", active=True
         ).first()
         self.assertIsNotNone(girl_pinafore_var)
 
@@ -371,16 +371,15 @@ class PublicCatalogTests(TestCase):
             product__school=self.dps,
             product__gender__in=["boy", "unisex"],
         ).first()
-        v_shoes = ProductVariant.objects.filter(product__category__slug="school-shoes").first()
-        # This school's or a shared accessory: "first" by random UUID could be another school's tie.
-        v_acc = (
-            ProductVariant.objects.filter(product__category__slug="uniform-accessories")
-            .filter(Q(product__school=self.dps) | Q(product__school__isnull=True))
-            .filter(product__gender__in=["boy", "unisex"])
-            .order_by("sku")
-            .first()
+        # Only items this boy can buy: his school's or general ones, for boys, still on sale
+        for_boy = ProductVariant.objects.filter(
+            Q(product__school=self.dps) | Q(product__school__isnull=True),
+            product__gender__in=["boy", "unisex"],
+            active=True,
         )
-        v_stat = ProductVariant.objects.filter(product__category__slug="stationery").first()
+        v_shoes = for_boy.filter(product__category__slug="school-shoes").first()
+        v_acc = for_boy.filter(product__category__slug="uniform-accessories").first()
+        v_stat = for_boy.filter(product__category__slug="stationery").first()
 
         self.assertIsNotNone(v_uniform)
         self.assertIsNotNone(v_shoes)
@@ -484,7 +483,7 @@ class StudentCatalogueTests(TestCase):
         cls.surat = City.objects.get(code="SUR")
         # Aarav: DPS Surat, class 5, MALE, child of parent_rahul
         cls.boy = Student.objects.get(gr_number="DPS-2026-001")
-        # A DPS girl in class 4 so the class 1-5 girls pinafore applies.
+        # A DPS girl in class 4 so the class 1-8 girls skirt applies.
         cls.girl = Student.objects.create(
             name="Riya Patel",
             gr_number="DPS-2026-099",
@@ -521,12 +520,12 @@ class StudentCatalogueTests(TestCase):
         self.assertIn("Personalised Photo Notebook Pack (Set of 6)", boy_names)
         self.assertIn("Smart RFID PVC Student ID Card with Lanyard", boy_names)
         # Girls-only uniform and other schools' uniforms are hidden
-        self.assertNotIn("DPS Girls Pleated Pinafore (Class 1-5)", boy_names)
+        self.assertNotIn("DPS Girls Box-Pleated Skirt", boy_names)
         self.assertNotIn("Fountainhead Signature Polo Tee", boy_names)
         self.assertNotIn("Udgam Ceremonial Winter Blazer", boy_names)
 
         _, girl_names = self.names_for(self.girl)
-        self.assertIn("DPS Girls Pleated Pinafore (Class 1-5)", girl_names)
+        self.assertIn("DPS Girls Box-Pleated Skirt", girl_names)
 
     def test_category_filter(self):
         _, names = self.names_for(self.boy, "?category=shoes")
@@ -573,7 +572,7 @@ class StudentCatalogueTests(TestCase):
         )
 
     def test_detail_hides_products_not_valid_for_the_student(self):
-        pinafore = Product.objects.get(name="DPS Girls Pleated Pinafore (Class 1-5)")
+        pinafore = Product.objects.get(name="DPS Girls Box-Pleated Skirt")
         res = self.jwt_client(self.parent).get(
             f"{self.catalogue_url(self.boy)}{pinafore.pk}/"
         )

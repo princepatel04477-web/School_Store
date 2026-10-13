@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
@@ -6,12 +6,10 @@ import { useStoreState } from '../../store/storeState';
 import { ProductImage } from './ProductImage';
 import { QuantityStepper } from './QuantityStepper';
 import { AddToBagButton } from './AddToBagButton';
-import { useShake } from '../../motion/useShake';
 import { EASING, DURATION_FAST } from '../../motion/motionConfig';
 import type { SeedProduct } from '../../data/seedData';
 import './product.css';
 import { useLang } from '../../i18n';
-import { preselectSizeId, suggestedSizeIds, type ProductFit } from '../../data/fit';
 
 /** Real store items add a photo and whether the parent can order them here. */
 export type CardProduct = SeedProduct & { imageUrl?: string; needsDetails?: boolean };
@@ -19,44 +17,29 @@ export type CardProduct = SeedProduct & { imageUrl?: string; needsDetails?: bool
 export interface ProductCardProps {
   product: CardProduct;
   onOpenDetails?: (product: CardProduct) => void;
-  /** Size suggestion from the child's height and weight, when there is one. */
-  fit?: ProductFit;
 }
 
-export function ProductCard({ product, onOpenDetails, fit }: ProductCardProps) {
+export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
   const { cart, addItem, updateQuantity } = useStoreState();
   const { t } = useLang();
 
-  const [selectedSizeId, setSelectedSizeId] = useState<string>(
-    product.sizes.length === 1 ? product.sizes[0].id : ''
-  );
-  const [sizeError, setSizeError] = useState(false);
   // Keeps the add button on screen while it shows "Added", before the stepper takes over
   const [settling, setSettling] = useState(false);
-  const [sizeRowRef, shakeSizeRow] = useShake();
-  const suggested = suggestedSizeIds(product.sizes, fit);
-
-  // The suggestion arrives after the card: pre-pick it unless the parent already chose.
-  const preselected = preselectSizeId(product.sizes, fit);
-  useEffect(() => {
-    if (preselected) setSelectedSizeId((current) => current || preselected);
-  }, [preselected]);
 
   // Check if this product is in the cart
   const cartMatches = cart.filter((c) => c.productId === product.id);
   const currentTotalQty = cartMatches.reduce((acc, c) => acc + c.quantity, 0);
   const inStock = product.sizes.some((s) => s.inStock);
   const orderable = inStock && !product.needsDetails;
+  // The card shows the photo; sizes are chosen in the item's sheet
+  const needsSizeChoice = product.sizes.length > 1;
 
   const handleAdd = (): boolean => {
-    if (product.sizes.length > 1 && !selectedSizeId) {
-      setSizeError(true);
-      shakeSizeRow();
+    if (needsSizeChoice) {
+      onOpenDetails?.(product);
       return false;
     }
-    setSizeError(false);
-    const chosenSize = product.sizes.find((s) => s.id === selectedSizeId) || product.sizes[0];
-
+    const chosenSize = product.sizes[0];
     addItem({
       productId: product.id,
       variantId: chosenSize.id,
@@ -111,30 +94,6 @@ export function ProductCard({ product, onOpenDetails, fit }: ProductCardProps) {
         <p className="product-card-descriptor">{product.descriptor}</p>
         <div className="product-card-price">{formatINR(product.pricePaise)}</div>
 
-        {/* Compact Size Selector if multiple sizes */}
-        {orderable && product.sizes.length > 1 && (currentTotalQty === 0 || settling) && (
-          <div className="card-size-row" ref={sizeRowRef}>
-            <span className="label">{t('product.size')}</span>
-            <div className="card-size-chips">
-              {product.sizes.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  disabled={!s.inStock}
-                  className={`card-size-chip ${selectedSizeId === s.id ? 'is-selected' : ''} ${s.id === suggested.primary || s.id === suggested.alt ? 'is-suggested' : ''}`}
-                  onClick={() => {
-                    setSelectedSizeId(s.id);
-                    setSizeError(false);
-                  }}
-                >
-                  {s.size}
-                </button>
-              ))}
-            </div>
-            {sizeError && <span className="card-size-error">{t('product.pickSize')}</span>}
-          </div>
-        )}
-
         {/* Add Button or Stepper */}
         {!orderable ? (
           <p className="card-unavailable">
@@ -155,6 +114,12 @@ export function ProductCard({ product, onOpenDetails, fit }: ProductCardProps) {
                   onIncrement={handleIncrement}
                   onDecrement={handleDecrement}
                 />
+              </motion.div>
+            ) : needsSizeChoice ? (
+              <motion.div key="choose" exit={{ opacity: 0 }} transition={{ duration: DURATION_FAST, ease: EASING }}>
+                <button type="button" className="btn btn-outline card-add-btn" onClick={() => onOpenDetails?.(product)}>
+                  {t('product.chooseSize')}
+                </button>
               </motion.div>
             ) : (
               <motion.div
