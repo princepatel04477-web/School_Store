@@ -1,12 +1,31 @@
-import React, { useState } from 'react';
-import { CustomisationField, getUploadPresignedUrl, uploadDirectToObjectStorage } from '../api';
+import React, { useEffect, useState } from 'react';
+import {
+  ApiError,
+  CustomisationField,
+  PhotoPurpose,
+  createPhotoConsent,
+  getUploadPresignedUrl,
+  uploadDirectToObjectStorage,
+} from '../api';
+import { ListenButton } from './ListenButton';
+import { useLang } from '../i18n';
 import { compressImage } from '../utils/imageCompression';
+import './photoConsent.css';
+
+export function photoPurposeForCategory(category?: string | null): PhotoPurpose | null {
+  const value = (category || '').trim().toLowerCase();
+  if (value === 'id cards' || value === 'id card' || value.includes('id card')) return 'ID_CARD';
+  if (value === 'stationery' || value.includes('notebook')) return 'NOTEBOOK';
+  return null;
+}
 
 interface CustomisationFormProps {
   schema: CustomisationField[];
   values: Record<string, any>;
   onChange: (values: Record<string, any>) => void;
   disabled?: boolean;
+  studentId?: string | null;
+  purpose?: PhotoPurpose | null;
 }
 
 export function CustomisationForm({
@@ -14,10 +33,47 @@ export function CustomisationForm({
   values,
   onChange,
   disabled = false,
+  studentId = null,
+  purpose = null,
 }: CustomisationFormProps) {
+  const { t } = useLang();
   const [uploadingField, setUploadingField] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<Record<string, string>>({});
   const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [agreed, setAgreed] = useState(false);
+  const [keepForNextYear, setKeepForNextYear] = useState(false);
+  const [consentReady, setConsentReady] = useState(false);
+  const [consentError, setConsentError] = useState('');
+  const [savingConsent, setSavingConsent] = useState(false);
+
+  useEffect(() => {
+    setAgreed(false);
+    setKeepForNextYear(false);
+    setConsentReady(false);
+    setConsentError('');
+  }, [studentId, purpose]);
+
+  const needsPhoto = schema.some((field) => field.type === 'image' || field.type === 'image_url');
+
+  const saveConsent = async (nextKeep: boolean) => {
+    if (!studentId || !purpose) return;
+    setSavingConsent(true);
+    setConsentError('');
+    try {
+      await createPhotoConsent({
+        student_id: studentId,
+        purpose,
+        keep_for_next_year: purpose === 'ID_CARD' && nextKeep,
+      });
+      setConsentReady(true);
+    } catch (err: unknown) {
+      setAgreed(false);
+      setConsentReady(false);
+      setConsentError(err instanceof ApiError ? err.message : t('photo.consent.error'));
+    } finally {
+      setSavingConsent(false);
+    }
+  };
 
   const handleTextChange = (key: string, val: string) => {
     onChange({
@@ -32,6 +88,10 @@ export function CustomisationForm({
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!consentReady || !studentId || !purpose) {
+      setUploadError((prev) => ({ ...prev, [field.key]: t('photo.consent.needChild') }));
+      return;
+    }
 
     setUploadingField(field.key);
     setUploadError((prev) => ({ ...prev, [field.key]: '' }));
@@ -50,6 +110,8 @@ export function CustomisationForm({
         content_type: 'image/jpeg',
         file_size: blob.size,
         filename: file.name,
+        student_id: studentId,
+        purpose,
       });
 
       // 3. Upload directly to object storage (bypasses Django workers completely)
@@ -88,6 +150,47 @@ export function CustomisationForm({
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <b style={{ fontSize: '13px', color: '#17221f' }}>Customisation Details</b>
       </div>
+
+      {needsPhoto && (
+        <section className="photo-consent">
+          <ListenButton text={t('photo.consent.listen')} />
+          <p>{t('photo.consent.listen')}</p>
+          {(!studentId || !purpose) && <p>{t('photo.consent.needChild')}</p>}
+          {purpose === 'ID_CARD' && (
+            <label>
+              <input
+                type="checkbox"
+                checked={keepForNextYear}
+                disabled={disabled || savingConsent || !studentId}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setKeepForNextYear(next);
+                  if (consentReady) void saveConsent(next);
+                }}
+              />
+              <span>{t('photo.consent.keep')}</span>
+            </label>
+          )}
+          <label>
+            <input
+              type="checkbox"
+              checked={agreed}
+              disabled={disabled || savingConsent || !studentId || !purpose}
+              onChange={(e) => {
+                const next = e.target.checked;
+                setAgreed(next);
+                if (!next) {
+                  setConsentReady(false);
+                  return;
+                }
+                void saveConsent(keepForNextYear);
+              }}
+            />
+            <span>{savingConsent ? t('photo.consent.saving') : t('photo.consent.tick')}</span>
+          </label>
+          {consentError && <p className="photo-consent-error">{consentError}</p>}
+        </section>
+      )}
 
       {schema.map((field) => {
         const isRequired = field.required ?? false;
@@ -185,10 +288,10 @@ export function CustomisationForm({
                     alignItems: 'center',
                     gap: '6px',
                     padding: '8px 14px',
-                    background: isUploading ? '#eef2ee' : '#2a6a4e',
-                    color: '#fff',
+                    background: isUploading || !consentReady ? '#eef2ee' : '#2a6a4e',
+                    color: isUploading || !consentReady ? '#5c6b61' : '#fff',
                     borderRadius: '4px',
-                    cursor: isUploading || disabled ? 'not-allowed' : 'pointer',
+                    cursor: isUploading || disabled || !consentReady ? 'not-allowed' : 'pointer',
                     fontSize: '12px',
                     fontWeight: 600,
                   }}
@@ -197,7 +300,7 @@ export function CustomisationForm({
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
-                    disabled={isUploading || disabled}
+                    disabled={isUploading || disabled || !consentReady}
                     onChange={(e) => handleImageSelect(field, e)}
                     style={{ display: 'none' }}
                   />

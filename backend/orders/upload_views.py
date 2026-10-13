@@ -8,6 +8,7 @@ import os
 import time
 import uuid
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import FileResponse, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import permissions, status
@@ -15,6 +16,10 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from schools.models import Student
+
+from .consent_views import CONSENT_REQUIRED, NOT_YOUR_CHILD, caller_may_upload, live_consent
+from .models import PhotoConsent
 from .storage import (
     generate_presigned_download,
     generate_presigned_upload,
@@ -63,6 +68,19 @@ class PresignedUploadUrlView(APIView):
             raise ValidationError(
                 {"file_size": f"File size ({file_size} bytes) exceeds {max_bytes} bytes (~1.5 MB) limit."}
             )
+
+        purpose = (request.data.get("purpose") or "").strip()
+        if purpose not in PhotoConsent.Purpose.values:
+            raise ValidationError({"purpose": "Choose NOTEBOOK or ID_CARD."})
+        student_id = request.data.get("student_id")
+        try:
+            student = Student.objects.get(pk=student_id)
+        except (Student.DoesNotExist, ValueError, TypeError, DjangoValidationError):
+            raise PermissionDenied(NOT_YOUR_CHILD)
+        if not caller_may_upload(request.user, student):
+            raise PermissionDenied(NOT_YOUR_CHILD)
+        if live_consent(student, purpose) is None:
+            raise PermissionDenied(CONSENT_REQUIRED)
 
         # Generate a secure, unique object storage key
         user_id = str(request.user.id)

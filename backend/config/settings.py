@@ -27,6 +27,8 @@ import os
 import sys
 from datetime import timedelta
 from pathlib import Path
+
+from celery.schedules import crontab
 from urllib.parse import parse_qs, unquote, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -267,6 +269,13 @@ CELERY_TASK_ALWAYS_EAGER = (
     or (USE_SQLITE_MODE and not os.environ.get("REDIS_URL"))
 )
 CELERY_TASK_EAGER_PROPAGATES = CELERY_TASK_ALWAYS_EAGER
+# Needs a Celery beat process. Without one, the task exists but nothing calls it.
+CELERY_BEAT_SCHEDULE = {
+    "purge-delivered-child-photos": {
+        "task": "orders.purge_delivered_child_photos",
+        "schedule": crontab(hour=2, minute=15),
+    },
+}
 
 # Django REST Framework & JWT Authentication
 REST_FRAMEWORK = {
@@ -385,6 +394,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CUSTOMISATION_STORAGE_BUCKET = os.environ.get("CUSTOMISATION_STORAGE_BUCKET", "")
 CUSTOMISATION_LOCAL_DIR = BASE_DIR / "media" / "customisations"
 CUSTOMISATION_MAX_IMAGE_BYTES = int(os.environ.get("CUSTOMISATION_MAX_IMAGE_BYTES", 1_500_000))  # ~1.5 MB client max
+# Child photos: consent text version, and how long original + print files stay after delivery.
+PHOTO_CONSENT_POLICY_VERSION = os.environ.get("PHOTO_CONSENT_POLICY_VERSION", "2026-10-13")
+PHOTO_RETENTION_DAYS = int(os.environ.get("PHOTO_RETENTION_DAYS", "30"))
 
 # --------------------------------------------------------------------------- #
 # SMS (sign-in codes and order confirmations), see accounts/sms.py

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db.models import Exists, OuterRef
 
-from .models import Order, OrderItem, OrderItemExchange, OrderStatusEvent
+from .models import Order, OrderItem, OrderItemExchange, OrderStatusEvent, PhotoConsent
 
 
 class OrderItemInline(admin.TabularInline):
@@ -126,6 +126,39 @@ class OrderItemExchangeAdmin(admin.ModelAdmin):
         if not obj.created_by_id:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+
+
+@admin.register(PhotoConsent)
+class PhotoConsentAdmin(admin.ModelAdmin):
+    list_display = (
+        "student",
+        "parent",
+        "purpose",
+        "policy_version",
+        "keep_for_next_year",
+        "created_at",
+        "withdrawn_at",
+    )
+    list_filter = ("purpose", "keep_for_next_year")
+    search_fields = ("student__name", "student__gr_number", "parent__username")
+    readonly_fields = (
+        "id",
+        "parent",
+        "student",
+        "purpose",
+        "policy_version",
+        "keep_for_next_year",
+        "created_at",
+        "ip",
+        "user_agent",
+        "withdrawn_at",
+    )
+    raw_id_fields = ("parent", "student")
+    list_select_related = ("parent", "student")
+    show_full_result_count = False
+
+    def has_add_permission(self, request):
+        return False
 
 
 @admin.register(OrderStatusEvent)

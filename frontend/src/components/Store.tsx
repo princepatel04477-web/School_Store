@@ -3,7 +3,7 @@ import { X } from './ui/icons';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api, Product, Order, CustomisationField } from '../api';
-import { CustomisationForm } from './CustomisationForm';
+import { CustomisationForm, photoPurposeForCategory } from './CustomisationForm';
 
 const demo: Product[] = [
   {
@@ -298,6 +298,8 @@ export function Catalogue({
                 schema={schemaList}
                 values={customValues}
                 onChange={setCustomValues}
+                studentId={studentId}
+                purpose={photoPurposeForCategory(selectedProduct.category)}
               />
             )}
 

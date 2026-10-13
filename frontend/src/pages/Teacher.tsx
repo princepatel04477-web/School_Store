@@ -201,6 +201,7 @@ function TeacherOrder() {
 
   const studentProfile = student
     ? {
+        id: student.id,
         school_id: student.school,
         school_name: student.school_name,
         city_id: student.city,

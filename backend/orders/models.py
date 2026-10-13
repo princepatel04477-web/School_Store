@@ -338,3 +338,49 @@ class OrderStatusEvent(UUIDModel):
 
     def __str__(self) -> str:
         return f"{self.order.order_number} -> {self.status} @ {self.timestamp}"
+
+
+class PhotoConsent(UUIDModel):
+    """A parent's agreement to use one child's photo for one product."""
+
+    class Purpose(models.TextChoices):
+        NOTEBOOK = "NOTEBOOK", "Photo notebook"
+        ID_CARD = "ID_CARD", "Student ID card"
+
+    parent = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="photo_consents",
+    )
+    student = models.ForeignKey(
+        "schools.Student",
+        on_delete=models.PROTECT,
+        related_name="photo_consents",
+    )
+    purpose = models.CharField(max_length=16, choices=Purpose.choices)
+    policy_version = models.CharField(max_length=40)
+    # Set only when the parent asks to keep the small preview for next year's ID card.
+    keep_for_next_year = models.BooleanField(default=False)
+    created_at = models.DateTimeField(default=timezone.now)
+    ip = models.CharField(max_length=45, blank=True, default="")
+    user_agent = models.CharField(max_length=300, blank=True, default="")
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["student", "purpose"],
+                name="idx_photoconsent_student",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["parent", "student", "purpose"],
+                condition=models.Q(withdrawn_at__isnull=True),
+                name="uniq_live_photo_consent",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        state = "withdrawn" if self.withdrawn_at else "live"
+        return f"{self.purpose} {state} for {self.student_id}"
