@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Category, Product, ProductVariant, SizeChartRow
+from .models import Category, Product, ProductVariant, SizeChartRow, SizingSample
 
 
 @admin.register(Category)
@@ -78,3 +78,29 @@ class SizeChartRowAdmin(admin.ModelAdmin):
     @admin.display(description="Size", ordering="variant__size")
     def size(self, obj):
         return obj.variant.size
+
+
+@admin.register(SizingSample)
+class SizingSampleAdmin(admin.ModelAdmin):
+    """Read only: samples are written by `manage.py clear_fit_data`."""
+
+    list_display = (
+        "month",
+        "product",
+        "student_class",
+        "height_cm",
+        "weight_kg",
+        "recommended_size",
+        "chosen_size",
+        "final_size",
+        "exchange_reason",
+    )
+    list_filter = ("exchange_reason", "recommendation_status", "student_class", "product__school")
+    list_select_related = ("product",)
+    show_full_result_count = False
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False

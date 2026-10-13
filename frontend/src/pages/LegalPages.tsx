@@ -59,8 +59,8 @@ export function PrivacyPage() {
           Only if you use the size check before choosing sizes. You can skip it. We use the two numbers to suggest a
           size from the school's size chart. On your phone they are kept until you close the page. If you place an
           order, we keep them with that order, next to the size we suggested and the size you chose, so we can see
-          how often our suggestion was wrong when an item is exchanged. We do not keep them as a profile of your
-          child, do not use them for anything else, and do not share them with anyone.
+          whether an exchange was needed. We do not keep them as a profile of your child and do not share them with
+          anyone.
         </dd>
         <dt>Payments</dt>
         <dd>Handled by our payment partner. We never see or store your card or UPI PIN.</dd>
@@ -83,6 +83,14 @@ export function PrivacyPage() {
       <p>
         Order records are kept for 8 years because tax law requires it. Student records are kept while the school
         is a partner and removed within 90 days of the school asking us to, or of the student leaving the school.
+      </p>
+      <p>
+        Your child's height and weight are removed from the order 90 days after it is delivered, cancelled or
+        returned (or 180 days after you ordered, if it never gets there). At that point we keep only the numbers
+        with the class, the item, the month and the sizes suggested, chosen and exchanged, without your child's
+        name, the order or your account, to make our size suggestions better. Because the item belongs to one
+        school, this is not fully anonymous, so we treat it as personal data and never try to work out whose it
+        was.
       </p>
 
       <h2>Your rights</h2>

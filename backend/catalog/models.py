@@ -295,3 +295,52 @@ class SizeChartRow(UUIDModel):
 
     def __str__(self) -> str:
         return f"{self.variant.sku}: {self.height_cm_min}-{self.height_cm_max} cm"
+
+
+class SizingSample(UUIDModel):
+    """
+    One past size suggestion and how it turned out, kept to improve the charts.
+
+    Copied from an order line when its height and weight are cleared (see
+    orders/fit_retention.py). Deliberately has no link to the student, order,
+    parent or any user, and only the month, not the date. The product is kept
+    so the sample can be read against the chart it was measured on.
+    """
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sizing_samples",
+    )
+    month = models.DateField(help_text="First day of the month the order was placed.")
+    student_class = models.CharField(max_length=30, blank=True, default="")
+    height_cm = models.DecimalField(max_digits=4, decimal_places=1)
+    weight_kg = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
+    recommended_size = models.CharField(max_length=50, blank=True, default="")
+    recommended_alt_size = models.CharField(max_length=50, blank=True, default="")
+    recommendation_status = models.CharField(max_length=20, blank=True, default="")
+    chosen_size = models.CharField(max_length=50, blank=True, default="")
+    final_size = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        help_text="The size kept after any exchanges.",
+    )
+    exchange_reason = models.CharField(
+        max_length=12,
+        blank=True,
+        default="",
+        help_text="TOO_SMALL / TOO_BIG from the last size exchange, NOT_SIZE, or blank.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-month"]
+        indexes = [
+            models.Index(fields=["product", "month"], name="idx_sizing_product_month"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.month:%Y-%m} {self.recommended_size} -> {self.final_size}"
