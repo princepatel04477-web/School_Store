@@ -175,3 +175,24 @@ def put_object_bytes(file_key: str, data: bytes, content_type: str = "image/jpeg
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "wb") as f:
         f.write(data)
+
+
+def delete_object(file_key: str) -> bool:
+    """Delete one stored photo. A missing file counts as already gone."""
+    if not file_key or ".." in file_key or file_key.startswith(("/", "\\")):
+        return False
+
+    mode = get_storage_mode()
+    bucket = getattr(settings, "CUSTOMISATION_STORAGE_BUCKET", "") or os.environ.get("AWS_STORAGE_BUCKET_NAME", "school-store-private")
+
+    if mode == "s3":
+        s3 = get_s3_client()
+        s3.delete_object(Bucket=bucket, Key=file_key)
+        return True
+
+    storage_dir = getattr(settings, "CUSTOMISATION_LOCAL_DIR", settings.MEDIA_ROOT / "customisations")
+    path = os.path.join(storage_dir, file_key.replace("/", os.sep))
+    if os.path.isfile(path):
+        os.remove(path)
+        return True
+    return False

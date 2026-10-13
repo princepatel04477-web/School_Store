@@ -61,7 +61,36 @@ export const parentChildren={
 export const queryKey={catalog:['catalog'],orders:['orders'],students:['students']};
 
 /** Request a presigned URL to upload a private file directly to object storage. */
-export async function getUploadPresignedUrl(body: { content_type: string; file_size: number; filename?: string }) {
+export type PhotoPurpose = 'NOTEBOOK' | 'ID_CARD';
+
+export function createPhotoConsent(body: {
+  student_id: string;
+  purpose: PhotoPurpose;
+  keep_for_next_year?: boolean;
+}) {
+  return api<{
+    id: string;
+    student_id: string;
+    purpose: PhotoPurpose;
+    policy_version: string;
+    keep_for_next_year: boolean;
+  }>('/orders/photo-consent/', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export function deleteChildPhotos(studentId: string) {
+  return api<{ detail: string; files_removed: number }>('/orders/photo-consent/delete/', {
+    method: 'POST',
+    body: JSON.stringify({ student_id: studentId }),
+  });
+}
+
+export async function getUploadPresignedUrl(body: {
+  content_type: string;
+  file_size: number;
+  filename?: string;
+  student_id: string;
+  purpose: PhotoPurpose;
+}) {
   return api<{
     upload_url: string;
     method: 'POST' | 'PUT';

@@ -1,0 +1,71 @@
+.photo-consent,
+.photo-delete {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+  padding: var(--space-4);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.photo-consent p,
+.photo-delete p {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
+.photo-consent label,
+.photo-delete label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
+.photo-consent input,
+.photo-delete input {
+  margin-top: 3px;
+}
+
+.photo-consent-error,
+.photo-delete-error {
+  color: var(--danger);
+}
+
+.photo-consent-actions,
+.photo-delete-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.photo-consent-btn {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.photo-consent-btn:hover:not(:disabled) {
+  background: var(--paper-sunk);
+}
+
+.photo-consent-btn.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.photo-consent-btn.danger:hover:not(:disabled) {
+  background: var(--paper-sunk);
+}
+
+.photo-consent-btn:disabled {
+  opacity: 0.6;
+}

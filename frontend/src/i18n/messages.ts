@@ -470,6 +470,68 @@ export const messages = {
   },
   'signin.wrongOtp': { en: 'That OTP is wrong or old. Try again.', gu: 'OTP ખોટો કે જૂનો છે. ફરી પ્રયત્ન કરો.', hi: 'OTP गलत या पुराना है। फिर कोशिश करें।' },
 
+  // ---------- child photo consent ----------
+  'photo.consent.listen': {
+    en: 'This photo is used only to print this notebook or ID card. School staff who open the order can see it. The print file is what the printer uses. We delete the original and the print file 30 days after delivery. The small preview is deleted too, unless you choose to keep it for next year’s ID card.',
+    gu: 'આ ફોટો ફક્ત આ નોટબુક કે આઈડી કાર્ડ છપાવવા વપરાય છે. ઓર્ડર ખોલનાર શાળાના સ્ટાફ તે જોઈ શકે છે. છપાવવાની ફાઈલ પ્રિન્ટર વાપરે છે. ડિલિવરી પછી 30 દિવસે મૂળ ફોટો અને છપાવવાની ફાઈલ કાઢી નાખીએ છીએ. નાની નકલ પણ કાઢી નાખીએ છીએ, સિવાય કે તમે આવતા વર્ષના આઈડી કાર્ડ માટે રાખવાનું પસંદ કરો.',
+    hi: 'यह फ़ोटो सिर्फ़ इस कॉपी या आईडी कार्ड को छापने के लिए है। ऑर्डर खोलने वाले स्कूल स्टाफ इसे देख सकते हैं। छापने वाली फ़ाइल प्रिंटर इस्तेमाल करता है। डिलीवरी के 30 दिन बाद असली फ़ोटो और छापने वाली फ़ाइल हटा दी जाती है। छोटी प्रति भी हट जाती है, जब तक आप अगले साल के आईडी कार्ड के लिए रखना न चुनें।',
+  },
+  'photo.consent.tick': {
+    en: 'I agree to this photo being used for this order.',
+    gu: 'હું આ ફોટો આ ઓર્ડર માટે વાપરવા સંમત છું.',
+    hi: 'मैं इस फ़ोटो को इस ऑर्डर के लिए इस्तेमाल करने की सहमति देता हूँ।',
+  },
+  'photo.consent.keep': {
+    en: 'Keep a small copy for next year’s ID card.',
+    gu: 'આવતા વર્ષના આઈડી કાર્ડ માટે નાની નકલ રાખો.',
+    hi: 'अगले साल के आईडी कार्ड के लिए छोटी प्रति रखें।',
+  },
+  'photo.consent.needChild': {
+    en: 'Choose your child before uploading a photo.',
+    gu: 'ફોટો મૂકતા પહેલા તમારું બાળક પસંદ કરો.',
+    hi: 'फ़ोटो डालने से पहले अपने बच्चे को चुनें।',
+  },
+  'photo.consent.error': {
+    en: 'We could not save your agreement. Please try again.',
+    gu: 'સંમતિ સાચવી શકાઈ નહીં. ફરી પ્રયત્ન કરો.',
+    hi: 'सहमति सहेज नहीं पाए। फिर कोशिश करें।',
+  },
+  'photo.consent.saving': {
+    en: 'Saving your agreement…',
+    gu: 'સંમતિ સાચવી રહ્યા છીએ…',
+    hi: 'सहमति सहेजी जा रही है…',
+  },
+  'photo.delete.listen': {
+    en: 'This deletes the photos we hold for this child and withdraws your consent. A new photo needs your agreement again.',
+    gu: 'આ બાળકના ફોટા કાઢી નાખે છે અને તમારી સંમતિ પાછી ખેંચે છે. નવા ફોટા માટે ફરી સંમતિ જોઈએ.',
+    hi: 'इससे इस बच्चे की फ़ोटो हट जाती हैं और आपकी सहमति वापस हो जाती है। नई फ़ोटो के लिए फिर सहमति चाहिए।',
+  },
+  'photo.delete.action': {
+    en: 'Delete my child’s photos',
+    gu: 'મારા બાળકના ફોટા કાઢી નાખો',
+    hi: 'मेरे बच्चे की फ़ोटो हटाएँ',
+  },
+  'photo.delete.confirm': {
+    en: 'Delete the photos now',
+    gu: 'હવે ફોટા કાઢી નાખો',
+    hi: 'अभी फ़ोटो हटाएँ',
+  },
+  'photo.delete.cancel': {
+    en: 'Keep the photos',
+    gu: 'ફોટા રાખો',
+    hi: 'फ़ोटो रहने दें',
+  },
+  'photo.delete.done': {
+    en: 'Photos deleted. Consent withdrawn.',
+    gu: 'ફોટા કાઢી નાખ્યા. સંમતિ પાછી ખેંચાઈ.',
+    hi: 'फ़ोटो हट गईं। सहमति वापस हो गई।',
+  },
+  'photo.delete.error': {
+    en: 'We could not delete the photos. Try again.',
+    gu: 'ફોટા કાઢી શકાયા નહીં. ફરી પ્રયત્ન કરો.',
+    hi: 'फ़ोटो नहीं हट पाईं। फिर कोशिश करें।',
+  },
+
   // ---------- footer ----------
   'foot.shop': { en: 'Shop', gu: 'ખરીદી', hi: 'ख़रीदारी' },
   'foot.help': { en: 'Help', gu: 'મદદ', hi: 'मदद' },

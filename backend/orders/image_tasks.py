@@ -12,6 +12,7 @@ from django.db import transaction
 from PIL import Image, ImageOps
 
 from .models import OrderItem
+from .photo_files import purge_delivered_child_photos_now
 from .storage import get_object_bytes, put_object_bytes
 
 
@@ -108,3 +109,10 @@ def process_customisation_image(order_item_id: str, field_key: str):
 
     OrderItem.objects.filter(pk=order_item_id).update(customisation_data=customisation_data)
     return f"Processed {field_key} for item {order_item_id}"
+
+
+@shared_task(name="orders.purge_delivered_child_photos")
+def purge_delivered_child_photos():
+    """Delete original and print files a set number of days after delivery."""
+    removed = purge_delivered_child_photos_now()
+    return f"Removed {removed} child photo files"
