@@ -252,6 +252,50 @@ export const messages = {
   'fit.chart.chest': { en: 'Chest (cm)', gu: 'છાતી (સે.મી.)', hi: 'छाती (सेमी)' },
   'fit.chart.shoulder': { en: 'Shoulder (cm)', gu: 'ખભા (સે.મી.)', hi: 'कंधा (सेमी)' },
   'fit.chart.length': { en: 'Garment length (cm)', gu: 'કપડાંની લંબાઈ (સે.મી.)', hi: 'कपड़े की लंबाई (सेमी)' },
+  'fit.summaryShoulder': {
+    en: 'Height {h} cm, weight {w} kg, shoulders {s} cm',
+    gu: 'ઊંચાઈ {h} સે.મી., વજન {w} કિલો, ખભા {s} સે.મી.',
+    hi: 'लंबाई {h} सेमी, वज़न {w} किलो, कंधे {s} सेमी',
+  },
+  'fit.camera.open': {
+    en: 'Measure shoulders with the camera (optional)',
+    gu: 'કેમેરાથી ખભા માપો (મરજિયાત)',
+    hi: 'कैमरे से कंधे नापें (ज़रूरी नहीं)',
+  },
+  'fit.camera.privacy': {
+    en: 'The picture stays on your phone. Only the shoulder width is sent.',
+    gu: 'ફોટો તમારા ફોનમાં જ રહે છે. ફક્ત ખભાની પહોળાઈ મોકલાય છે.',
+    hi: 'फ़ोटो आपके फ़ोन में ही रहती है। सिर्फ़ कंधों की चौड़ाई भेजी जाती है।',
+  },
+  'fit.camera.needHeight': {
+    en: 'Type the height first. The camera uses it to measure.',
+    gu: 'પહેલા ઊંચાઈ લખો. કેમેરો માપવા માટે તેનો ઉપયોગ કરે છે.',
+    hi: 'पहले लंबाई लिखें। कैमरा नापने के लिए इसका उपयोग करता है।',
+  },
+  'fit.camera.done': { en: 'Shoulders: {s} cm', gu: 'ખભા: {s} સે.મી.', hi: 'कंधे: {s} सेमी' },
+  'fit.camera.remove': { en: 'Remove', gu: 'કાઢી નાખો', hi: 'हटाएँ' },
+
+  // ---------- camera measurement (on the phone only) ----------
+  'measure.skip': { en: 'Skip', gu: 'છોડો', hi: 'छोड़ें' },
+  'measure.stepBack': { en: 'Step back', gu: 'પાછળ થાઓ', hi: 'पीछे हटें' },
+  'measure.facePhone': { en: 'Face the phone', gu: 'ફોન સામે ફરો', hi: 'फ़ोन की तरफ मुँह करें' },
+  'measure.holdStill': { en: 'Hold still', gu: 'સ્થિર રહો', hi: 'शांत खड़े रहें' },
+  'measure.ready': { en: 'Hold still', gu: 'સ્થિર રહો', hi: 'शांत खड़े रहें' },
+  'measure.shirt': {
+    en: 'Wear a fitted T-shirt or vest, not the loose uniform shirt.',
+    gu: 'ઢીલું યુનિફોર્મ નહીં, બંધ બેસતી ટી-શર્ટ કે બંડી પહેરો.',
+    hi: 'ढीली यूनिफ़ॉर्म नहीं, फिट टी-शर्ट या बनियान पहनें।',
+  },
+  'measure.hold': {
+    en: 'Hold the phone at your chest. The child stands about 2 metres away.',
+    gu: 'ફોન છાતીની ઊંચાઈએ પકડો. બાળક લગભગ 2 મીટર દૂર ઊભું રહે.',
+    hi: 'फ़ोन छाती की ऊँचाई पर रखें। बच्चा लगभग 2 मीटर दूर खड़ा हो।',
+  },
+  'measure.cameraError': {
+    en: 'The camera did not open. You can still pick a size.',
+    gu: 'કેમેરો ખૂલ્યો નહીં. સાઈઝ તમે જ પસંદ કરી શકો છો.',
+    hi: 'कैमरा नहीं खुला। साइज़ आप खुद चुन सकते हैं।',
+  },
 
   // ---------- product ----------
   'product.required': { en: 'Needed', gu: 'જરૂરી', hi: 'ज़रूरी' },

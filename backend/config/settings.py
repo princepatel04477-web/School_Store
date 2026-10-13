@@ -381,6 +381,10 @@ EXPORT_FILE_TTL_DAYS = int(os.environ.get("EXPORT_FILE_TTL_DAYS", 7))
 # --------------------------------------------------------------------------- #
 FIT_DATA_RETENTION_DAYS = int(os.environ.get("FIT_DATA_RETENTION_DAYS", 90))
 FIT_DATA_BACKSTOP_DAYS = int(os.environ.get("FIT_DATA_BACKSTOP_DAYS", 180))
+# The shoulder width measured on the phone is always logged, but only changes
+# the suggested size once the A4 calibration shows it helps.
+FIT_USE_SHOULDER = os.environ.get("FIT_USE_SHOULDER", "0") == "1"
+FIT_SHOULDER_MIN_CONFIDENCE = float(os.environ.get("FIT_SHOULDER_MIN_CONFIDENCE", 0.6))
 
 # Uploaded files must never be held in memory for a 5 MB spreadsheet cap.
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024

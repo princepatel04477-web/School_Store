@@ -79,6 +79,11 @@ class FitLoggingTests(TestCase):
         self.assertEqual(line.recommendation_status, "FIT")
         self.assertEqual(line.chosen_size, self.shirt_32.size)
 
+    def test_shoulder_from_the_camera_step_is_logged(self):
+        fit = {"height_cm": 135, "weight_kg": 30, "shoulder_cm": 30.4, "shoulder_confidence": 0.77}
+        line = self.item(self.place([self.shirt_30], fit=fit), self.shirt_30)
+        self.assertEqual((line.fit_shoulder_cm, line.fit_shoulder_confidence), (Decimal("30.4"), Decimal("0.770")))
+
     def test_between_sizes_logs_both(self):
         order = self.place([self.shirt_32], fit={"height_cm": 143, "weight_kg": 33})
         line = self.item(order, self.shirt_32)

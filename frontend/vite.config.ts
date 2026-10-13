@@ -24,7 +24,8 @@ export default defineConfig({
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
-      '/media': {
+      // With the slash, so /mediapipe (the on-phone pose model) is not sent to Django.
+      '/media/': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },

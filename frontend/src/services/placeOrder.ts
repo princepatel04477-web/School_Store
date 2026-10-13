@@ -18,7 +18,7 @@ export interface OrderPayload {
   delivery_details: Record<string, string>;
   items: { variant: string; quantity: number }[];
   /** The child's height and weight from the size check, kept on the order lines. */
-  fit?: { height_cm: number; weight_kg: number };
+  fit?: { height_cm: number; weight_kg: number; shoulder_cm?: number; shoulder_confidence?: number };
 }
 
 export interface PlacedOrder {

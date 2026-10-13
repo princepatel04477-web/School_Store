@@ -17,6 +17,20 @@ export const FIT_LIMITS = { height: limits.height_cm, weight: limits.weight_kg }
 export interface Fit {
   heightCm: number;
   weightKg: number;
+  /** From the optional camera step. Only these two numbers ever leave the phone. */
+  shoulderCm?: number;
+  shoulderConfidence?: number;
+}
+
+/** The fit as the API takes it (size check and order). */
+export function fitPayload(fit: Fit) {
+  return {
+    height_cm: fit.heightCm,
+    weight_kg: fit.weightKg,
+    ...(fit.shoulderCm !== undefined && fit.shoulderConfidence !== undefined
+      ? { shoulder_cm: fit.shoulderCm, shoulder_confidence: fit.shoulderConfidence }
+      : {}),
+  };
 }
 /** null: not asked yet. 'skipped': the parent chose sizes themselves. */
 export type FitAnswer = Fit | 'skipped' | null;
@@ -50,7 +64,7 @@ export interface ProductFit {
 }
 
 interface SizeFitResponse {
-  fit: { height_cm: number; weight_kg: number; warnings: FitWarning[] } | null;
+  fit: { height_cm: number; weight_kg: number; shoulder_cm: number | null; warnings: FitWarning[] } | null;
   products: Record<string, ProductFit>;
 }
 
@@ -129,13 +143,18 @@ export function useSizeFit(productIds: string[], answer: FitAnswer, className?: 
   const ids = productIds.slice(0, MAX_PRODUCTS);
   const fit = answer && answer !== 'skipped' ? answer : null;
   return useQuery({
-    queryKey: ['size-fit', ids.join(','), fit ? `${fit.heightCm}|${fit.weightKg}` : String(answer), className ?? ''],
+    queryKey: [
+      'size-fit',
+      ids.join(','),
+      fit ? `${fit.heightCm}|${fit.weightKg}|${fit.shoulderCm ?? ''}|${fit.shoulderConfidence ?? ''}` : String(answer),
+      className ?? '',
+    ],
     queryFn: () =>
       api<SizeFitResponse>('/public/size-fit/', {
         method: 'POST',
         body: JSON.stringify({
           products: ids,
-          ...(fit ? { height_cm: fit.heightCm, weight_kg: fit.weightKg, class: className } : {}),
+          ...(fit ? { ...fitPayload(fit), class: className } : {}),
         }),
       }),
     enabled: ids.length > 0 && answer !== null,

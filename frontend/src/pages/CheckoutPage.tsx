@@ -5,7 +5,7 @@ import { formatINR } from '../utils/formatINR';
 import { useStoreState } from '../store/storeState';
 import { siteConfig } from '../siteConfig';
 import { useStoreSchools } from '../data/catalog';
-import { fitKey, getFit } from '../data/fit';
+import { fitKey, fitPayload, getFit } from '../data/fit';
 import { buildOrderMessage, whatsappOrderUrl } from '../services/whatsappOrder';
 import { orderErrorMessage, prepareOrder, submitOrder, type PlacedOrder } from '../services/placeOrder';
 import { useAuth } from '../auth';
@@ -150,7 +150,7 @@ export function CheckoutPage() {
             }
           : contact,
       items: cart.map((item) => ({ variant: item.variantId, quantity: item.quantity })),
-      ...(fit && fit !== 'skipped' ? { fit: { height_cm: fit.heightCm, weight_kg: fit.weightKg } } : {}),
+      ...(fit && fit !== 'skipped' ? { fit: fitPayload(fit) } : {}),
     });
     try {
       const order = await submitOrder(payload, () => setRetrying(true));

@@ -52,7 +52,7 @@ class FitRetentionTests(TestCase):
                 "fulfillment_type": "SCHOOL_PICKUP",
                 "payment_method": "COD",
                 "items": [{"variant": str(self.shirt_30.id), "quantity": 1}],
-                "fit": {"height_cm": 135, "weight_kg": 30},
+                "fit": {"height_cm": 135, "weight_kg": 30, "shoulder_cm": 30.4, "shoulder_confidence": 0.77},
             },
             format="json",
         )
@@ -73,6 +73,8 @@ class FitRetentionTests(TestCase):
         item.refresh_from_db()
         self.assertIsNone(item.fit_height_cm)
         self.assertIsNone(item.fit_weight_kg)
+        self.assertIsNone(item.fit_shoulder_cm)
+        self.assertIsNone(item.fit_shoulder_confidence)
         # The sizes stay on the order line.
         self.assertEqual((item.recommended_size, item.chosen_size), (self.shirt_30.size, self.shirt_30.size))
 
@@ -82,6 +84,7 @@ class FitRetentionTests(TestCase):
         self.assertEqual(sample.product_id, self.shirt_30.product_id)
         self.assertEqual(sample.student_class, item.order.student_class)
         self.assertEqual((sample.height_cm, sample.weight_kg), (Decimal("135.0"), Decimal("30.0")))
+        self.assertEqual((sample.shoulder_cm, sample.shoulder_confidence), (Decimal("30.4"), Decimal("0.770")))
         self.assertEqual(sample.recommended_size, self.shirt_30.size)
         self.assertEqual(sample.recommendation_status, "FIT")
         self.assertEqual((sample.chosen_size, sample.final_size), (self.shirt_30.size, self.shirt_30.size))

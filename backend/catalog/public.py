@@ -394,7 +394,8 @@ class PublicProductList(APIView):
 class PublicSizeFitView(APIView):
     """
     POST /api/public/size-fit/
-        {"products": [<uuid>, ...], "height_cm": 132, "weight_kg": 29, "class": "Class 4"}
+        {"products": [<uuid>, ...], "height_cm": 132, "weight_kg": 29, "class": "Class 4",
+         "shoulder_cm": 31.5, "shoulder_confidence": 0.82}   # shoulder: optional, from the camera step
 
     Returns each product's size chart (cm, kg) and, when height and weight are
     given, the recommended size. Height and weight are not stored here; they
@@ -408,7 +409,7 @@ class PublicSizeFitView(APIView):
 
     def post(self, request):
         from .models import SizeChartRow
-        from .sizing import chart_rows_from_models, recommend_size, validate_fit
+        from .sizing import chart_rows_from_models, suggest, validate_fit
 
         raw_ids = request.data.get("products")
         if not isinstance(raw_ids, list) or not raw_ids:
@@ -423,7 +424,13 @@ class PublicSizeFitView(APIView):
         height, weight = request.data.get("height_cm"), request.data.get("weight_kg")
         check = None
         if height not in (None, "") or weight not in (None, ""):
-            check = validate_fit(height, weight, request.data.get("class"))
+            check = validate_fit(
+                height,
+                weight,
+                request.data.get("class"),
+                shoulder_cm=request.data.get("shoulder_cm"),
+                shoulder_confidence=request.data.get("shoulder_confidence"),
+            )
             if not check.ok:
                 raise ValidationError({field: [code] for field, code in check.errors.items()})
 
@@ -446,7 +453,7 @@ class PublicSizeFitView(APIView):
         for pid, rows in charts.items():
             recommendation = None
             if check is not None:
-                result = recommend_size(chart_rows_from_models(rows), check.height_cm, check.weight_kg)
+                result = suggest(chart_rows_from_models(rows), check)
                 recommendation = {"status": result.status, "size": result.size, "alt_size": result.alt_size}
             products[pid] = {
                 "chart": [
@@ -473,6 +480,7 @@ class PublicSizeFitView(APIView):
             fit = {
                 "height_cm": number(check.height_cm),
                 "weight_kg": number(check.weight_kg),
+                "shoulder_cm": number(check.shoulder_cm),
                 "warnings": check.warnings,
             }
         return Response({"fit": fit, "products": products})

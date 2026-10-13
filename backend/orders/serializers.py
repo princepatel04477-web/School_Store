@@ -183,6 +183,9 @@ class OrderFitInputSerializer(serializers.Serializer):
 
     height_cm = serializers.CharField(max_length=10)
     weight_kg = serializers.CharField(max_length=10)
+    # Optional, from the camera step on the phone. Numbers only.
+    shoulder_cm = serializers.CharField(max_length=10, required=False, allow_null=True)
+    shoulder_confidence = serializers.CharField(max_length=10, required=False, allow_null=True)
 
 
 class OrderCreateSerializer(serializers.Serializer):
@@ -247,7 +250,13 @@ class OrderCreateSerializer(serializers.Serializer):
         if attrs.get("fit"):
             from catalog.sizing import validate_fit
 
-            check = validate_fit(attrs["fit"]["height_cm"], attrs["fit"]["weight_kg"])
+            fit = attrs["fit"]
+            check = validate_fit(
+                fit["height_cm"],
+                fit["weight_kg"],
+                shoulder_cm=fit.get("shoulder_cm"),
+                shoulder_confidence=fit.get("shoulder_confidence"),
+            )
             if not check.ok:
                 raise serializers.ValidationError(
                     {"fit": {field: [code] for field, code in check.errors.items()}}
@@ -415,6 +424,8 @@ class OrderCreateSerializer(serializers.Serializer):
             if recommendation is not None:
                 order_item.fit_height_cm = fit.height_cm
                 order_item.fit_weight_kg = fit.weight_kg
+                order_item.fit_shoulder_cm = fit.shoulder_cm
+                order_item.fit_shoulder_confidence = fit.shoulder_confidence
                 order_item.recommended_size = recommendation.size
                 order_item.recommended_alt_size = recommendation.alt_size
                 order_item.recommendation_status = recommendation.status
@@ -474,7 +485,7 @@ class OrderCreateSerializer(serializers.Serializer):
         Products without a chart are left out (they only log the chosen size).
         """
         from catalog.models import SizeChartRow
-        from catalog.sizing import chart_rows_from_models, recommend_size
+        from catalog.sizing import chart_rows_from_models, suggest
 
         product_ids = {variant.product_id for variant in variants}
         charts: dict = {}
@@ -483,7 +494,7 @@ class OrderCreateSerializer(serializers.Serializer):
         ):
             charts.setdefault(row.variant.product_id, []).append(row)
         return {
-            product_id: recommend_size(chart_rows_from_models(rows), fit.height_cm, fit.weight_kg)
+            product_id: suggest(chart_rows_from_models(rows), fit)
             for product_id, rows in charts.items()
         }
 
