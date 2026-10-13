@@ -372,6 +372,16 @@ STUDENT_IMPORT_PREVIEW_LIMIT = int(os.environ.get("STUDENT_IMPORT_PREVIEW_LIMIT"
 EXPORT_MAX_ROWS = int(os.environ.get("EXPORT_MAX_ROWS", 200_000))
 EXPORT_FILE_TTL_DAYS = int(os.environ.get("EXPORT_FILE_TTL_DAYS", 7))
 
+# --------------------------------------------------------------------------- #
+# Size check: a child's height and weight stay on the order line until
+# FIT_DATA_RETENTION_DAYS after the order is delivered, cancelled or returned
+# (well past the 7-day exchange window), or FIT_DATA_BACKSTOP_DAYS after the
+# order was placed if it never ends. Then `manage.py clear_fit_data` keeps only
+# an unlinked SizingSample and blanks the numbers on the order line.
+# --------------------------------------------------------------------------- #
+FIT_DATA_RETENTION_DAYS = int(os.environ.get("FIT_DATA_RETENTION_DAYS", 90))
+FIT_DATA_BACKSTOP_DAYS = int(os.environ.get("FIT_DATA_BACKSTOP_DAYS", 180))
+
 # Uploaded files must never be held in memory for a 5 MB spreadsheet cap.
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = 6 * 1024 * 1024

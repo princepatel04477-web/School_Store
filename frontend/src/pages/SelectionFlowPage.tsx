@@ -20,6 +20,8 @@ import { useLang, type MessageKey } from '../i18n';
 import { categoryLabel, classLabel, genderLabel } from '../i18n/labels';
 import { ListenButton } from '../components/ListenButton';
 import { FullSetSheet } from '../components/product/FullSetSheet';
+import { FitCheck, FitSummary } from '../components/fit/FitCheck';
+import { fitKey, setFit, useFitAnswer, useSizeFit } from '../data/fit';
 import './flow.css';
 
 const GROUP_KEYS: Record<string, MessageKey> = {
@@ -61,6 +63,19 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   );
   const productsQuery = useStoreProducts(activeSchool?.id, activeClass?.name, activeGender);
   const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
+
+  // Size check: height and weight once, before any size is picked (only when
+  // something here comes in sizes). Kept per school + class + boy/girl.
+  const currentFitKey = fitKey(activeSchool?.id, activeClass?.id, activeGender);
+  const fitAnswer = useFitAnswer(currentFitKey);
+  const [editingFit, setEditingFit] = useState(false);
+  const sizedProductIds = useMemo(
+    () => products.filter((p) => p.sizes.length > 1).map((p) => p.id),
+    [products]
+  );
+  const sizeFit = useSizeFit(sizedProductIds, fitAnswer, activeClass?.name);
+  const fits = sizeFit.data?.products;
+  const askFit = sizedProductIds.length > 0 && (fitAnswer === null || editingFit);
 
   // A link from the school (?school=…&class=…) counts as the parent's choice, so the
   // bag and checkout know which school and class the order is for.
@@ -595,6 +610,31 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   <ListenButton text={`${t('flow.s4.title')}. ${t('flow.s4.listen')}`} />
                 </div>
 
+                {askFit ? (
+                  <FitCheck
+                    initial={fitAnswer && fitAnswer !== 'skipped' ? fitAnswer : undefined}
+                    onSubmit={(fit) => {
+                      setFit(currentFitKey, fit);
+                      setEditingFit(false);
+                    }}
+                    onSkip={() => {
+                      setFit(currentFitKey, 'skipped');
+                      setEditingFit(false);
+                    }}
+                  />
+                ) : (
+                <>
+                {sizedProductIds.length > 0 && fitAnswer && (
+                  <FitSummary
+                    answer={fitAnswer}
+                    warnings={sizeFit.data?.fit?.warnings}
+                    className={activeClass?.name}
+                    failed={sizeFit.isError}
+                    onChange={() => setEditingFit(true)}
+                    onRetry={() => sizeFit.refetch()}
+                  />
+                )}
+
                 {fullSetProducts.length > 1 && (
                   <div className="fullset-banner">
                     <div>
@@ -689,6 +729,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                             <ProductCard
                               key={p.id}
                               product={p}
+                              fit={fits?.[p.id]}
                               onOpenDetails={(item) => setActiveProductForSheet(item)}
                             />
                           ))}
@@ -709,6 +750,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                             <ProductCard
                               key={p.id}
                               product={p}
+                              fit={fits?.[p.id]}
                               onOpenDetails={(item) => setActiveProductForSheet(item)}
                             />
                           ))}
@@ -716,6 +758,8 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                       </div>
                     )}
                   </>
+                )}
+                </>
                 )}
               </div>
 
@@ -798,6 +842,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
           schoolName={activeSchool.name}
           className={activeClass?.name}
           onAdded={onOpenBag}
+          fits={fits}
         />
       )}
 
@@ -807,6 +852,8 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         isOpen={!!activeProductForSheet}
         onClose={() => setActiveProductForSheet(null)}
         onOpenBag={onOpenBag}
+        fit={activeProductForSheet ? fits?.[activeProductForSheet.id] : undefined}
+        fitLoading={sizeFit.isLoading}
       />
     </div>
   );

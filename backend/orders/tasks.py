@@ -86,3 +86,11 @@ def release_expired_reservation(order_id):
             note="Payment reservation expired.",
         )
         return True
+
+
+@shared_task(name="orders.clear_fit_data")
+def clear_old_fit_data():
+    """Daily: clear height and weight from finished orders (see orders/fit_retention.py)."""
+    from .fit_retention import clear_fit_data
+
+    return clear_fit_data()

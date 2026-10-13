@@ -389,3 +389,90 @@ class PublicProductList(APIView):
             except Exception:
                 pass
         return response
+
+
+class PublicSizeFitView(APIView):
+    """
+    POST /api/public/size-fit/
+        {"products": [<uuid>, ...], "height_cm": 132, "weight_kg": 29, "class": "Class 4"}
+
+    Returns each product's size chart (cm, kg) and, when height and weight are
+    given, the recommended size. Height and weight are not stored here; they
+    are kept only on the order line when the parent places an order.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [PublicCatalogThrottle]
+    MAX_PRODUCTS = 60
+
+    def post(self, request):
+        from .models import SizeChartRow
+        from .sizing import chart_rows_from_models, recommend_size, validate_fit
+
+        raw_ids = request.data.get("products")
+        if not isinstance(raw_ids, list) or not raw_ids:
+            raise ValidationError({"products": "Send a list of product ids."})
+        if len(raw_ids) > self.MAX_PRODUCTS:
+            raise ValidationError({"products": f"At most {self.MAX_PRODUCTS} products at a time."})
+        try:
+            product_ids = list(dict.fromkeys(str(UUID(str(pid))) for pid in raw_ids))
+        except (TypeError, ValueError, AttributeError) as exc:
+            raise ValidationError({"products": "Every product id must be a UUID."}) from exc
+
+        height, weight = request.data.get("height_cm"), request.data.get("weight_kg")
+        check = None
+        if height not in (None, "") or weight not in (None, ""):
+            check = validate_fit(height, weight, request.data.get("class"))
+            if not check.ok:
+                raise ValidationError({field: [code] for field, code in check.errors.items()})
+
+        charts: dict = {pid: [] for pid in product_ids}
+        for row in (
+            SizeChartRow.objects.select_related("variant")
+            .filter(
+                variant__product_id__in=product_ids,
+                variant__active=True,
+                variant__product__active=True,
+            )
+            .order_by("height_cm_min", "height_cm_max")
+        ):
+            charts[str(row.variant.product_id)].append(row)
+
+        def number(value):
+            return float(value) if value is not None else None
+
+        products = {}
+        for pid, rows in charts.items():
+            recommendation = None
+            if check is not None:
+                result = recommend_size(chart_rows_from_models(rows), check.height_cm, check.weight_kg)
+                recommendation = {"status": result.status, "size": result.size, "alt_size": result.alt_size}
+            products[pid] = {
+                "chart": [
+                    {
+                        "variant_id": str(row.variant_id),
+                        "size": row.variant.size,
+                        "height_cm_min": number(row.height_cm_min),
+                        "height_cm_max": number(row.height_cm_max),
+                        "weight_kg_min": number(row.weight_kg_min),
+                        "weight_kg_max": number(row.weight_kg_max),
+                        "shoulder_cm_min": number(row.shoulder_cm_min),
+                        "shoulder_cm_max": number(row.shoulder_cm_max),
+                        "chest_cm_min": number(row.chest_cm_min),
+                        "chest_cm_max": number(row.chest_cm_max),
+                        "length_cm": number(row.length_cm),
+                    }
+                    for row in rows
+                ],
+                "recommendation": recommendation,
+            }
+
+        fit = None
+        if check is not None:
+            fit = {
+                "height_cm": number(check.height_cm),
+                "weight_kg": number(check.weight_kg),
+                "warnings": check.warnings,
+            }
+        return Response({"fit": fit, "products": products})

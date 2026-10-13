@@ -62,3 +62,17 @@ export function ProductGridSkeleton({ count = 6 }: { count?: number }) {
     </div>
   );
 }
+
+export function SizeChartSkeleton({ rows = 4, label }: { rows?: number; label?: string }) {
+  return (
+    <div className="size-chart-skeleton" role="status" aria-label={label}>
+      <Skeleton width="30%" height="14px" />
+      <div className="size-chart-skeleton-table">
+        <Skeleton width="100%" height="14px" />
+        {Array.from({ length: rows }).map((_, i) => (
+          <Skeleton key={i} width="100%" height="18px" />
+        ))}
+      </div>
+    </div>
+  );
+}

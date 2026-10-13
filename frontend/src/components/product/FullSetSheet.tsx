@@ -5,6 +5,8 @@ import { useStoreState } from '../../store/storeState';
 import { useLang } from '../../i18n';
 import { categoryLabel, classLabel } from '../../i18n/labels';
 import { suggestSizeId } from '../../data/sizes';
+import { preselectSizeId, suggestedSizeIds, type ProductFit } from '../../data/fit';
+import { RecommendationNote } from '../fit/SizeChartTable';
 import type { StoreProduct } from '../../data/catalog';
 import { ProductImage } from './ProductImage';
 import { ListenButton } from '../ListenButton';
@@ -12,8 +14,9 @@ import './fullSet.css';
 
 /**
  * "Order full set": every item made for this school, for this class and boy/girl,
- * on one screen with sizes already chosen where the school's size labels say which
- * fits. One button adds them all.
+ * on one screen with sizes already chosen: from the child's height and weight when
+ * the item has a size chart, otherwise where the school's size labels name the
+ * class. One button adds them all.
  */
 export function FullSetSheet({
   open,
@@ -22,6 +25,7 @@ export function FullSetSheet({
   schoolName,
   className,
   onAdded,
+  fits,
 }: {
   open: boolean;
   onClose: () => void;
@@ -29,6 +33,7 @@ export function FullSetSheet({
   schoolName: string;
   className?: string;
   onAdded?: () => void;
+  fits?: Record<string, ProductFit>;
 }) {
   const { t } = useLang();
   const { addItem } = useStoreState();
@@ -36,11 +41,11 @@ export function FullSetSheet({
   const initial = useMemo(() => {
     const sizes: Record<string, string> = {};
     products.forEach((p) => {
-      const suggested = suggestSizeId(p.sizes, className);
+      const suggested = preselectSizeId(p.sizes, fits?.[p.id]) ?? suggestSizeId(p.sizes, className);
       if (suggested) sizes[p.id] = suggested;
     });
     return sizes;
-  }, [products, className]);
+  }, [products, className, fits]);
 
   const [sizes, setSizes] = useState<Record<string, string>>(initial);
   const [skipped, setSkipped] = useState<Record<string, boolean>>({});
@@ -115,6 +120,9 @@ export function FullSetSheet({
             const isSkipped = Boolean(skipped[p.id]);
             const needsSize = !isSkipped && !sizes[p.id];
             const suggested = initial[p.id] && initial[p.id] === sizes[p.id] && p.sizes.length > 1;
+            const fit = fits?.[p.id];
+            const marks = suggestedSizeIds(p.sizes, fit);
+            const fromFit = Boolean(marks.primary);
             return (
               <li
                 key={p.id}
@@ -135,7 +143,7 @@ export function FullSetSheet({
                           key={s.id}
                           type="button"
                           disabled={!s.inStock}
-                          className={`card-size-chip ${sizes[p.id] === s.id ? 'is-selected' : ''}`}
+                          className={`card-size-chip ${sizes[p.id] === s.id ? 'is-selected' : ''} ${s.id === marks.primary || s.id === marks.alt ? 'is-suggested' : ''}`}
                           onClick={() => setSizes((prev) => ({ ...prev, [p.id]: s.id }))}
                         >
                           {s.size}
@@ -143,7 +151,8 @@ export function FullSetSheet({
                       ))}
                     </div>
                   )}
-                  {suggested && !isSkipped && (
+                  {!isSkipped && fromFit && <RecommendationNote recommendation={fit?.recommendation} />}
+                  {suggested && !isSkipped && !fromFit && (
                     <span className="fullset-hint">{t('set.suggested', { cls: classLabel(className, t) })}</span>
                   )}
                   {showMissing && needsSize && <span className="field-err">{t('product.pickSize')}</span>}

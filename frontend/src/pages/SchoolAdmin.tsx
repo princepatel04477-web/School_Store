@@ -8,6 +8,7 @@ import {
   type ImportJob, type PanelOrder, type PanelSchool, type PanelStudent, type PanelTeacher,
   type StudentOrders,
 } from '../api';
+import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
 
 /* ------------------------------------------------------------------ *
  * School scope
@@ -25,6 +26,7 @@ const NAV = [
   { to: 'students', label: 'Students' },
   { to: 'teachers', label: 'Teachers' },
   { to: 'exports', label: 'Exports' },
+  { to: 'size-charts', label: 'Size charts', roles: ['SCHOOL_ADMIN', 'BOSS'] },
 ];
 
 export default function SchoolAdmin() {
@@ -61,7 +63,7 @@ export default function SchoolAdmin() {
         </header>
         <div className="admin-body">
           <nav className="admin-nav">
-            {NAV.map((n) => (
+            {NAV.filter((n) => !n.roles || n.roles.includes(user?.role ?? '')).map((n) => (
               <AdminNavLink key={n.to} to={n.to} end={n.end}><span>{n.label}</span></AdminNavLink>
             ))}
           </nav>
@@ -74,6 +76,7 @@ export default function SchoolAdmin() {
                 <Route path="students/:id" element={<StudentDetail />} />
                 <Route path="teachers" element={<Teachers />} />
                 <Route path="exports" element={<Exports />} />
+                <Route path="size-charts" element={<SizeCharts />} />
               </Routes>
             ) : (
               <div className="empty"><h3>No school in your scope</h3><p>Ask an admin to link your account to a school.</p></div>
@@ -757,6 +760,26 @@ function StudentImportCard({ schoolId, onDone }: { schoolId: string | null; onDo
     </section>
   );
 }
+/* ------------------------------------------------------------------ *
+ * 5c. Size charts (cm), used to suggest sizes to parents
+ * ------------------------------------------------------------------ */
+function SizeCharts() {
+  const { schoolId, schools } = useSchool();
+  const school = schools.find((s) => s.id === schoolId);
+  return (
+    <>
+      <div className="page-head">
+        <div>
+          <div className="eyebrow">SIZE CHARTS</div>
+          <h1>Size charts</h1>
+          <p className="muted">Body measurements for each size. Parents type their child&apos;s height and weight and the shop suggests a size from these.</p>
+        </div>
+      </div>
+      {schoolId && <SizeChartImportCard key={schoolId} scope={schoolId} scopeName={school?.code ?? 'school'} />}
+    </>
+  );
+}
+
 /* ------------------------------------------------------------------ *
  * 3. Per-student view
  * ------------------------------------------------------------------ */

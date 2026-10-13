@@ -31,6 +31,7 @@ class ImportJob(UUIDModel):
 
     class JobType(models.TextChoices):
         STUDENT_IMPORT = "STUDENT_IMPORT", "Student import"
+        SIZE_CHART_IMPORT = "SIZE_CHART_IMPORT", "Size chart import"
 
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pending validation"
