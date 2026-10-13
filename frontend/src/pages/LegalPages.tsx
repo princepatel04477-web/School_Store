@@ -62,6 +62,12 @@ export function PrivacyPage() {
           whether an exchange was needed. We do not keep them as a profile of your child and do not share them with
           anyone.
         </dd>
+        <dt>Your child's shoulder width (optional)</dt>
+        <dd>
+          Only if you choose to measure with the camera during the size check. The camera picture is looked at on
+          your phone and never leaves it: it is not uploaded, saved or sent anywhere. Only two numbers are sent,
+          the shoulder width in cm and how sure the phone was of it. We keep them like height and weight, below.
+        </dd>
         <dt>Your child's photo</dt>
         <dd>
           Only when you order a photo notebook or a student ID card, and only after you tick consent on that
@@ -96,7 +102,7 @@ export function PrivacyPage() {
         partner and removed within 90 days of the school asking us to, or of the student leaving the school.
       </p>
       <p>
-        Your child's height and weight are removed from the order 90 days after it is delivered, cancelled or
+        Your child's height, weight and shoulder width are removed from the order 90 days after it is delivered, cancelled or
         returned (or 180 days after you ordered, if it never gets there). At that point we keep only the numbers
         with the class, the item, the month and the sizes suggested, chosen and exchanged, without your child's
         name, the order or your account, to make our size suggestions better. Because the item belongs to one

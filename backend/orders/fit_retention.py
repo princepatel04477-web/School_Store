@@ -1,5 +1,5 @@
 """
-Clears a child's height and weight from order lines once they are no longer
+Clears a child's height, weight and shoulder width from order lines once they are no longer
 needed (plan A1, "store the least").
 
 An order line keeps its height and weight until FIT_DATA_RETENTION_DAYS after
@@ -48,7 +48,11 @@ def due_items(now=None):
         .values("timestamp")[:1]
     )
     return (
-        OrderItem.objects.filter(Q(fit_height_cm__isnull=False) | Q(fit_weight_kg__isnull=False))
+        OrderItem.objects.filter(
+            Q(fit_height_cm__isnull=False)
+            | Q(fit_weight_kg__isnull=False)
+            | Q(fit_shoulder_cm__isnull=False)
+        )
         .annotate(ended_at=ended_at)
         .filter(
             Q(ended_at__lte=now - timedelta(days=settings.FIT_DATA_RETENTION_DAYS))
@@ -73,6 +77,8 @@ def _sample(item: OrderItem) -> SizingSample:
         student_class=item.order.student_class,
         height_cm=item.fit_height_cm,
         weight_kg=item.fit_weight_kg,
+        shoulder_cm=item.fit_shoulder_cm,
+        shoulder_confidence=item.fit_shoulder_confidence,
         recommended_size=item.recommended_size,
         recommended_alt_size=item.recommended_alt_size,
         recommendation_status=item.recommendation_status,
@@ -106,7 +112,10 @@ def clear_fit_data(now=None, dry_run: bool = False) -> dict:
                 [_sample(item) for item in batch if item.fit_height_cm is not None]
             )
             OrderItem.objects.filter(id__in=[item.id for item in batch]).update(
-                fit_height_cm=None, fit_weight_kg=None
+                fit_height_cm=None,
+                fit_weight_kg=None,
+                fit_shoulder_cm=None,
+                fit_shoulder_confidence=None,
             )
             cleared += len(batch)
     return {"due": cleared, "cleared": cleared, "dry_run": False}

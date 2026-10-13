@@ -179,3 +179,20 @@
 .size-chart-table tr.is-suggested th {
   box-shadow: inset 3px 0 0 var(--brand);
 }
+
+/* Optional camera step for the shoulder width */
+.fit-camera {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.fit-camera .fit-check-privacy {
+  margin: var(--space-2) 0 0;
+}
+
+.fit-camera-done {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}

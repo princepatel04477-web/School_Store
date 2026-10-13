@@ -318,6 +318,8 @@ class SizingSample(UUIDModel):
     student_class = models.CharField(max_length=30, blank=True, default="")
     height_cm = models.DecimalField(max_digits=4, decimal_places=1)
     weight_kg = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
+    shoulder_cm = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
+    shoulder_confidence = models.DecimalField(max_digits=4, decimal_places=3, null=True, blank=True)
     recommended_size = models.CharField(max_length=50, blank=True, default="")
     recommended_alt_size = models.CharField(max_length=50, blank=True, default="")
     recommendation_status = models.CharField(max_length=20, blank=True, default="")

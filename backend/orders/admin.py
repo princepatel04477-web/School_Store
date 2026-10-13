@@ -47,6 +47,8 @@ class OrderAdmin(admin.ModelAdmin):
 FIT_FIELDS = (
     "fit_height_cm",
     "fit_weight_kg",
+    "fit_shoulder_cm",
+    "fit_shoulder_confidence",
     "recommended_size",
     "recommended_alt_size",
     "recommendation_status",

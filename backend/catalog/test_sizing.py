@@ -13,9 +13,12 @@ from .sizing import (
     WEIGHT_MIN,
     ChartRow,
     FitWarning,
+    Recommendation,
     Status,
     class_age,
     recommend_size,
+    refine_with_shoulder,
+    suggest,
     validate_fit,
 )
 
@@ -207,7 +210,7 @@ class PublicSizeFitEndpointTests(TestCase):
         self.assertEqual(shirt["recommendation"], {"status": "FIT", "size": "30 (Class 4-6)", "alt_size": ""})
         polo = res.data["products"][str(self.polo.id)]
         self.assertEqual(polo, {"chart": [], "recommendation": {"status": "NO_CHART", "size": "", "alt_size": ""}})
-        self.assertEqual(res.data["fit"], {"height_cm": 133.0, "weight_kg": 30.0, "warnings": []})
+        self.assertEqual(res.data["fit"], {"height_cm": 133.0, "weight_kg": 30.0, "shoulder_cm": None, "warnings": []})
 
     def test_chart_only_when_no_measurements(self):
         res = self.post({"products": [str(self.shirt.id)]})
@@ -231,7 +234,80 @@ class PublicSizeFitEndpointTests(TestCase):
         res = self.post({"products": [str(self.shirt.id)], "height_cm": 130})
         self.assertEqual(res.data["weight_kg"], ["REQUIRED"])
 
+    def test_shoulder_is_accepted_and_returned(self):
+        res = self.post({
+            "products": [str(self.shirt.id)], "height_cm": 133, "weight_kg": 30,
+            "shoulder_cm": 31.2, "shoulder_confidence": 0.8,
+        })
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual(res.data["fit"]["shoulder_cm"], 31.2)
+        res = self.post({"products": [str(self.shirt.id)], "height_cm": 133, "weight_kg": 30, "shoulder_cm": 31.2})
+        self.assertEqual(res.data["shoulder_confidence"], ["REQUIRED"])
+
     def test_soft_warnings_are_returned(self):
         res = self.post({"products": [str(self.shirt.id)], "height_cm": 175, "weight_kg": 40, "class": "Class 1"})
         self.assertEqual(res.status_code, 200)
         self.assertIn(FitWarning.HEIGHT_UNUSUAL_FOR_CLASS, res.data["fit"]["warnings"])
+
+
+def srow(size, h_min, h_max, s_min=None, s_max=None):
+    return ChartRow(
+        size=size,
+        height_cm_min=D(h_min),
+        height_cm_max=D(h_max),
+        shoulder_cm_min=D(s_min) if s_min is not None else None,
+        shoulder_cm_max=D(s_max) if s_max is not None else None,
+    )
+
+
+SHOULDER_CHART = [srow("30", 129, 140, 28, 31), srow("32", 141, 152, 31.5, 34), srow("34", 153, 165, 34.5, 38)]
+
+
+class ShoulderTests(SimpleTestCase):
+    def test_shoulder_is_optional(self):
+        check = validate_fit(135, 30)
+        self.assertTrue(check.ok)
+        self.assertIsNone(check.shoulder_cm)
+
+    def test_shoulder_needs_a_confidence_and_sane_numbers(self):
+        self.assertEqual(validate_fit(135, 30, shoulder_cm=31).errors, {"shoulder_confidence": "REQUIRED"})
+        self.assertEqual(
+            validate_fit(135, 30, shoulder_cm=95, shoulder_confidence=1.5).errors,
+            {"shoulder_cm": "OUT_OF_RANGE", "shoulder_confidence": "OUT_OF_RANGE"},
+        )
+        self.assertEqual(
+            validate_fit(135, 30, shoulder_cm="wide", shoulder_confidence=0.9).errors,
+            {"shoulder_cm": "NOT_A_NUMBER"},
+        )
+        check = validate_fit(135, 30, shoulder_cm="31.26", shoulder_confidence="0.8126")
+        self.assertEqual((check.shoulder_cm, check.shoulder_confidence), (D("31.3"), D("0.813")))
+
+    def test_two_sizes_and_the_shoulder_fits_one(self):
+        between = Recommendation(Status.BETWEEN, "32", "30")
+        self.assertEqual(refine_with_shoulder(SHOULDER_CHART, between, D(29)), (Status.FIT, "30", ""))
+        self.assertEqual(refine_with_shoulder(SHOULDER_CHART, between, D(33)), (Status.FIT, "32", ""))
+        # Fits neither: leave the choice to the parent.
+        self.assertEqual(refine_with_shoulder(SHOULDER_CHART, between, D(40)), between)
+
+    def test_one_size_but_wider_shoulders_adds_the_next_size(self):
+        fit = Recommendation(Status.FIT, "30")
+        self.assertEqual(refine_with_shoulder(SHOULDER_CHART, fit, D(32.5)), (Status.BETWEEN, "32", "30"))
+        self.assertEqual(refine_with_shoulder(SHOULDER_CHART, fit, D(30)), fit)
+        biggest = Recommendation(Status.FIT, "34")
+        self.assertEqual(refine_with_shoulder(SHOULDER_CHART, biggest, D(40)), biggest)
+
+    def test_chart_without_shoulder_ranges_is_unchanged(self):
+        chart = [srow("30", 129, 140), srow("32", 141, 152)]
+        between = Recommendation(Status.BETWEEN, "32", "30")
+        self.assertEqual(refine_with_shoulder(chart, between, D(29)), between)
+        self.assertEqual(refine_with_shoulder(chart, Recommendation(Status.FIT, "30"), D(40)), (Status.FIT, "30", ""))
+
+    def test_suggest_ignores_the_shoulder_until_switched_on(self):
+        check = validate_fit(135, 30, shoulder_cm=32.5, shoulder_confidence=0.9)
+        with override_settings(FIT_USE_SHOULDER=False):
+            self.assertEqual(suggest(SHOULDER_CHART, check), (Status.FIT, "30", ""))
+        with override_settings(FIT_USE_SHOULDER=True, FIT_SHOULDER_MIN_CONFIDENCE=0.6):
+            self.assertEqual(suggest(SHOULDER_CHART, check), (Status.BETWEEN, "32", "30"))
+        unsure = validate_fit(135, 30, shoulder_cm=32.5, shoulder_confidence=0.4)
+        with override_settings(FIT_USE_SHOULDER=True, FIT_SHOULDER_MIN_CONFIDENCE=0.6):
+            self.assertEqual(suggest(SHOULDER_CHART, unsure), (Status.FIT, "30", ""))

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { lazy, Suspense, useState, type FormEvent } from 'react';
 import { Input } from '../ui/Input';
 import { Ruler } from '../ui/icons';
 import { ListenButton } from '../ListenButton';
@@ -13,7 +13,13 @@ import {
   type FitFieldError,
   type FitWarning,
 } from '../../data/fit';
+import { MEASURE_WITH_CAMERA } from '../../measure/config';
 import './fit.css';
+
+// The camera step (and MediaPipe) only loads when a parent opens it.
+const MeasureCapture = lazy(() =>
+  import('../../measure/MeasureCapture').then((m) => ({ default: m.MeasureCapture }))
+);
 
 const WARNING_KEYS: Record<FitWarning, MessageKey> = {
   HEIGHT_UNUSUAL_FOR_CLASS: 'fit.warn.height',
@@ -35,6 +41,23 @@ export function FitCheck({
   const [height, setHeight] = useState(initial ? String(initial.heightCm) : '');
   const [weight, setWeight] = useState(initial ? String(initial.weightKg) : '');
   const [errors, setErrors] = useState<{ height?: FitFieldError | null; weight?: FitFieldError | null }>({});
+  // Shoulder width from the optional camera step: two numbers, never the picture.
+  const [shoulder, setShoulder] = useState<{ cm: number; confidence: number } | null>(
+    initial?.shoulderCm !== undefined && initial.shoulderConfidence !== undefined
+      ? { cm: initial.shoulderCm, confidence: initial.shoulderConfidence }
+      : null
+  );
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [needHeight, setNeedHeight] = useState(false);
+
+  const openCamera = () => {
+    if (checkMeasure(height, FIT_LIMITS.height)) {
+      setNeedHeight(true);
+      return;
+    }
+    setNeedHeight(false);
+    setCameraOpen(true);
+  };
 
   const message = (field: 'height' | 'weight', error?: FitFieldError | null) => {
     if (!error) return undefined;
@@ -52,7 +75,11 @@ export function FitCheck({
     };
     setErrors(next);
     if (next.height || next.weight) return;
-    onSubmit({ heightCm: parseMeasure(height)!, weightKg: parseMeasure(weight)! });
+    onSubmit({
+      heightCm: parseMeasure(height)!,
+      weightKg: parseMeasure(weight)!,
+      ...(shoulder ? { shoulderCm: shoulder.cm, shoulderConfidence: shoulder.confidence } : {}),
+    });
   };
 
   return (
@@ -80,6 +107,8 @@ export function FitCheck({
             onChange={(e) => {
               setHeight(e.target.value);
               setErrors((prev) => ({ ...prev, height: null }));
+              // The camera scales by the height, so a new height needs a new reading.
+              setShoulder(null);
             }}
           />
           <Input
@@ -97,6 +126,40 @@ export function FitCheck({
             }}
           />
         </div>
+        {MEASURE_WITH_CAMERA && (
+          <div className="fit-camera">
+            {shoulder ? (
+              <p className="fit-camera-done">
+                {t('fit.camera.done', { s: formatMeasure(shoulder.cm) })}{' '}
+                <button type="button" className="fit-check-skip" onClick={() => setShoulder(null)}>
+                  {t('fit.camera.remove')}
+                </button>
+              </p>
+            ) : (
+              <button type="button" className="btn btn-secondary fit-camera-open" onClick={openCamera}>
+                {t('fit.camera.open')}
+              </button>
+            )}
+            <p className="fit-check-privacy">{t('fit.camera.privacy')}</p>
+            {needHeight && (
+              <p className="fit-summary-warning" role="alert">
+                {t('fit.camera.needHeight')}
+              </p>
+            )}
+          </div>
+        )}
+        {cameraOpen && (
+          <Suspense fallback={null}>
+            <MeasureCapture
+              heightCm={parseMeasure(height)!}
+              onResult={(result) => {
+                setShoulder({ cm: result.shoulder_cm, confidence: result.confidence });
+                setCameraOpen(false);
+              }}
+              onSkip={() => setCameraOpen(false)}
+            />
+          </Suspense>
+        )}
         <p className="fit-check-privacy">{t('fit.privacy')}</p>
         <div className="fit-check-actions">
           <button type="submit" className="btn btn-primary">
@@ -136,6 +199,12 @@ export function FitSummary({
         <span className="fit-summary-text">
           {skipped
             ? t('fit.skipped')
+            : answer.shoulderCm !== undefined
+            ? t('fit.summaryShoulder', {
+                h: formatMeasure(answer.heightCm),
+                w: formatMeasure(answer.weightKg),
+                s: formatMeasure(answer.shoulderCm),
+              })
             : t('fit.summary', { h: formatMeasure(answer.heightCm), w: formatMeasure(answer.weightKg) })}
         </span>
         <button type="button" className="fit-summary-change" onClick={onChange}>
