@@ -211,6 +211,14 @@ class OrderItem(UUIDModel):
     unit_price_snapshot = models.DecimalField(max_digits=10, decimal_places=2)
     unit_cost_snapshot = models.DecimalField(max_digits=10, decimal_places=2)
     customisation_data = models.JSONField(default=dict, blank=True)
+    # Size fit, kept on the order line only (no permanent child profile). Sizes
+    # are copied as values so a later size chart import never rewrites history.
+    fit_height_cm = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
+    fit_weight_kg = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
+    recommended_size = models.CharField(max_length=50, blank=True, default="")
+    recommended_alt_size = models.CharField(max_length=50, blank=True, default="")
+    recommendation_status = models.CharField(max_length=20, blank=True, default="")
+    chosen_size = models.CharField(max_length=50, blank=True, default="")
 
     class Meta:
         indexes = [
@@ -218,8 +226,85 @@ class OrderItem(UUIDModel):
             models.Index(fields=["variant"], name="idx_orderitem_variant"),
         ]
 
+    @property
+    def current_size(self) -> str:
+        """The size the family has now: the last exchange, else what was ordered."""
+        last = self.exchanges.order_by("-created_at").first()
+        return last.to_size if last else (self.chosen_size or self.variant.size)
+
     def __str__(self) -> str:
         return f"{self.order.order_number} - {self.variant.sku} x{self.quantity}"
+
+
+class OrderItemExchange(UUIDModel):
+    """
+    One exchange of one order line, recorded by staff. TOO_SMALL and TOO_BIG
+    measure how often the size recommendation was wrong; NOT_SIZE (a fault,
+    wrong item) is kept but left out of that measure.
+    """
+
+    class Reason(models.TextChoices):
+        TOO_SMALL = "TOO_SMALL", "Too small"
+        TOO_BIG = "TOO_BIG", "Too big"
+        NOT_SIZE = "NOT_SIZE", "Not a size problem"
+
+    order_item = models.ForeignKey(
+        OrderItem,
+        on_delete=models.CASCADE,
+        related_name="exchanges",
+    )
+    from_size = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Leave blank to use the size the family has now.",
+    )
+    to_size = models.CharField(max_length=50)
+    reason = models.CharField(max_length=12, choices=Reason.choices)
+    note = models.TextField(blank=True, default="")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="order_item_exchanges",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["order_item", "created_at"], name="idx_exchange_item_created"),
+            models.Index(fields=["reason", "created_at"], name="idx_exchange_reason_created"),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if not self.order_item_id:
+            return
+        item = self.order_item
+        if not self.from_size:
+            self.from_size = item.current_size
+        sizes = set(
+            item.variant.product.variants.values_list("size", flat=True)
+        )
+        errors = {}
+        if self.to_size not in sizes:
+            errors["to_size"] = (
+                f"{self.product_name} has no size '{self.to_size}'. "
+                f"Sizes: {', '.join(sorted(sizes))}."
+            )
+        if self.reason != self.Reason.NOT_SIZE and self.to_size == self.from_size:
+            errors["to_size"] = "A size exchange must change the size."
+        if errors:
+            raise ValidationError(errors)
+
+    @property
+    def product_name(self) -> str:
+        return self.order_item.variant.product.name
+
+    def __str__(self) -> str:
+        return f"{self.order_item} {self.from_size} -> {self.to_size} ({self.reason})"
 
 
 class OrderStatusEvent(UUIDModel):

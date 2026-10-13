@@ -13,15 +13,20 @@ import type { CardProduct } from './ProductCard';
 import './product.css';
 import { useLang } from '../../i18n';
 import { categoryLabel } from '../../i18n/labels';
+import { preselectSizeId, suggestedSizeIds, type ProductFit } from '../../data/fit';
+import { RecommendationNote, SizeChartTable } from '../fit/SizeChartTable';
 
 export interface ProductSheetProps {
   product: CardProduct | null;
   isOpen: boolean;
   onClose: () => void;
   onOpenBag?: () => void;
+  /** This product's size chart and suggestion, when it has one. */
+  fit?: ProductFit;
+  fitLoading?: boolean;
 }
 
-export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductSheetProps) {
+export function ProductSheet({ product, isOpen, onClose, onOpenBag, fit, fitLoading }: ProductSheetProps) {
   const { addItem } = useStoreState();
   const { t } = useLang();
 
@@ -35,6 +40,13 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
   const [openFabric, setOpenFabric] = useState(true);
   const [openDelivery, setOpenDelivery] = useState(false);
   const [openExchange, setOpenExchange] = useState(false);
+
+  // Each product opens on its suggested size (if in stock), never the last product's choice.
+  const preselected = product ? preselectSizeId(product.sizes, fit) ?? '' : '';
+  useEffect(() => {
+    setSelectedSizeId(preselected);
+    setSizeError(undefined);
+  }, [product?.id, preselected]);
 
   // Escape key closes the sheet
   useEffect(() => {
@@ -50,6 +62,8 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
   if (!isOpen || !product) return null;
 
   const orderable = product.sizes.some((size) => size.inStock) && !product.needsDetails;
+  const suggested = suggestedSizeIds(product.sizes, fit);
+  const hasChart = Boolean(fit && fit.chart.length > 0);
 
   const handleAdd = (): boolean => {
     if (product.sizes.length > 1 && !selectedSizeId) {
@@ -137,10 +151,18 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
                     setSelectedSizeId(id);
                     setSizeError(undefined);
                   }}
-                  onOpenSizeGuide={() => setSizeGuideOpen(true)}
+                  onOpenSizeGuide={hasChart || fitLoading ? undefined : () => setSizeGuideOpen(true)}
                   error={sizeError}
+                  suggestedIds={[suggested.primary, suggested.alt].filter((id): id is string => Boolean(id))}
                 />
                 </div>
+              )}
+
+              {product.sizes.length > 1 && (
+                <>
+                  <RecommendationNote recommendation={fit?.recommendation} />
+                  <SizeChartTable rows={fit?.chart} loading={fitLoading} recommendation={fit?.recommendation} />
+                </>
               )}
 
               {/* Quantity Stepper */}

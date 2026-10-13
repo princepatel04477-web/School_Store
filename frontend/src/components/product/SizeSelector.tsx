@@ -16,6 +16,8 @@ export interface SizeSelectorProps {
   onOpenSizeGuide?: () => void;
   error?: string;
   className?: string;
+  /** Sizes suggested from the child's height and weight (marked, not chosen). */
+  suggestedIds?: string[];
 }
 
 export function SizeSelector({
@@ -25,6 +27,7 @@ export function SizeSelector({
   onOpenSizeGuide,
   error,
   className = '',
+  suggestedIds = [],
 }: SizeSelectorProps) {
   const { t } = useLang();
   return (
@@ -46,6 +49,7 @@ export function SizeSelector({
       <div className="size-tiles-grid" role="radiogroup" aria-label={t('product.size')}>
         {sizes.map((s) => {
           const isSelected = selectedSizeId === s.id;
+          const isSuggested = suggestedIds.includes(s.id);
           return (
             <button
               key={s.id}
@@ -53,7 +57,8 @@ export function SizeSelector({
               role="radio"
               aria-checked={isSelected}
               disabled={!s.inStock}
-              className={`size-tile ${isSelected ? 'is-selected' : ''} ${!s.inStock ? 'is-out-of-stock' : ''}`}
+              aria-label={isSuggested ? `${s.size} (${t('fit.suggestedTag')})` : undefined}
+              className={`size-tile ${isSelected ? 'is-selected' : ''} ${isSuggested ? 'is-suggested' : ''} ${!s.inStock ? 'is-out-of-stock' : ''}`}
               onClick={() => onSelectSize(s.id)}
             >
               {isSelected && (

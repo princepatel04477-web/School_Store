@@ -54,6 +54,14 @@ export function PrivacyPage() {
         </dd>
         <dt>Order details</dt>
         <dd>Items, sizes, the name printed on an ID card, and the delivery address or pickup choice.</dd>
+        <dt>Your child's height and weight (optional)</dt>
+        <dd>
+          Only if you use the size check before choosing sizes. You can skip it. We use the two numbers to suggest a
+          size from the school's size chart. On your phone they are kept until you close the page. If you place an
+          order, we keep them with that order, next to the size we suggested and the size you chose, so we can see
+          how often our suggestion was wrong when an item is exchanged. We do not keep them as a profile of your
+          child, do not use them for anything else, and do not share them with anyone.
+        </dd>
         <dt>Payments</dt>
         <dd>Handled by our payment partner. We never see or store your card or UPI PIN.</dd>
       </dl>

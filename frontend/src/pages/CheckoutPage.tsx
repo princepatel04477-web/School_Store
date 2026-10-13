@@ -5,6 +5,7 @@ import { formatINR } from '../utils/formatINR';
 import { useStoreState } from '../store/storeState';
 import { siteConfig } from '../siteConfig';
 import { useStoreSchools } from '../data/catalog';
+import { fitKey, getFit } from '../data/fit';
 import { buildOrderMessage, whatsappOrderUrl } from '../services/whatsappOrder';
 import { orderErrorMessage, prepareOrder, submitOrder, type PlacedOrder } from '../services/placeOrder';
 import { useAuth } from '../auth';
@@ -133,6 +134,7 @@ export function CheckoutPage() {
     setPlacing(true);
     setRetrying(false);
     const contact = { recipient_name: parentName.trim(), phone: parentMobile };
+    const fit = getFit(fitKey(selection?.schoolId, selection?.gradeId, selection?.gender));
     const payload = prepareOrder({
       student: child.id,
       fulfillment_type: deliveryType === 'HOME' ? 'HOME_DELIVERY' : 'SCHOOL_PICKUP',
@@ -148,6 +150,7 @@ export function CheckoutPage() {
             }
           : contact,
       items: cart.map((item) => ({ variant: item.variantId, quantity: item.quantity })),
+      ...(fit && fit !== 'skipped' ? { fit: { height_cm: fit.heightCm, weight_kg: fit.weightKg } } : {}),
     });
     try {
       const order = await submitOrder(payload, () => setRetrying(true));

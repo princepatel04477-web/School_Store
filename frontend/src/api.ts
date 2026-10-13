@@ -167,6 +167,21 @@ export const panel={
   importTemplateUrl:(school:string,fmt:'xlsx'|'csv')=>`/panel/student-imports/template/?school=${school}&format=${fmt}`,
 };
 
+/** Size chart import. `scope` is a school id, or 'generic' (Boss only) for items every school shares. */
+export type SizeChartPreview={
+  products?:{product_id:string;product_name:string;adds:number;replaces:number;unchanged:number;deletes:string[]}[];
+  rejected?:{product_id:string;product_name:string;reasons:string[];missing_skus:string[];row_errors:{row:number;sku:string;errors:Record<string,string>}[]}[];
+  errors?:{row:number;sku:string;errors:Record<string,string>}[];
+  summary?:{products_accepted:number;products_rejected:number;adds:number;replaces:number;unchanged:number;deletes:number;unknown_rows:number};
+};
+export const sizeCharts={
+  job:(scope:string,id:string)=>api<ImportJob>(`/size-chart-imports/${id}/?school=${scope}`),
+  upload:(scope:string,file:File)=>{const f=new FormData(); f.append('file',file); return upload<ImportJob>(`/size-chart-imports/?school=${scope}`,f);},
+  confirm:(scope:string,id:string)=>api<ImportJob>(`/size-chart-imports/${id}/confirm/?school=${scope}`,{method:'POST'}),
+  reportUrl:(scope:string,id:string)=>`/size-chart-imports/${id}/report/?school=${scope}`,
+  templateUrl:(scope:string)=>`/size-chart-imports/template/?school=${scope}`,
+};
+
 /* ------------------------------------------------------------------ *
  * City Admin panel (scoped to city)
  * ------------------------------------------------------------------ */

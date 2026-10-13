@@ -13,6 +13,7 @@ import {
   type BossKpis, type BossProductPoint, type BossRevProfitPoint,
   type BossSchoolPoint, type BossStockCatPoint, type CitySchool, type User,
 } from '../api';
+import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
 
 const NAV = [
   { to: '', label: 'Executive Overview', end: true },
@@ -20,6 +21,7 @@ const NAV = [
   { to: 'management', label: 'Staff & Cities' },
   { to: 'schools', label: 'School Commissions' },
   { to: 'view-as', label: 'View As (Audit)' },
+  { to: 'size-charts', label: 'Size Charts' },
 ];
 
 const COLORS = ['#275b4c', '#f4a261', '#4b7c9e', '#9a7742', '#7fae97', '#e76f51', '#2a9d8f', '#e9c46a'];
@@ -59,6 +61,7 @@ export default function BossPanel() {
             <Route path="management" element={<BossStaffManagementView />} />
             <Route path="schools" element={<BossSchoolsCommissionView />} />
             <Route path="view-as" element={<BossViewAsView />} />
+            <Route path="size-charts" element={<BossSizeChartsView />} />
           </Routes>
         </main>
       </div>
@@ -812,6 +815,37 @@ function CreateCityModal({
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Size charts: any school, or the shared items no school owns
+ * ------------------------------------------------------------------ */
+function BossSizeChartsView() {
+  const { data } = useQuery({ queryKey: ['boss-schools-commission'], queryFn: () => cityAdmin.schools() });
+  const schools = data?.results ?? [];
+  const [scope, setScope] = useState('generic');
+  const scopeName = scope === 'generic' ? 'Shared items' : schools.find((s) => s.id === scope)?.code ?? 'School';
+
+  return (
+    <div>
+      <div className="page-head">
+        <div>
+          <div className="eyebrow">SIZE CHARTS</div>
+          <h1>Size Charts</h1>
+          <p className="muted">
+            Body measurements for each size. Schools manage their own items; shared items (no school) are managed here.
+          </p>
+        </div>
+        <select className="school-switch" value={scope} onChange={(e) => setScope(e.target.value)} aria-label="Whose items">
+          <option value="generic">Shared items (every school)</option>
+          {schools.map((s) => (
+            <option key={s.id} value={s.id}>{s.name} · {s.code}</option>
+          ))}
+        </select>
+      </div>
+      <SizeChartImportCard key={scope} scope={scope} scopeName={scopeName} />
     </div>
   );
 }

@@ -6,7 +6,9 @@ from .public import (
     PublicProductList,
     PublicSchoolCitiesView,
     PublicSchoolListView,
+    PublicSizeFitView,
 )
+from .size_chart_views import SizeChartImportViewSet
 from .storefront import StudentCatalogueView, StudentProductDetailView
 from .views import (
     CartValidateView,
@@ -19,12 +21,14 @@ router = DefaultRouter()
 router.register("categories", CategoryViewSet, basename="category")
 router.register("products", ProductViewSet, basename="product")
 router.register("variants", ProductVariantViewSet, basename="variant")
+router.register("size-chart-imports", SizeChartImportViewSet, basename="size-chart-import")
 
 urlpatterns = [
     path("public/schools/", PublicSchoolListView.as_view(), name="public-schools"),
     path("public/schools/<uuid:school_id>/cities/", PublicSchoolCitiesView.as_view(), name="public-school-cities"),
     path("public/grades/", PublicGradeListView.as_view(), name="public-grades"),
     path("public/products/", PublicProductList.as_view(), name="public-products"),
+    path("public/size-fit/", PublicSizeFitView.as_view(), name="public-size-fit"),
     path("cart/validate/", CartValidateView.as_view(), name="cart-validate"),
     path("cart/add/", CartValidateView.as_view(), name="cart-add"),
     path("catalog/cart/validate/", CartValidateView.as_view(), name="catalog-cart-validate"),

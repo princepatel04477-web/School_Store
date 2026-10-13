@@ -333,6 +333,13 @@
   transition: color var(--duration-fast) var(--ease-standard);
 }
 
+/* Suggested from height and weight: an inside bar, since outer shadows are not used */
+.size-tile.is-suggested:not(.is-selected),
+.card-size-chip.is-suggested:not(.is-selected) {
+  border-color: var(--brand);
+  box-shadow: inset 0 -3px 0 var(--brand);
+}
+
 .size-tile:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -398,7 +405,7 @@
 
 .sheet-content-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-8);
 }
 
@@ -417,6 +424,9 @@
 .sheet-details-col {
   display: flex;
   flex-direction: column;
+  /* Lets wide content (the size chart) scroll inside its own box instead of
+     widening the sheet past the phone screen. */
+  min-width: 0;
 }
 
 .product-breadcrumb {

@@ -178,6 +178,13 @@ class OrderCreateItemInputSerializer(serializers.Serializer):
     customisation_data = serializers.JSONField(required=False, default=dict)
 
 
+class OrderFitInputSerializer(serializers.Serializer):
+    """The child's height and weight from the size check (optional)."""
+
+    height_cm = serializers.CharField(max_length=10)
+    weight_kg = serializers.CharField(max_length=10)
+
+
 class OrderCreateSerializer(serializers.Serializer):
     idempotency_key = serializers.CharField(max_length=128, write_only=True)
     student = serializers.PrimaryKeyRelatedField(
@@ -193,6 +200,7 @@ class OrderCreateSerializer(serializers.Serializer):
     )
     delivery_details = serializers.JSONField(required=False, default=dict)
     items = OrderCreateItemInputSerializer(many=True, allow_empty=False)
+    fit = OrderFitInputSerializer(required=False, allow_null=True)
 
     def validate_student(self, student):
         user = self.context["request"].user
@@ -236,6 +244,15 @@ class OrderCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"fulfillment_type": "This school does not offer school pickup."}
             )
+        if attrs.get("fit"):
+            from catalog.sizing import validate_fit
+
+            check = validate_fit(attrs["fit"]["height_cm"], attrs["fit"]["weight_kg"])
+            if not check.ok:
+                raise serializers.ValidationError(
+                    {"fit": {field: [code] for field, code in check.errors.items()}}
+                )
+            attrs["fit"] = check
         return attrs
 
     @transaction.atomic
@@ -375,23 +392,33 @@ class OrderCreateSerializer(serializers.Serializer):
                     }
                 )
 
+        fit = validated_data.get("fit")
+        recommendations = self._recommendations(fit, variants.values()) if fit else {}
+
         order_items = []
         movements = []
         for item in items_data:
             variant_id = item["variant"].id
             variant = variants[variant_id]
             quantity = item["quantity"]
-            order_items.append(
-                OrderItem(
-                    order=order,
-                    variant=variant,
-                    category_id=variant.product.category_id,
-                    quantity=quantity,
-                    unit_price_snapshot=variant.product.selling_price,
-                    unit_cost_snapshot=variant.product.cost_price,
-                    customisation_data=item.get("customisation_data") or {},
-                )
+            order_item = OrderItem(
+                order=order,
+                variant=variant,
+                category_id=variant.product.category_id,
+                quantity=quantity,
+                unit_price_snapshot=variant.product.selling_price,
+                unit_cost_snapshot=variant.product.cost_price,
+                customisation_data=item.get("customisation_data") or {},
+                chosen_size=variant.size,
             )
+            recommendation = recommendations.get(variant.product_id)
+            if recommendation is not None:
+                order_item.fit_height_cm = fit.height_cm
+                order_item.fit_weight_kg = fit.weight_kg
+                order_item.recommended_size = recommendation.size
+                order_item.recommended_alt_size = recommendation.alt_size
+                order_item.recommendation_status = recommendation.status
+            order_items.append(order_item)
             movements.append(
                 StockMovement(
                     variant=variant,
@@ -438,6 +465,27 @@ class OrderCreateSerializer(serializers.Serializer):
                 )
             )
         return order
+
+    @staticmethod
+    def _recommendations(fit, variants) -> dict:
+        """
+        product_id -> Recommendation, worked out again on the server from the
+        chart as it is now, so the logged recommendation can be trusted.
+        Products without a chart are left out (they only log the chosen size).
+        """
+        from catalog.models import SizeChartRow
+        from catalog.sizing import chart_rows_from_models, recommend_size
+
+        product_ids = {variant.product_id for variant in variants}
+        charts: dict = {}
+        for row in SizeChartRow.objects.select_related("variant").filter(
+            variant__product_id__in=product_ids, variant__active=True
+        ):
+            charts.setdefault(row.variant.product_id, []).append(row)
+        return {
+            product_id: recommend_size(chart_rows_from_models(rows), fit.height_cm, fit.weight_kg)
+            for product_id, rows in charts.items()
+        }
 
     @staticmethod
     def _existing_for_actor(order, user):

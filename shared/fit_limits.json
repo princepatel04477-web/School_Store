@@ -1,0 +1,5 @@
+{
+  "_comment": "Child height and weight accepted by the size check (ages about 5 to 18). Read by backend/catalog/sizing.py and frontend/src/data/fit.ts.",
+  "height_cm": { "min": 90, "max": 200 },
+  "weight_kg": { "min": 12, "max": 120 }
+}
