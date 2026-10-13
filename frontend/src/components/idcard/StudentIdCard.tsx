@@ -67,6 +67,9 @@ function scanBars(seed: string) {
 export function StudentIdCard({ school, student, session, isExample = false }: StudentIdCardProps) {
   const shouldReduceMotion = useReducedMotion();
   const [flipped, setFlipped] = useState(false);
+  // A photo that fails to load shows the empty photo box, never a broken image
+  const [failedPhoto, setFailedPhoto] = useState<string | null>(null);
+  const showPhoto = Boolean(student.photoUrl) && failedPhoto !== student.photoUrl;
   // Last input used on the card; keyboard until a pointer touches it
   const lastPointer = useRef<string>('keyboard');
   const hoverTimer = useRef<number>();
@@ -147,8 +150,14 @@ export function StudentIdCard({ school, student, session, isExample = false }: S
 
               <div className="idc-body">
                 <div className="idc-photo">
-                  {student.photoUrl ? (
-                    <img src={student.photoUrl} alt="" width={96} height={120} />
+                  {showPhoto ? (
+                    <img
+                      src={student.photoUrl}
+                      alt=""
+                      width={96}
+                      height={120}
+                      onError={() => setFailedPhoto(student.photoUrl ?? null)}
+                    />
                   ) : (
                     <span className="idc-photo-empty">
                       <svg viewBox="0 0 96 120" aria-hidden="true">

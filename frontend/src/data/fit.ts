@@ -157,7 +157,8 @@ export function useSizeFit(productIds: string[], answer: FitAnswer, className?: 
           ...(fit ? { ...fitPayload(fit), class: className } : {}),
         }),
       }),
-    enabled: ids.length > 0 && answer !== null,
+    // Fetched before the parent answers too: the charts decide whether to ask at all.
+    enabled: ids.length > 0,
     staleTime: 10 * 60 * 1000,
     retry: 1,
   });

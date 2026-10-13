@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Search, Check, ArrowRight, ArrowLeft } from '../components/ui/icons';
 import { motion } from 'motion/react';
@@ -14,14 +14,15 @@ import { StepTransition } from '../motion/StepTransition';
 import { Thread } from '../motion/Thread';
 import { Stagger, Reveal, Hairline } from '../motion';
 import { EASING } from '../motion/motionConfig';
-import { prefetchBagDrawer, prefetchCheckoutPage } from '../utils/prefetch';
-import { formatINR } from '../utils/formatINR';
 import { useLang, type MessageKey } from '../i18n';
 import { categoryLabel, classLabel, genderLabel } from '../i18n/labels';
 import { ListenButton } from '../components/ListenButton';
 import { FullSetSheet } from '../components/product/FullSetSheet';
 import { FitCheck, FitSummary } from '../components/fit/FitCheck';
+import { ProductGridSkeleton } from '../components/ui/Skeleton';
 import { fitKey, setFit, useFitAnswer, useSizeFit } from '../data/fit';
+import { CATEGORY_PHOTOS } from '../data/categoryPhotos';
+import { CategoryPhoto } from '../components/CategoryPhoto';
 import './flow.css';
 
 const GROUP_KEYS: Record<string, MessageKey> = {
@@ -34,7 +35,7 @@ const GROUP_KEYS: Record<string, MessageKey> = {
 export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { selection, setSelection, subtotalPaise, cart, clearCart } = useStoreState();
+  const { selection, setSelection, cart, clearCart } = useStoreState();
   const { t } = useLang();
   const [fullSetOpen, setFullSetOpen] = useState(false);
 
@@ -75,7 +76,10 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   );
   const sizeFit = useSizeFit(sizedProductIds, fitAnswer, activeClass?.name);
   const fits = sizeFit.data?.products;
-  const askFit = sizedProductIds.length > 0 && (fitAnswer === null || editingFit);
+  // Only ask for height and weight when an item here has a size chart to read them against.
+  const hasCharts = Object.values(fits ?? {}).some((p) => p.chart.length > 0);
+  const checkingCharts = sizedProductIds.length > 0 && fitAnswer === null && sizeFit.isLoading;
+  const askFit = hasCharts && (fitAnswer === null || editingFit);
 
   // A link from the school (?school=…&class=…) counts as the parent's choice, so the
   // bag and checkout know which school and class the order is for.
@@ -105,7 +109,19 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const [pendingTargetStep, setPendingTargetStep] = useState<number | null>(null);
 
   // Active Category Tab on Step 4
-  const [activeTab, setActiveTab] = useState<string>('Uniform');
+  // A home page category tile links here with ?cat=…, so open on that category.
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const cat = searchParams.get('cat');
+    return cat && CATEGORY_PHOTOS[cat] ? cat : 'Uniform';
+  });
+
+  // Changing category while scrolled down jumps back to the start of that category's list
+  const tabsTopRef = useRef<HTMLDivElement>(null);
+  const selectTab = (cat: string) => {
+    setActiveTab(cat);
+    const top = tabsTopRef.current ? tabsTopRef.current.getBoundingClientRect().top + window.scrollY - 60 : 0;
+    if (window.scrollY > top) window.scrollTo({ top });
+  };
 
   // Product Sheet Modal
   const [activeProductForSheet, setActiveProductForSheet] = useState<CardProduct | null>(null);
@@ -610,7 +626,9 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   <ListenButton text={`${t('flow.s4.title')}. ${t('flow.s4.listen')}`} />
                 </div>
 
-                {askFit ? (
+                {checkingCharts ? (
+                  <ProductGridSkeleton count={4} />
+                ) : askFit ? (
                   <FitCheck
                     initial={fitAnswer && fitAnswer !== 'skipped' ? fitAnswer : undefined}
                     onSubmit={(fit) => {
@@ -624,7 +642,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   />
                 ) : (
                 <>
-                {sizedProductIds.length > 0 && fitAnswer && (
+                {hasCharts && fitAnswer && (
                   <FitSummary
                     answer={fitAnswer}
                     warnings={sizeFit.data?.fit?.warnings}
@@ -648,25 +666,33 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                 )}
 
                 {/* Sticky Category Tabs */}
-                <div className="category-tabs-sticky">
+                <div ref={tabsTopRef} aria-hidden="true" />
+                <div className="category-tabs-sticky" role="tablist" aria-label={t('home.shopByCategory')}>
                   {(['Uniform', 'School Shoes', 'Uniform Accessories', 'Stationery', 'ID Cards'] as const).map(
-                    (cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        className={`cat-tab ${activeTab === cat ? 'is-active' : ''}`}
-                        onClick={() => setActiveTab(cat)}
-                      >
-                        {activeTab === cat && (
-                          <motion.span
-                            layoutId="cat-tab-indicator"
-                            className="cat-tab-indicator"
-                            transition={{ duration: 0.2, ease: EASING }}
-                          />
-                        )}
-                        <span className="cat-tab-label">{categoryLabel(cat, t)}</span>
-                      </button>
-                    )
+                    (cat) => {
+                      const count = productsQuery.isSuccess ? products.filter((p) => p.category === cat).length : null;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          role="tab"
+                          aria-selected={activeTab === cat}
+                          className={`cat-tab ${activeTab === cat ? 'is-active' : ''}`}
+                          onClick={() => selectTab(cat)}
+                        >
+                          {activeTab === cat && (
+                            <motion.span
+                              layoutId="cat-tab-indicator"
+                              className="cat-tab-indicator"
+                              transition={{ duration: 0.2, ease: EASING }}
+                            />
+                          )}
+                          <CategoryPhoto category={cat} className="cat-tab-photo" size={56} />
+                          <span className="cat-tab-label">{categoryLabel(cat, t)}</span>
+                          {count ? <span className="cat-tab-count">{count}</span> : null}
+                        </button>
+                      );
+                    }
                   )}
                 </div>
 
@@ -729,7 +755,6 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                             <ProductCard
                               key={p.id}
                               product={p}
-                              fit={fits?.[p.id]}
                               onOpenDetails={(item) => setActiveProductForSheet(item)}
                             />
                           ))}
@@ -750,7 +775,6 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                             <ProductCard
                               key={p.id}
                               product={p}
-                              fit={fits?.[p.id]}
                               onOpenDetails={(item) => setActiveProductForSheet(item)}
                             />
                           ))}
@@ -762,41 +786,6 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                 </>
                 )}
               </div>
-
-              {/* Sticky Selection Summary Aside */}
-              <aside className="selection-summary-aside">
-                <div className="selection-summary-card">
-                  <div className="summary-school-head">
-                    <SchoolCrest id={activeSchool.id} color={activeSchool.color} name={activeSchool.name} code={activeSchool.code} size={40} />
-                    <div>
-                      <h3 className="summary-school-name">{activeSchool.name}</h3>
-                      <span className="summary-class-tag">{classLabel(activeClass?.name, t)} · {genderLabel(activeGender, t)}</span>
-                    </div>
-                  </div>
-
-                  <div className="summary-stats-row">
-                    <span>{t('flow.itemsInBag')}</span>
-                    <strong>{cart.length}</strong>
-                  </div>
-
-                  <div className="summary-total-row">
-                    <span>{t('bag.total')}</span>
-                    <span className="summary-total-val">{formatINR(subtotalPaise)}</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="btn btn-primary summary-bag-btn"
-                    onMouseEnter={() => {
-                      prefetchBagDrawer();
-                      prefetchCheckoutPage();
-                    }}
-                    onClick={onOpenBag}
-                  >
-                    {t('flow.viewBag', { total: formatINR(subtotalPaise) })}
-                  </button>
-                </div>
-              </aside>
             </div>
           </div>
         )}

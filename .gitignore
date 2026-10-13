@@ -40,6 +40,7 @@ redis/
 
 # Server publishing
 deploy/public.env
+deploy/backup.env
 deploy/*-log.txt
 deploy/*-result.txt
 frontend/dist-local/

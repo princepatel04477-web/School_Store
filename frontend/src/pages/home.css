@@ -424,17 +424,22 @@
   background-color: var(--paper-sunk);
 }
 
-/* Drawn kit on the tile; it stays still (no hover motion) */
+/* Product photo on the tile (or the drawn kit if the photo is missing); it stays still */
 .cat-tile-media {
   display: grid;
   place-items: center;
-  background-color: var(--paper-raised);
 }
 
 .cat-tile-media .kit-illustration {
   width: 68%;
   height: 68%;
-  transition: transform var(--duration-base) var(--ease-standard);
+}
+
+.cat-tile-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 

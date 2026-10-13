@@ -49,6 +49,14 @@ function formatGender(value?: string | null) {
   return value;
 }
 
+/** Example student photo for the preview, in the uniform of the school picked. */
+const EXAMPLE_PHOTO_PREFIX: Record<string, string> = { 'DPS-SUR': 'dps', 'FHS-SUR': 'fhs', 'UDG-AMD': 'udg' };
+
+function examplePhoto(schoolCode: string | undefined, gender?: 'boy' | 'girl' | null) {
+  const prefix = EXAMPLE_PHOTO_PREFIX[schoolCode ?? ''] ?? 'dps';
+  return `/products/idphoto-${prefix}-${gender === 'girl' ? 'girl' : 'boy'}.webp`;
+}
+
 /**
  * The ID card preview on the ID Cards tab. Signed-in parents see their own
  * child's details for this school; everyone else sees marked example details
@@ -95,20 +103,31 @@ export function IdCardPreview({ school, className, gender }: IdCardPreviewProps)
         gender: gender === 'girl' ? 'Girl' : 'Boy',
         parentName: 'Rohit Sharma',
         parentPhone: '+91 98XXX XX210',
+        photoUrl: examplePhoto(school.code, gender),
       };
 
   const isExample = !ownChild;
 
   return (
     <section className="idc-preview" aria-labelledby="idc-preview-heading">
+      <StudentIdCard
+        school={{
+          id: school.id,
+          name: school.name,
+          code: school.code,
+          city: school.city,
+          board: school.board,
+          color: getSchoolColor(school),
+        }}
+        student={student}
+        session={currentSession()}
+        isExample={isExample}
+      />
+
       <div className="idc-preview-copy">
         <span className="label">Printed for {school.name}</span>
         <h2 id="idc-preview-heading">{isExample ? 'How the ID card will look' : `${student.name}'s ID card`}</h2>
-        <p>
-          {isExample
-            ? 'The card is printed in your school’s colours with your child’s photo and details from the school record.'
-            : 'These details come from your school record. Check them before you order; the card is printed exactly as shown.'}
-        </p>
+        {!isExample && <p>These details come from your school record. Check them before you order.</p>}
         <p className="idc-preview-hint">
           <span className="idc-hint-mouse">Point at the card to see the back.</span>
           <span className="idc-hint-touch">Tap the card to see the back.</span>
@@ -144,19 +163,6 @@ export function IdCardPreview({ school, className, gender }: IdCardPreviewProps)
         schoolName={school.name}
       />
 
-      <StudentIdCard
-        school={{
-          id: school.id,
-          name: school.name,
-          code: school.code,
-          city: school.city,
-          board: school.board,
-          color: getSchoolColor(school),
-        }}
-        student={student}
-        session={currentSession()}
-        isExample={isExample}
-      />
     </section>
   );
 }

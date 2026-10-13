@@ -5,6 +5,7 @@ import tempfile
 from decimal import Decimal
 
 from django.core.cache import cache
+from django.db.models import Count, Q
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.db import connection
@@ -22,7 +23,6 @@ from .size_chart_import import TEMPLATE_COLUMNS, validate_import
 
 URL = "/api/size-chart-imports/"
 SHIRT = ["DPS-SHIRT-28", "DPS-SHIRT-30", "DPS-SHIRT-32", "DPS-SHIRT-34"]
-PINAFORE = ["DPS-PIN-22", "DPS-PIN-24"]
 
 
 def login(user):
@@ -70,6 +70,23 @@ class SizeChartImportTestBase(TestCase):
         cls.boss = User.objects.get(username="boss")
         cls.school_admin = User.objects.get(username="school_admin_dps")
         cls.shirt = ProductVariant.objects.get(sku="DPS-SHIRT-28").product
+        # Any second DPS product that comes in several sizes, with all of its
+        # active SKUs (the seed's catalogue changes, so no SKU is named here).
+        second = (
+            Product.objects.filter(school=cls.dps)
+            .exclude(pk=cls.shirt.pk)
+            .annotate(sizes=Count("variants", filter=Q(variants__active=True)))
+            .filter(sizes__gte=2)
+            .order_by("name")
+            .first()
+        )
+        cls.second_skus = list(
+            second.variants.filter(active=True).order_by("sku").values_list("sku", flat=True)
+        )
+
+    def second_rows(self):
+        """A full, valid chart for the second product, whatever its sizes are."""
+        return [chart_row(sku, 100 + i * 10, 109 + i * 10) for i, sku in enumerate(self.second_skus)]
 
     def setUp(self):
         cache.clear()
@@ -156,9 +173,9 @@ class DryRunAndCommitTests(SizeChartImportTestBase):
 
     def test_products_not_in_the_file_keep_their_chart(self):
         self.confirm(self.upload(shirt_rows()))
-        self.confirm(self.upload([chart_row("DPS-PIN-22", 110, 122), chart_row("DPS-PIN-24", 123, 134)]))
+        self.confirm(self.upload(self.second_rows()))
         self.assertEqual(SizeChartRow.objects.filter(variant__sku__in=SHIRT).count(), 4)
-        self.assertEqual(SizeChartRow.objects.filter(variant__sku__in=PINAFORE).count(), 2)
+        self.assertEqual(SizeChartRow.objects.filter(variant__sku__in=self.second_skus).count(), len(self.second_skus))
 
     def test_whole_file_is_checked_with_a_fixed_number_of_queries(self):
         job = self.upload(shirt_rows())
@@ -166,7 +183,7 @@ class DryRunAndCommitTests(SizeChartImportTestBase):
         job.save(update_fields=["status"])
         with CaptureQueriesContext(connection) as small:
             validate_import(job)
-        job = self.upload(shirt_rows() + [chart_row(sku, 110, 130) for sku in PINAFORE])
+        job = self.upload(shirt_rows() + self.second_rows())
         job.status = ImportJob.Status.PENDING
         job.save(update_fields=["status"])
         with CaptureQueriesContext(connection) as large:
@@ -176,7 +193,7 @@ class DryRunAndCommitTests(SizeChartImportTestBase):
 
 class RejectionTests(SizeChartImportTestBase):
     def test_partial_product_is_rejected_and_lists_missing_skus(self):
-        rows = shirt_rows()[:2] + [chart_row("DPS-PIN-22", 110, 122), chart_row("DPS-PIN-24", 123, 134)]
+        rows = shirt_rows()[:2] + self.second_rows()
         job = self.upload(rows)
         rejected = job.preview["rejected"]
         self.assertEqual(len(rejected), 1)
@@ -186,7 +203,7 @@ class RejectionTests(SizeChartImportTestBase):
 
         self.confirm(job)
         self.assertEqual(SizeChartRow.objects.filter(variant__sku__in=SHIRT).count(), 0)
-        self.assertEqual(SizeChartRow.objects.filter(variant__sku__in=PINAFORE).count(), 2)
+        self.assertEqual(SizeChartRow.objects.filter(variant__sku__in=self.second_skus).count(), len(self.second_skus))
 
         report = self.client.get(f"{URL}{job.id}/report/").content.decode("utf-8")
         self.assertIn("DPS-SHIRT-32", report)
@@ -194,7 +211,7 @@ class RejectionTests(SizeChartImportTestBase):
 
     def test_blank_template_rows_do_not_put_a_product_in_the_file(self):
         rows = [chart_row(sku, "", "") for sku in SHIRT] + [
-            chart_row("DPS-PIN-22", 110, 122), chart_row("DPS-PIN-24", 123, 134)
+            *self.second_rows()
         ]
         job = self.upload(rows)
         self.assertEqual(job.preview["rejected"], [])
@@ -250,7 +267,7 @@ class CatalogueChangeTests(SizeChartImportTestBase):
         self.confirm(self.upload(shirt_rows()))
         before = list(SizeChartRow.objects.order_by("variant__sku").values_list("variant__sku", "height_cm_min"))
 
-        rows = shirt_rows(start=100) + [chart_row("DPS-PIN-22", 110, 122), chart_row("DPS-PIN-24", 123, 134)]
+        rows = shirt_rows(start=100) + self.second_rows()
         job = self.upload(rows)
         self.assertEqual(job.preview["summary"]["products_accepted"], 2)
         ProductVariant.objects.create(product=self.shirt, size="36 (Class 12)", sku="DPS-SHIRT-36")

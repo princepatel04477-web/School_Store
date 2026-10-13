@@ -17,6 +17,7 @@ from common.cache_utils import (
 )
 from orders.models import Order, OrderItem, OrderStatusEvent
 from schools.models import City, School, Student
+from common.testing import requires_postgres
 
 
 class FoundationAndDataModelTests(TestCase):
@@ -24,6 +25,7 @@ class FoundationAndDataModelTests(TestCase):
     def setUpTestData(cls):
         call_command("seed_data")
 
+    @requires_postgres
     def test_all_models_use_uuid_v4_primary_keys(self):
         models_to_check = [
             City,
@@ -72,7 +74,8 @@ class FoundationAndDataModelTests(TestCase):
     def test_seed_command_creates_expected_baseline(self):
         self.assertEqual(City.objects.count(), 2)
         self.assertEqual(School.objects.count(), 3)
-        self.assertEqual(Category.objects.count(), 4)
+        # uniforms, shoes, uniform accessories, stationery, ID cards
+        self.assertEqual(Category.objects.count(), 5)
         self.assertTrue(Product.objects.count() >= 6)
         self.assertTrue(ProductVariant.objects.count() >= 15)
 
@@ -86,6 +89,7 @@ class FoundationAndDataModelTests(TestCase):
         }
         self.assertTrue(expected_roles.issubset(roles_present))
 
+    @requires_postgres
     def test_composite_indexes_present_in_database(self):
         expected_indexes = {
             "idx_order_school_created",
@@ -94,7 +98,7 @@ class FoundationAndDataModelTests(TestCase):
             "idx_order_parent_created",
             "idx_order_status_created",
             "uniq_student_school_gr",
-            "idx_student_school_cls_sec",
+            "idx_student_school_grd_sec",  # replaced (school, class, section) when grades became a FK
             "idx_student_parent",
             "idx_variant_product",
             "idx_prod_school_cat_active",
@@ -165,6 +169,7 @@ class FoundationAndDataModelTests(TestCase):
         v_sch_after = get_cache_version(SCHOOL_LIST_CACHE_VERSION_KEY)
         self.assertGreater(v_sch_after, v_sch_before)
 
+    @requires_postgres
     def test_perf_orders_generator_command(self):
         call_command("seed_perf_orders", count=100, reset=True)
         self.assertGreaterEqual(

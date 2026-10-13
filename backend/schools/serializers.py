@@ -2,6 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
+from common.constants import normalize_class_name
 from common.exceptions import Conflict
 from common.models import ImportJob
 
