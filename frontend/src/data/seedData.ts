@@ -1,4 +1,5 @@
 import { CLASSES } from './classes';
+import type { ChartRow } from '../measure/recommendSize';
 
 export interface SeedSchool {
   id: string;
@@ -36,6 +37,7 @@ export interface SeedProduct {
   description: string;
   fabricCare?: string;
   deliveryNotes?: string;
+  sizeChart?: ChartRow[];
 }
 
 export const seedSchools: SeedSchool[] = [

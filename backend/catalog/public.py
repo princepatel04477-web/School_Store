@@ -327,7 +327,7 @@ class PublicProductList(APIView):
             .filter(Q(gender=selected_gender) | Q(gender=Product.Gender.UNISEX))
             .distinct()
             .select_related("category", "school")
-            .prefetch_related(variants)
+            .prefetch_related(variants, "size_chart")
             .order_by("id")
         )
 
@@ -360,6 +360,18 @@ class PublicProductList(APIView):
                 "price": float(product.selling_price),
                 "thumbnail": product_thumbnail(product.images),
                 "customisation_schema": product.customisation_schema,
+                "size_chart": [
+                    {
+                        "size": row.size_label,
+                        "height_cm_min": float(row.height_cm_min),
+                        "height_cm_max": float(row.height_cm_max),
+                        "weight_kg_min": float(row.weight_kg_min),
+                        "weight_kg_max": float(row.weight_kg_max),
+                        "shoulder_cm_min": float(row.shoulder_cm_min),
+                        "shoulder_cm_max": float(row.shoulder_cm_max),
+                    }
+                    for row in product.size_chart.all()
+                ],
                 "variants": [
                     {
                         "id": str(variant.id),

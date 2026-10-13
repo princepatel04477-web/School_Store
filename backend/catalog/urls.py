@@ -8,6 +8,7 @@ from .public import (
     PublicSchoolListView,
 )
 from .storefront import StudentCatalogueView, StudentProductDetailView
+from .fit_views import FitReadingCreateView
 from .views import (
     CartValidateView,
     CategoryViewSet,
@@ -25,6 +26,7 @@ urlpatterns = [
     path("public/schools/<uuid:school_id>/cities/", PublicSchoolCitiesView.as_view(), name="public-school-cities"),
     path("public/grades/", PublicGradeListView.as_view(), name="public-grades"),
     path("public/products/", PublicProductList.as_view(), name="public-products"),
+    path("catalog/fit-reading/", FitReadingCreateView.as_view(), name="fit-reading"),
     path("cart/validate/", CartValidateView.as_view(), name="cart-validate"),
     path("cart/add/", CartValidateView.as_view(), name="cart-add"),
     path("catalog/cart/validate/", CartValidateView.as_view(), name="catalog-cart-validate"),

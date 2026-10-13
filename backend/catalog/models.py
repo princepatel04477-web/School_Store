@@ -1,5 +1,7 @@
+from django.conf import settings
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 from common.models import UUIDModel
 from common.cache_utils import invalidate_catalog_cache
@@ -227,3 +229,61 @@ class ProductVariant(UUIDModel):
 
     def __str__(self) -> str:
         return f"{self.sku} ({self.product.name} - {self.size})"
+
+
+class SizeChartRow(UUIDModel):
+    """Height, weight, and shoulder ranges for one size of one product."""
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="size_chart",
+    )
+    size_label = models.CharField(max_length=40)
+    height_cm_min = models.DecimalField(max_digits=5, decimal_places=1)
+    height_cm_max = models.DecimalField(max_digits=5, decimal_places=1)
+    weight_kg_min = models.DecimalField(max_digits=5, decimal_places=1)
+    weight_kg_max = models.DecimalField(max_digits=5, decimal_places=1)
+    shoulder_cm_min = models.DecimalField(max_digits=5, decimal_places=1)
+    shoulder_cm_max = models.DecimalField(max_digits=5, decimal_places=1)
+
+    class Meta:
+        ordering = ["height_cm_min", "size_label"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product", "size_label"],
+                name="uniq_sizechart_product_size",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        invalidate_catalog_cache()
+
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        invalidate_catalog_cache()
+
+    def __str__(self) -> str:
+        return f"{self.product.name} {self.size_label}"
+
+
+class FitReading(UUIDModel):
+    """Shoulder width measured on the phone. No photo is stored."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="fit_readings",
+    )
+    shoulder_cm = models.DecimalField(max_digits=5, decimal_places=1)
+    confidence = models.DecimalField(max_digits=4, decimal_places=3)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.shoulder_cm} cm ({self.confidence})"

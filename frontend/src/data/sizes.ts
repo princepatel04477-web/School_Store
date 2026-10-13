@@ -45,3 +45,12 @@ export function suggestSizeId(sizes: SizeChoice[], className?: string): string |
   });
   return matches.length === 1 ? matches[0].id : undefined;
 }
+
+/** True when the label names no class, or the child's class sits inside that range. */
+export function sizeFitsClass(label: string, className?: string): boolean {
+  const number = classNumber(className);
+  if (number === null) return true;
+  const range = classesInLabel(label);
+  if (range === null) return true;
+  return number >= range[0] && number <= range[1];
+}

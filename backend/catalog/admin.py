@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Category, Product, ProductVariant
+from .models import Category, FitReading, Product, ProductVariant, SizeChartRow
 
 
 @admin.register(Category)
@@ -10,6 +10,12 @@ class CategoryAdmin(admin.ModelAdmin):
     search_fields = ("name", "slug")
     prepopulated_fields = {"slug": ("name",)}
     readonly_fields = ("id", "created_at", "updated_at")
+
+
+class SizeChartRowInline(admin.TabularInline):
+    model = SizeChartRow
+    extra = 0
+    readonly_fields = ("id",)
 
 
 class ProductVariantInline(admin.TabularInline):
@@ -37,7 +43,17 @@ class ProductAdmin(admin.ModelAdmin):
     filter_horizontal = ("grades",)
     readonly_fields = ("id", "created_at", "updated_at")
     list_select_related = ("category", "school")
-    inlines = [ProductVariantInline]
+    inlines = [ProductVariantInline, SizeChartRowInline]
+
+
+@admin.register(FitReading)
+class FitReadingAdmin(admin.ModelAdmin):
+    list_display = ("shoulder_cm", "confidence", "user", "created_at")
+    readonly_fields = ("id", "user", "shoulder_cm", "confidence", "created_at")
+    list_select_related = ("user",)
+
+    def has_add_permission(self, request):
+        return False
 
 
 @admin.register(ProductVariant)

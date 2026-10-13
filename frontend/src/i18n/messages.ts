@@ -470,6 +470,31 @@ export const messages = {
   },
   'signin.wrongOtp': { en: 'That OTP is wrong or old. Try again.', gu: 'OTP ખોટો કે જૂનો છે. ફરી પ્રયત્ન કરો.', hi: 'OTP गलत या पुराना है। फिर कोशिश करें।' },
 
+  // ---------- measure ----------
+  'measure.height': { en: 'Height (cm)', gu: 'ઊંચાઈ (સેમી)', hi: 'कद (सेमी)' },
+  'measure.weight': { en: 'Weight (kg)', gu: 'વજન (કિલો)', hi: 'वजन (किलो)' },
+  'measure.open': { en: 'Measure with camera', gu: 'કેમેરાથી માપો', hi: 'कैमरे से नापें' },
+  'measure.skip': { en: 'Skip', gu: 'છોડો', hi: 'छोड़ें' },
+  'measure.stepBack': { en: 'Step back', gu: 'પાછળ થાઓ', hi: 'पीछे हटें' },
+  'measure.facePhone': { en: 'Face the phone', gu: 'ફોન સામે ફરો', hi: 'फ़ोन की तरफ मुँह करें' },
+  'measure.holdStill': { en: 'Hold still', gu: 'સ્થિર રહો', hi: 'शांत खड़े रहें' },
+  'measure.ready': { en: 'Hold still', gu: 'સ્થિર રહો', hi: 'शांत खड़े रहें' },
+  'measure.shirt': {
+    en: 'Wear a fitted T-shirt or vest, not the loose uniform shirt.',
+    gu: 'ઢીલું યુનિફોર્મ નહીં, બંધ બેસતી ટી-શર્ટ કે બંડી પહેરો.',
+    hi: 'ढीली यूनिफ़ॉर्म नहीं, फिट टी-शर्ट या बनियान पहनें।',
+  },
+  'measure.hold': {
+    en: 'Hold the phone at your chest. The child stands about 2 metres away.',
+    gu: 'ફોન છાતીની ઊંચાઈએ પકડો. બાળક લગભગ 2 મીટર દૂર ઊભું રહે.',
+    hi: 'फ़ोन छाती की ऊँचाई पर रखें। बच्चा लगभग 2 मीटर दूर खड़ा हो।',
+  },
+  'measure.cameraError': {
+    en: 'The camera did not open. You can still pick a size.',
+    gu: 'કેમેરો ખૂલ્યો નહીં. સાઈઝ તમે જ પસંદ કરી શકો છો.',
+    hi: 'कैमरा नहीं खुला। साइज़ आप खुद चुन सकते हैं।',
+  },
+
   // ---------- footer ----------
   'foot.shop': { en: 'Shop', gu: 'ખરીદી', hi: 'ख़रीदारी' },
   'foot.help': { en: 'Help', gu: 'મદદ', hi: 'मदद' },

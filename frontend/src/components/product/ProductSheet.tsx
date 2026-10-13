@@ -13,6 +13,11 @@ import type { CardProduct } from './ProductCard';
 import './product.css';
 import { useLang } from '../../i18n';
 import { categoryLabel } from '../../i18n/labels';
+import { MEASURE_WITH_CAMERA, MIN_CONFIDENCE } from '../../measure/config';
+import { MeasureCapture } from '../../measure/MeasureCapture';
+import { recommendSize } from '../../measure/recommendSize';
+import { api } from '../../api';
+import '../../measure/measure.css';
 
 export interface ProductSheetProps {
   product: CardProduct | null;
@@ -22,7 +27,7 @@ export interface ProductSheetProps {
 }
 
 export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductSheetProps) {
-  const { addItem } = useStoreState();
+  const { addItem, selection } = useStoreState();
   const { t } = useLang();
 
   const [selectedSizeId, setSelectedSizeId] = useState<string>('');
@@ -35,8 +40,40 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
   const [openFabric, setOpenFabric] = useState(true);
   const [openDelivery, setOpenDelivery] = useState(false);
   const [openExchange, setOpenExchange] = useState(false);
+  const [heightCm, setHeightCm] = useState('');
+  const [weightKg, setWeightKg] = useState('');
+  const [shoulderCm, setShoulderCm] = useState<number | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
-  // Escape key closes the sheet
+  useEffect(() => {
+    setHeightCm('');
+    setWeightKg('');
+    setShoulderCm(null);
+    setCameraOpen(false);
+    setSelectedSizeId('');
+  }, [product?.id]);
+
+  const chart = product?.sizeChart ?? [];
+  const uniform = (product?.category || '').toLowerCase() === 'uniform';
+  const showFit = Boolean(product && uniform && product.sizes.length > 1 && chart.length > 0);
+  const height = Number(heightCm);
+  const weight = Number(weightKg);
+  const recommended = showFit && height > 0 && weight > 0
+    ? recommendSize({
+        heightCm: height,
+        weightKg: weight,
+        className: selection?.gradeName,
+        rows: chart,
+        shoulderCm,
+        useShoulder: shoulderCm != null,
+      })
+    : null;
+
+  useEffect(() => {
+    if (!product || !recommended) return;
+    const match = product.sizes.find((size) => size.size === recommended && size.inStock);
+    if (match) setSelectedSizeId(match.id);
+  }, [product, recommended]);
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen && !sizeGuideOpen) {
@@ -130,6 +167,52 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
               {/* Sizing Radio Group */}
               {product.sizes.length > 0 && (
                 <div ref={sizeRowRef}>
+                {showFit && (
+                  <div className="fit-fields">
+                    <label>
+                      {t('measure.height')}
+                      <input
+                        inputMode="decimal"
+                        value={heightCm}
+                        onChange={(event) => {
+                          setHeightCm(event.target.value);
+                          setShoulderCm(null);
+                        }}
+                      />
+                    </label>
+                    <label>
+                      {t('measure.weight')}
+                      <input
+                        inputMode="decimal"
+                        value={weightKg}
+                        onChange={(event) => {
+                          setWeightKg(event.target.value);
+                          setShoulderCm(null);
+                        }}
+                      />
+                    </label>
+                    <ul className="fit-chart">
+                      {chart.map((row) => (
+                        <li key={row.size}>
+                          <span>{row.size}</span>
+                          <span>
+                            {row.heightCmMin}-{row.heightCmMax} cm, {row.weightKgMin}-{row.weightKgMax} kg
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    {MEASURE_WITH_CAMERA && (
+                      <button
+                        type="button"
+                        className="measure-open"
+                        disabled={!(height > 0)}
+                        onClick={() => setCameraOpen(true)}
+                      >
+                        {t('measure.open')}
+                      </button>
+                    )}
+                  </div>
+                )}
                 <SizeSelector
                   sizes={product.sizes}
                   selectedSizeId={selectedSizeId}
@@ -232,6 +315,24 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag }: ProductShe
         isOpen={sizeGuideOpen}
         onClose={() => setSizeGuideOpen(false)}
       />
+      {cameraOpen && height > 0 && (
+        <MeasureCapture
+          heightCm={height}
+          onSkip={() => setCameraOpen(false)}
+          onResult={(result) => {
+            setCameraOpen(false);
+            if (result.confidence < MIN_CONFIDENCE) return;
+            setShoulderCm(result.shoulder_cm);
+            void api('/catalog/fit-reading/', {
+              method: 'POST',
+              body: JSON.stringify({
+                shoulder_cm: result.shoulder_cm,
+                confidence: result.confidence,
+              }),
+            }).catch(() => undefined);
+          }}
+        />
+      )}
     </>
   );
 }

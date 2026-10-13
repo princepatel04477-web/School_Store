@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
 import type { SeedProduct, SeedSchool } from './seedData';
+import type { ChartRow } from '../measure/recommendSize';
 
 /**
  * The public store's real data: schools and their approved items, read from the
@@ -45,6 +46,15 @@ type PublicProduct = {
   thumbnail: string | null;
   customisation_schema: CustomisationField[] | { fields?: CustomisationField[] } | null;
   variants: PublicVariant[];
+  size_chart?: {
+    size: string;
+    height_cm_min: number;
+    height_cm_max: number;
+    weight_kg_min: number;
+    weight_kg_max: number;
+    shoulder_cm_min: number;
+    shoulder_cm_max: number;
+  }[];
 };
 type Page<T> = { next: string | null; results: T[] };
 
@@ -94,6 +104,15 @@ function toProduct(product: PublicProduct): StoreProduct {
     imageUrl: product.thumbnail || undefined,
     needsDetails: needsDetails(product.customisation_schema),
     official: Boolean(product.school),
+    sizeChart: (product.size_chart ?? []).map((row): ChartRow => ({
+      size: row.size,
+      heightCmMin: row.height_cm_min,
+      heightCmMax: row.height_cm_max,
+      weightKgMin: row.weight_kg_min,
+      weightKgMax: row.weight_kg_max,
+      shoulderCmMin: row.shoulder_cm_min,
+      shoulderCmMax: row.shoulder_cm_max,
+    })),
   };
 }
 
