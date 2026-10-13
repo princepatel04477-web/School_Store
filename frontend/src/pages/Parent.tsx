@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { Check } from '../components/ui/icons';
 import { Link, Route, Routes } from 'react-router-dom';
 import { Shell } from '../App';
+import { ListenButton } from '../components/ListenButton';
 import { SelectionFlow } from '../components/SelectionFlow';
 import { Cart, Timeline, type CartItem } from '../components/Store';
-import { api, Order, Product } from '../api';
+import { api, deleteChildPhotos, Order, Product } from '../api';
+import { useLang } from '../i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import '../components/photoConsent.css';
 
 interface StudentDetail {
   id: string;
@@ -54,6 +57,9 @@ export default function Parent() {
 
 function Dashboard() {
   const queryClient = useQueryClient();
+  const { t } = useLang();
+  const [confirmPhotoDelete, setConfirmPhotoDelete] = useState(false);
+  const [photoDeleteState, setPhotoDeleteState] = useState<'idle' | 'working' | 'done' | 'error'>('idle');
   const { data: studentsData } = useQuery({
     queryKey: ['parent-students'],
     queryFn: () => api<{ results: any[] }>('/students/').catch(() => null),
@@ -99,6 +105,7 @@ function Dashboard() {
   const rawStudent = studentsData?.results?.find((s: any) => s.id === selectedId);
   const studentProfile = rawStudent
     ? {
+        id: rawStudent.id,
         school_id: rawStudent.school,
         school_name: rawStudent.school_name,
         city_id: rawStudent.city,
@@ -134,6 +141,8 @@ function Dashboard() {
               onClick={() => {
                 setSelectedId(k.id);
                 setCartItems([]);
+                setConfirmPhotoDelete(false);
+                setPhotoDeleteState('idle');
               }}
               className={selected?.id === k.id ? 'kid selected' : 'kid'}
               key={k.id}
@@ -254,6 +263,57 @@ function Dashboard() {
             ℹ Contact your school to correct this. Only school staff can update student records.
           </div>
         </div>
+      )}
+
+      {selected?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selected.id) && (
+        <section className="photo-delete">
+          <ListenButton text={t('photo.delete.listen')} />
+          <p>{t('photo.delete.listen')}</p>
+          {photoDeleteState === 'done' && <p>{t('photo.delete.done')}</p>}
+          {photoDeleteState === 'error' && <p className="photo-delete-error">{t('photo.delete.error')}</p>}
+          <div className="photo-consent-actions">
+            {!confirmPhotoDelete ? (
+              <button
+                type="button"
+                className="photo-consent-btn danger"
+                onClick={() => {
+                  setConfirmPhotoDelete(true);
+                  setPhotoDeleteState('idle');
+                }}
+              >
+                {t('photo.delete.action')}
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="photo-consent-btn danger"
+                  disabled={photoDeleteState === 'working'}
+                  onClick={async () => {
+                    setPhotoDeleteState('working');
+                    try {
+                      await deleteChildPhotos(selected.id);
+                      setPhotoDeleteState('done');
+                      setConfirmPhotoDelete(false);
+                    } catch {
+                      setPhotoDeleteState('error');
+                    }
+                  }}
+                >
+                  {t('photo.delete.confirm')}
+                </button>
+                <button
+                  type="button"
+                  className="photo-consent-btn"
+                  disabled={photoDeleteState === 'working'}
+                  onClick={() => setConfirmPhotoDelete(false)}
+                >
+                  {t('photo.delete.cancel')}
+                </button>
+              </>
+            )}
+          </div>
+        </section>
       )}
 
       {/* Category Tabs: Step-by-step Selection flow applies to Uniform, Shoes, Accessories */}

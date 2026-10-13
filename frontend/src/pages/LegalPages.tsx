@@ -10,7 +10,7 @@ import './legal.css';
  * launch: these are a working draft, not legal advice.
  */
 
-const UPDATED = '10 October 2026';
+const UPDATED = '13 October 2026';
 
 function LegalPage({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -54,6 +54,12 @@ export function PrivacyPage() {
         </dd>
         <dt>Order details</dt>
         <dd>Items, sizes, the name printed on an ID card, and the delivery address or pickup choice.</dd>
+        <dt>Your child's photo</dt>
+        <dd>
+          Only when you order a photo notebook or a student ID card, and only after you tick consent on that
+          order. The tick is empty until you choose it. We store the photo, a print file, and a small preview. We
+          also store the time you agreed, the policy version, and the IP address and browser of that request.
+        </dd>
         <dt>Payments</dt>
         <dd>Handled by our payment partner. We never see or store your card or UPI PIN.</dd>
       </dl>
@@ -68,13 +74,18 @@ export function PrivacyPage() {
       <h2>Who we share it with</h2>
       <p>
         Your child's school (to confirm orders and run the collection counter), the delivery partner (name, phone and
-        address only) and the payment partner. We do not sell personal data or use it for advertising.
+        address only) and the payment partner. School staff who can open the order see a short-lived link to a
+        photo notebook or ID card photo. The print file is what the printer uses. There is no separate printer
+        login on this site. We do not sell personal data or use it for advertising.
       </p>
 
       <h2>How long we keep it</h2>
       <p>
-        Order records are kept for 8 years because tax law requires it. Student records are kept while the school
-        is a partner and removed within 90 days of the school asking us to, or of the student leaving the school.
+        Order records are kept for 8 years because tax law requires it. The original photo and the print file are
+        deleted 30 days after the order is marked delivered. The small preview is deleted then too, unless you
+        ticked "Keep a small copy for next year's ID card". You can delete every photo we hold for your child,
+        and withdraw consent, from My children on your account. Student records are kept while the school is a
+        partner and removed within 90 days of the school asking us to, or of the student leaving the school.
       </p>
 
       <h2>Your rights</h2>

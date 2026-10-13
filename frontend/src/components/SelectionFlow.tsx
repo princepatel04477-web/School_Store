@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api, Product, StockStatus } from '../api';
 import { CLASSES } from '../data/classes';
 import { useStoreState } from '../store/storeState';
-import { CustomisationForm } from './CustomisationForm';
+import { CustomisationForm, photoPurposeForCategory } from './CustomisationForm';
 import { Popup } from './Popup';
 
 export interface SchoolItem {
@@ -36,6 +36,7 @@ export interface SelectionState {
 interface SelectionFlowProps {
   category?: string; // Default: 'Uniform'
   studentProfile?: {
+    id?: string;
     school_id?: string;
     school_name?: string;
     city_id?: string;
@@ -1139,6 +1140,8 @@ export function SelectionFlow({
                 schema={schemaList}
                 values={customValues}
                 onChange={setCustomValues}
+                studentId={studentProfile?.id}
+                purpose={photoPurposeForCategory(category)}
               />
             )}
 

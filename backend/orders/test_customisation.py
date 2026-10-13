@@ -9,17 +9,21 @@ End-to-end tests for generic personalised product customisation:
 """
 
 import io
+import shutil
+import tempfile
+from datetime import timedelta
 from decimal import Decimal
 from PIL import Image
 
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
 from catalog.models import Category, Product, ProductVariant
-from orders.image_tasks import process_customisation_image
-from orders.models import Order, OrderItem
+from orders.image_tasks import process_customisation_image, purge_delivered_child_photos
+from orders.models import Order, OrderItem, OrderStatusEvent, PhotoConsent
 from orders.serializers import OrderCreateSerializer
 from orders.storage import (
     generate_presigned_download,
@@ -66,6 +70,7 @@ class CustomisationEndToEndTests(TestCase):
             school=None,
             cost_price=Decimal("150.00"),
             selling_price=Decimal("250.00"),
+            gender="unisex",
             customisation_schema=[
                 {
                     "key": "cover_photo",
@@ -96,6 +101,7 @@ class CustomisationEndToEndTests(TestCase):
             school=None,
             cost_price=Decimal("40.00"),
             selling_price=Decimal("120.00"),
+            gender="unisex",
             customisation_schema=[
                 {
                     "key": "student_photo",
@@ -153,12 +159,23 @@ class CustomisationEndToEndTests(TestCase):
         )
 
     def test_presigned_upload_url_generation(self):
-        """API issues short-lived pre-signed upload URL for direct storage upload."""
+        """API issues short-lived pre-signed upload URL once a live consent exists."""
+        PhotoConsent.objects.create(
+            parent=self.parent_user,
+            student=self.student,
+            purpose=PhotoConsent.Purpose.NOTEBOOK,
+            policy_version="2026-10-13",
+        )
         client = APIClient()
         client.force_authenticate(user=self.parent_user)
         resp = client.post(
             "/api/orders/customisation-upload-url/",
-            {"content_type": "image/jpeg", "file_size": 500000},
+            {
+                "content_type": "image/jpeg",
+                "file_size": 500000,
+                "student_id": str(self.student.id),
+                "purpose": "NOTEBOOK",
+            },
             format="json",
         )
         self.assertEqual(resp.status_code, 200)
@@ -167,6 +184,215 @@ class CustomisationEndToEndTests(TestCase):
         self.assertIn("file_key", data)
         self.assertTrue(data["file_key"].startswith("customisations/"))
         self.assertEqual(data["expires_in"], 300)
+
+    def test_presigned_upload_blocked_without_consent(self):
+        client = APIClient()
+        client.force_authenticate(user=self.parent_user)
+        resp = client.post(
+            "/api/orders/customisation-upload-url/",
+            {
+                "content_type": "image/jpeg",
+                "file_size": 500000,
+                "student_id": str(self.student.id),
+                "purpose": "NOTEBOOK",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+        self.assertIn("agree", resp.json()["detail"].lower())
+
+    def test_presigned_upload_blocked_after_consent_withdrawn(self):
+        consent = PhotoConsent.objects.create(
+            parent=self.parent_user,
+            student=self.student,
+            purpose=PhotoConsent.Purpose.NOTEBOOK,
+            policy_version="2026-10-13",
+        )
+        consent.withdrawn_at = timezone.now()
+        consent.save(update_fields=["withdrawn_at"])
+        client = APIClient()
+        client.force_authenticate(user=self.parent_user)
+        resp = client.post(
+            "/api/orders/customisation-upload-url/",
+            {
+                "content_type": "image/jpeg",
+                "file_size": 500000,
+                "student_id": str(self.student.id),
+                "purpose": "NOTEBOOK",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def _stored_photo(self, key: str) -> None:
+        put_object_bytes(key, b"original-bytes")
+        base = key.rsplit(".", 1)[0]
+        put_object_bytes(f"{base}_print.jpg", b"print-bytes")
+        put_object_bytes(f"{base}_thumb.jpg", b"thumb-bytes")
+
+    def _file_exists(self, key: str) -> bool:
+        try:
+            get_object_bytes(key)
+            return True
+        except FileNotFoundError:
+            return False
+
+    def _delivered_photo_order(self, *, student, variant, category, field, key, days_ago: int, order_number: str):
+        base = key.rsplit(".", 1)[0]
+        order = Order.objects.create(
+            order_number=order_number,
+            student=student,
+            placed_by=self.parent_user,
+            subtotal=Decimal("120.00"),
+            total=Decimal("120.00"),
+            status=Order.Status.DELIVERED,
+            payment_status=Order.PaymentStatus.PAID,
+        )
+        event = OrderStatusEvent.objects.create(
+            order=order,
+            status=Order.Status.DELIVERED,
+            changed_by=self.parent_user,
+        )
+        OrderStatusEvent.objects.filter(pk=event.pk).update(
+            timestamp=timezone.now() - timedelta(days=days_ago)
+        )
+        OrderItem.objects.create(
+            order=order,
+            variant=variant,
+            category=category,
+            quantity=1,
+            unit_price_snapshot=Decimal("120.00"),
+            unit_cost_snapshot=Decimal("40.00"),
+            customisation_data={
+                field: key,
+                f"{field}_print": f"{base}_print.jpg",
+                f"{field}_thumb": f"{base}_thumb.jpg",
+            },
+        )
+        return order
+
+    def test_retention_task_deletes_original_and_print_and_keeps_thumb_only_when_asked(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        other = Student.objects.create(
+            name="Diya Patel",
+            gr_number="DPS-002",
+            class_name="5",
+            section="A",
+            school=self.school,
+            parent=self.parent_user,
+        )
+        PhotoConsent.objects.create(
+            parent=self.parent_user,
+            student=self.student,
+            purpose=PhotoConsent.Purpose.ID_CARD,
+            policy_version="2026-10-13",
+            keep_for_next_year=True,
+        )
+        PhotoConsent.objects.create(
+            parent=self.parent_user,
+            student=other,
+            purpose=PhotoConsent.Purpose.ID_CARD,
+            policy_version="2026-10-13",
+            keep_for_next_year=False,
+        )
+        keep_key = "customisations/2026/10/keep_me.jpg"
+        drop_key = "customisations/2026/10/drop_me.jpg"
+        fresh_key = "customisations/2026/10/fresh.jpg"
+        with override_settings(CUSTOMISATION_LOCAL_DIR=tmp, PHOTO_RETENTION_DAYS=30):
+            self._stored_photo(keep_key)
+            self._stored_photo(drop_key)
+            self._stored_photo(fresh_key)
+            self._delivered_photo_order(
+                student=self.student,
+                variant=self.idcard_variant,
+                category=self.cat_idcards,
+                field="student_photo",
+                key=keep_key,
+                days_ago=31,
+                order_number="ORD-KEEP-THUMB",
+            )
+            self._delivered_photo_order(
+                student=other,
+                variant=self.idcard_variant,
+                category=self.cat_idcards,
+                field="student_photo",
+                key=drop_key,
+                days_ago=31,
+                order_number="ORD-DROP-ALL",
+            )
+            self._delivered_photo_order(
+                student=self.student,
+                variant=self.idcard_variant,
+                category=self.cat_idcards,
+                field="student_photo",
+                key=fresh_key,
+                days_ago=2,
+                order_number="ORD-TOO-SOON",
+            )
+            purge_delivered_child_photos()
+            self.assertFalse(self._file_exists(keep_key))
+            self.assertFalse(self._file_exists("customisations/2026/10/keep_me_print.jpg"))
+            self.assertTrue(self._file_exists("customisations/2026/10/keep_me_thumb.jpg"))
+            self.assertFalse(self._file_exists(drop_key))
+            self.assertFalse(self._file_exists("customisations/2026/10/drop_me_print.jpg"))
+            self.assertFalse(self._file_exists("customisations/2026/10/drop_me_thumb.jpg"))
+            self.assertTrue(self._file_exists(fresh_key))
+            self.assertTrue(self._file_exists("customisations/2026/10/fresh_print.jpg"))
+            self.assertTrue(self._file_exists("customisations/2026/10/fresh_thumb.jpg"))
+
+    def test_parent_delete_removes_files_and_withdraws_consent(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        key = "customisations/2026/10/withdraw.jpg"
+        consent = PhotoConsent.objects.create(
+            parent=self.parent_user,
+            student=self.student,
+            purpose=PhotoConsent.Purpose.ID_CARD,
+            policy_version="2026-10-13",
+            keep_for_next_year=True,
+        )
+        stranger = User.objects.create_user(
+            username="other_parent",
+            password="password123",
+            role="PARENT",
+            city=self.city,
+            school=self.school,
+        )
+        with override_settings(CUSTOMISATION_LOCAL_DIR=tmp):
+            self._stored_photo(key)
+            self._delivered_photo_order(
+                student=self.student,
+                variant=self.idcard_variant,
+                category=self.cat_idcards,
+                field="student_photo",
+                key=key,
+                days_ago=1,
+                order_number="ORD-WITHDRAW",
+            )
+            stranger_client = APIClient()
+            stranger_client.force_authenticate(user=stranger)
+            denied = stranger_client.post(
+                "/api/orders/photo-consent/delete/",
+                {"student_id": str(self.student.id)},
+                format="json",
+            )
+            self.assertEqual(denied.status_code, 403)
+            self.assertTrue(self._file_exists(key))
+
+            client = APIClient()
+            client.force_authenticate(user=self.parent_user)
+            resp = client.post(
+                "/api/orders/photo-consent/delete/",
+                {"student_id": str(self.student.id)},
+                format="json",
+            )
+            self.assertEqual(resp.status_code, 200)
+            self.assertFalse(self._file_exists(key))
+            self.assertFalse(self._file_exists("customisations/2026/10/withdraw_print.jpg"))
+            self.assertFalse(self._file_exists("customisations/2026/10/withdraw_thumb.jpg"))
+        consent.refresh_from_db()
+        self.assertIsNotNone(consent.withdrawn_at)
 
     def test_reject_base64_or_huge_payload_in_customisation_data(self):
         """Rejects raw base64 or large payloads in customisation_data to keep DB small."""
