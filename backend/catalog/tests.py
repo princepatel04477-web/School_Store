@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.core.cache import cache
 from django.core.management import call_command
 from django.db import connection
+from django.db.models import Q
 from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from rest_framework.test import APIClient
@@ -371,7 +372,14 @@ class PublicCatalogTests(TestCase):
             product__gender__in=["boy", "unisex"],
         ).first()
         v_shoes = ProductVariant.objects.filter(product__category__slug="school-shoes").first()
-        v_acc = ProductVariant.objects.filter(product__category__slug="uniform-accessories").first()
+        # This school's or a shared accessory: "first" by random UUID could be another school's tie.
+        v_acc = (
+            ProductVariant.objects.filter(product__category__slug="uniform-accessories")
+            .filter(Q(product__school=self.dps) | Q(product__school__isnull=True))
+            .filter(product__gender__in=["boy", "unisex"])
+            .order_by("sku")
+            .first()
+        )
         v_stat = ProductVariant.objects.filter(product__category__slug="stationery").first()
 
         self.assertIsNotNone(v_uniform)
