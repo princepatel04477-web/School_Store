@@ -617,3 +617,8 @@
 .cat-tile .cat-arrow {
   color: var(--on-tile);
 }
+
+/* The home page's one full-width band of the store highlight */
+.highlight-band {
+  background-color: var(--highlight-soft);
+}

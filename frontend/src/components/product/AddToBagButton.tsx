@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EASING, DURATION_FAST } from '../../motion/motionConfig';
+import { flyToBag } from '../../motion/flyToBag';
 import './product.css';
 import { useLang } from '../../i18n';
 
@@ -30,8 +31,9 @@ export function AddToBagButton({
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
-  const handleClick = () => {
+  const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
     if (added || !onAdd()) return;
+    flyToBag(e.currentTarget);
     setAdded(true);
     timer.current = window.setTimeout(() => {
       setAdded(false);

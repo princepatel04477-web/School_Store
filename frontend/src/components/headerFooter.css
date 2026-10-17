@@ -104,13 +104,29 @@
   align-items: center;
   gap: var(--space-2);
   background-color: var(--paper-raised);
-  border: 1px solid var(--line);
+  border: 1px solid var(--highlight);
   padding: 4px var(--space-3);
   border-radius: var(--radius-full);
   font-size: var(--text-xs);
   white-space: nowrap;
   flex-shrink: 1;
   min-width: 0;
+}
+
+/* One slow pulse when a school is picked, to confirm the choice */
+.selected-school-pill.is-confirming {
+  animation: pill-confirm 1.6s var(--ease-retint) 1;
+}
+
+@keyframes pill-confirm {
+  0%   { outline: 4px solid var(--highlight-glow); outline-offset: 2px; }
+  100% { outline: 4px solid transparent; outline-offset: 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selected-school-pill.is-confirming {
+    animation: none;
+  }
 }
 
 .pill-school-info {
@@ -240,7 +256,8 @@
   position: absolute;
   top: 4px;
   right: 4px;
-  background-color: var(--brand);
+  /* Ink, not --highlight: the count is 11px white text */
+  background-color: var(--highlight-ink);
   color: var(--paper-raised);
   font-size: 11px;
   font-weight: 600;

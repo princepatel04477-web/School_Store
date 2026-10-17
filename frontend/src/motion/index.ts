@@ -12,3 +12,5 @@ export * from './Thread';
 export * from './StepTransition';
 export * from './PressScale';
 export * from './useShake';
+export * from './flyToBag';
+export * from './InkUnderline';

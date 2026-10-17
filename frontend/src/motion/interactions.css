@@ -101,3 +101,17 @@ html :is(.btn-loading, .is-paying):active {
     scale: none;
   }
 }
+
+/* Dot that flies from an add button to the bag (motion/flyToBag.ts) */
+.fly-to-bag-dot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--highlight);
+  pointer-events: none;
+  z-index: 1000;
+  will-change: transform;
+}

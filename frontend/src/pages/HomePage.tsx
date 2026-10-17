@@ -87,6 +87,7 @@ export function HomePage() {
             <TextReveal
               lines={[t('home.heroLine1'), t('home.heroLine2')]}
               className="hero-heading"
+              underlineLast
             />
             <Reveal delay={0.15}>
               <p className="hero-subtext">
@@ -161,7 +162,8 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* 3. SHOP BY CATEGORY (Editorial Grid) */}
+      {/* 3. SHOP BY CATEGORY (Editorial Grid), on the one full-width highlight band */}
+      <div className="highlight-band">
       <section className="section-wrap container">
         <Reveal>
           <div className="section-head">
@@ -197,6 +199,7 @@ export function HomePage() {
           ))}
         </Stagger>
       </section>
+      </div>
 
       {/* 4. FEATURED SCHOOLS */}
       <section className="section-wrap container">

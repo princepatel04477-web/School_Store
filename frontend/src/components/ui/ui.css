@@ -67,6 +67,36 @@ button.primary:active:not(:disabled) {
   border-color: var(--brand-deep);
 }
 
+/* Hover: the highlight fills in left to right behind the label. Colour only, nothing
+   moves. --highlight-ink keeps the white label at 6:1 throughout. Mouse only. */
+.btn-primary {
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-color: var(--highlight-ink);
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.35s var(--ease-standard);
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover:not(:disabled)::before {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary::before {
+    transition: none;
+  }
+}
+
 .btn-outline:active:not(:disabled) {
   background-color: var(--paper-sunk);
 }
@@ -75,7 +105,7 @@ button.primary:active:not(:disabled) {
 .primary:focus-visible,
 button.primary:focus-visible,
 .btn:focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--highlight);
   outline-offset: 2px;
 }
 

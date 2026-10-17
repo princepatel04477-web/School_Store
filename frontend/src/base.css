@@ -162,14 +162,15 @@ select:focus-visible,
 textarea:focus-visible,
 a:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid var(--brand);
+  /* Solid, not the 35% glow: a focus ring needs 3:1 against the page (this is 3.8:1) */
+  outline: 2px solid var(--highlight);
   outline-offset: 2px;
 }
 
 /* Selection color */
 ::selection {
-  background-color: var(--brand-tint);
-  color: var(--brand-deep);
+  background-color: var(--highlight-ink);
+  color: #FFFFFF;
 }
 
 /* Layout Utilities */
