@@ -9,9 +9,22 @@ export interface RevealProps {
   className?: string;
 }
 
+// One motion component per tag, made once. Calling motion.create() during render
+// gave React a new component type every render, so any state change in a parent
+// (such as opening the school search) threw the subtree away and replayed the reveal.
+const motionByTag = new Map<ElementType, typeof motion.div>();
+function motionFor(as: ElementType): typeof motion.div {
+  let component = motionByTag.get(as);
+  if (!component) {
+    component = motion.create(as) as typeof motion.div;
+    motionByTag.set(as, component);
+  }
+  return component;
+}
+
 export function Reveal({ children, delay = 0, as = 'div', className = '' }: RevealProps) {
   const shouldReduceMotion = useReducedMotion();
-  const MotionComponent = motion.create(as);
+  const MotionComponent = motionFor(as);
 
   if (shouldReduceMotion) {
     return <div className={className}>{children}</div>;
