@@ -1,10 +1,12 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowRight } from '../components/ui/icons';
 import { motion, AnimatePresence } from 'motion/react';
-import { useStoreSchools, type StoreSchool } from '../data/catalog';
+import { useStoreSchools } from '../data/catalog';
 import { useStoreState } from '../store/storeState';
 import { SchoolCrest } from '../components/school/SchoolCrest';
-import { SchoolSearchBox } from '../components/school/SchoolSearchBox';
+import { SchoolSearch } from '../components/school/SchoolSearch';
+import { useSelectSchool } from '../components/school/useSelectSchool';
+import { Button } from '../components/ui/Button';
 import { KitIllustration, type KitKind } from '../components/home/KitIllustration';
 import { CategoryPhoto } from '../components/CategoryPhoto';
 import { EASING } from '../motion/motionConfig';
@@ -61,15 +63,7 @@ export function HomePage() {
 
   const { data: schools = [] } = useStoreSchools();
 
-  const handleSelectSchool = (school: StoreSchool) => {
-    setSelection({
-      schoolId: school.id,
-      schoolName: school.name,
-      schoolCode: school.code,
-      cityName: school.city,
-    });
-    navigate(`/flow?school=${encodeURIComponent(school.id)}&step=2`);
-  };
+  const handleSelectSchool = useSelectSchool();
 
   return (
     <div className="home-page" id="main">
@@ -121,9 +115,9 @@ export function HomePage() {
                     </div>
 
                     <div className="hero-selected-actions">
-                        <button
-                          type="button"
-                          className="btn btn-primary hero-continue-btn"
+                        <Button
+                          className="hero-continue-btn"
+                          arrow
                           onMouseEnter={prefetchFlowPage}
                           onClick={() => {
                             const nextStep = selection.gradeId
@@ -136,8 +130,8 @@ export function HomePage() {
                             );
                           }}
                         >
-                          {t('home.continue')} <ArrowRight width={16} height={16} />
-                        </button>
+                          {t('home.continue')}
+                        </Button>
                       <button
                         type="button"
                         className="hero-change-school-link"
@@ -154,7 +148,15 @@ export function HomePage() {
                     </div>
                   </motion.div>
                 ) : (
-                  <SchoolSearchBox key="search" schools={schools} onSelect={handleSelectSchool} />
+                  <motion.div
+                    key="search"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.25, ease: EASING }}
+                  >
+                    <SchoolSearch schools={schools} onSelect={handleSelectSchool} />
+                  </motion.div>
                 )}
               </AnimatePresence>
             </Reveal>

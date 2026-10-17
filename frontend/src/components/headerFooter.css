@@ -23,6 +23,8 @@
   top: 0;
   left: 0;
   right: 0;
+  /* The container sets the gutter; this cancels the old global header padding in styles.css */
+  padding-inline: 0;
   height: 72px;
   background-color: var(--paper);
   z-index: 40;
@@ -411,11 +413,10 @@
   .selected-school-pill {
     display: none;
   }
-  /* Sign in, My Account and search live in the menu drawer (or the home page) on phones;
-     the language button takes the search icon's place */
+  /* Sign in and My Account live in the menu drawer on phones. Search stays:
+     it opens the full-screen school search. */
   .action-signin-link,
-  .action-account-btn,
-  .action-search-btn {
+  .action-account-btn {
     display: none;
   }
   .brand-wordmark {
@@ -423,6 +424,14 @@
   }
   .header-actions {
     gap: 0;
+  }
+  /* Four 44px buttons and the wordmark don't fit at 360px. Keep the touch targets
+     and let the outer two reach into the side gutter; their icons stay inset. */
+  .mobile-menu-trigger {
+    margin-left: -12px;
+  }
+  .bag-btn {
+    margin-right: -12px;
   }
 }
 
