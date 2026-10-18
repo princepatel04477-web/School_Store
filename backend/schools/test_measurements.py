@@ -178,3 +178,30 @@ class RetentionTests(MeasurementTestBase):
         self.assertEqual(purge_old_measurements(now=now), 1)
         self.assertFalse(StudentMeasurement.objects.filter(pk=old.pk).exists())
         self.assertTrue(StudentMeasurement.objects.filter(pk=fresh.pk).exists())
+
+
+class LastSizesTests(MeasurementTestBase):
+    def test_last_size_per_item_for_the_child(self):
+        from catalog.models import Category, Product, ProductVariant
+        from orders.models import Order, OrderItem
+
+        shoes = Category.objects.create(name="School Shoes", slug="school-shoes")
+        shoe = Product.objects.create(category=shoes, name="Black Shoes", cost_price=1, selling_price=2)
+        size_3 = ProductVariant.objects.create(product=shoe, size="3", sku="SH-3")
+        size_4 = ProductVariant.objects.create(product=shoe, size="4", sku="SH-4")
+
+        def order(variant, number, status=Order.Status.PLACED):
+            placed = Order.objects.create(
+                order_number=number, placed_by=self.parent, placed_by_role="PARENT", student=self.child,
+                school=self.school, city=self.surat, status=status, subtotal=2, total=2,
+            )
+            OrderItem.objects.create(order=placed, variant=variant, category=shoes, quantity=1,
+                                     unit_price_snapshot=2, unit_cost_snapshot=1, chosen_size=variant.size)
+
+        order(size_3, "ORD-A")
+        order(size_4, "ORD-B")
+        order(size_3, "ORD-C", status=Order.Status.CANCELLED)  # cancelled: ignored
+        res = login(self.parent).get(f"/api/students/{self.child.id}/last-sizes/")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json(), {str(shoe.id): "4"})
+        self.assertEqual(login(self.other_parent).get(f"/api/students/{self.child.id}/last-sizes/").status_code, 404)

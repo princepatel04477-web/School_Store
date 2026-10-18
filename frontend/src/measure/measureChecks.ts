@@ -1,23 +1,52 @@
 import {
+  CENTRE_TOLERANCE,
+  MAX_FILL,
   MAX_SHOULDER_TILT_DEG,
   MAX_SHOULDER_Z,
+  MIN_FILL,
   MIN_VISIBILITY,
   STILL_MOVE_PX,
 } from './config';
-import { LEFT_HEEL, LEFT_SHOULDER, NOSE, RIGHT_HEEL, RIGHT_SHOULDER, type Landmark } from './measureBody';
+import {
+  LEFT_ANKLE,
+  LEFT_HEEL,
+  LEFT_HIP,
+  LEFT_SHOULDER,
+  NOSE,
+  RIGHT_ANKLE,
+  RIGHT_HEEL,
+  RIGHT_HIP,
+  RIGHT_SHOULDER,
+  type Landmark,
+} from './measureBody';
 
-export type Guidance = 'stepBack' | 'facePhone' | 'holdStill' | 'ready';
+/** One short instruction at a time, in the order the parent should fix them. */
+export type Guidance =
+  | 'moveBack'
+  | 'moveCloser'
+  | 'standInside'
+  | 'showFullBody'
+  | 'standStraight'
+  | 'holdStill'
+  | 'ready';
 
 export interface PoseCheck {
+  /** Nose, shoulders, hips, ankles and heels all seen clearly. */
   wholeBody: boolean;
+  centred: boolean;
+  fillsOutline: boolean;
   shouldersLevel: boolean;
   facingFront: boolean;
   still: boolean;
   ready: boolean;
   guidance: Guidance;
+  /** Lowest visibility of the points that matter: picks the best frames. */
+  quality: number;
 }
 
-function visible(point: Landmark | undefined): boolean {
+const REQUIRED = [NOSE, LEFT_SHOULDER, RIGHT_SHOULDER, LEFT_HIP, RIGHT_HIP, LEFT_ANKLE, RIGHT_ANKLE, LEFT_HEEL, RIGHT_HEEL];
+
+function visible(point: Landmark | undefined): point is Landmark {
   return Boolean(point) && (point?.visibility ?? 0) >= MIN_VISIBILITY;
 }
 
@@ -26,15 +55,8 @@ function tiltDegrees(left: Landmark, right: Landmark): number {
   return degrees > 90 ? 180 - degrees : degrees;
 }
 
-function movedPx(
-  current: Landmark,
-  previous: Landmark,
-  imageWidth: number,
-  imageHeight: number,
-): number {
-  const dx = (current.x - previous.x) * imageWidth;
-  const dy = (current.y - previous.y) * imageHeight;
-  return Math.hypot(dx, dy);
+function movedPx(current: Landmark, previous: Landmark, imageWidth: number, imageHeight: number): number {
+  return Math.hypot((current.x - previous.x) * imageWidth, (current.y - previous.y) * imageHeight);
 }
 
 export function checkPose(
@@ -46,24 +68,28 @@ export function checkPose(
   const nose = landmarks[NOSE];
   const left = landmarks[LEFT_SHOULDER];
   const right = landmarks[RIGHT_SHOULDER];
-  const leftHeel = landmarks[LEFT_HEEL];
-  const rightHeel = landmarks[RIGHT_HEEL];
+  const quality = Math.min(...REQUIRED.map((index) => landmarks[index]?.visibility ?? 0));
 
-  const inFrame =
-    visible(nose) &&
-    visible(leftHeel) &&
-    visible(rightHeel) &&
-    nose.y > 0.04 &&
-    nose.y < 0.7 &&
-    leftHeel.y < 0.98 &&
-    rightHeel.y < 0.98 &&
-    leftHeel.y > nose.y &&
-    rightHeel.y > nose.y;
+  // Cut off at the top or the bottom of the picture: the child is too close.
+  const cutOff =
+    (visible(nose) && nose.y < 0.03) ||
+    [LEFT_ANKLE, RIGHT_ANKLE, LEFT_HEEL, RIGHT_HEEL].some((i) => visible(landmarks[i]) && landmarks[i].y > 0.98);
+  const wholeBody = REQUIRED.every((index) => visible(landmarks[index])) && !cutOff;
 
-  const shouldersLevel =
-    visible(left) && visible(right) && tiltDegrees(left, right) <= MAX_SHOULDER_TILT_DEG;
-  const facingFront =
-    visible(left) && visible(right) && Math.abs((left.z ?? 0) - (right.z ?? 0)) <= MAX_SHOULDER_Z;
+  let fillsOutline = false;
+  let tooBig = false;
+  let centred = false;
+  if (wholeBody) {
+    const ankleY = (landmarks[LEFT_ANKLE].y + landmarks[RIGHT_ANKLE].y) / 2;
+    const fill = ankleY - nose.y;
+    tooBig = fill > MAX_FILL;
+    fillsOutline = fill >= MIN_FILL && !tooBig;
+    const middleX = (left.x + right.x + landmarks[LEFT_HIP].x + landmarks[RIGHT_HIP].x) / 4;
+    centred = Math.abs(middleX - 0.5) <= CENTRE_TOLERANCE;
+  }
+
+  const shouldersLevel = visible(left) && visible(right) && tiltDegrees(left, right) <= MAX_SHOULDER_TILT_DEG;
+  const facingFront = visible(left) && visible(right) && Math.abs((left.z ?? 0) - (right.z ?? 0)) <= MAX_SHOULDER_Z;
 
   let still = false;
   if (previous && visible(nose) && visible(left) && visible(right)) {
@@ -75,18 +101,23 @@ export function checkPose(
     still = shift <= STILL_MOVE_PX;
   }
 
-  const ready = inFrame && shouldersLevel && facingFront && still;
   let guidance: Guidance = 'ready';
-  if (!inFrame) guidance = 'stepBack';
-  else if (!shouldersLevel || !facingFront) guidance = 'facePhone';
+  if (cutOff || tooBig) guidance = 'moveBack';
+  else if (!wholeBody) guidance = 'showFullBody';
+  else if (!fillsOutline) guidance = 'moveCloser';
+  else if (!centred) guidance = 'standInside';
+  else if (!shouldersLevel || !facingFront) guidance = 'standStraight';
   else if (!still) guidance = 'holdStill';
 
   return {
-    wholeBody: inFrame,
+    wholeBody,
+    centred,
+    fillsOutline,
     shouldersLevel,
     facingFront,
     still,
-    ready,
+    ready: guidance === 'ready',
     guidance,
+    quality,
   };
 }

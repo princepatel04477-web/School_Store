@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from accounts.serializers import build_tokens_for_user
 from catalog.models import ProductVariant, SizeChartRow
-from schools.models import Student
+from schools.models import Student, StudentMeasurement
 
 from .models import OrderItem, OrderItemExchange
 
@@ -53,13 +53,17 @@ class FitLoggingTests(TestCase):
             HTTP_AUTHORIZATION=f"Bearer {build_tokens_for_user(self.parent)['access']}"
         )
 
-    def place(self, items, fit=None, expect=201):
+    def place(self, items, fit=None, expect=201, line_fits=None):
+        line_fits = line_fits or {}
         payload = {
             "idempotency_key": str(uuid.uuid4()),
             "student": str(self.student.id),
             "fulfillment_type": "SCHOOL_PICKUP",
             "payment_method": "COD",
-            "items": [{"variant": str(v.id), "quantity": 1} for v in items],
+            "items": [
+                {"variant": str(v.id), "quantity": 1, **({"fit": line_fits[v]} if v in line_fits else {})}
+                for v in items
+            ],
         }
         if fit is not None:
             payload["fit"] = fit
@@ -116,6 +120,38 @@ class FitLoggingTests(TestCase):
         data = self.place([self.shirt_30], fit={"height_cm": 13.5, "weight_kg": 30}, expect=400)
         self.assertEqual(data["fit"]["height_cm"], ["OUT_OF_RANGE"])
         self.assertEqual(OrderItem.objects.count(), before)
+
+    def test_line_fit_is_copied_even_without_a_chart(self):
+        camera = {"height_cm": 135, "weight_kg": 30, "shoulder_cm": 31, "shoulder_confidence": 0.8,
+                  "source": "CAMERA", "shoulder_edited": True}
+        order = self.place([self.shirt_30, self.shoes], line_fits={self.shirt_30: camera, self.shoes: camera})
+        shirt, shoes = self.item(order, self.shirt_30), self.item(order, self.shoes)
+        self.assertEqual((shirt.fit_source, shirt.fit_shoulder_edited), ("CAMERA", True))
+        self.assertEqual(shirt.recommendation_status, "FIT")
+        self.assertEqual(shoes.fit_height_cm, Decimal("135.0"))  # no chart, numbers kept for the tailor
+        self.assertEqual(shoes.recommendation_status, "")
+        measurement = order["items"][0]["measurement"] or order["items"][1]["measurement"]
+        self.assertEqual(measurement["source"], "CAMERA")
+
+    def test_typed_shoulder_needs_no_confidence_and_is_never_edited(self):
+        typed = {"height_cm": 135, "weight_kg": 30, "shoulder_cm": 31, "source": "MANUAL", "shoulder_edited": True}
+        line = self.item(self.place([self.shirt_30], line_fits={self.shirt_30: typed}), self.shirt_30)
+        self.assertEqual((line.fit_shoulder_cm, line.fit_shoulder_confidence), (Decimal("31.0"), None))
+        self.assertEqual((line.fit_source, line.fit_shoulder_edited), ("MANUAL", False))
+
+    def test_order_saves_the_measurement_on_the_child_once(self):
+        fit = {"height_cm": 135, "weight_kg": 30, "source": "MANUAL"}
+        self.place([self.shirt_30], line_fits={self.shirt_30: fit})
+        self.place([self.shirt_32], line_fits={self.shirt_32: fit})  # same numbers: not saved again
+        rows = StudentMeasurement.objects.filter(student=self.student)
+        self.assertEqual(rows.count(), 1)
+        self.assertEqual((rows.get().measured_by, rows.get().height_cm), (self.parent, Decimal("135.0")))
+        self.place([self.shirt_30], line_fits={self.shirt_30: {**fit, "height_cm": 137}})
+        self.assertEqual(rows.count(), 2)
+
+    def test_bad_line_fit_is_refused(self):
+        data = self.place([self.shirt_30], line_fits={self.shirt_30: {"height_cm": 300, "weight_kg": 30}}, expect=400)
+        self.assertEqual(data["items"]["height_cm"], ["OUT_OF_RANGE"])
 
     def test_reimporting_the_chart_never_changes_order_history(self):
         order = self.place([self.shirt_30], fit={"height_cm": 135, "weight_kg": 30})

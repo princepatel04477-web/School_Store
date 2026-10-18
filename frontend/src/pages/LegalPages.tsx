@@ -57,11 +57,12 @@ export function PrivacyPage() {
         <dt>Your child's height and weight (optional)</dt>
         <dd>
           Only if you use the size check before choosing sizes. You can skip it. We use the two numbers to suggest a
-          size from the school's size chart. On your phone they are kept until you close the page. If you are signed
-          in and choose your child, we also save them on your child's record with the date, so you do not have to
-          measure again for the next item. Each new measurement is added, the newest one is used, and none is
-          changed later. If you place an order, we keep a copy with that order, next to the size we suggested and the
-          size you chose, so we can see whether an exchange was needed.
+          size from the school's size chart. On your phone they are kept until you close the page. When you place an
+          order (or straight away, if you are signed in and we know which child it is), we save them on your child's
+          record with the date, so you do not have to measure again next time. Each new measurement is added, the
+          newest one is used, and none is changed later. We also keep a copy with each shirt or trouser you order,
+          next to the size we suggested and the size you chose, so the tailor can check the fit and we can see
+          whether an exchange was needed.
         </dd>
         <dt>Your child's shoulder width (optional)</dt>
         <dd>

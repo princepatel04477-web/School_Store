@@ -42,6 +42,7 @@
 
 .popup-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-3);
   justify-content: center;
 }
@@ -81,4 +82,24 @@
 .popup-btn:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
+}
+
+.popup-link {
+  display: block;
+  margin: 0 auto var(--space-4);
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--brand);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.popup-link:hover {
+  color: var(--brand-deep);
 }

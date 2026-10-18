@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .public import (
     PublicGradeListView,
+    PublicMeasureConfigView,
     PublicProductList,
     PublicSchoolCitiesView,
     PublicSchoolListView,
@@ -30,6 +31,7 @@ urlpatterns = [
     path("public/grades/", PublicGradeListView.as_view(), name="public-grades"),
     path("public/products/", PublicProductList.as_view(), name="public-products"),
     path("public/size-fit/", PublicSizeFitView.as_view(), name="public-size-fit"),
+    path("public/measure-config/", PublicMeasureConfigView.as_view(), name="public-measure-config"),
     path("cart/validate/", CartValidateView.as_view(), name="cart-validate"),
     path("cart/add/", CartValidateView.as_view(), name="cart-add"),
     path("catalog/cart/validate/", CartValidateView.as_view(), name="catalog-cart-validate"),

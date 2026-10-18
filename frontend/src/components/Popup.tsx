@@ -11,6 +11,8 @@ export interface PopupProps {
   cancelLabel?: string | null;
   onConfirm?: () => void;
   onCancel?: () => void;
+  /** Escape and a tap outside. Defaults to onCancel, then onClose. */
+  onDismiss?: () => void;
   children?: ReactNode;
 }
 
@@ -31,13 +33,15 @@ export function Popup({
   cancelLabel = 'No',
   onConfirm,
   onCancel,
+  onDismiss,
   children,
 }: PopupProps) {
   const boxRef = useRef<HTMLDivElement | null>(null);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const titleId = useId();
   const messageId = useId();
-  const dismiss = onCancel ?? onClose;
+  const cancel = onCancel ?? onClose;
+  const dismiss = onDismiss ?? cancel;
   const dismissRef = useRef(dismiss);
   dismissRef.current = dismiss;
 
@@ -100,7 +104,7 @@ export function Popup({
 
         <div className="popup-actions">
           {cancelLabel && (
-            <button type="button" className="popup-btn popup-btn--secondary" onClick={dismiss}>
+            <button type="button" className="popup-btn popup-btn--secondary" onClick={cancel}>
               {cancelLabel}
             </button>
           )}

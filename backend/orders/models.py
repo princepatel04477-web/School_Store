@@ -218,6 +218,9 @@ class OrderItem(UUIDModel):
     # From the optional camera step: numbers only, the photo never leaves the phone.
     fit_shoulder_cm = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
     fit_shoulder_confidence = models.DecimalField(max_digits=4, decimal_places=3, null=True, blank=True)
+    # CAMERA or MANUAL (see schools.StudentMeasurement.Source); blank when no measurement was used.
+    fit_source = models.CharField(max_length=10, blank=True, default="")
+    fit_shoulder_edited = models.BooleanField(default=False)
     recommended_size = models.CharField(max_length=50, blank=True, default="")
     recommended_alt_size = models.CharField(max_length=50, blank=True, default="")
     recommendation_status = models.CharField(max_length=20, blank=True, default="")

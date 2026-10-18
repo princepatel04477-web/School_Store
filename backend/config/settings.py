@@ -388,6 +388,10 @@ MEASUREMENT_RETENTION_DAYS = int(os.environ.get("MEASUREMENT_RETENTION_DAYS", 36
 # the suggested size once the A4 calibration shows it helps.
 FIT_USE_SHOULDER = os.environ.get("FIT_USE_SHOULDER", "0") == "1"
 FIT_SHOULDER_MIN_CONFIDENCE = float(os.environ.get("FIT_SHOULDER_MIN_CONFIDENCE", 0.6))
+# The phone multiplies the camera's shoulder width by this. MediaPipe marks the
+# shoulder joints, a little inside the shoulder edge. Set it from the average
+# difference once 20 to 30 children are measured with a tape and the app.
+SHOULDER_CALIBRATION_FACTOR = float(os.environ.get("SHOULDER_CALIBRATION_FACTOR", 1.0))
 
 # Uploaded files must never be held in memory for a 5 MB spreadsheet cap.
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024

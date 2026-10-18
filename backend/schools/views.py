@@ -228,7 +228,7 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             return [IsParent()]
         if self.action in ("approve", "assign_parent"):
             return [IsSchoolAdmin()]
-        if self.action in ("measurements", "latest_measurement"):
+        if self.action in ("measurements", "latest_measurement", "last_sizes"):
             # Any signed-in role; get_object() goes through the scoped queryset,
             # so a user only ever reaches children in their own scope.
             return [IsAuthenticated()]
@@ -313,6 +313,38 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         if latest is None:
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(StudentMeasurementSerializer(latest).data)
+
+    @action(detail=True, methods=["get"], url_path="last-sizes")
+    def last_sizes(self, request, pk=None):
+        """
+        {product_id: size} the child last had for each item, so a shoe, tie,
+        belt or sock size can be chosen for the parent (Prompt 24). Read from
+        the child's newest orders through the (student, created_at) index,
+        capped so a long history stays one small query. Cancelled orders and
+        later exchanges count: the size the family kept is the one returned.
+        """
+        from orders.models import Order, OrderItem
+
+        student = self.get_object()
+        recent_orders = list(
+            Order.objects.filter(student_id=student.id)
+            .exclude(status=Order.Status.CANCELLED)
+            .order_by("-created_at")
+            .values_list("id", flat=True)[:20]
+        )
+        sizes: dict = {}
+        items = (
+            OrderItem.objects.filter(order_id__in=recent_orders)
+            .select_related("variant")
+            .prefetch_related("exchanges")
+            .order_by("-order__created_at")
+        )
+        for item in items:
+            key = str(item.variant.product_id)
+            if key not in sizes:
+                exchanges = sorted(item.exchanges.all(), key=lambda e: e.created_at)
+                sizes[key] = exchanges[-1].to_size if exchanges else (item.chosen_size or item.variant.size)
+        return Response(sizes)
 
     # ------------------------------------------------------------------ #
     # Requirement 4: School Admin approves a pending (parent-added) student

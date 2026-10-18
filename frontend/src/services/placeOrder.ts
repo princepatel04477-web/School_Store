@@ -1,5 +1,6 @@
 import { api, ApiError } from '../api';
 import type { MessageKey } from '../i18n';
+import type { fitPayload } from '../data/fit';
 
 /**
  * Sends a checkout to the server so that a bad signal can never lose or double an order.
@@ -16,9 +17,8 @@ export interface OrderPayload {
   fulfillment_type: 'HOME_DELIVERY' | 'SCHOOL_PICKUP';
   payment_method: 'COD';
   delivery_details: Record<string, string>;
-  items: { variant: string; quantity: number }[];
-  /** The child's height and weight from the size check, kept on the order lines. */
-  fit?: { height_cm: number; weight_kg: number; shoulder_cm?: number; shoulder_confidence?: number };
+  /** A shirt or trouser line carries the child's measurement it was sized from. */
+  items: { variant: string; quantity: number; fit?: ReturnType<typeof fitPayload> }[];
 }
 
 export interface PlacedOrder {
