@@ -381,6 +381,9 @@ EXPORT_FILE_TTL_DAYS = int(os.environ.get("EXPORT_FILE_TTL_DAYS", 7))
 # --------------------------------------------------------------------------- #
 FIT_DATA_RETENTION_DAYS = int(os.environ.get("FIT_DATA_RETENTION_DAYS", 90))
 FIT_DATA_BACKSTOP_DAYS = int(os.environ.get("FIT_DATA_BACKSTOP_DAYS", 180))
+# A child's saved measurements (schools.StudentMeasurement) are deleted this
+# long after they were taken: by then the child has grown and needs measuring again.
+MEASUREMENT_RETENTION_DAYS = int(os.environ.get("MEASUREMENT_RETENTION_DAYS", 365))
 # The shoulder width measured on the phone is always logged, but only changes
 # the suggested size once the A4 calibration shows it helps.
 FIT_USE_SHOULDER = os.environ.get("FIT_USE_SHOULDER", "0") == "1"

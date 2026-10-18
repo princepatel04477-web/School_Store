@@ -8,7 +8,7 @@ from .public import (
     PublicSchoolListView,
     PublicSizeFitView,
 )
-from .size_chart_views import SizeChartImportViewSet
+from .size_chart_views import SizeChartImportViewSet, SizeChartViewSet
 from .storefront import StudentCatalogueView, StudentProductDetailView
 from .views import (
     CartValidateView,
@@ -22,6 +22,7 @@ router.register("categories", CategoryViewSet, basename="category")
 router.register("products", ProductViewSet, basename="product")
 router.register("variants", ProductVariantViewSet, basename="variant")
 router.register("size-chart-imports", SizeChartImportViewSet, basename="size-chart-import")
+router.register("size-charts", SizeChartViewSet, basename="size-chart")
 
 urlpatterns = [
     path("public/schools/", PublicSchoolListView.as_view(), name="public-schools"),

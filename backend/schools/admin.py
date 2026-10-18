@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import City, Grade, School, SchoolBranch, Student
+from .models import City, Grade, School, SchoolBranch, Student, StudentMeasurement
 
 
 @admin.register(City)
@@ -70,3 +70,11 @@ class StudentAdmin(admin.ModelAdmin):
     readonly_fields = ("id", "created_at", "updated_at")
     list_select_related = ("school", "branch", "grade", "parent")
 
+
+@admin.register(StudentMeasurement)
+class StudentMeasurementAdmin(admin.ModelAdmin):
+    list_display = ("student", "height_cm", "weight_kg", "shoulder_cm", "source", "shoulder_edited", "measured_at")
+    list_filter = ("source", "shoulder_edited")
+    search_fields = ("student__name", "student__gr_number")
+    raw_id_fields = ("student", "measured_by", "parent")
+    readonly_fields = ("school", "city", "parent", "measured_by_role")

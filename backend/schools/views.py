@@ -9,6 +9,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -22,7 +23,7 @@ from common.scoping import ScopedQuerysetMixin
 from common.throttles import StudentClaimIPThrottle, StudentClaimUserThrottle
 
 from .import_service import TEMPLATE_COLUMNS
-from .models import City, School, Student
+from .models import City, School, Student, StudentMeasurement
 from .serializers import (
     CitySerializer,
     SchoolSerializer,
@@ -32,6 +33,7 @@ from .serializers import (
     StudentImportJobSerializer,
     StudentImportUploadSerializer,
     StudentManualAddSerializer,
+    StudentMeasurementSerializer,
     StudentSerializer,
 )
 from .tasks import commit_student_import, validate_student_import
@@ -175,7 +177,11 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
 
     def check_permissions(self, request):
         if request.user.is_authenticated and request.user.role == User.Role.PARENT:
-            if request.method not in ("GET", "HEAD", "OPTIONS") and self.action not in ("claim", "manual_add"):
+            if request.method not in ("GET", "HEAD", "OPTIONS") and self.action not in (
+                "claim",
+                "manual_add",
+                "measurements",
+            ):
                 raise PermissionDenied("Student details are view-only for parents. Contact your school to correct this.")
         super().check_permissions(request)
 
@@ -222,6 +228,10 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             return [IsParent()]
         if self.action in ("approve", "assign_parent"):
             return [IsSchoolAdmin()]
+        if self.action in ("measurements", "latest_measurement"):
+            # Any signed-in role; get_object() goes through the scoped queryset,
+            # so a user only ever reaches children in their own scope.
+            return [IsAuthenticated()]
         return super().get_permissions()
 
     def get_throttles(self):
@@ -261,6 +271,48 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             StudentSerializer(student, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+    # ------------------------------------------------------------------ #
+    # Prompt 20 / 23: the child's measurements for uniform sizing
+    # ------------------------------------------------------------------ #
+    @action(detail=True, methods=["get", "post"], url_path="measurements")
+    def measurements(self, request, pk=None):
+        """
+        GET  newest first, 50 per page, served by (student, measured_at).
+        POST save a new measurement. Rows are never edited: a correction is a
+             new row, so the history shows what each order was sized from.
+        The parent linked to the child, staff of the child's school (a teacher
+        ordering for the child) and Admin / Boss may save one.
+        """
+        student = self.get_object()
+        if request.method == "POST":
+            serializer = StudentMeasurementSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            measurement = serializer.save(
+                student=student,
+                measured_by=request.user,
+                measured_by_role=request.user.role,
+            )
+            return Response(
+                StudentMeasurementSerializer(measurement).data,
+                status=status.HTTP_201_CREATED,
+            )
+        rows = StudentMeasurement.objects.filter(student_id=student.id).order_by("-measured_at")
+        page = self.paginate_queryset(rows)
+        return self.get_paginated_response(StudentMeasurementSerializer(page, many=True).data)
+
+    @action(detail=True, methods=["get"], url_path="measurements/latest")
+    def latest_measurement(self, request, pk=None):
+        """The child's current measurement, or 204 when there is none yet."""
+        student = self.get_object()
+        latest = (
+            StudentMeasurement.objects.filter(student_id=student.id)
+            .order_by("-measured_at")
+            .first()
+        )
+        if latest is None:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(StudentMeasurementSerializer(latest).data)
 
     # ------------------------------------------------------------------ #
     # Requirement 4: School Admin approves a pending (parent-added) student

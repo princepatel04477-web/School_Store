@@ -3,6 +3,8 @@ import { X } from '../components/ui/icons';
 import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../auth';
+import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
+import { SizeChartManager } from '../components/admin/SizeChartManager';
 import {
   cityAdmin, money, num, relative,
   type CityDailySales, type CityOrderDetail, type CitySchool,
@@ -17,6 +19,7 @@ const NAV = [
   { to: 'inventory', label: 'Inventory & Stock' },
   { to: 'orders', label: 'Orders' },
   { to: 'schools', label: 'Schools' },
+  { to: 'size-charts', label: 'Size Charts' },
 ];
 
 export default function CityAdmin() {
@@ -48,6 +51,7 @@ export default function CityAdmin() {
             <Route path="inventory" element={<CityInventoryView />} />
             <Route path="orders" element={<CityOrdersView />} />
             <Route path="schools" element={<CitySchoolsView />} />
+            <Route path="size-charts" element={<CitySizeChartsView />} />
           </Routes>
         </main>
       </div>
@@ -1519,6 +1523,43 @@ function ResetSchoolAdminPasswordModal({
           )}
         </form>
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Size charts for the schools in this city (Prompt 20)
+ * ------------------------------------------------------------------ */
+function CitySizeChartsView() {
+  const { data, isLoading } = useQuery({ queryKey: ['city-schools-management'], queryFn: () => cityAdmin.schools() });
+  const schools = data?.results ?? [];
+  const [picked, setPicked] = useState('');
+  const scope = picked || schools[0]?.id || '';
+  const school = schools.find((s) => s.id === scope);
+
+  return (
+    <div>
+      <div className="page-head">
+        <div>
+          <div className="eyebrow">SIZE CHARTS</div>
+          <h1>Size Charts</h1>
+          <p className="muted">Body measurements for each size of each school's items, used to suggest a size to parents.</p>
+        </div>
+        {schools.length > 0 && (
+          <select className="school-switch" value={scope} onChange={(e) => setPicked(e.target.value)} aria-label="School">
+            {schools.map((s) => (
+              <option key={s.id} value={s.id}>{s.name} · {s.code}</option>
+            ))}
+          </select>
+        )}
+      </div>
+      {!isLoading && schools.length === 0 && <p className="muted">There are no schools in your city yet.</p>}
+      {scope && school && (
+        <>
+          <SizeChartImportCard key={scope} scope={scope} scopeName={school.code} />
+          <SizeChartManager key={`m-${scope}`} scope={scope} scopeName={school.code} />
+        </>
+      )}
     </div>
   );
 }

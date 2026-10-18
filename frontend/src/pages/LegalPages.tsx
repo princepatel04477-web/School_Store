@@ -10,7 +10,7 @@ import './legal.css';
  * launch: these are a working draft, not legal advice.
  */
 
-const UPDATED = '13 October 2026';
+const UPDATED = '18 October 2026';
 
 function LegalPage({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -57,16 +57,18 @@ export function PrivacyPage() {
         <dt>Your child's height and weight (optional)</dt>
         <dd>
           Only if you use the size check before choosing sizes. You can skip it. We use the two numbers to suggest a
-          size from the school's size chart. On your phone they are kept until you close the page. If you place an
-          order, we keep them with that order, next to the size we suggested and the size you chose, so we can see
-          whether an exchange was needed. We do not keep them as a profile of your child and do not share them with
-          anyone.
+          size from the school's size chart. On your phone they are kept until you close the page. If you are signed
+          in and choose your child, we also save them on your child's record with the date, so you do not have to
+          measure again for the next item. Each new measurement is added, the newest one is used, and none is
+          changed later. If you place an order, we keep a copy with that order, next to the size we suggested and the
+          size you chose, so we can see whether an exchange was needed.
         </dd>
         <dt>Your child's shoulder width (optional)</dt>
         <dd>
-          Only if you choose to measure with the camera during the size check. The camera picture is looked at on
-          your phone and never leaves it: it is not uploaded, saved or sent anywhere. Only two numbers are sent,
-          the shoulder width in cm and how sure the phone was of it. We keep them like height and weight, below.
+          Only if you measure with the camera during the size check, or type it in yourself. The camera picture is
+          looked at on your phone and never leaves it: it is not uploaded, saved or sent anywhere. Only numbers are
+          sent: the shoulder width in cm, how sure the phone was of it, and whether you changed it. We keep them like
+          height and weight, below.
         </dd>
         <dt>Your child's photo</dt>
         <dd>
@@ -88,7 +90,9 @@ export function PrivacyPage() {
       <h2>Who we share it with</h2>
       <p>
         Your child's school (to confirm orders and run the collection counter), the delivery partner (name, phone and
-        address only) and the payment partner. School staff who can open the order see a short-lived link to a
+        address only) and the payment partner. Staff of your child's school, and our own staff, can see the
+        measurements saved on your child's record, and a teacher who orders for your child can add one. School
+        staff who can open the order see a short-lived link to a
         photo notebook or ID card photo. The print file is what the printer uses. There is no separate printer
         login on this site. We do not sell personal data or use it for advertising.
       </p>
@@ -102,7 +106,8 @@ export function PrivacyPage() {
         partner and removed within 90 days of the school asking us to, or of the student leaving the school.
       </p>
       <p>
-        Your child's height, weight and shoulder width are removed from the order 90 days after it is delivered, cancelled or
+        Measurements saved on your child's record are deleted one year after they were taken, because by then your
+        child has grown. Your child's height, weight and shoulder width are removed from the order 90 days after it is delivered, cancelled or
         returned (or 180 days after you ordered, if it never gets there). At that point we keep only the numbers
         with the class, the item, the month and the sizes suggested, chosen and exchanged, without your child's
         name, the order or your account, to make our size suggestions better. Because the item belongs to one

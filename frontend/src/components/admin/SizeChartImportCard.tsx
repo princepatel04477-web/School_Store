@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { download, num, sizeCharts, type SizeChartPreview } from '../../api';
 
 /**
- * Size chart import for the School Admin and Boss panels:
+ * Size chart import for the Boss, Admin and School Admin panels:
  * template -> fill in cm and kg -> upload -> dry run -> confirm.
  * `scope` is a school id, or 'generic' for the items every school shares.
  */

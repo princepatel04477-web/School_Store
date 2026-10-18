@@ -209,7 +209,18 @@ export const sizeCharts={
   confirm:(scope:string,id:string)=>api<ImportJob>(`/size-chart-imports/${id}/confirm/?school=${scope}`,{method:'POST'}),
   reportUrl:(scope:string,id:string)=>`/size-chart-imports/${id}/report/?school=${scope}`,
   templateUrl:(scope:string)=>`/size-chart-imports/template/?school=${scope}`,
+  charts:(scope:string,page=1)=>api<Page<SizeChartItem>&{count:number}>(`/size-charts/?school=${scope}&page=${page}`),
+  addRow:(body:Partial<SizeChartValues>&{variant:string})=>api<SizeChartRowData>('/size-charts/rows/',{method:'POST',body:JSON.stringify(body)}),
+  editRow:(id:string,body:Partial<SizeChartValues>)=>api<SizeChartRowData>(`/size-charts/rows/${id}/`,{method:'PATCH',body:JSON.stringify(body)}),
+  removeRow:(id:string)=>api<void>(`/size-charts/rows/${id}/`,{method:'DELETE'}),
+  removeChart:(scope:string,productId:string)=>api<{rows_removed:number}>(`/size-charts/${productId}/?school=${scope}`,{method:'DELETE'}),
+  copy:(scope:string,source:string,targets:string[])=>api<{products:{product_id:string;product_name:string;rows_written:number;sizes_not_in_source:string[]}[]}>(`/size-charts/copy/?school=${scope}`,{method:'POST',body:JSON.stringify({source_product:source,target_products:targets})}),
 };
+
+export const SIZE_CHART_COLUMNS=['height_cm_min','height_cm_max','weight_kg_min','weight_kg_max','shoulder_cm_min','shoulder_cm_max','chest_cm_min','chest_cm_max','length_cm'] as const;
+export type SizeChartValues=Record<typeof SIZE_CHART_COLUMNS[number],number|null>;
+export type SizeChartRowData=SizeChartValues&{id:string|null;variant:string;sku:string;size:string};
+export type SizeChartItem={product_id:string;product_name:string;category:string;has_chart:boolean;rows:SizeChartRowData[]};
 
 /* ------------------------------------------------------------------ *
  * City Admin panel (scoped to city)

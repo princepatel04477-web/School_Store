@@ -9,6 +9,7 @@ import {
   type StudentOrders,
 } from '../api';
 import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
+import { SizeChartManager } from '../components/admin/SizeChartManager';
 
 /* ------------------------------------------------------------------ *
  * School scope
@@ -776,6 +777,7 @@ function SizeCharts() {
         </div>
       </div>
       {schoolId && <SizeChartImportCard key={schoolId} scope={schoolId} scopeName={school?.code ?? 'school'} />}
+      {schoolId && <SizeChartManager key={`m-${schoolId}`} scope={schoolId} scopeName={school?.code ?? 'school'} />}
     </>
   );
 }

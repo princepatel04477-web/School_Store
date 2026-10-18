@@ -1,7 +1,9 @@
 from django.conf import settings
 from django.db import models, transaction
 from django.db.models import Q
+from django.utils import timezone
 from common.models import UUIDModel
+from common.scoping import ScopedManager
 from common.cache_utils import invalidate_school_cache
 
 
@@ -301,6 +303,10 @@ class Student(UUIDModel):
                     Order.objects.filter(student_id=self.pk).exclude(
                         parent_id=self.parent_id
                     ).update(parent_id=self.parent_id)
+                    # A new parent sees the child's measurements; the old one no longer does.
+                    StudentMeasurement.objects.filter(student_id=self.pk).exclude(
+                        parent_id=self.parent_id
+                    ).update(parent_id=self.parent_id)
                 effective_class = self.grade.name if self.grade else self.class_name
                 Order.objects.filter(student_id=self.pk).exclude(
                     student_class=effective_class
@@ -308,3 +314,94 @@ class Student(UUIDModel):
 
     def __str__(self) -> str:
         return f"{self.name} (GR: {self.gr_number} - {self.school.code})"
+
+
+class StudentMeasurement(UUIDModel):
+    """
+    One measurement of a child for uniform sizing (Prompt 20).
+
+    History is kept: every measurement is a new row and the newest one is the
+    child's current measurement. Rows are never edited; a parent who corrects a
+    number saves a new row. Order lines copy the numbers they were sized from,
+    so a later measurement never changes a past order.
+
+    school, city and parent are copied from the student (and kept in step by
+    Student.save) so each role's scope is one WHERE on an indexed column of
+    this row. Deleted MEASUREMENT_RETENTION_DAYS after they were taken
+    (`manage.py clear_fit_data`).
+    """
+
+    class Source(models.TextChoices):
+        CAMERA = "CAMERA", "Camera"
+        MANUAL = "MANUAL", "Entered by hand"
+
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="measurements",
+    )
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+    city = models.ForeignKey(
+        City,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    parent = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    height_cm = models.DecimalField(max_digits=4, decimal_places=1)
+    weight_kg = models.DecimalField(max_digits=4, decimal_places=1)
+    shoulder_cm = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
+    shoulder_confidence = models.DecimalField(
+        max_digits=4,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="How sure the phone was of the camera shoulder width, 0 to 1.",
+    )
+    source = models.CharField(max_length=10, choices=Source.choices, default=Source.MANUAL)
+    shoulder_edited = models.BooleanField(
+        default=False,
+        help_text="The parent changed the shoulder width the camera measured.",
+    )
+    measured_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    measured_by_role = models.CharField(max_length=20, blank=True, default="")
+    measured_at = models.DateTimeField(default=timezone.now)
+
+    objects = ScopedManager()
+    SCOPE_FIELDS = {"city_field": "city_id", "school_field": "school_id", "parent_field": "parent_id"}
+
+    class Meta:
+        ordering = ["-measured_at"]
+        indexes = [
+            models.Index(fields=["student", "measured_at"], name="idx_measure_student_at"),
+            models.Index(fields=["school", "measured_at"], name="idx_measure_school_at"),
+            models.Index(fields=["parent"], name="idx_measure_parent"),
+            models.Index(fields=["measured_at"], name="idx_measure_at"),
+        ]
+
+    def save(self, *args, **kwargs):
+        student = self.student
+        self.school_id = student.school_id
+        self.city_id = student.city_id or student.school.city_id
+        self.parent_id = student.parent_id
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"{self.student.name}: {self.height_cm} cm, {self.weight_kg} kg ({self.measured_at:%Y-%m-%d})"
