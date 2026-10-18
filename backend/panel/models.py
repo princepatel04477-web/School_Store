@@ -34,6 +34,7 @@ class ExportJob(UUIDModel):
     class JobType(models.TextChoices):
         ORDERS = "ORDERS", "Orders export"
         STUDENTS = "STUDENTS", "Students export"
+        TAILOR_SHEET = "TAILOR_SHEET", "Tailor sheet"
 
     class Status(models.TextChoices):
         QUEUED = "QUEUED", "Queued"

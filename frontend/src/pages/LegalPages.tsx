@@ -92,7 +92,9 @@ export function PrivacyPage() {
       <p>
         Your child's school (to confirm orders and run the collection counter), the delivery partner (name, phone and
         address only) and the payment partner. Staff of your child's school, and our own staff, can see the
-        measurements saved on your child's record, and a teacher who orders for your child can add one. School
+        measurements saved on your child's record, and a teacher who orders for your child can add one. The tailor
+        who sews the uniform gets a sheet with your child's name, GR number, class, the sizes ordered and the
+        measurements, and nothing else. School staff do not get this sheet. School
         staff who can open the order see a short-lived link to a
         photo notebook or ID card photo. The print file is what the printer uses. There is no separate printer
         login on this site. We do not sell personal data or use it for advertising.

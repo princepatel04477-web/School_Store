@@ -5,6 +5,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { useAuth } from '../auth';
 import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
 import { SizeChartManager } from '../components/admin/SizeChartManager';
+import { TailorSheetButton, TailorSheetCard } from '../components/admin/TailorSheetCard';
 import {
   cityAdmin, money, num, relative,
   type CityDailySales, type CityOrderDetail, type CitySchool,
@@ -682,6 +683,8 @@ function CityOrdersView() {
         </div>
       </div>
 
+      <TailorSheetCard schools={schools} />
+
       <div className="card">
         {/* Filters */}
         <div className="filters">
@@ -986,6 +989,8 @@ function OrderDetailModal({
               <span className="mono" style={{ fontSize: '13px' }}>Total: <b>{money(order.total)}</b></span>
             </div>
 
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <TailorSheetButton orderId={order.id} />
             {nextStatus && (
               <button
                 className="primary"
@@ -996,6 +1001,7 @@ function OrderDetailModal({
                 {advanceMutation.isPending ? 'Updating…' : `Mark as ${nextStatus} →`}
               </button>
             )}
+            </div>
           </div>
 
           {/* Items Table */}
@@ -1018,6 +1024,13 @@ function OrderDetailModal({
                     <td>
                       <b>{it.product_name}</b>
                       <small className="muted">Size: {it.variant_size || 'Standard'}</small>
+                      {it.measurement && (
+                        <small className="muted">
+                          Measured: {it.measurement.height_cm} cm, {it.measurement.weight_kg} kg
+                          {it.measurement.shoulder_cm !== null ? `, shoulders ${it.measurement.shoulder_cm} cm` : ''}
+                          {it.measurement.source ? ` (${it.measurement.source === 'CAMERA' ? 'camera' : 'typed'}${it.measurement.shoulder_edited ? ', shoulder changed' : ''})` : ''}
+                        </small>
+                      )}
                       {hasCustom && (
                         <div style={{ marginTop: '8px', padding: '8px 10px', background: '#f5f9f6', border: '1px solid #d4ded6', borderRadius: '6px' }}>
                           <span style={{ fontSize: '11px', fontWeight: 700, color: '#2a6a4e', display: 'block', marginBottom: '4px' }}>

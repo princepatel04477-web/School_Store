@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Camera, Ruler } from '../ui/icons';
 import { useLang } from '../../i18n';
 import { formatMeasure, formatMeasuredOn, type Fit } from '../../data/fit';
 import { MEASURE_WITH_CAMERA } from '../../measure/config';
-import { MeasureFlow, type MeasureGarment } from './MeasureFlow';
+import type { MeasureGarment } from './MeasureFlow';
 import './measureFlow.css';
+
+// The measuring screens load only when the parent taps the button.
+const MeasureFlow = lazy(() => import('./MeasureFlow').then((m) => ({ default: m.MeasureFlow })));
 
 const LOCALES = { en: 'en-IN', gu: 'gu-IN', hi: 'hi-IN' } as const;
 
@@ -30,13 +33,15 @@ export function MeasurementPanel({
 
   const flow = open
     ? createPortal(
-        <MeasureFlow
-          initial={measurement}
-          garments={garments}
-          className={className}
-          onSave={onSave}
-          onClose={() => setOpen(false)}
-        />,
+        <Suspense fallback={<div className="mflow" role="status" />}>
+          <MeasureFlow
+            initial={measurement}
+            garments={garments}
+            className={className}
+            onSave={onSave}
+            onClose={() => setOpen(false)}
+          />
+        </Suspense>,
         document.body,
       )
     : null;
