@@ -15,6 +15,9 @@ const BagDrawer = lazy(() =>
 );
 
 // Lazy Loaded Pages
+const SchoolSearchSheet = lazy(() =>
+  import('./components/school/SchoolSearchSheet').then((m) => ({ default: m.SchoolSearchSheet }))
+);
 const HomePage = lazy(() =>
   import('./pages/HomePage').then((m) => ({ default: m.HomePage }))
 );
@@ -57,6 +60,7 @@ import { SmoothScroll } from './motion/SmoothScroll';
 
 export default function App() {
   const [bagOpen, setBagOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
 
   const isPortal =
@@ -90,9 +94,11 @@ export default function App() {
             onOpenBag={() => setBagOpen(true)}
             onOpenLanguage={() => setLangOpen(true)}
             onOpenSearch={() => {
+              // Phones, and pages without the home search: the full-screen search sheet
+              const input = document.querySelector('.hero-search-input') as HTMLInputElement | null;
+              if (!input || window.matchMedia('(max-width: 639px)').matches) return setSearchOpen(true);
               window.scrollTo({ top: 0, behavior: 'smooth' });
-              const input = document.querySelector('.hero-search-input') as HTMLInputElement;
-              if (input) input.focus();
+              input.focus();
             }}
           />
         )}
@@ -140,6 +146,12 @@ export default function App() {
         {!isPortal && <Footer />}
 
         {!isPortal && <LanguageChooser open={langOpen} onClose={closeLanguage} />}
+
+        {searchOpen && (
+          <Suspense fallback={null}>
+            <SchoolSearchSheet onClose={() => setSearchOpen(false)} />
+          </Suspense>
+        )}
 
         {/* Global Bag Drawer (code-split) */}
         <Suspense fallback={null}>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X, Trash2, ArrowRight } from '../ui/icons';
+import { X, Trash2 } from '../ui/icons';
+import { Button } from '../ui/Button';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
@@ -209,14 +210,9 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
               <span className="bag-subtotal-value">{formatINR(subtotalPaise)}</span>
             </div>
             <p className="bag-shipping-note">{t('bag.note')}</p>
-            <button
-              type="button"
-              className="btn btn-primary bag-checkout-btn"
-              onClick={handleCheckout}
-            >
+            <Button className="bag-checkout-btn" arrow onClick={handleCheckout}>
               {t('bag.checkout', { total: formatINR(subtotalPaise) })}
-              <ArrowRight width={16} height={16} aria-hidden="true" />
-            </button>
+            </Button>
             <button
               type="button"
               className="btn btn-text bag-continue-btn"

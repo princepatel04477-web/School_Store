@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { X } from '../ui/icons';
 import { formatINR } from '../../utils/formatINR';
 import { useStoreState } from '../../store/storeState';
@@ -10,6 +10,7 @@ import { RecommendationNote } from '../fit/SizeChartTable';
 import type { StoreProduct } from '../../data/catalog';
 import { ProductImage } from './ProductImage';
 import { ListenButton } from '../ListenButton';
+import { flyToBag } from '../../motion/flyToBag';
 import './fullSet.css';
 
 /**
@@ -72,11 +73,12 @@ export function FullSetSheet({
   const missing = chosen.filter((p) => !sizes[p.id]);
   const totalPaise = chosen.reduce((sum, p) => sum + p.pricePaise, 0);
 
-  const addAll = () => {
+  const addAll = (e: MouseEvent<HTMLButtonElement>) => {
     if (missing.length > 0) {
       setShowMissing(true);
       return;
     }
+    flyToBag(e.currentTarget);
     chosen.forEach((p) => {
       const size = p.sizes.find((s) => s.id === sizes[p.id])!;
       addItem({

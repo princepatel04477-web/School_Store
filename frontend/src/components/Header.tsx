@@ -38,6 +38,15 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
     }
     lastCount.current = totalCount;
   }, [totalCount, shouldReduceMotion, animateBag, bagIconRef]);
+  // Pulse the school pill once when the parent picks a school (not on page load)
+  const pickedSchoolId = selection?.schoolId;
+  const lastSchoolId = useRef(pickedSchoolId);
+  const [confirming, setConfirming] = useState(false);
+  useEffect(() => {
+    if (pickedSchoolId && pickedSchoolId !== lastSchoolId.current) setConfirming(true);
+    lastSchoolId.current = pickedSchoolId;
+  }, [pickedSchoolId]);
+
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
@@ -101,7 +110,10 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
 
             {/* School Pill if selected */}
             {selection && (
-              <div className="selected-school-pill">
+              <div
+                className={`selected-school-pill ${confirming ? 'is-confirming' : ''}`}
+                onAnimationEnd={(e) => e.target === e.currentTarget && setConfirming(false)}
+              >
                 <SchoolCrest id={selection.schoolId} name={selection.schoolName} code={selection.schoolCode} size={24} />
                 <span className="pill-school-info">
                   {selection.schoolName} {selection.gradeName ? `· ${classLabel(selection.gradeName, t)}` : ''}

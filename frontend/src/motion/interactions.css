@@ -16,14 +16,14 @@
 /* ---------- Shared transition for every interactive role ---------- */
 html :is(
   .btn, .primary, .secondary, .chip-root, .chip, .cat-tab, .size-tile, .card-size-chip, .kid,
-  .stepper-btn, .action-icon-btn, .action-account-btn, .bag-close-btn, .sheet-close-btn,
+  .stepper-btn, .action-icon-btn, .btn-icon, .action-account-btn, .bag-close-btn, .sheet-close-btn,
   .sheet-close-floating, .size-guide-close, .mobile-menu-trigger, .icon-btn,
-  .link-button, .text-button, .plain-link, .checkout-back-link, .step-back-btn, .request-link,
+  .link-button, .text-button, .plain-link, .checkout-back-link, .step-back-btn,
   .action-signin-link, .back, .cell-link, .undo-btn, .bag-remove-link, .size-guide-trigger,
   .pill-change-link, .hero-change-school-link, .step-edit-btn, .nav-link, .sheet-nav-item
 ) {
   transition-property: background-color, border-color, color, box-shadow, opacity,
-    scale, translate, rotate;
+    scale, translate, rotate, outline-color;
   transition-duration: var(--duration-fast);
   transition-timing-function: var(--ease-standard);
   -webkit-tap-highlight-color: transparent;
@@ -40,14 +40,14 @@ html :is(.chip-root, .chip, .cat-tab, .size-tile, .card-size-chip, .nav-link):ac
   transition-duration: 0.1s;
 }
 
-html :is(.stepper-btn, .action-icon-btn, .action-account-btn, .bag-close-btn, .sheet-close-btn,
+html :is(.stepper-btn, .action-icon-btn, .btn-icon, .action-account-btn, .bag-close-btn, .sheet-close-btn,
   .sheet-close-floating, .size-guide-close, .mobile-menu-trigger, .icon-btn):active:not(:disabled) {
   scale: 0.9;
   transition-duration: 0.1s;
 }
 
 /* Text links don't shrink; they dim briefly instead */
-html :is(.link-button, .text-button, .plain-link, .checkout-back-link, .step-back-btn, .request-link,
+html :is(.link-button, .text-button, .plain-link, .checkout-back-link, .step-back-btn,
   .action-signin-link, .back, .cell-link, .undo-btn, .bag-remove-link, .size-guide-trigger,
   .pill-change-link, .hero-change-school-link, .step-edit-btn, .btn-text):active {
   opacity: 0.6;
@@ -100,4 +100,18 @@ html :is(.btn-loading, .is-paying):active {
   ):active {
     scale: none;
   }
+}
+
+/* Dot that flies from an add button to the bag (motion/flyToBag.ts) */
+.fly-to-bag-dot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--highlight);
+  pointer-events: none;
+  z-index: 1000;
+  will-change: transform;
 }

@@ -11,7 +11,13 @@
   position: relative;
   z-index: 2;
   padding-top: var(--space-16);
-  padding-bottom: calc(var(--section-gap) / 2);
+  padding-bottom: var(--space-8); /* 32px under the search */
+}
+
+@media (min-width: 1024px) {
+  .hero-section {
+    padding-bottom: 56px;
+  }
 }
 
 /* Single column: headline, one line, search, steps */
@@ -79,107 +85,14 @@
   font-size: var(--text-lg);
   color: var(--ink-soft);
   max-width: 46ch;
-  margin-bottom: var(--space-8);
+  margin-bottom: var(--space-6); /* 24px to the search */
   line-height: 1.6;
 }
 
-/* Combobox */
-.school-search-box {
-  width: 100%;
-  max-width: 580px;
-  position: relative;
-}
-
-.search-input-wrap {
-  display: flex;
-  align-items: center;
-  background-color: var(--paper-raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  padding: 4px 6px 4px var(--space-4);
-  height: 56px;
-  box-shadow: var(--shadow-sm);
-  transition: border-color var(--duration-micro) var(--ease-spring);
-}
-
-.search-input-wrap:focus-within {
-  border-color: var(--brand);
-}
-
-.search-box-icon {
-  color: var(--ink-faint);
-  margin-right: var(--space-3);
-  flex-shrink: 0;
-}
-
-.hero-search-input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  font-family: var(--font-body);
-  font-size: var(--text-base);
-  color: var(--ink);
-  outline: none;
-}
-
-.hero-search-input::placeholder {
-  color: var(--ink-faint);
-}
-
-/* Phones: the button drops under the input instead of running off screen */
-@media (max-width: 560px) {
-  .search-input-wrap {
-    flex-wrap: wrap;
-    height: auto;
-    padding: 4px 4px 4px var(--space-4);
-    row-gap: 4px;
+@media (min-width: 1024px) {
+  .hero-subtext {
+    margin-bottom: 40px;
   }
-  .hero-search-input {
-    min-width: 0;
-    height: 48px;
-  }
-  .search-input-wrap > div:last-child,
-  .search-input-wrap > .hero-find-btn {
-    flex: 1 0 100%;
-  }
-  .search-input-wrap .hero-find-btn {
-    width: 100%;
-  }
-}
-
-.hero-find-btn {
-  height: 48px;
-  padding: 0 var(--space-6);
-  flex-shrink: 0;
-  border-radius: 6px;
-  background-color: var(--brand);
-  color: var(--paper-raised);
-  border: 1px solid var(--brand);
-  font-family: var(--font-body);
-  font-size: var(--text-base);
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color var(--duration-fast) var(--ease-standard),
-              border-color var(--duration-fast) var(--ease-standard),
-              transform var(--duration-fast) var(--ease-standard);
-}
-
-.hero-find-btn:hover:not(:disabled) {
-  background-color: var(--brand-deep);
-  border-color: var(--brand-deep);
-}
-
-.hero-find-btn:active:not(:disabled) {
-  background-color: var(--brand-deep);
-}
-
-.hero-find-btn:focus-visible {
-  outline: 2px solid var(--brand);
-  outline-offset: 2px;
 }
 
 /* Hero Selected State */
@@ -267,77 +180,6 @@
 
 .hero-change-school-link:hover {
   color: var(--brand);
-}
-
-.combobox-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  right: 0;
-  background-color: var(--paper-raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  z-index: 50;
-  max-height: 380px;
-  overflow-y: auto;
-  padding: var(--space-2) 0;
-}
-
-.combobox-header {
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--line);
-}
-
-.combobox-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.combobox-option {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  cursor: pointer;
-  transition: background-color var(--duration-micro) var(--ease-spring);
-}
-
-.combobox-option:hover,
-.combobox-option.is-active {
-  background-color: var(--brand-tint);
-}
-
-.school-option-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.school-option-name {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--ink);
-}
-
-.school-option-meta {
-  font-size: var(--text-xs);
-  color: var(--ink-soft);
-}
-
-.combobox-empty {
-  padding: var(--space-6);
-  text-align: center;
-  color: var(--ink-soft);
-  font-size: var(--text-sm);
-}
-
-.request-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: var(--space-2);
-  color: var(--brand);
-  font-weight: 600;
 }
 
 /* ================== General Sections ================== */
@@ -616,4 +458,9 @@
 
 .cat-tile .cat-arrow {
   color: var(--on-tile);
+}
+
+/* The home page's one full-width band of the store highlight */
+.highlight-band {
+  background-color: var(--highlight-soft);
 }
