@@ -16,7 +16,7 @@ import {
   type ProductFit,
 } from '../../data/fit';
 import { DEFAULT_SHOULDER_FACTOR, MEASURE_WITH_CAMERA } from '../../measure/config';
-import { isSaneShoulder, type MeasureResult, type SideResult } from '../../measure/measureBody';
+import { isSaneShoulder, withBackCurve, type MeasureResult, type SideResult } from '../../measure/measureBody';
 import { InstructionDrawing, ShoulderDiagram } from './MeasureDrawings';
 import './measureFlow.css';
 
@@ -170,6 +170,7 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
           onResult={(result) => {
             const heightCm = parseMeasure(height)!;
             setRaw(result);
+            // The check is on the camera's own reading: it catches a bad photo.
             if (!result || !isSaneShoulder(result.shoulder_cm, heightCm)) {
               setNotice('mf.retakeNeeded');
               setStep('instructions');
@@ -177,7 +178,7 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
             }
             setDraft({
               ...numbers(),
-              shoulderCm: result.shoulder_cm,
+              shoulderCm: withBackCurve(result.shoulder_cm, heightCm, parseMeasure(weight)!),
               shoulderConfidence: result.confidence,
               source: 'CAMERA',
               shoulderEdited: false,
@@ -365,8 +366,9 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
               measureDebug() && draft.source === 'CAMERA' && raw
                 ? [
                     raw.joint_cm !== undefined
-                      ? `Joints ${raw.joint_cm} cm, outline ${raw.edge_cm} cm, shown ${raw.shoulder_cm} cm`
-                      : `Joints only (no outline edges), shown ${raw.shoulder_cm} cm`,
+                      ? `Joints ${raw.joint_cm} cm, outline ${raw.edge_cm} cm, camera ${raw.shoulder_cm} cm`
+                      : `Joints only (no outline edges), camera ${raw.shoulder_cm} cm`,
+                    `with weight ${withBackCurve(raw.shoulder_cm, draft.heightCm, draft.weightKg)} cm`,
                     side ? `side depth ${side.depth_cm} cm` : 'no side photo',
                   ].join(', ')
                 : undefined

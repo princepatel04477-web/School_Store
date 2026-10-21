@@ -20,6 +20,18 @@ The shown reading is `joints + SHOULDER_EDGE_BLEND x (outline - joints)`, then m
 
 A tape across the back follows the curve of the back. The camera, from the front, sees a straight line across. On a slim, flat back the two are close; on a heavy, round back the curve is much longer (the 100 kg adult later taped 55 cm where the camera read 44.5). How round the back is can't be seen from the front, so test mode also takes a side photo and reads the body's depth at the shoulders. Width plus depth gives the curve; the exact formula is set from the checks below.
 
+## Weight correction (live)
+
+Until side photos give enough data for a depth formula, the curve is estimated from weight for height. The camera reading is raised 1.5% for every BMI point above 20, at most 30% (`BACK_CURVE` in `frontend/src/measure/config.ts`). From three Indian adults with the camera reading before this correction:
+
+| Height | Weight | BMI | Camera | Tape | Corrected |
+|---|---|---|---|---|---|
+| 166 cm | 55 kg | 20.0 | 39.5 cm | 40 cm | 39.5 cm |
+| not given | not given | about 24 | 3 to 4 cm short | | about +6% |
+| 170 cm | 100 kg | 34.6 | 44.9 cm | 55 cm | 54.7 cm |
+
+The same 100 kg adult once taped 45 cm, so the tape method has to be the same every time (below) or the correction chases the wrong number.
+
 ## Collecting checks
 
 1. Open the shop with `measuredebug` in the address once, for example `/shop?measuredebug`. It stays on for that browser tab.

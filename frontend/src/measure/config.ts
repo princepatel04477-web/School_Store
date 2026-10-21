@@ -24,6 +24,16 @@ export const DEFAULT_SHOULDER_FACTOR = 1.0;
  * Indian schoolchildren: see docs/shoulder-calibration.md.
  */
 export const SHOULDER_EDGE_BLEND = 0.5;
+/**
+ * The curve of the back. A tape across the back follows it; the camera sees a
+ * straight line from the front. The heavier someone is for their height, the
+ * rounder the back and the bigger the gap, so the camera reading is raised by
+ * `perBmi` for every BMI point above `bmiStart`, up to `maxBoost`.
+ * From three Indian adults: BMI 20 read right (39.5, tape 40), BMI about 24 read
+ * 3 to 4 cm short, BMI 34.6 read 44.9 against a 55 cm tape (+22% needed).
+ */
+export const BACK_CURVE = { bmiStart: 20, perBmi: 0.015, maxBoost: 0.3 };
+
 /** The outline is trusted only within this many joint widths; wider means it ran into the background. */
 export const SHOULDER_EDGE_MAX_RATIO = 1.6;
 /** Outline pixels at or above this value (of 255) count as body. */
