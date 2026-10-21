@@ -4,6 +4,7 @@ import {
   SHOULDER_EDGE_BLEND,
   SHOULDER_EDGE_MAX_RATIO,
   SHOULDER_TO_HEIGHT,
+  DEPTH_TO_HEIGHT,
 } from './config';
 
 /** BlazePose indexes used for a full-body front view. */
@@ -123,6 +124,72 @@ export function shoulderEdgePx(frame: MeasureFrame): number | null {
   }
   if (spans.length < EDGE_ROWS + 1) return null;
   return median(spans) * (frame.imageWidth / mask.width);
+}
+
+/** Body run on one outline row that contains column x: [left edge, right edge], or null. */
+function runAt(mask: Mask, rowStart: number, x: number): [number, number] | null {
+  if (mask.data[rowStart + x] < MASK_BODY_MIN) return null;
+  let left = x;
+  while (left > 0 && mask.data[rowStart + left - 1] >= MASK_BODY_MIN) left -= 1;
+  let right = x;
+  while (right < mask.width - 1 && mask.data[rowStart + right + 1] >= MASK_BODY_MIN) right += 1;
+  return [left, right];
+}
+
+/**
+ * Side photo: how deep the body is at the shoulders (chest to back), in image
+ * pixels. The outline row through the near shoulder, read edge to edge around
+ * that shoulder, on the shoulder line and the rows next to it (median).
+ */
+export function sideDepthPx(frame: MeasureFrame, shoulder: Landmark): number | null {
+  const mask = frame.mask;
+  if (!mask || mask.width < 2 || mask.height < 2) return null;
+  const lineY = Math.round(shoulder.y * mask.height);
+  const x = Math.round(shoulder.x * mask.width);
+  if (x < 0 || x >= mask.width) return null;
+  const spans: number[] = [];
+  for (let y = lineY - EDGE_ROWS; y <= lineY + EDGE_ROWS; y += 1) {
+    if (y < 0 || y >= mask.height) continue;
+    const run = runAt(mask, y * mask.width, x);
+    if (!run || run[0] === 0 || run[1] === mask.width - 1) continue;
+    spans.push(run[1] - run[0] + 1);
+  }
+  if (spans.length < EDGE_ROWS + 1) return null;
+  return median(spans) * (frame.imageWidth / mask.width);
+}
+
+export interface SideResult {
+  /** Chest to back at shoulder height, in cm. */
+  depth_cm: number;
+  confidence: number;
+}
+
+/** Side photo reading: median body depth across the frames, scaled by the typed height. */
+export function measureSideFrames(frames: MeasureFrame[], heightCm: number): SideResult | null {
+  const rows = frames
+    .map((frame) => {
+      const left = frame.landmarks[LEFT_SHOULDER];
+      const right = frame.landmarks[RIGHT_SHOULDER];
+      const shoulder = (left?.visibility ?? 0) >= (right?.visibility ?? 0) ? left : right;
+      const top = headY(frame);
+      const floorY = floorPixelY(frame);
+      if (!shoulder || top == null || floorY == null || floorY - top < 20 || heightCm <= 0) return null;
+      const depthPx = sideDepthPx(frame, shoulder);
+      if (depthPx == null) return null;
+      return {
+        depth_cm: (depthPx * heightCm) / (floorY - top),
+        confidence: Math.min(shoulder.visibility ?? 0, frame.landmarks[NOSE]?.visibility ?? 0),
+      };
+    })
+    .filter((row): row is SideResult => row != null);
+  if (rows.length === 0) return null;
+  const depth = median(rows.map((row) => row.depth_cm));
+  const ratio = depth / heightCm;
+  if (ratio < DEPTH_TO_HEIGHT.min || ratio > DEPTH_TO_HEIGHT.max) return null;
+  return {
+    depth_cm: Math.round(depth * 10) / 10,
+    confidence: Math.round(Math.max(0, Math.min(1, median(rows.map((row) => row.confidence)))) * 1000) / 1000,
+  };
 }
 
 /** Top of the head in image pixels, from the eyes and mouth. */

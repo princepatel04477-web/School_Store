@@ -16,12 +16,17 @@ The shown reading is `joints + SHOULDER_EDGE_BLEND x (outline - joints)`, then m
 
 **Calibrate on Indian children.** The store is for Indian schoolchildren, so the blend and the factor are set only from tape checks on them, not from foreign body tables (ANSUR and similar are mostly US and European adults). Adults are fine for a first check; the children who will use the store decide the final numbers.
 
+## Why a front photo alone falls short
+
+A tape across the back follows the curve of the back. The camera, from the front, sees a straight line across. On a slim, flat back the two are close; on a heavy, round back the curve is much longer (the 100 kg adult later taped 55 cm where the camera read 44.5). How round the back is can't be seen from the front, so test mode also takes a side photo and reads the body's depth at the shoulders. Width plus depth gives the curve; the exact formula is set from the checks below.
+
 ## Collecting checks
 
 1. Open the shop with `measuredebug` in the address once, for example `/shop?measuredebug`. It stays on for that browser tab.
-2. Measure a child with the camera. The results screen shows `Joints J cm, outline O cm, shown S cm`.
-3. Measure the same child with a tape the way the tailor does: across the back, from shoulder point to shoulder point. Write down T.
-4. Do this for 10 to 20 children, slim and heavy, in fitted clothes (a loose shirt widens the outline).
+2. Measure a child with the camera: front photo, then the side photo it asks for (child turned sideways, arms down, phone in the same place). The results screen shows `Joints J cm, outline O cm, shown S cm, side depth D cm`.
+3. Measure the same child with a tape, the same way every time: across the back, tape lying on the body, from the bony point at the outer top of one shoulder to the other. Write down T. Also measure their best-fitting shirt laid flat, seam to seam, if there is one.
+4. Send J, O, S, D, T (and the shirt) for each person.
+5. Do this for 10 to 20 children, slim and heavy, in fitted clothes (a loose shirt widens the outline).
 
 ## Setting the blend
 

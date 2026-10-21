@@ -58,6 +58,11 @@ export const MAX_FILL = 0.88;
 /** How far the middle of the body may sit from the middle of the screen (share of its width). */
 export const CENTRE_TOLERANCE = 0.15;
 
+/** Side photo: the two shoulders closer than this share of the picture width means the child stands side-on. */
+export const SIDE_MAX_SHOULDER_GAP = 0.05;
+/** Body depth at the shoulders as a share of height that a body can have; outside it means retake. */
+export const DEPTH_TO_HEIGHT = { min: 0.08, max: 0.3 };
+
 /**
  * Shoulder width as a share of height that a child's body can have. A reading
  * outside it means the picture was taken badly, so the parent is asked to retake it.

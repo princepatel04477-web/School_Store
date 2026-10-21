@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { bestFrames, crownFromFace, isSaneShoulder, measureFrames, shoulderEdgePx, type MeasureFrame } from './measureBody';
-import { checkPose, measurable } from './measureChecks';
+import {
+  bestFrames,
+  crownFromFace,
+  isSaneShoulder,
+  measureFrames,
+  measureSideFrames,
+  shoulderEdgePx,
+  sideDepthPx,
+  type MeasureFrame,
+} from './measureBody';
+import { checkPose, checkSide, measurable, measurableSide } from './measureChecks';
 
 function maskWithHead(width: number, height: number, headY: number, noseX: number): Uint8Array {
   const data = new Uint8Array(width * height);
@@ -196,5 +205,43 @@ describe('measurable', () => {
 
   it('says the shoulders are missing when one is hidden', () => {
     expect(measurable(pose({ 12: { visibility: 0.2 } }))).toEqual({ ok: false, missing: 'shoulders' });
+  });
+});
+
+describe('side photo', () => {
+  /** Side-on: both shoulders at x 50 px on row 70; body 22 px deep there; 1 cm per px. */
+  function sideFrame(from = 40, to = 61): MeasureFrame {
+    const f = frame(0.5);
+    f.landmarks[11] = { x: 0.5, y: 0.35, z: 0, visibility: 0.9 };
+    f.landmarks[12] = { x: 0.51, y: 0.35, z: 0, visibility: 0.4 };
+    const { width } = f.mask!;
+    for (let y = 60; y <= 80; y += 1) for (let x = from; x <= to; x += 1) f.mask!.data[y * width + x] = 255;
+    return f;
+  }
+
+  it('reads body depth at the shoulders from the outline', () => {
+    const f = sideFrame();
+    expect(sideDepthPx(f, f.landmarks[11])).toBe(22);
+    expect(measureSideFrames([f], 170)).toEqual({ depth_cm: 22, confidence: 0.9 });
+  });
+
+  it('gives no reading when the outline runs off the picture', () => {
+    expect(measureSideFrames([sideFrame(0, 61)], 170)).toBeNull();
+  });
+
+  it('gives no reading for a depth no body has', () => {
+    // 6 px deep for 170 cm: under 8% of height.
+    expect(measureSideFrames([sideFrame(47, 52)], 170)).toBeNull();
+  });
+
+  it('asks to turn sideways while the child still faces the phone', () => {
+    const p = pose();
+    expect(checkSide(p, 720, 1280, p).guidance).toBe('turnSide');
+  });
+
+  it('is ready side-on, with the far shoulder hidden', () => {
+    const p = pose({ 11: { x: 0.5 }, 12: { x: 0.52, visibility: 0.3 } });
+    expect(checkSide(p, 720, 1280, p).guidance).toBe('ready');
+    expect(measurableSide(p)).toEqual({ ok: true, missing: null });
   });
 });

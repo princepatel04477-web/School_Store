@@ -2,14 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { useLang, type MessageKey } from '../i18n';
 import { speak, stopSpeaking } from '../i18n/speech';
 import { DETECT_INTERVAL_MS, FRAME_TARGET, HOLD_MS, MANUAL_MIN_FRAMES, MIN_FRAMES } from './config';
-import { checkPose, measurable, type Guidance, type Missing } from './measureChecks';
+import { checkPose, checkSide, measurable, measurableSide, type Guidance, type Missing } from './measureChecks';
 import {
   bestFrames,
   measureFrames,
+  measureSideFrames,
   type Landmark,
   type Mask,
   type MeasureFrame,
   type MeasureResult,
+  type SideResult,
 } from './measureBody';
 import './measure.css';
 
@@ -17,8 +19,15 @@ interface MeasureCaptureProps {
   heightCm: number;
   /** Shoulder calibration factor (see config.ts). */
   factor: number;
+  /**
+   * "front" (default) reads the shoulder width; "side" reads how deep the body
+   * is at the shoulders, for the curve of the back (test mode only for now).
+   */
+  view?: 'front' | 'side';
   /** null when no reading could be worked out: the flow asks to retake. */
   onResult: (result: MeasureResult | null) => void;
+  /** The side photo's reading (view "side"). */
+  onSideResult?: (result: SideResult | null) => void;
   onCancel: () => void;
   /** No camera, or the parent said no: the flow offers typing the numbers instead. */
   onCameraError: () => void;
@@ -31,6 +40,7 @@ const GUIDE_KEY: Record<Guidance, MessageKey> = {
   showFullBody: 'measure.g.showFullBody',
   standStraight: 'measure.g.standStraight',
   holdStill: 'measure.g.holdStill',
+  turnSide: 'measure.g.turnSide',
   ready: 'measure.g.ready',
 };
 
@@ -90,7 +100,15 @@ const CAMERA: MediaTrackConstraints = {
  * parent can also tap Capture. The video is only looked at here: no frame is
  * kept after the numbers are worked out, and the camera stops at once.
  */
-export function MeasureCapture({ heightCm, factor, onResult, onCancel, onCameraError }: MeasureCaptureProps) {
+export function MeasureCapture({
+  heightCm,
+  factor,
+  view = 'front',
+  onResult,
+  onSideResult,
+  onCancel,
+  onCameraError,
+}: MeasureCaptureProps) {
   const { t, lang } = useLang();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [guidance, setGuidance] = useState<Guidance>('showFullBody');
@@ -101,8 +119,8 @@ export function MeasureCapture({ heightCm, factor, onResult, onCancel, onCameraE
   const [aspect, setAspect] = useState(3 / 4);
   const spoken = useRef<Guidance | null>(null);
   const captureNow = useRef<() => void>(() => undefined);
-  const callbacks = useRef({ onResult, onCancel, onCameraError });
-  callbacks.current = { onResult, onCancel, onCameraError };
+  const callbacks = useRef({ onResult, onSideResult, onCancel, onCameraError });
+  callbacks.current = { onResult, onSideResult, onCancel, onCameraError };
 
   useEffect(() => {
     if (spoken.current === guidance) return;
@@ -142,16 +160,20 @@ export function MeasureCapture({ heightCm, factor, onResult, onCancel, onCameraE
       if (finished) return;
       if (frames.length < minFrames) {
         // Say which part of the child the camera can't see.
-        setNotice(t(missing ? MISSING_KEY[missing] : 'measure.g.showFullBody'));
+        const side = view === 'side' && missing === 'shoulders';
+        setNotice(t(missing && !side ? MISSING_KEY[missing] : 'measure.g.showFullBody'));
         return;
       }
       finished = true;
-      const measured = measureFrames(bestFrames(frames, FRAME_TARGET), heightCm, factor);
+      const best = bestFrames(frames, FRAME_TARGET);
+      const measured = view === 'side' ? null : measureFrames(best, heightCm, factor);
+      const sideMeasured = view === 'side' ? measureSideFrames(best, heightCm) : null;
       // Done with the camera: stop it before anything else happens.
       stop();
       recent = [];
       held = [];
-      callbacks.current.onResult(measured);
+      if (view === 'side') callbacks.current.onSideResult?.(sideMeasured);
+      else callbacks.current.onResult(measured);
     };
     captureNow.current = () => finish(held.length >= MIN_FRAMES ? held : recent, MANUAL_MIN_FRAMES);
 
@@ -178,10 +200,13 @@ export function MeasureCapture({ heightCm, factor, onResult, onCancel, onCameraE
         z: point.z,
         visibility: point.visibility ?? point.presence,
       }));
-      const pose = checkPose(landmarks, video.videoWidth, video.videoHeight, previous);
+      const pose =
+        view === 'side'
+          ? checkSide(landmarks, video.videoWidth, video.videoHeight, previous)
+          : checkPose(landmarks, video.videoWidth, video.videoHeight, previous);
       previous = landmarks;
       setGuidance(pose.guidance);
-      const inView = measurable(landmarks);
+      const inView = view === 'side' ? measurableSide(landmarks) : measurable(landmarks);
       missing = inView.missing;
       if (inView.ok) setNotice('');
 
@@ -263,7 +288,7 @@ export function MeasureCapture({ heightCm, factor, onResult, onCancel, onCameraE
       cancelled = true;
       stop();
     };
-  }, [heightCm, factor, t]);
+  }, [heightCm, factor, view, t]);
 
   const ready = guidance === 'ready';
 
