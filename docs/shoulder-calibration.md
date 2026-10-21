@@ -5,12 +5,16 @@ The camera reads the shoulder two ways and blends them:
 - **Joints**: MediaPipe's shoulder points, the centres of the shoulder joints. Close to the tape on slim bodies, short on heavy ones (the muscle and fat outside the joint are not counted).
 - **Outline**: the body outline at shoulder height, edge to edge. Includes everything the joints miss, so it comes out wider than a tape across the back.
 
-The shown reading is `joints + SHOULDER_EDGE_BLEND x (outline - joints)`, then multiplied by the server's `SHOULDER_CALIBRATION_FACTOR`. `SHOULDER_EDGE_BLEND` lives in `frontend/src/measure/config.ts`. It starts at 0.5, a guess from two adults:
+The shown reading is `joints + SHOULDER_EDGE_BLEND x (outline - joints)`, then multiplied by the server's `SHOULDER_CALIBRATION_FACTOR`. `SHOULDER_EDGE_BLEND` lives in `frontend/src/measure/config.ts`. It starts at 0.5, from two Indian adults measured with the joints-only reading:
 
-| Height | Weight | Joints only | Tape |
-|---|---|---|---|
-| 170 cm | 100 kg | 40.1 cm | 45 cm |
-| 167 cm | 55 kg | close to the tape | 37 to 38 cm |
+| Height | Weight | Joints only | Tape | Short by |
+|---|---|---|---|---|
+| 170 cm | 100 kg | 40.1 cm | 45 cm | 4.9 cm |
+| 167 cm | 55 kg | 35.5 cm | 37.5 cm | 2.0 cm |
+
+0.5 matches both if their outlines read about 50 cm and 39.5 cm. Their outline readings weren't taken yet, so this is unconfirmed.
+
+**Calibrate on Indian children.** The store is for Indian schoolchildren, so the blend and the factor are set only from tape checks on them, not from foreign body tables (ANSUR and similar are mostly US and European adults). Adults are fine for a first check; the children who will use the store decide the final numbers.
 
 ## Collecting checks
 

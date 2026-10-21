@@ -19,8 +19,9 @@ export const DEFAULT_SHOULDER_FACTOR = 1.0;
  * reading is taken this far from the joint width towards the outline width:
  * 0 is joints only, 1 is the outline edge to edge. A tape laid across the back
  * from shoulder point to shoulder point lands between the two.
- * Starting value from two adults (170 cm 100 kg read 40.1, tape 45; 167 cm 55 kg
- * close to tape). Set it from tape checks: see docs/shoulder-calibration.md.
+ * Starting value from two Indian adults whose joints-only readings were short by
+ * 4.9 cm (170 cm, 100 kg) and 2.0 cm (167 cm, 55 kg). Set it from tape checks on
+ * Indian schoolchildren: see docs/shoulder-calibration.md.
  */
 export const SHOULDER_EDGE_BLEND = 0.5;
 /** The outline is trusted only within this many joint widths; wider means it ran into the background. */
