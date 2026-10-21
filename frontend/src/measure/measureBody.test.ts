@@ -7,6 +7,7 @@ import {
   measureSideFrames,
   shoulderEdgePx,
   sideDepthPx,
+  withBackCurve,
   type MeasureFrame,
 } from './measureBody';
 import { checkPose, checkSide, measurable, measurableSide } from './measureChecks';
@@ -243,5 +244,26 @@ describe('side photo', () => {
     const p = pose({ 11: { x: 0.5 }, 12: { x: 0.52, visibility: 0.3 } });
     expect(checkSide(p, 720, 1280, p).guidance).toBe('ready');
     expect(measurableSide(p)).toEqual({ ok: true, missing: null });
+  });
+});
+
+describe('withBackCurve', () => {
+  it('leaves a slim reading alone', () => {
+    // 166 cm, 55 kg: BMI 20.0. Camera 39.5, tape 40.
+    expect(withBackCurve(39.5, 166, 55)).toBe(39.5);
+  });
+
+  it('raises a heavy reading towards the tape across the back', () => {
+    // 170 cm, 100 kg: BMI 34.6, +21.9%. Camera 44.9, tape 55.
+    expect(withBackCurve(44.9, 170, 100)).toBe(54.7);
+  });
+
+  it('raises an average build a little', () => {
+    // 170 cm, 70 kg: BMI 24.2, +6.3%.
+    expect(withBackCurve(40, 170, 70)).toBe(42.5);
+  });
+
+  it('stops at 30% however heavy', () => {
+    expect(withBackCurve(40, 150, 120)).toBe(52);
   });
 });
