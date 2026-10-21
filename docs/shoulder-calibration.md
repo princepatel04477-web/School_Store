@@ -20,24 +20,28 @@ The shown reading is `joints + SHOULDER_EDGE_BLEND x (outline - joints)`, then m
 
 A tape across the back follows the curve of the back. The camera, from the front, sees a straight line across. On a slim, flat back the two are close; on a heavy, round back the curve is much longer (the 100 kg adult later taped 55 cm where the camera read 44.5). How round the back is can't be seen from the front, so test mode also takes a side photo and reads the body's depth at the shoulders. Width plus depth gives the curve; the exact formula is set from the checks below.
 
-## Weight correction (live)
+## Mass correction (live)
 
-Until side photos give enough data for a depth formula, the curve is estimated from weight for height. The camera reading is raised 1.5% for every BMI point above 20, at most 30% (`BACK_CURVE` in `frontend/src/measure/config.ts`). From three Indian adults with the camera reading before this correction:
+The camera reading is multiplied by a curve of BMI, scaled down below the baseline build and up above it (`MASS_CURVE` in `frontend/src/measure/config.ts`):
 
-| Height | Weight | BMI | Camera | Tape | Corrected |
-|---|---|---|---|---|---|
-| 166 cm | 55 kg | 20.0 | 39.5 cm | 40 cm | 39.5 cm |
-| not given | not given | about 24 | 3 to 4 cm short | | about +6% |
-| 170 cm | 100 kg | 34.6 | 44.9 cm | 55 cm | 54.7 cm |
+    d = BMI - bmiBase;   multiplier = clamp(gain + alpha * d + beta * d * |d|, min, max)
 
-The same 100 kg adult once taped 45 cm, so the tape method has to be the same every time (below) or the correction chases the wrong number.
+Current values (`bmiBase` 22, `gain` 1.023, `alpha` 0.0198, `beta` 0) are a least-squares fit to five approximate readings from four Indian adults (BMI 19.5 to 34.6). Even the best fit misses some of them by about 2 cm: two people of the same build read 4 cm apart, and the same 100 kg adult taped 45, 55 and about 58 cm on different days. That is scatter from the tape and clothes, which no curve removes.
+
+### Refitting
+
+Put tape checks in a CSV with columns `height_cm, weight_kg, camera_cm, tape_cm` (`camera_cm` is the "camera" number in test mode, before the correction), then:
+
+    python scripts/fit_shoulder_curve.py checks.csv
+
+It prints each person's error, the error on a new person (leave-one-out: each person predicted by a curve fitted without them) and the `MASS_CURVE` line to paste. Keep `beta` at 0 until there are well over 10 checks: on five checks a bent curve fitted them better but missed a new person by 8 cm on average.
 
 ## Collecting checks
 
 1. Open the shop with `measuredebug` in the address once, for example `/shop?measuredebug`. It stays on for that browser tab.
-2. Measure a child with the camera: front photo, then the side photo it asks for (child turned sideways, arms down, phone in the same place). The results screen shows `Joints J cm, outline O cm, shown S cm, side depth D cm`.
+2. Measure a child with the camera: front photo, then the side photo it asks for (child turned sideways, arms down, phone in the same place). The results screen shows `Joints J cm, outline O cm, camera C cm, with weight W cm, side depth D cm`.
 3. Measure the same child with a tape, the same way every time: across the back, tape lying on the body, from the bony point at the outer top of one shoulder to the other. Write down T. Also measure their best-fitting shirt laid flat, seam to seam, if there is one.
-4. Send J, O, S, D, T (and the shirt) for each person.
+4. Write height, weight, C and T into the CSV for the fit; keep J, O and D too (depth may replace the weight curve later).
 5. Do this for 10 to 20 children, slim and heavy, in fitted clothes (a loose shirt widens the outline).
 
 ## Setting the blend

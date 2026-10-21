@@ -25,14 +25,26 @@ export const DEFAULT_SHOULDER_FACTOR = 1.0;
  */
 export const SHOULDER_EDGE_BLEND = 0.5;
 /**
- * The curve of the back. A tape across the back follows it; the camera sees a
- * straight line from the front. The heavier someone is for their height, the
- * rounder the back and the bigger the gap, so the camera reading is raised by
- * `perBmi` for every BMI point above `bmiStart`, up to `maxBoost`.
- * From three Indian adults: BMI 20 read right (39.5, tape 40), BMI about 24 read
- * 3 to 4 cm short, BMI 34.6 read 44.9 against a 55 cm tape (+22% needed).
+ * Mass correction: the camera's shoulder reading multiplied by a curve of BMI
+ * (weight for height). A tape across the back follows the curve of the back and
+ * the shoulder outline shifts with fat and clothes, so the straight-line camera
+ * reading runs long on thin bodies and short on heavy ones.
+ *
+ *   d          = BMI - bmiBase
+ *   multiplier = clamp(gain + alpha * d + beta * d * |d|, min, max)
+ *   shoulder   = camera reading * multiplier
+ *
+ * gain   multiplier at the baseline BMI (1 = no change for an average build)
+ * alpha  change per BMI point: below the baseline it scales down, above it up
+ * beta   bend: positive grows faster for very heavy bodies, negative slower
+ * min/max  limits, so an odd weight can't run away with the reading
+ *
+ * Fitted (least squares) to five approximate readings from four Indian adults,
+ * BMI 19.5 to 34.6; the best fit still leaves about 2 cm either way, which is
+ * scatter (tape method, clothes), not trend. Refit from tape checks with
+ * scripts/fit_shoulder_curve.py and paste the printed values here.
  */
-export const BACK_CURVE = { bmiStart: 20, perBmi: 0.015, maxBoost: 0.3 };
+export const MASS_CURVE = { bmiBase: 22, gain: 1.023, alpha: 0.0198, beta: 0, min: 0.85, max: 1.35 };
 
 /** The outline is trusted only within this many joint widths; wider means it ran into the background. */
 export const SHOULDER_EDGE_MAX_RATIO = 1.6;
