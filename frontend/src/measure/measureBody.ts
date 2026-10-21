@@ -1,4 +1,10 @@
-import { DEFAULT_SHOULDER_FACTOR, SHOULDER_TO_HEIGHT } from './config';
+import {
+  DEFAULT_SHOULDER_FACTOR,
+  MASK_BODY_MIN,
+  SHOULDER_EDGE_BLEND,
+  SHOULDER_EDGE_MAX_RATIO,
+  SHOULDER_TO_HEIGHT,
+} from './config';
 
 /** BlazePose indexes used for a full-body front view. */
 export const NOSE = 0;
@@ -49,6 +55,13 @@ export interface MeasureFrame {
 export interface MeasureResult {
   shoulder_cm: number;
   confidence: number;
+  /**
+   * The two readings the shoulder is worked out from, before the calibration
+   * factor: joint centre to joint centre, and outline edge to edge. Only set
+   * when the outline gave the edges; kept for checking against a tape.
+   */
+  joint_cm?: number;
+  edge_cm?: number;
 }
 
 function median(values: number[]): number {
@@ -73,6 +86,43 @@ export function headPixelY(mask: Mask, nose: Landmark): number | null {
     }
   }
   return null;
+}
+
+/** Rows above and below the shoulder line that are read for the edges. */
+const EDGE_ROWS = 2;
+
+/**
+ * Width of the body outline across the shoulders, in image pixels: from each
+ * shoulder joint outwards to where the outline ends, on the shoulder line and
+ * the rows next to it (median). null when the outline is missing, the joints
+ * aren't inside it, or it runs off the side of the picture.
+ */
+export function shoulderEdgePx(frame: MeasureFrame): number | null {
+  const mask = frame.mask;
+  const left = frame.landmarks[LEFT_SHOULDER];
+  const right = frame.landmarks[RIGHT_SHOULDER];
+  if (!mask || mask.width < 2 || mask.height < 2 || !left || !right) return null;
+  const body = (x: number, row: number) => mask.data[row + x] >= MASK_BODY_MIN;
+  const lineY = Math.round(((left.y + right.y) / 2) * mask.height);
+  const innerLeft = Math.round(Math.min(left.x, right.x) * mask.width);
+  const innerRight = Math.round(Math.max(left.x, right.x) * mask.width);
+  if (innerLeft < 0 || innerRight >= mask.width) return null;
+
+  const spans: number[] = [];
+  for (let y = lineY - EDGE_ROWS; y <= lineY + EDGE_ROWS; y += 1) {
+    if (y < 0 || y >= mask.height) continue;
+    const row = y * mask.width;
+    if (!body(innerLeft, row) || !body(innerRight, row)) continue;
+    let edgeLeft = innerLeft;
+    while (edgeLeft > 0 && body(edgeLeft - 1, row)) edgeLeft -= 1;
+    let edgeRight = innerRight;
+    while (edgeRight < mask.width - 1 && body(edgeRight + 1, row)) edgeRight += 1;
+    // Touching the side of the picture: the real edge is out of view.
+    if (edgeLeft === 0 || edgeRight === mask.width - 1) continue;
+    spans.push(edgeRight - edgeLeft + 1);
+  }
+  if (spans.length < EDGE_ROWS + 1) return null;
+  return median(spans) * (frame.imageWidth / mask.width);
 }
 
 /** Top of the head in image pixels, from the eyes and mouth. */
@@ -121,7 +171,11 @@ function frameMeasure(frame: MeasureFrame, heightCm: number, factor: number): Me
   if (pixelHeight < 20) return null;
 
   const scale = heightCm / pixelHeight;
-  const shoulderPx = Math.hypot((left.x - right.x) * frame.imageWidth, (left.y - right.y) * frame.imageHeight);
+  const jointPx = Math.hypot((left.x - right.x) * frame.imageWidth, (left.y - right.y) * frame.imageHeight);
+  // Move towards the outline's edges when they can be trusted (see SHOULDER_EDGE_BLEND).
+  const edgePx = shoulderEdgePx(frame);
+  const edgeOk = edgePx != null && edgePx >= jointPx && edgePx <= jointPx * SHOULDER_EDGE_MAX_RATIO;
+  const shoulderPx = edgeOk ? jointPx + SHOULDER_EDGE_BLEND * (edgePx - jointPx) : jointPx;
   const visibility = Math.min(
     nose.visibility ?? 0,
     left.visibility ?? 0,
@@ -133,6 +187,9 @@ function frameMeasure(frame: MeasureFrame, heightCm: number, factor: number): Me
   return {
     shoulder_cm: Math.round(shoulderPx * scale * factor * 10) / 10,
     confidence: Math.round(Math.max(0, Math.min(1, visibility)) * 1000) / 1000,
+    ...(edgeOk
+      ? { joint_cm: Math.round(jointPx * scale * 10) / 10, edge_cm: Math.round(edgePx * scale * 10) / 10 }
+      : {}),
   };
 }
 
@@ -146,9 +203,16 @@ export function measureFrames(
     .map((frame) => frameMeasure(frame, heightCm, factor))
     .filter((row): row is MeasureResult => row != null);
   if (measured.length === 0) return null;
+  const withEdges = measured.filter((row) => row.edge_cm !== undefined && row.joint_cm !== undefined);
   return {
     shoulder_cm: Math.round(median(measured.map((row) => row.shoulder_cm)) * 10) / 10,
     confidence: Math.round(median(measured.map((row) => row.confidence)) * 1000) / 1000,
+    ...(withEdges.length > 0
+      ? {
+          joint_cm: Math.round(median(withEdges.map((row) => row.joint_cm!)) * 10) / 10,
+          edge_cm: Math.round(median(withEdges.map((row) => row.edge_cm!)) * 10) / 10,
+        }
+      : {}),
   };
 }
 

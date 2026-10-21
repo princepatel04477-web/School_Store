@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bestFrames, crownFromFace, isSaneShoulder, measureFrames, type MeasureFrame } from './measureBody';
+import { bestFrames, crownFromFace, isSaneShoulder, measureFrames, shoulderEdgePx, type MeasureFrame } from './measureBody';
 import { checkPose, measurable } from './measureChecks';
 
 function maskWithHead(width: number, height: number, headY: number, noseX: number): Uint8Array {
@@ -57,6 +57,43 @@ describe('measureFrames', () => {
     expect(crownFromFace(f)).toBeCloseTo(20);
     // Floor 180, crown 20: 160 px for 160 cm, scale 1, shoulders 20 px.
     expect(measureFrames([f], 160, 1)?.shoulder_cm).toBe(20);
+  });
+});
+
+describe('shoulder edges from the body outline', () => {
+  /** frame(0.4): joints at x 40 and 60 px on row 70, 20 px apart; 1 cm per px. */
+  function withBody(from: number, to: number, value = 255): MeasureFrame {
+    const f = frame(0.4);
+    const { width } = f.mask!;
+    for (let y = 60; y <= 80; y += 1) for (let x = from; x <= to; x += 1) f.mask!.data[y * width + x] = value;
+    return f;
+  }
+
+  it('reads the outline edge to edge across the shoulders', () => {
+    expect(shoulderEdgePx(withBody(35, 64))).toBe(30);
+  });
+
+  it('moves a heavy body halfway from the joints to the outline edges', () => {
+    // Joints 20 cm, outline 30 cm: 25 cm. A joints-only reading said 20 here.
+    expect(measureFrames([withBody(35, 64)], 170, 1)).toEqual({ shoulder_cm: 25, confidence: 1, joint_cm: 20, edge_cm: 30 });
+  });
+
+  it('applies the calibration factor after the blend', () => {
+    expect(measureFrames([withBody(35, 64)], 170, 1.1)?.shoulder_cm).toBe(27.5);
+  });
+
+  it('keeps the joints when the outline runs off the side of the picture', () => {
+    expect(shoulderEdgePx(withBody(0, 64))).toBeNull();
+    expect(measureFrames([withBody(0, 64)], 170, 1)).toEqual({ shoulder_cm: 20, confidence: 1 });
+  });
+
+  it('keeps the joints when the outline is too wide to be the body', () => {
+    // 50 px against 20 px joints: the outline ran into the background.
+    expect(measureFrames([withBody(25, 74)], 170, 1)).toEqual({ shoulder_cm: 20, confidence: 1 });
+  });
+
+  it('ignores outline pixels the model is less than half sure of', () => {
+    expect(shoulderEdgePx(withBody(35, 64, 100))).toBeNull();
   });
 });
 

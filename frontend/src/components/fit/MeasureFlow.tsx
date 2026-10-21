@@ -16,7 +16,7 @@ import {
   type ProductFit,
 } from '../../data/fit';
 import { DEFAULT_SHOULDER_FACTOR, MEASURE_WITH_CAMERA } from '../../measure/config';
-import { isSaneShoulder } from '../../measure/measureBody';
+import { isSaneShoulder, type MeasureResult } from '../../measure/measureBody';
 import { InstructionDrawing, ShoulderDiagram } from './MeasureDrawings';
 import './measureFlow.css';
 
@@ -46,6 +46,19 @@ export interface MeasureFlowProps {
 const asText = (value?: number) => (value === undefined ? '' : String(value));
 
 /**
+ * Tape checks: with "measuredebug" in the address (once is enough for the visit),
+ * the results screen also shows the two raw camera readings.
+ */
+function measureDebug(): boolean {
+  try {
+    if (window.location.search.includes('measuredebug')) sessionStorage.setItem('measuredebug', '1');
+    return sessionStorage.getItem('measuredebug') === '1';
+  } catch {
+    return window.location.search.includes('measuredebug');
+  }
+}
+
+/**
  * "Accurate size" (Prompts 21 to 23): height and weight, a short how-to,
  * then the camera (or typing the numbers when there is no camera), then a
  * results screen where every number can be changed before it is saved.
@@ -61,6 +74,8 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
   const [notice, setNotice] = useState<MessageKey | null>(null);
   // The measurement being checked on the results screen.
   const [draft, setDraft] = useState<Fit | null>(null);
+  // The camera's raw readings, shown only for tape checks.
+  const [raw, setRaw] = useState<MeasureResult | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const config = useMeasureConfig(step === 'instructions' || step === 'camera');
@@ -151,6 +166,7 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
           factor={factor}
           onResult={(result) => {
             const heightCm = parseMeasure(height)!;
+            setRaw(result);
             if (!result || !isSaneShoulder(result.shoulder_cm, heightCm)) {
               setNotice('mf.retakeNeeded');
               setStep('instructions');
@@ -302,6 +318,13 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
             onChange={setDraft}
             saving={saving}
             saveFailed={saveFailed}
+            debugLine={
+              measureDebug() && draft.source === 'CAMERA' && raw
+                ? raw.joint_cm !== undefined
+                  ? `Joints ${raw.joint_cm} cm, outline ${raw.edge_cm} cm, shown ${raw.shoulder_cm} cm`
+                  : `Joints only (no outline edges), shown ${raw.shoulder_cm} cm`
+                : undefined
+            }
             onRetake={() => setStep(draft.source === 'CAMERA' ? 'camera' : 'manual')}
             onSave={() => void save()}
             onContinue={onClose}
@@ -320,11 +343,13 @@ function Results({
   onChange,
   saving,
   saveFailed,
+  debugLine,
   onRetake,
   onSave,
   onContinue,
 }: {
   draft: Fit;
+  debugLine?: string;
   garments: MeasureGarment[];
   className?: string;
   onChange: (fit: Fit) => void;
@@ -402,6 +427,7 @@ function Results({
           }}
         />
       </dl>
+      {debugLine && <p className="mflow-sub">{debugLine}</p>}
 
       {shirt || trouser ? (
         <div className="mflow-suggest">
