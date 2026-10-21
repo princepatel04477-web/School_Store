@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bestFrames, crownFromFace, isSaneShoulder, measureFrames, type MeasureFrame } from './measureBody';
-import { checkPose } from './measureChecks';
+import { checkPose, measurable } from './measureChecks';
 
 function maskWithHead(width: number, height: number, headY: number, noseX: number): Uint8Array {
   const data = new Uint8Array(width * height);
@@ -112,7 +112,7 @@ describe('checkPose', () => {
   });
 
   it('asks to move closer when the child is small in the picture', () => {
-    const far = pose({ 0: { y: 0.4 }, 27: { y: 0.8 }, 28: { y: 0.8 }, 29: { y: 0.82 }, 30: { y: 0.82 } });
+    const far = pose({ 0: { y: 0.5 }, 27: { y: 0.8 }, 28: { y: 0.8 }, 29: { y: 0.82 }, 30: { y: 0.82 } });
     expect(checkPose(far, W, H, far).guidance).toBe('moveCloser');
   });
 
@@ -131,5 +131,33 @@ describe('checkPose', () => {
     const before = pose();
     const after = pose({ 0: { x: 0.53 } });
     expect(checkPose(after, W, H, before).guidance).toBe('holdStill');
+  });
+});
+
+describe('measurable', () => {
+  /** Feet points (heels 29, 30 and toes 31, 32) all set the same way. */
+  const feet = (change: Partial<{ y: number; visibility: number }>) => ({ 29: change, 30: change, 31: change, 32: change });
+
+  it('can be read without standing perfectly straight or still', () => {
+    const tilted = pose({ 11: { y: 0.22 }, 12: { y: 0.28 } });
+    expect(checkPose(tilted, 720, 1280, null).ready).toBe(false);
+    expect(measurable(tilted)).toEqual({ ok: true, missing: null });
+  });
+
+  it('counts feet that are only partly seen, as shoes often are', () => {
+    expect(measurable(pose(feet({ visibility: 0.35 }))).ok).toBe(true);
+  });
+
+  it('says the feet are missing when they are out of the picture', () => {
+    expect(measurable(pose(feet({ visibility: 0.1 })))).toEqual({ ok: false, missing: 'feet' });
+    expect(measurable(pose({ 29: { y: 0.999 } }))).toEqual({ ok: false, missing: 'feet' });
+  });
+
+  it('says the head is missing when it is cut off at the top', () => {
+    expect(measurable(pose({ 0: { y: 0.01 } }))).toEqual({ ok: false, missing: 'head' });
+  });
+
+  it('says the shoulders are missing when one is hidden', () => {
+    expect(measurable(pose({ 12: { visibility: 0.2 } }))).toEqual({ ok: false, missing: 'shoulders' });
   });
 });

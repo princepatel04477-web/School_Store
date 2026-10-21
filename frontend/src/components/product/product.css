@@ -317,48 +317,78 @@
   font-weight: 500;
 }
 
-/* ================== Product Sheet Modal ================== */
+/* ================== Product page (full screen) ================== */
 .product-sheet-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(21, 24, 30, 0.45);
-  z-index: 60;
+  background-color: var(--paper);
+  /* Above the site header (100): the product is its own page. */
+  z-index: 110;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-4);
 }
 
 .product-sheet-modal {
   background-color: var(--paper);
-  border-radius: var(--radius-lg);
-  width: min(920px, 100%);
-  max-height: 92vh;
+  width: 100%;
+  height: 100dvh;
   overflow-y: auto;
-  box-shadow: var(--shadow-md);
+  overscroll-behavior: contain;
   position: relative;
-  padding: var(--space-8);
+  padding: 0 var(--space-8) var(--space-8);
 }
 
-.sheet-close-floating {
-  position: absolute;
-  top: var(--space-4);
-  right: var(--space-4);
+/* Back to the list, always in reach at the top */
+.sheet-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 56px;
+  margin: 0 calc(-1 * var(--space-8)) var(--space-6);
+  padding: var(--space-2) var(--space-8);
+  background-color: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+
+.sheet-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-3);
   background: var(--paper-raised);
   border: 1px solid var(--line);
-  border-radius: var(--radius-full);
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  font-size: var(--text-sm);
   cursor: pointer;
-  z-index: 10;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.sheet-back:hover {
+  background: var(--paper-sunk);
+}
+
+.sheet-topbar-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
 }
 
 .sheet-content-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-8);
+  max-width: 920px;
+  margin: 0 auto;
 }
 
 @media (min-width: 768px) {
@@ -436,17 +466,14 @@
   width: 100%;
 }
 
-/* Phones: a bottom sheet with a shorter picture and the Add button pinned in reach */
+/* Phones: a shorter picture and the Add button pinned in reach */
 @media (max-width: 639px) {
-  .product-sheet-backdrop {
-    align-items: flex-end;
-    padding: 0;
-  }
   .product-sheet-modal {
-    width: 100%;
-    max-height: 92dvh;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    padding: var(--space-4) var(--space-4) 0;
+    padding: 0 var(--space-4);
+  }
+  .sheet-topbar {
+    margin: 0 calc(-1 * var(--space-4)) var(--space-4);
+    padding: var(--space-2) var(--space-4);
   }
   .sheet-content-grid {
     gap: var(--space-4);
@@ -507,7 +534,7 @@
   position: fixed;
   inset: 0;
   background-color: rgba(21, 24, 30, 0.45);
-  z-index: 70;
+  z-index: 120;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -617,4 +644,104 @@
 
 .product-sheet-price {
   font-size: var(--text-3xl);
+}
+
+/* ================== Size guide notice ================== */
+/* Reads like a notice on a board: the school colour, a solid bar on the left, a plain
+   sentence. Strong enough to be seen first, calm enough not to shout. */
+.size-guide-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 56px;
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--brand-tint);
+  border: 1px solid color-mix(in oklab, var(--brand) 35%, white);
+  border-left: 4px solid var(--brand);
+  border-radius: var(--radius-md);
+  color: var(--brand-deep);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.size-guide-notice:hover {
+  background-color: color-mix(in oklab, var(--brand) 18%, white);
+}
+
+.size-guide-notice-text {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.size-guide-notice-text b {
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.size-guide-notice-text span {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+/* Just after the pop-up closes: the colour deepens twice so the eye lands here. */
+.size-guide-notice.is-fresh {
+  animation: size-guide-attention 1.2s var(--ease-retint) 2;
+}
+
+@keyframes size-guide-attention {
+  50% {
+    background-color: color-mix(in oklab, var(--brand) 26%, white);
+  }
+}
+
+/* The one-second pop-up as the page opens */
+.size-guide-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 115;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  background-color: rgba(21, 24, 30, 0.45);
+}
+
+.size-guide-intro-card {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  width: min(340px, 100%);
+  padding: var(--space-6);
+  background-color: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--brand);
+  border-radius: var(--radius-lg);
+  color: var(--ink);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.size-guide-intro-card svg {
+  color: var(--brand);
+}
+
+.size-guide-intro-card b {
+  font-size: var(--text-xl);
+}
+
+.size-guide-intro-card span {
+  font-size: var(--text-base);
+  color: var(--ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .size-guide-notice.is-fresh {
+    animation: none;
+  }
 }

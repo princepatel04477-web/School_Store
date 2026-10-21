@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLang, type MessageKey } from '../i18n';
 import { speak, stopSpeaking } from '../i18n/speech';
-import { DETECT_INTERVAL_MS, FRAME_TARGET, HOLD_MS, MIN_FRAMES } from './config';
-import { checkPose, type Guidance } from './measureChecks';
+import { DETECT_INTERVAL_MS, FRAME_TARGET, HOLD_MS, MANUAL_MIN_FRAMES, MIN_FRAMES } from './config';
+import { checkPose, measurable, type Guidance, type Missing } from './measureChecks';
 import {
   bestFrames,
   measureFrames,
@@ -32,6 +32,12 @@ const GUIDE_KEY: Record<Guidance, MessageKey> = {
   standStraight: 'measure.g.standStraight',
   holdStill: 'measure.g.holdStill',
   ready: 'measure.g.ready',
+};
+
+const MISSING_KEY: Record<Missing, MessageKey> = {
+  head: 'measure.miss.head',
+  shoulders: 'measure.miss.shoulders',
+  feet: 'measure.miss.feet',
 };
 
 interface PosePoint {
@@ -64,7 +70,31 @@ function copyMask(mask: PoseMask): Mask {
 }
 
 /**
- * Full-screen rear camera with a dotted child outline. MediaPipe Pose runs on
+ * Asks for the camera's own 4:3 shape (landscape in sensor terms). Asking for a
+ * tall 720x1280 picture made phones crop the sensor, which looked zoomed in and
+ * cut off the child's feet.
+ */
+const CAMERA: MediaTrackConstraints = {
+  facingMode: { ideal: 'environment' },
+  width: { ideal: 1280 },
+  height: { ideal: 960 },
+  aspectRatio: { ideal: 4 / 3 },
+};
+
+/** Widest view the camera allows: phones that support zoom sometimes open a little zoomed in. */
+async function zoomOut(stream: MediaStream) {
+  const track = stream.getVideoTracks()[0];
+  const caps = track?.getCapabilities?.() as (MediaTrackCapabilities & { zoom?: { min: number } }) | undefined;
+  if (!track || !caps?.zoom) return;
+  try {
+    await track.applyConstraints({ advanced: [{ zoom: caps.zoom.min } as MediaTrackConstraintSet] });
+  } catch {
+    // Some phones list zoom but refuse it: the default view is used.
+  }
+}
+
+/**
+ * Rear camera with a dotted child outline over the whole camera picture. MediaPipe Pose runs on
  * the phone about 10 times a second and the screen shows one instruction at a
  * time. When the child fits for 2 seconds the reading is taken by itself; the
  * parent can also tap Capture. The video is only looked at here: no frame is
@@ -77,6 +107,8 @@ export function MeasureCapture({ heightCm, factor, onResult, onCancel, onCameraE
   const [holdShare, setHoldShare] = useState(0);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+  // Width / height of the camera picture, so the whole picture is shown with the outline on top of it.
+  const [aspect, setAspect] = useState(3 / 4);
   const spoken = useRef<Guidance | null>(null);
   const captureNow = useRef<() => void>(() => undefined);
   const callbacks = useRef({ onResult, onCancel, onCameraError });
@@ -104,6 +136,8 @@ export function MeasureCapture({ heightCm, factor, onResult, onCancel, onCameraE
     let held: ScoredFrame[] = [];
     let readySince = 0;
     let previous: Landmark[] | null = null;
+    // The part of the child Capture would need; null while no child is seen at all.
+    let missing: Missing | null = null;
 
     const stop = () => {
       window.cancelAnimationFrame(timer);
@@ -114,10 +148,11 @@ export function MeasureCapture({ heightCm, factor, onResult, onCancel, onCameraE
       if (video) video.srcObject = null;
     };
 
-    const finish = (frames: ScoredFrame[]) => {
+    const finish = (frames: ScoredFrame[], minFrames = MIN_FRAMES) => {
       if (finished) return;
-      if (frames.length < MIN_FRAMES) {
-        setNotice(t('measure.g.showFullBody'));
+      if (frames.length < minFrames) {
+        // Say which part of the child the camera can't see.
+        setNotice(t(missing ? MISSING_KEY[missing] : 'measure.g.showFullBody'));
         return;
       }
       finished = true;
@@ -128,7 +163,7 @@ export function MeasureCapture({ heightCm, factor, onResult, onCancel, onCameraE
       held = [];
       callbacks.current.onResult(measured);
     };
-    captureNow.current = () => finish(held.length >= MIN_FRAMES ? held : recent);
+    captureNow.current = () => finish(held.length >= MIN_FRAMES ? held : recent, MANUAL_MIN_FRAMES);
 
     const loop = (now: number) => {
       timer = window.requestAnimationFrame(loop);
@@ -139,6 +174,8 @@ export function MeasureCapture({ heightCm, factor, onResult, onCancel, onCameraE
       const poseMask = result.segmentationMasks?.[0];
       if (!raw || video.videoWidth === 0) {
         poseMask?.close?.();
+        missing = null;
+        recent = [];
         setGuidance('showFullBody');
         readySince = 0;
         held = [];
@@ -154,8 +191,13 @@ export function MeasureCapture({ heightCm, factor, onResult, onCancel, onCameraE
       const pose = checkPose(landmarks, video.videoWidth, video.videoHeight, previous);
       previous = landmarks;
       setGuidance(pose.guidance);
+      const inView = measurable(landmarks);
+      missing = inView.missing;
+      if (inView.ok) setNotice('');
 
-      if (pose.wholeBody) {
+      // Every frame a reading can come from is kept for Capture; the strict
+      // checks only decide when the picture is taken by itself.
+      if (inView.ok) {
         const frame: ScoredFrame = {
           landmarks,
           mask: poseMask ? copyMask(poseMask) : undefined,
@@ -188,18 +230,17 @@ export function MeasureCapture({ heightCm, factor, onResult, onCancel, onCameraE
     }
 
     navigator.mediaDevices
-      .getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 720 }, height: { ideal: 1280 } },
-        audio: false,
-      })
+      .getUserMedia({ video: CAMERA, audio: false })
       .then(async (opened) => {
         if (cancelled) {
           opened.getTracks().forEach((track) => track.stop());
           return;
         }
         stream = opened;
+        await zoomOut(opened);
         video.srcObject = opened;
         await video.play();
+        if (video.videoWidth > 0 && video.videoHeight > 0) setAspect(video.videoWidth / video.videoHeight);
         const vision = await import('@mediapipe/tasks-vision');
         const files = await vision.FilesetResolver.forVisionTasks('/mediapipe/wasm');
         const base = { modelAssetPath: '/mediapipe/pose_landmarker_lite.task' };
@@ -239,8 +280,22 @@ export function MeasureCapture({ heightCm, factor, onResult, onCancel, onCameraE
 
   return (
     <div className="measure-screen" role="dialog" aria-modal="true" aria-label={t('measure.cameraTitle')}>
-      <video ref={videoRef} className="measure-video" playsInline muted autoPlay />
-      <ChildOutline ready={ready} />
+      <div className="measure-stage">
+        <div className="measure-frame" style={{ ['--measure-aspect' as string]: aspect }}>
+          <video
+            ref={videoRef}
+            className="measure-video"
+            playsInline
+            muted
+            autoPlay
+            onLoadedMetadata={(e) => {
+              const { videoWidth, videoHeight } = e.currentTarget;
+              if (videoWidth > 0 && videoHeight > 0) setAspect(videoWidth / videoHeight);
+            }}
+          />
+          <ChildOutline ready={ready} />
+        </div>
+      </div>
       <div className="measure-panel">
         <p className="measure-guide" aria-live="polite">
           {loading ? t('measure.loadingCamera') : notice && !ready ? notice : t(GUIDE_KEY[guidance])}

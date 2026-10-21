@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { X, Ruler } from '../ui/icons';
 import './product.css';
 
@@ -5,9 +6,11 @@ export interface SizeGuideProps {
   category: string;
   isOpen: boolean;
   onClose: () => void;
+  /** The school's own size chart for this item. Shown instead of the general table. */
+  children?: ReactNode;
 }
 
-export function SizeGuide({ category, isOpen, onClose }: SizeGuideProps) {
+export function SizeGuide({ category, isOpen, onClose, children }: SizeGuideProps) {
   if (!isOpen) return null;
 
   return (
@@ -40,6 +43,7 @@ export function SizeGuide({ category, isOpen, onClose }: SizeGuideProps) {
           </p>
         </div>
 
+        {children ?? (
         <div className="size-guide-table-scroll">
           <table className="size-table">
             <thead>
@@ -104,6 +108,7 @@ export function SizeGuide({ category, isOpen, onClose }: SizeGuideProps) {
             </tbody>
           </table>
         </div>
+        )}
 
         <div className="size-guide-footer">
           <button type="button" className="btn btn-primary" onClick={onClose}>

@@ -301,6 +301,21 @@ export const messages = {
     hi: 'फ़ोटो आपके फ़ोन में ही रहती है। सिर्फ़ नाप सेव होते हैं।',
   },
   'measure.capture': { en: 'Capture', gu: 'માપ લો', hi: 'नाप लें' },
+  'measure.miss.head': {
+    en: 'The head is not seen. Hold the phone a little higher.',
+    gu: 'માથું દેખાતું નથી. ફોન થોડો ઊંચો રાખો.',
+    hi: 'सिर नहीं दिख रहा। फ़ोन थोड़ा ऊपर रखें।',
+  },
+  'measure.miss.shoulders': {
+    en: 'The shoulders are not seen. The child should face the phone.',
+    gu: 'ખભા દેખાતા નથી. બાળક ફોન તરફ મોં રાખે.',
+    hi: 'कंधे नहीं दिख रहे। बच्चा फ़ोन की ओर मुँह करे।',
+  },
+  'measure.miss.feet': {
+    en: 'The feet are not seen. Step back until the feet show.',
+    gu: 'પગ દેખાતા નથી. પગ દેખાય ત્યાં સુધી પાછળ જાઓ.',
+    hi: 'पैर नहीं दिख रहे। पैर दिखने तक पीछे जाएँ।',
+  },
   'measure.cancel': { en: 'Cancel', gu: 'રદ કરો', hi: 'रद्द करें' },
 
   // ---------- accurate size: measuring flow ----------
@@ -439,6 +454,17 @@ export const messages = {
   'product.size': { en: 'Size', gu: 'સાઈઝ', hi: 'साइज़' },
   'product.pickSize': { en: 'Please choose a size', gu: 'સાઈઝ પસંદ કરો', hi: 'साइज़ चुनें' },
   'product.sizeGuide': { en: 'Size guide', gu: 'સાઈઝ માર્ગદર્શન', hi: 'साइज़ गाइड' },
+  'product.sizeGuideHint': {
+    en: 'Not sure of the size? Look here first.',
+    gu: 'સાઈઝ ખબર નથી? પહેલાં અહીં જુઓ.',
+    hi: 'साइज़ पता नहीं? पहले यहाँ देखें।',
+  },
+  'product.sizeGuideIntro': {
+    en: 'Check the size guide before you choose a size.',
+    gu: 'સાઈઝ પસંદ કરતાં પહેલાં સાઈઝ માર્ગદર્શન જુઓ.',
+    hi: 'साइज़ चुनने से पहले साइज़ गाइड देखें।',
+  },
+  'product.back': { en: 'Back', gu: 'પાછળ', hi: 'पीछे' },
   'product.add': { en: 'Add to bag', gu: 'બેગમાં ઉમેરો', hi: 'बैग में डालें' },
   'product.chooseSize': { en: 'Choose size', gu: 'સાઈઝ પસંદ કરો', hi: 'साइज़ चुनें' },
   'product.addWithPrice': { en: 'Add to bag · {price}', gu: 'બેગમાં ઉમેરો · {price}', hi: 'बैग में डालें · {price}' },
