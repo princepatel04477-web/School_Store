@@ -72,7 +72,9 @@ function copyMask(mask: PoseMask): Mask {
 /**
  * Asks for the camera's own 4:3 shape (landscape in sensor terms). Asking for a
  * tall 720x1280 picture made phones crop the sensor, which looked zoomed in and
- * cut off the child's feet.
+ * cut off the child's feet. Zoom is left at the phone's own 1x: forcing the
+ * widest zoom switched phones with several lenses to the 0.5x ultra-wide lens,
+ * which bends the picture near its edges and makes the child small.
  */
 const CAMERA: MediaTrackConstraints = {
   facingMode: { ideal: 'environment' },
@@ -80,18 +82,6 @@ const CAMERA: MediaTrackConstraints = {
   height: { ideal: 960 },
   aspectRatio: { ideal: 4 / 3 },
 };
-
-/** Widest view the camera allows: phones that support zoom sometimes open a little zoomed in. */
-async function zoomOut(stream: MediaStream) {
-  const track = stream.getVideoTracks()[0];
-  const caps = track?.getCapabilities?.() as (MediaTrackCapabilities & { zoom?: { min: number } }) | undefined;
-  if (!track || !caps?.zoom) return;
-  try {
-    await track.applyConstraints({ advanced: [{ zoom: caps.zoom.min } as MediaTrackConstraintSet] });
-  } catch {
-    // Some phones list zoom but refuse it: the default view is used.
-  }
-}
 
 /**
  * Rear camera with a dotted child outline over the whole camera picture. MediaPipe Pose runs on
@@ -237,7 +227,6 @@ export function MeasureCapture({ heightCm, factor, onResult, onCancel, onCameraE
           return;
         }
         stream = opened;
-        await zoomOut(opened);
         video.srcObject = opened;
         await video.play();
         if (video.videoWidth > 0 && video.videoHeight > 0) setAspect(video.videoWidth / video.videoHeight);
