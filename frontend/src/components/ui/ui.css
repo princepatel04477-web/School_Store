@@ -67,6 +67,36 @@ button.primary:active:not(:disabled) {
   border-color: var(--brand-deep);
 }
 
+/* Hover: the highlight fills in left to right behind the label. Colour only, nothing
+   moves. --highlight-ink keeps the white label at 6:1 throughout. Mouse only. */
+.btn-primary {
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-color: var(--highlight-ink);
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.35s var(--ease-standard);
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover:not(:disabled)::before {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary::before {
+    transition: none;
+  }
+}
+
 .btn-outline:active:not(:disabled) {
   background-color: var(--paper-sunk);
 }
@@ -75,7 +105,7 @@ button.primary:active:not(:disabled) {
 .primary:focus-visible,
 button.primary:focus-visible,
 .btn:focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--highlight);
   outline-offset: 2px;
 }
 
@@ -86,10 +116,12 @@ button.primary:focus-visible,
   border-radius: 6px;
 }
 
-.btn-outline:hover:not(:disabled) {
-  border-color: var(--brand);
-  color: var(--brand);
-  background-color: var(--paper-raised);
+/* Secondary: border and text take the highlight on mouse hover. No fill. */
+@media (hover: hover) and (pointer: fine) {
+  .btn-outline:hover:not(:disabled) {
+    border-color: var(--highlight);
+    color: var(--highlight-ink);
+  }
 }
 
 .btn-text {
@@ -272,5 +304,95 @@ button.primary:focus-visible,
   .skeleton-root::after {
     animation: none;
     display: none;
+  }
+}
+
+
+/* ================== Button states (Button.tsx) ================== */
+/* Every state sits in the same cell; the widest sets the width, so nothing shifts */
+.btn-layers {
+  display: grid;
+  place-items: center;
+}
+
+.btn-layer {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+.btn-layer[aria-hidden='true'] {
+  pointer-events: none;
+}
+
+.btn-arrow {
+  flex-shrink: 0;
+}
+
+/* Success takes the school's colour: shop pages wear only that colour */
+.btn[data-state='success'],
+.btn[data-state='success']:hover {
+  background-color: var(--brand-deep);
+  border-color: var(--brand-deep);
+  color: var(--on-brand);
+}
+
+.btn[aria-busy='true'],
+.btn[data-state='success'] {
+  cursor: default;
+}
+
+.btn-dots {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.btn-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  animation: btn-dot 0.9s ease-in-out infinite;
+}
+
+.btn-dots i:nth-child(2) { animation-delay: 0.15s; }
+.btn-dots i:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes btn-dot {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+/* Icon buttons: a faint highlight ring on tap that fades on release */
+.btn-icon,
+.action-icon-btn {
+  outline: 3px solid transparent;
+  outline-offset: 0;
+}
+
+.btn-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.btn-icon:active:not(:disabled),
+.action-icon-btn:active:not(:disabled) {
+  outline-color: var(--highlight-glow);
+  transition-duration: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-dots i {
+    animation: none;
+    opacity: 0.8;
   }
 }

@@ -142,7 +142,8 @@ def validate_fit(
     """
     Hard limits (errors, from shared/fit_limits.json) reject typing mistakes.
     Soft limits (warnings) only ask the parent to check an unusual number.
-    The shoulder width is optional; when sent, its confidence (0 to 1) must be too.
+    The shoulder width is optional. One from the camera comes with the phone's
+    confidence (0 to 1); one typed by hand from a tape measure has none.
     """
     check = FitCheck()
     _check_shoulder(check, shoulder_cm, shoulder_confidence)
@@ -197,14 +198,16 @@ def _check_shoulder(check: FitCheck, shoulder_cm, confidence) -> None:
     elif not SHOULDER_MIN <= shoulder <= SHOULDER_MAX:
         check.errors["shoulder_cm"] = "OUT_OF_RANGE"
     if confidence in (None, ""):
-        check.errors["shoulder_confidence"] = "REQUIRED"
+        sure = None  # typed by hand
     elif sure is None:
         check.errors["shoulder_confidence"] = "NOT_A_NUMBER"
     elif not Decimal(0) <= sure <= Decimal(1):
         check.errors["shoulder_confidence"] = "OUT_OF_RANGE"
     if "shoulder_cm" not in check.errors and "shoulder_confidence" not in check.errors:
         check.shoulder_cm = shoulder.quantize(ONE_DECIMAL, rounding=ROUND_HALF_UP)
-        check.shoulder_confidence = sure.quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+        check.shoulder_confidence = (
+            sure.quantize(Decimal("0.001"), rounding=ROUND_HALF_UP) if sure is not None else None
+        )
 
 
 # --------------------------------------------------------------------------- #

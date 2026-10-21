@@ -19,10 +19,19 @@ class RazorpayGateway:
             "amount": int(Decimal(order.total) * 100), "currency": "INR", "receipt": order.order_number,
         })
 
+    def _can_verify(self) -> bool:
+        # Without a secret every HMAC is forgeable (the key is ""), so refuse
+        # outright in production. Local development may run without keys.
+        return bool(self.secret) or settings.DEBUG
+
     def verify_signature(self, order_id, payment_id, signature):
+        if not self._can_verify():
+            return False
         expected = hmac.new(self.secret.encode(), f"{order_id}|{payment_id}".encode(), hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, signature)
 
     def verify_webhook(self, payload, signature):
+        if not self._can_verify():
+            return False
         expected = hmac.new(self.secret.encode(), payload, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, signature)

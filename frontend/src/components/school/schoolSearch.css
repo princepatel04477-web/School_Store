@@ -1,0 +1,307 @@
+/*
+ * School search (SchoolSearch.tsx). Every size lives in the custom properties below,
+ * one block per breakpoint; the rules underneath only read them.
+ * Corners use the site radii (CLAUDE.md: 3/4/6px), not the 10-16px in the brief.
+ */
+.ss {
+  --ss-height: 52px;
+  --ss-pad-left: 44px;
+  --ss-pad-right: 48px;
+  --ss-lead-size: 20px;
+  --ss-lead-left: 14px;
+  --ss-trail-size: 40px;
+  --ss-trail-right: 6px;
+  --ss-font: 16px; /* never below 16px: iOS zooms the page on focus */
+  --ss-panel-pad: 6px;
+  --ss-row-min: 56px;
+  --ss-row-pad: 12px 14px;
+  --ss-gap: 8px;
+
+  position: relative;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .ss {
+    --ss-height: 56px;
+    --ss-pad-left: 48px;
+    --ss-pad-right: 52px;
+    --ss-lead-left: 16px;
+    --ss-trail-right: 8px;
+    max-width: 560px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ss {
+    --ss-height: 60px;
+    --ss-pad-left: 52px;
+    --ss-pad-right: 56px;
+    --ss-lead-size: 22px;
+    --ss-lead-left: 18px;
+    --ss-trail-size: 44px;
+    --ss-font: 17px;
+    --ss-panel-pad: 8px;
+    --ss-row-min: 52px;
+    --ss-row-pad: 10px 16px;
+  }
+}
+
+/* ---------- Bar ---------- */
+.ss-bar {
+  position: relative;
+  height: var(--ss-height);
+  background-color: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  outline: 3px solid transparent;
+  transition: border-color var(--duration-fast) var(--ease-standard),
+              outline-color var(--duration-fast) var(--ease-standard);
+}
+
+.ss-bar:focus-within {
+  border-color: var(--highlight);
+  outline-color: var(--highlight-glow);
+}
+
+.ss-lead-icon {
+  position: absolute;
+  top: 50%;
+  left: var(--ss-lead-left);
+  width: var(--ss-lead-size);
+  height: var(--ss-lead-size);
+  translate: 0 -50%;
+  color: var(--ink-faint);
+  pointer-events: none;
+}
+
+.ss-input {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0 var(--ss-pad-right) 0 var(--ss-pad-left);
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: var(--ss-font);
+  color: var(--ink);
+  text-overflow: ellipsis;
+}
+
+/* The bar draws the focus ring for the input */
+.ss-input:focus,
+.ss-input:focus-visible {
+  outline: none;
+}
+
+.ss-input::placeholder {
+  color: var(--ink-soft);
+}
+
+.ss-trail {
+  position: absolute;
+  top: 50%;
+  right: var(--ss-trail-right);
+  width: var(--ss-trail-size);
+  height: var(--ss-trail-size);
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--duration-fast) var(--ease-standard),
+              background-color var(--duration-fast) var(--ease-standard);
+}
+
+.ss-trail:active {
+  background-color: var(--highlight-soft);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ss-trail:hover {
+    color: var(--highlight-ink);
+  }
+}
+
+.ss-trail-icon {
+  display: grid;
+  place-items: center;
+}
+
+/* Desktop: a "Find my school" button inside the bar, 8px in from its edges.
+   The input stops just short of it (button is about 140-160px in all three languages),
+   leaving room for the full placeholder. */
+.ss-bar.has-button {
+  --ss-pad-right: 172px;
+}
+
+.ss-find.btn {
+  position: absolute;
+  top: 7px; /* 8px from the outer edge, less the 1px border */
+  right: 7px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+}
+
+/* ---------- Panel ---------- */
+.ss-panel {
+  position: absolute;
+  top: calc(100% + var(--ss-gap));
+  left: 0;
+  right: 0;
+  z-index: 50;
+  max-height: min(60svh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--ss-panel-pad);
+  background-color: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  transform-origin: top center;
+}
+
+@media (min-width: 1024px) {
+  .ss-panel {
+    max-height: 420px;
+  }
+}
+
+.ss-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ss-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--ss-row-min);
+  padding: var(--ss-row-pad);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+/* Touch: tinted only while the finger is down. Mouse and keyboard: on hover / active row. */
+.ss-row:active,
+.ss-row.is-active,
+.ss-row.is-picked {
+  background-color: var(--highlight-soft);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ss-row:hover {
+    background-color: var(--highlight-soft);
+  }
+}
+
+.ss-row-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.ss-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ss-city {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* Desktop: name and city share one line when there is room */
+@media (min-width: 1024px) {
+  .ss-row-text {
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+  .ss-city {
+    flex-shrink: 0;
+  }
+}
+
+.ss-row mark {
+  background: none;
+  color: var(--highlight-ink);
+  font-weight: 700;
+}
+
+.ss-empty {
+  margin: 0;
+  padding: var(--space-4) 14px;
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+
+/* Stays at the bottom of the panel while the list scrolls, so it is always in reach */
+.ss-footer {
+  position: sticky;
+  bottom: calc(-1 * var(--ss-panel-pad));
+  margin: var(--ss-panel-pad) calc(-1 * var(--ss-panel-pad)) calc(-1 * var(--ss-panel-pad));
+  padding: 12px calc(12px + var(--ss-panel-pad));
+  background-color: var(--paper-raised);
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.ss-footer a {
+  color: var(--highlight-ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- Full-screen sheet (header search on phones) ---------- */
+.ss--sheet {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: none;
+}
+
+.ss-panel--sheet {
+  position: static;
+  flex: 1;
+  max-height: none;
+  margin-top: var(--ss-gap);
+  border: 0;
+  padding-inline: 0;
+}
+
+.ss-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 16px env(safe-area-inset-bottom, 0px);
+  background-color: var(--paper);
+}
+
+.ss-sheet-top {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.ss-sheet .ss {
+  flex: 1;
+  min-height: 0;
+}

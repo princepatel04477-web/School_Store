@@ -2,7 +2,7 @@ import json
 from django.db import transaction
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from .payment import RazorpayGateway
@@ -11,6 +11,7 @@ from common.pagination import BoundedCursorPagination
 from common.permissions import RoleScopedPermission
 from common.scoping import ScopedQuerysetMixin
 from .models import Order, OrderStatusEvent
+from .status import change_order_status, record_payment
 from .serializers import (
     OrderCreateSerializer,
     OrderDetailSerializer,
@@ -38,16 +39,6 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
     scope_city_field = "city_id"
     scope_school_field = "school_id"
     scope_parent_field = "parent_id"
-
-    def update(self, request, *args, **kwargs):
-        if request.user.role == "PARENT":
-            raise PermissionDenied("Parents cannot edit or cancel an order after it is placed.")
-        return super().update(request, *args, **kwargs)
-
-    def partial_update(self, request, *args, **kwargs):
-        if request.user.role == "PARENT":
-            raise PermissionDenied("Parents cannot edit or cancel an order after it is placed.")
-        return super().partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         if request.user.role == "PARENT":
@@ -117,12 +108,21 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             and order.payer_id != request.user.id
         ):
             raise PermissionDenied("Only the assigned payer may start payment.")
+        if order.payment_status == Order.PaymentStatus.PAID:
+            raise ValidationError({"detail": "This order is already paid."})
+        if order.status == Order.Status.CANCELLED:
+            raise ValidationError({"detail": "This order was cancelled. Please place it again."})
+        if order.payment_method == Order.PaymentMethod.CASH_ON_DELIVERY:
+            raise ValidationError({"detail": "This order is paid in cash on delivery."})
         gateway = RazorpayGateway()
-        razor_order = gateway.create_order(order)
-        if not order.razorpay_order_id:
-            order.razorpay_order_id = razor_order["id"]
-            order.save(update_fields=["razorpay_order_id", "updated_at"])
-        return Response({"order_id": razor_order["id"], "amount": razor_order.get("amount"), "currency": "INR", "key_id": gateway.key_id})
+        with transaction.atomic():
+            order = Order.objects.select_for_update().get(pk=order.pk)
+            # Reuse one Razorpay order per store order: a retry must not create a
+            # second gateway order whose webhook would not match this row.
+            if not order.razorpay_order_id:
+                order.razorpay_order_id = gateway.create_order(order)["id"]
+                order.save(update_fields=["razorpay_order_id", "updated_at"])
+        return Response({"order_id": order.razorpay_order_id, "amount": int(order.total * 100), "currency": "INR", "key_id": gateway.key_id})
 
     @action(detail=True, methods=["post"], url_path="verify-payment")
     def verify_payment(self, request, pk=None):
@@ -133,112 +133,78 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             and order.payer_id != request.user.id
         ):
             raise PermissionDenied("Only the assigned payer may verify payment.")
-        gateway = RazorpayGateway()
-        if not gateway.verify_signature(request.data.get("razorpay_order_id", order.razorpay_order_id), request.data.get("razorpay_payment_id", ""), request.data.get("razorpay_signature", "")):
+        razorpay_order_id = order.razorpay_order_id
+        payment_id = request.data.get("razorpay_payment_id", "")
+        signature = request.data.get("razorpay_signature", "")
+        # The signature must be for THIS order's Razorpay order id, never one the
+        # client sends: a valid signature from a cheaper order must not pay this one.
+        if (
+            not razorpay_order_id
+            or request.data.get("razorpay_order_id", razorpay_order_id) != razorpay_order_id
+            or not RazorpayGateway().verify_signature(razorpay_order_id, payment_id, signature)
+        ):
             return Response({"detail": "Invalid payment signature."}, status=status.HTTP_400_BAD_REQUEST)
-        with transaction.atomic():
-            order = Order.objects.select_for_update().get(pk=order.pk)
-            if order.payment_status != Order.PaymentStatus.PAID:
-                order.payment_status = Order.PaymentStatus.PAID
-                order.status = Order.Status.CONFIRMED
-                order.razorpay_payment_id = request.data["razorpay_payment_id"]
-                order.razorpay_signature = request.data["razorpay_signature"]
-                order.save(update_fields=["payment_status", "status", "razorpay_payment_id", "razorpay_signature", "updated_at"])
-                OrderStatusEvent.objects.create(order=order, status=order.status, changed_by=request.user, note="Payment verified.")
+        record_payment(
+            Order.objects.filter(pk=order.pk),
+            payment_id=payment_id,
+            signature=signature,
+            changed_by=request.user,
+            note="Payment verified.",
+        )
         return Response({"status": "paid"})
 
-    def perform_update(self, serializer):
-        user = self.request.user
-        if user.role in ("PARENT", "TEACHER"):
-            raise PermissionDenied("Only Boss, Admin, or School Admin may modify orders.")
-        old_status = serializer.instance.status
-        order = serializer.save()
-        if order.status != old_status:
-            OrderStatusEvent.objects.create(
-                order=order,
-                status=order.status,
-                changed_by_id=user.id,
-                note=f"Status updated from {old_status} to {order.status}",
-            )
-            from common.audit import log_audit_event
-            from common.models import AuditLog
-            log_audit_event(
-                action=AuditLog.Action.ORDER_STATUS_CHANGED,
-                target_type="Order",
-                target_id=order.id,
-                actor=user,
-                details={"old_status": old_status, "new_status": order.status, "order_number": order.order_number},
-            )
-            from .tasks import refresh_order_summary
-            transaction.on_commit(lambda: refresh_order_summary.delay(str(order.id)))
-
-    @action(detail=False, methods=["post"], url_path="bulk-status")
-    def bulk_status(self, request):
+    def _change_status(self, request, queryset):
         user = request.user
         if user.role in ("PARENT", "TEACHER"):
             raise PermissionDenied("Only Boss, Admin, or School Admin may modify order statuses.")
-
-        order_ids = request.data.get("order_ids")
         new_status = request.data.get("status")
-        note = (request.data.get("note") or f"Bulk status updated to {new_status}").strip()
+        if not new_status or new_status not in Order.Status.values:
+            raise ValidationError({"status": [f"Invalid status '{new_status}'."]})
+        note = (request.data.get("note") or "").strip()
+        return new_status, change_order_status(queryset, new_status, user, note)
 
+    def update(self, request, *args, **kwargs):
+        # The only thing staff edit on a placed order is its status.
+        if request.user.role == "PARENT":
+            raise PermissionDenied("Parents cannot edit or cancel an order after it is placed.")
+        order = self.get_object()
+        new_status, changed = self._change_status(request, self.get_queryset().filter(pk=order.pk))
+        if not changed and order.status != new_status:
+            raise ValidationError(
+                {"status": [f"An order that is {order.status} cannot move to {new_status}."]}
+            )
+        order = self.get_queryset().prefetch_related(
+            "items__variant__product", "status_events"
+        ).get(pk=order.pk)
+        return Response(OrderDetailSerializer(order).data)
+
+    def partial_update(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    @action(detail=False, methods=["post"], url_path="bulk-status")
+    def bulk_status(self, request):
+        """One request: one bulk UPDATE + one bulk_create of status events."""
+        order_ids = request.data.get("order_ids")
         if not order_ids or not isinstance(order_ids, list):
             return Response(
                 {"order_ids": ["A non-empty list of order IDs is required."]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if not new_status or new_status not in Order.Status.values:
+        if len(order_ids) > 500:
             return Response(
-                {"status": [f"Invalid status '{new_status}'."]},
+                {"order_ids": ["At most 500 orders per request."]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        # Scope check: only update orders within the user's scoped queryset
-        qs = self.get_queryset().filter(id__in=order_ids)
-        valid_ids = list(qs.values_list("id", flat=True))
-
-        if not valid_ids:
-            return Response({"detail": "No matching orders found in your scope."}, status=status.HTTP_400_BAD_REQUEST)
-
-        now = timezone.now()
-        with transaction.atomic():
-            # One bulk UPDATE query
-            updated_count = Order.objects.filter(id__in=valid_ids).update(
-                status=new_status,
-                updated_at=now,
-            )
-            # One bulk_create query of status events
-            events = [
-                OrderStatusEvent(
-                    order_id=o_id,
-                    status=new_status,
-                    changed_by=user,
-                    note=note,
-                )
-                for o_id in valid_ids
-            ]
-            OrderStatusEvent.objects.bulk_create(events)
-
-            from common.audit import log_audit_event
-            from common.models import AuditLog
-            for oid in valid_ids:
-                log_audit_event(
-                    action=AuditLog.Action.ORDER_STATUS_CHANGED,
-                    target_type="Order",
-                    target_id=oid,
-                    actor=user,
-                    details={"new_status": new_status, "bulk": True, "note": note},
-                )
-
-            # Trigger background rollup refresh for changed orders
-            from .tasks import refresh_order_summary
-            for oid in valid_ids:
-                transaction.on_commit(lambda o=oid: refresh_order_summary.delay(str(o)))
-
+        new_status, changed = self._change_status(
+            request, self.get_queryset().filter(id__in=order_ids)
+        )
+        changed_ids = {str(oid) for oid in changed}
         return Response({
-            "updated_count": updated_count,
+            "updated_count": len(changed),
             "status": new_status,
-            "order_ids": [str(oid) for oid in valid_ids],
+            "order_ids": sorted(changed_ids),
+            # In scope but not allowed to move (e.g. already cancelled), or out of scope.
+            "skipped_ids": sorted({str(oid) for oid in order_ids} - changed_ids),
         })
 
     def perform_destroy(self, instance):

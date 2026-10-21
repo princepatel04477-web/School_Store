@@ -1,11 +1,14 @@
 import { motion, useReducedMotion } from 'motion/react';
 import { EASING, DURATION_SLOW } from './motionConfig';
+import { InkUnderline } from './InkUnderline';
 
 export interface TextRevealProps {
   lines?: string[];
   children?: string;
   className?: string;
   lineClassName?: string;
+  /** Draw the highlight brush stroke under the last line */
+  underlineLast?: boolean;
 }
 
 export function TextReveal({
@@ -13,18 +16,28 @@ export function TextReveal({
   children,
   className = '',
   lineClassName = '',
+  underlineLast = false,
 }: TextRevealProps) {
   const shouldReduceMotion = useReducedMotion();
 
   // Determine lines from props
   const rawLines = lines || (children ? children.split('\n') : []);
+  const renderLine = (line: string, idx: number) =>
+    underlineLast && idx === rawLines.length - 1 ? (
+      <span className="ink-underline-word">
+        {line}
+        <InkUnderline />
+      </span>
+    ) : (
+      line
+    );
 
   if (shouldReduceMotion) {
     return (
       <div className={className}>
         {rawLines.map((line, idx) => (
           <div key={idx} className={lineClassName}>
-            {line}
+            {renderLine(line, idx)}
           </div>
         ))}
       </div>
@@ -52,7 +65,7 @@ export function TextReveal({
             }}
             className={lineClassName}
           >
-            {line}
+            {renderLine(line, idx)}
           </motion.div>
         </div>
       ))}

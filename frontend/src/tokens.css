@@ -46,6 +46,14 @@
   --accent: var(--brand);
   --accent-text: var(--brand-deep);
 
+  /* Store highlight: fixed, does not follow the school colour.
+     --highlight (4.2:1 on white) is for icons, lines, borders and text 24px+ only.
+     Small text, and white text on a green fill, use --highlight-ink (6:1). */
+  --highlight: #2E8B57;
+  --highlight-ink: #23704A;
+  --highlight-soft: rgba(46, 139, 87, 0.10);
+  --highlight-glow: rgba(46, 139, 87, 0.35);
+
   /* Feedback */
   --danger: #B42318;
 

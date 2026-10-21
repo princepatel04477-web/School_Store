@@ -119,3 +119,21 @@ def clear_fit_data(now=None, dry_run: bool = False) -> dict:
             )
             cleared += len(batch)
     return {"due": cleared, "cleared": cleared, "dry_run": False}
+
+
+def purge_old_measurements(now=None, dry_run: bool = False) -> int:
+    """
+    Deletes children's saved measurements older than MEASUREMENT_RETENTION_DAYS,
+    through the measured_at index. Order lines keep their own copy of the
+    numbers, which clear_fit_data handles above.
+    """
+    from schools.models import StudentMeasurement
+
+    now = now or timezone.now()
+    old = StudentMeasurement.objects.filter(
+        measured_at__lt=now - timedelta(days=settings.MEASUREMENT_RETENTION_DAYS)
+    )
+    if dry_run:
+        return old.count()
+    deleted, _ = old.delete()
+    return deleted

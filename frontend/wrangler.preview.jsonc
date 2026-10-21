@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // The preview store: this repo's React build, with /api etc. sent to the live store (see worker/preview.js).
+  // Release: vite build (VITE_API_URL=/api), then
+  //   npx wrangler deploy -c wrangler.preview.jsonc
+  "name": "school-store-preview",
+  "main": "worker/preview.js",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  },
+  "vars": { "ORIGIN": "https://school-store.aqualite.workers.dev" }
+}

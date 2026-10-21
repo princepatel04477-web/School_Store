@@ -302,10 +302,18 @@ class ScopeTests(SizeChartImportTestBase):
         self.assertEqual(self.client.get(f"{URL}{other.id}/").status_code, 404)
 
     def test_teachers_and_parents_are_refused(self):
-        for username in ("teacher_dps", "parent_rahul", "admin_surat"):
+        for username in ("teacher_dps", "parent_rahul"):
             with self.subTest(username):
                 res = login(User.objects.get(username=username)).get(URL + "template/")
                 self.assertEqual(res.status_code, 403)
+
+    def test_city_admin_works_on_schools_in_their_city(self):
+        admin = login(User.objects.get(username="admin_surat"))
+        self.assertEqual(admin.get(URL + "template/").status_code, 400)  # must pick a school
+        self.assertEqual(admin.get(URL + f"template/?school={self.fhs.id}").status_code, 200)
+        self.assertEqual(admin.get(URL + "template/?school=generic").status_code, 403)
+        udgam = School.objects.get(code="UDG-AMD")
+        self.assertEqual(admin.get(URL + f"template/?school={udgam.id}").status_code, 403)
 
     def test_boss_must_choose_a_scope(self):
         boss = login(self.boss)

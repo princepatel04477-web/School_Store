@@ -155,7 +155,7 @@ export type PanelOrderItem={
 export type PanelOrder={id:string;order_number:string;student:string;student_name:string;student_gr:string;student_class:string;student_section:string;items:PanelOrderItem[];item_count:number;units:number;amount:Money;status:string;payment_status:string;fulfillment_type:string;created_at:string;placed_by:string|null;placed_by_name:string;placed_by_role:string;placed_by_role_label:string};
 export type PanelStudent={id:string;name:string;gr_number:string;class_name:string;section:string;gender:string;date_of_birth:string|null;school:string;school_name:string;school_code:string;parent:string|null;parent_name:string;parent_phone:string;approval_status:'PENDING'|'APPROVED';source:string;active:boolean;created_at:string};
 export type PanelTeacher={id:string;username:string;email:string;first_name:string;last_name:string;phone:string;role:Role;school:string;school_name:string;is_active:boolean;must_change_password:boolean;created_at:string;temporary_password?:string};
-export type ExportJob={id:string;job_type:'ORDERS'|'STUDENTS';job_type_display:string;status:'QUEUED'|'RUNNING'|'READY'|'FAILED'|'EXPIRED';status_display:string;progress:number;school:string;school_code:string;requested_by_name:string|null;filters:Record<string,string>;filename:string;row_count:number;result:Record<string,unknown>;error_message:string;download_url:string|null;created_at:string;completed_at:string|null;expires_at:string|null};
+export type ExportJob={id:string;job_type:'ORDERS'|'STUDENTS'|'TAILOR_SHEET';job_type_display:string;status:'QUEUED'|'RUNNING'|'READY'|'FAILED'|'EXPIRED';status_display:string;progress:number;school:string;school_code:string;requested_by_name:string|null;filters:Record<string,string>;filename:string;row_count:number;result:Record<string,unknown>;error_message:string;download_url:string|null;created_at:string;completed_at:string|null;expires_at:string|null};
 export type FilterOptions={school:{id:string;name:string;code:string};classes:string[];sections:string[];categories:{id:string;name:string}[];statuses:{value:string;label:string}[];placed_by_roles:{value:string;label:string}[];default_date_from:string;default_date_to:string};
 export type ImportJob={id:string;job_type:string;status:'PENDING'|'VALIDATING'|'PREVIEW_READY'|'IMPORTING'|'COMPLETED'|'FAILED';school:string;school_code:string|null;uploaded_by_name:string|null;original_filename:string;total_rows:number;valid_count:number;duplicate_count:number;error_count:number;preview:Record<string,unknown>;result:Record<string,unknown>;error_message:string;progress:number;created_at:string;completed_at:string|null};
 export type Page<T>={next:string|null;previous:string|null;results:T[]};
@@ -209,7 +209,25 @@ export const sizeCharts={
   confirm:(scope:string,id:string)=>api<ImportJob>(`/size-chart-imports/${id}/confirm/?school=${scope}`,{method:'POST'}),
   reportUrl:(scope:string,id:string)=>`/size-chart-imports/${id}/report/?school=${scope}`,
   templateUrl:(scope:string)=>`/size-chart-imports/template/?school=${scope}`,
+  charts:(scope:string,page=1)=>api<Page<SizeChartItem>&{count:number}>(`/size-charts/?school=${scope}&page=${page}`),
+  addRow:(body:Partial<SizeChartValues>&{variant:string})=>api<SizeChartRowData>('/size-charts/rows/',{method:'POST',body:JSON.stringify(body)}),
+  editRow:(id:string,body:Partial<SizeChartValues>)=>api<SizeChartRowData>(`/size-charts/rows/${id}/`,{method:'PATCH',body:JSON.stringify(body)}),
+  removeRow:(id:string)=>api<void>(`/size-charts/rows/${id}/`,{method:'DELETE'}),
+  removeChart:(scope:string,productId:string)=>api<{rows_removed:number}>(`/size-charts/${productId}/?school=${scope}`,{method:'DELETE'}),
+  copy:(scope:string,source:string,targets:string[])=>api<{products:{product_id:string;product_name:string;rows_written:number;sizes_not_in_source:string[]}[]}>(`/size-charts/copy/?school=${scope}`,{method:'POST',body:JSON.stringify({source_product:source,target_products:targets})}),
 };
+
+/** Tailor sheet (Admin and Boss): built by the export worker, then downloaded. */
+export type TailorFilters={schools?:string[];grade?:string;date_from?:string;date_to?:string;statuses?:string[];order?:string};
+export const tailorSheets={
+  create:(filters:TailorFilters)=>api<ExportJob>('/panel/tailor-sheets/',{method:'POST',body:JSON.stringify({filters})}),
+  job:(id:string)=>api<ExportJob>(`/panel/tailor-sheets/${id}/`),
+};
+
+export const SIZE_CHART_COLUMNS=['height_cm_min','height_cm_max','weight_kg_min','weight_kg_max','shoulder_cm_min','shoulder_cm_max','chest_cm_min','chest_cm_max','length_cm'] as const;
+export type SizeChartValues=Record<typeof SIZE_CHART_COLUMNS[number],number|null>;
+export type SizeChartRowData=SizeChartValues&{id:string|null;variant:string;sku:string;size:string};
+export type SizeChartItem={product_id:string;product_name:string;category:string;has_chart:boolean;rows:SizeChartRowData[]};
 
 /* ------------------------------------------------------------------ *
  * City Admin panel (scoped to city)
@@ -289,6 +307,7 @@ export type CityOrderDetail={
   delivery_details:Record<string,any>;
   items:{
     id:string;
+    measurement?:{height_cm:number;weight_kg:number;shoulder_cm:number|null;source:string;shoulder_edited:boolean;recommended_size:string;recommendation_status:string;chosen_size:string}|null;
     variant:string;
     variant_sku:string;
     variant_size:string;

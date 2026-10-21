@@ -1,4 +1,5 @@
 import { useState, useEffect, type ReactNode } from 'react';
+import type { Fit } from '../data/fit';
 
 export interface CartItem {
   id: string; // product id + variant id
@@ -13,6 +14,8 @@ export interface CartItem {
   schoolName?: string;
   className?: string;
   customisationData?: Record<string, any>;
+  /** The child's measurement this line was sized from (shirts and trousers). */
+  measurement?: Fit;
 }
 
 export interface StoredSelection {

@@ -1,10 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Search, ArrowRight, MessageCircle } from '../components/ui/icons';
+import { ArrowRight } from '../components/ui/icons';
 import { motion, AnimatePresence } from 'motion/react';
-import { useStoreSchools, type StoreSchool } from '../data/catalog';
+import { useStoreSchools } from '../data/catalog';
 import { useStoreState } from '../store/storeState';
 import { SchoolCrest } from '../components/school/SchoolCrest';
+import { SchoolSearch } from '../components/school/SchoolSearch';
+import { useSelectSchool } from '../components/school/useSelectSchool';
+import { Button } from '../components/ui/Button';
 import { KitIllustration, type KitKind } from '../components/home/KitIllustration';
 import { CategoryPhoto } from '../components/CategoryPhoto';
 import { EASING } from '../motion/motionConfig';
@@ -25,11 +27,6 @@ export function HomePage() {
   const navigate = useNavigate();
   const { selection, setSelection } = useStoreState();
   const { t } = useLang();
-
-  const [query, setQuery] = useState('');
-  const [comboboxOpen, setComboboxOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
-  const comboboxRef = useRef<HTMLDivElement>(null);
 
   const categoryTiles = [
     {
@@ -64,64 +61,9 @@ export function HomePage() {
     },
   ];
 
-  // Filtered schools
   const { data: schools = [] } = useStoreSchools();
-  const filteredSchools = query.trim()
-    ? schools.filter(
-        (s) =>
-          s.name.toLowerCase().includes(query.toLowerCase()) ||
-          s.city.toLowerCase().includes(query.toLowerCase())
-      )
-    : schools.slice(0, 5); // Popular schools
 
-  const handleSelectSchool = (school: StoreSchool) => {
-    setSelection({
-      schoolId: school.id,
-      schoolName: school.name,
-      schoolCode: school.code,
-      cityName: school.city,
-    });
-    setComboboxOpen(false);
-    navigate(`/flow?school=${encodeURIComponent(school.id)}&step=2`);
-  };
-
-  // Keyboard navigation for combobox
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!comboboxOpen) {
-      if (e.key === 'ArrowDown' || e.key === 'Enter') {
-        setComboboxOpen(true);
-      }
-      return;
-    }
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActiveIndex((prev) => (prev < filteredSchools.length - 1 ? prev + 1 : 0));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveIndex((prev) => (prev > 0 ? prev - 1 : filteredSchools.length - 1));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (activeIndex >= 0 && activeIndex < filteredSchools.length) {
-        handleSelectSchool(filteredSchools[activeIndex]);
-      } else if (filteredSchools.length > 0) {
-        handleSelectSchool(filteredSchools[0]);
-      }
-    } else if (e.key === 'Escape') {
-      setComboboxOpen(false);
-    }
-  };
-
-  // Click outside listener for combobox
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (comboboxRef.current && !comboboxRef.current.contains(e.target as Node)) {
-        setComboboxOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const handleSelectSchool = useSelectSchool();
 
   return (
     <div className="home-page" id="main">
@@ -139,6 +81,7 @@ export function HomePage() {
             <TextReveal
               lines={[t('home.heroLine1'), t('home.heroLine2')]}
               className="hero-heading"
+              underlineLast
             />
             <Reveal delay={0.15}>
               <p className="hero-subtext">
@@ -172,9 +115,9 @@ export function HomePage() {
                     </div>
 
                     <div className="hero-selected-actions">
-                        <button
-                          type="button"
-                          className="btn btn-primary hero-continue-btn"
+                        <Button
+                          className="hero-continue-btn"
+                          arrow
                           onMouseEnter={prefetchFlowPage}
                           onClick={() => {
                             const nextStep = selection.gradeId
@@ -187,14 +130,13 @@ export function HomePage() {
                             );
                           }}
                         >
-                          {t('home.continue')} <ArrowRight width={16} height={16} />
-                        </button>
+                          {t('home.continue')}
+                        </Button>
                       <button
                         type="button"
                         className="hero-change-school-link"
                         onClick={() => {
                           setSelection(null);
-                          setQuery('');
                           setTimeout(() => {
                             const input = document.querySelector('.hero-search-input') as HTMLInputElement;
                             if (input) input.focus();
@@ -212,85 +154,8 @@ export function HomePage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.25, ease: EASING }}
-                    className="school-search-box"
-                    ref={comboboxRef}
                   >
-                    <div className="search-input-wrap">
-                      <Search className="search-box-icon" width={22} height={22} strokeWidth={1.5} />
-                      <input
-                        type="text"
-                        role="combobox"
-                        aria-expanded={comboboxOpen}
-                        aria-haspopup="listbox"
-                        aria-controls="school-results-list"
-                        aria-label={t('home.searchPlaceholder')}
-                        placeholder={t('home.searchPlaceholder')}
-                        className="hero-search-input"
-                        value={query}
-                        onChange={(e) => {
-                          setQuery(e.target.value);
-                          setComboboxOpen(true);
-                          setActiveIndex(-1);
-                        }}
-                        onFocus={() => setComboboxOpen(true)}
-                        onKeyDown={handleKeyDown}
-                      />
-                        <button
-                          type="button"
-                          className="btn btn-primary hero-find-btn"
-                          onClick={() => {
-                            if (filteredSchools.length > 0) {
-                              handleSelectSchool(filteredSchools[0]);
-                            }
-                          }}
-                        >
-                          {t('home.findSchool')}
-                        </button>
-                    </div>
-
-                    {/* Dropdown Results */}
-                    {comboboxOpen && (
-                      <div className="combobox-dropdown" id="school-results-list" role="listbox">
-                        <div className="combobox-header">
-                          <span className="label">
-                            {query.trim() ? t('home.matching') : t('home.schools')}
-                          </span>
-                        </div>
-
-                        {filteredSchools.length > 0 ? (
-                          <Stagger className="combobox-list">
-                            {filteredSchools.map((school, idx) => (
-                              <div
-                                key={school.id}
-                                role="option"
-                                aria-selected={idx === activeIndex}
-                                className={`combobox-option ${idx === activeIndex ? 'is-active' : ''}`}
-                                onMouseEnter={() => {
-                                  prefetchFlowPage();
-                                  prefetchSchoolData(school.id);
-                                }}
-                                onClick={() => handleSelectSchool(school)}
-                              >
-                                <SchoolCrest id={school.id} color={school.color} name={school.name} code={school.code} size={36} />
-                                <div className="school-option-text">
-                                  <span className="school-option-name">{school.name}</span>
-                                  <span className="school-option-meta">
-                                    {[school.city, school.board].filter(Boolean).join(' · ')}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </Stagger>
-                        ) : (
-                          <div className="combobox-empty">
-                            <p>{t('home.noSchool')}</p>
-                            <Link to="/contact?reason=request-school" className="request-link">
-                              {t('home.requestSchool')} <ArrowRight width={14} height={14} />
-                            </Link>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    <SchoolSearch schools={schools} onSelect={handleSelectSchool} />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -299,7 +164,8 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* 3. SHOP BY CATEGORY (Editorial Grid) */}
+      {/* 3. SHOP BY CATEGORY (Editorial Grid), on the one full-width highlight band */}
+      <div className="highlight-band">
       <section className="section-wrap container">
         <Reveal>
           <div className="section-head">
@@ -335,6 +201,7 @@ export function HomePage() {
           ))}
         </Stagger>
       </section>
+      </div>
 
       {/* 4. FEATURED SCHOOLS */}
       <section className="section-wrap container">

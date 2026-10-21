@@ -1,8 +1,17 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X } from './ui/icons';
 import { CategoryOutlineIllustration } from './product/CategoryOutlineIllustration';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, Product, StockStatus } from '../api';
+import { MeasurementPanel } from './fit/MeasurementPanel';
+import {
+  garmentKind,
+  saveMeasurement,
+  useLastSizes,
+  useLatestMeasurement,
+  useSizeFit,
+  type Fit,
+} from '../data/fit';
 import { CLASSES } from '../data/classes';
 import { useStoreState } from '../store/storeState';
 import { CustomisationForm, photoPurposeForCategory } from './CustomisationForm';
@@ -47,7 +56,13 @@ interface SelectionFlowProps {
   autoSelectStudentProfile?: boolean;
   cartItemCount?: number;
   onClearCart?: () => void;
-  onOrder?: (x: { product: Product; variantId: string; customisationData: Record<string, any> }) => void;
+  onOrder?: (x: {
+    product: Product;
+    variantId: string;
+    customisationData: Record<string, any>;
+    /** The child's measurement a shirt or trouser was sized from (Prompt 23). */
+    measurement?: Fit;
+  }) => void;
   onNavigateCategory?: (category: string) => void;
   publicView?: boolean;
 }
@@ -151,6 +166,46 @@ export function SelectionFlow({
   const isTie = selectedProduct?.product_type === 'TIE' || (selectedProduct?.name?.toLowerCase().includes('tie') ?? false);
   const isSocks = selectedProduct?.product_type === 'SOCKS' || (selectedProduct?.name?.toLowerCase().includes('sock') ?? false);
   const isBelt = selectedProduct?.product_type === 'BELT' || (selectedProduct?.name?.toLowerCase().includes('belt') ?? false);
+
+  // A teacher (or parent) ordering for a known child measures on the size page
+  // and the measurement is saved on the child's record with their name (Prompt 23).
+  const queryClient = useQueryClient();
+  const measureStudentId = !publicView ? studentProfile?.id ?? null : null;
+  const latestMeasurement = useLatestMeasurement(measureStudentId);
+  const measurement = latestMeasurement.data ?? null;
+  const isGarment = Boolean(
+    measureStudentId &&
+      selectedProduct &&
+      selectedProduct.category?.toLowerCase().startsWith('uniform') &&
+      !selectedProduct.category?.toLowerCase().includes('accessor') &&
+      selectedProduct.variants.length > 1,
+  );
+  const saveChildMeasurement = async (fit: Fit): Promise<boolean> => {
+    if (!measureStudentId) return false;
+    try {
+      const saved = await saveMeasurement(measureStudentId, fit);
+      queryClient.setQueryData(['measurement-latest', measureStudentId], saved);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const selectedFit = useSizeFit(
+    selectedProduct ? [selectedProduct.id] : [],
+    measurement,
+    studentProfile?.grade_name,
+    isGarment,
+  );
+  const suggestedSize = selectedProduct ? selectedFit.data?.products[selectedProduct.id]?.recommendation?.size : undefined;
+  // The size the child had last time (shoes, tie, belt, socks: Prompt 24), unless
+  // the measurement suggests one.
+  const lastSizes = useLastSizes(measureStudentId).data;
+  const sizeToPick = suggestedSize ?? (selectedProduct ? lastSizes?.[selectedProduct.id] : undefined);
+  useEffect(() => {
+    if (!selectedProduct || !sizeToPick) return;
+    const match = selectedProduct.variants.find((v) => v.size === sizeToPick);
+    if (match) setSelectedVariantId(match.id);
+  }, [selectedProduct, sizeToPick]);
 
   const tieHasNoSpecificSize = isTie && (
     !selectedProduct?.variants?.length ||
@@ -405,6 +460,7 @@ export function SelectionFlow({
       product: selectedProduct,
       variantId: finalVariantId || selectedProduct.variants[0]?.id || '',
       customisationData: customValues,
+      ...(isGarment && measurement ? { measurement } : {}),
     });
     setSelectedProduct(null);
     if (isAccessoriesFlow) {
@@ -1133,6 +1189,17 @@ export function SelectionFlow({
                   ))}
                 </select>
               </div>
+            )}
+
+            {isGarment && (
+              <MeasurementPanel
+                measurement={measurement}
+                garments={productsList
+                  .filter((p) => p.variants.length > 1 && garmentKind(p.name))
+                  .map((p) => ({ id: p.id, name: p.name }))}
+                className={studentProfile?.grade_name}
+                onSave={saveChildMeasurement}
+              />
             )}
 
             {schemaList.length > 0 && (

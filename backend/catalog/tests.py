@@ -11,8 +11,9 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from accounts.serializers import build_tokens_for_user
 from inventory.services import apply_stock_movement
-from schools.models import City, School, Student
+from schools.models import City, Grade, School, Student
 
+from .catalogue import student_grade_id
 from .models import Category, Product, ProductVariant
 
 
@@ -614,6 +615,34 @@ class StudentCatalogueTests(TestCase):
         body, _ = self.names_for(self.boy)
         card = next(p for p in body["products"] if p["id"] == str(shirt.pk))
         self.assertEqual(card["price"], "475.00")
+
+    def test_grade_assigned_products_only_reach_students_in_those_grades(self):
+        boy_grade = Grade.objects.get(pk=student_grade_id(self.boy))
+        other_grade = Grade.objects.exclude(pk=boy_grade.pk).first()
+        notebook = Product.objects.create(
+            category=Category.objects.get(slug="stationery"),
+            name="Grade Locked Notebook",
+            gender=Product.Gender.UNISEX,
+            cost_price=Decimal("10.00"),
+            selling_price=Decimal("20.00"),
+        )
+        ProductVariant.objects.create(product=notebook, size="A4", sku="GRADE-LOCK-A4")
+        detail_url = f"{self.catalogue_url(self.boy)}{notebook.pk}/"
+
+        # grades.set() never calls save(); the m2m signal must invalidate the
+        # cache, or the first (unrestricted) entry would be served for the TTL.
+        _, names = self.names_for(self.boy)
+        self.assertIn("Grade Locked Notebook", names)
+        notebook.grades.set([other_grade])
+
+        _, names = self.names_for(self.boy)
+        self.assertNotIn("Grade Locked Notebook", names)
+        self.assertEqual(self.jwt_client(self.parent).get(detail_url).status_code, 404)
+
+        notebook.grades.add(boy_grade)
+        _, names = self.names_for(self.boy)
+        self.assertIn("Grade Locked Notebook", names)
+        self.assertEqual(self.jwt_client(self.parent).get(detail_url).status_code, 200)
 
     def test_fixed_query_count_regardless_of_product_count(self):
         client = self.jwt_client(self.parent)

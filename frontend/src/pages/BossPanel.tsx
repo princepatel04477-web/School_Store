@@ -14,6 +14,7 @@ import {
   type BossSchoolPoint, type BossStockCatPoint, type CitySchool, type User,
 } from '../api';
 import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
+import { SizeChartManager } from '../components/admin/SizeChartManager';
 
 const NAV = [
   { to: '', label: 'Executive Overview', end: true },
@@ -846,6 +847,7 @@ function BossSizeChartsView() {
         </select>
       </div>
       <SizeChartImportCard key={scope} scope={scope} scopeName={scopeName} />
+      <SizeChartManager key={`m-${scope}`} scope={scope} scopeName={scopeName} />
     </div>
   );
 }

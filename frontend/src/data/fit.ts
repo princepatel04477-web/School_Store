@@ -4,33 +4,121 @@ import { api } from '../api';
 import limits from '../../../shared/fit_limits.json';
 
 /**
- * The size check: the parent types the child's height and weight once, and the
- * server suggests a size for every item that comes in sizes.
+ * The child's measurement: height and weight typed by the parent, and the
+ * shoulder width from the camera or a tape measure. Measured once, it fills
+ * every shirt and trouser for that child (Prompt 21), and the server suggests
+ * a size for every item that has a size chart.
  *
- * The numbers stay on this phone for this visit only (sessionStorage) and are
- * sent with the order, where they are kept on the order lines. There is no
- * child profile.
+ * On this phone it is kept for this visit (sessionStorage). It is copied onto
+ * each bag line it sized, sent with the order, and saved on the child's record
+ * then (or straight away when a teacher or signed-in parent has the child).
  */
 
-export const FIT_LIMITS = { height: limits.height_cm, weight: limits.weight_kg };
+export const FIT_LIMITS = { height: limits.height_cm, weight: limits.weight_kg, shoulder: limits.shoulder_cm };
+
+export type FitSource = 'CAMERA' | 'MANUAL';
 
 export interface Fit {
   heightCm: number;
   weightKg: number;
-  /** From the optional camera step. Only these two numbers ever leave the phone. */
+  /** From the camera (numbers only ever leave the phone) or typed from a tape measure. */
   shoulderCm?: number;
+  /** Only for a camera reading: how sure the phone was, 0 to 1. */
   shoulderConfidence?: number;
+  source?: FitSource;
+  /** The parent changed the shoulder width the camera measured. */
+  shoulderEdited?: boolean;
+  /** ISO date and time it was measured. */
+  measuredAt?: string;
 }
 
-/** The fit as the API takes it (size check and order). */
+/** The fit as the API takes it (order line, child's record). */
 export function fitPayload(fit: Fit) {
   return {
     height_cm: fit.heightCm,
     weight_kg: fit.weightKg,
+    ...(fit.shoulderCm !== undefined ? { shoulder_cm: fit.shoulderCm } : {}),
     ...(fit.shoulderCm !== undefined && fit.shoulderConfidence !== undefined
-      ? { shoulder_cm: fit.shoulderCm, shoulder_confidence: fit.shoulderConfidence }
+      ? { shoulder_confidence: fit.shoulderConfidence }
       : {}),
+    source: fit.source ?? (fit.shoulderConfidence !== undefined ? 'CAMERA' : 'MANUAL'),
+    shoulder_edited: Boolean(fit.shoulderEdited),
   };
+}
+
+/** Only the numbers, for the size suggestion. */
+function sizeFitNumbers(fit: Fit) {
+  const { source: _source, shoulder_edited: _edited, ...numbers } = fitPayload(fit);
+  return numbers;
+}
+
+// ---------------------------------------------------------------------------
+// The child's record on the server (teacher, or a parent who picked the child)
+// ---------------------------------------------------------------------------
+interface ServerMeasurement {
+  height_cm: number;
+  weight_kg: number;
+  shoulder_cm: number | null;
+  shoulder_confidence: number | null;
+  source: FitSource;
+  shoulder_edited: boolean;
+  measured_at: string;
+}
+
+function fromServer(row: ServerMeasurement): Fit {
+  return {
+    heightCm: row.height_cm,
+    weightKg: row.weight_kg,
+    ...(row.shoulder_cm !== null ? { shoulderCm: row.shoulder_cm } : {}),
+    ...(row.shoulder_confidence !== null ? { shoulderConfidence: row.shoulder_confidence } : {}),
+    source: row.source,
+    shoulderEdited: row.shoulder_edited,
+    measuredAt: row.measured_at,
+  };
+}
+
+/** The child's newest saved measurement, or null. */
+export function useLatestMeasurement(studentId?: string | null) {
+  return useQuery({
+    queryKey: ['measurement-latest', studentId],
+    queryFn: async () => {
+      const row = await api<ServerMeasurement | undefined>(`/students/${studentId}/measurements/latest/`);
+      return row ? fromServer(row) : null;
+    },
+    enabled: Boolean(studentId),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export async function saveMeasurement(studentId: string, fit: Fit): Promise<Fit> {
+  const row = await api<ServerMeasurement>(`/students/${studentId}/measurements/`, {
+    method: 'POST',
+    body: JSON.stringify(fitPayload(fit)),
+  });
+  return fromServer(row);
+}
+
+/** {product_id: size} the child last had, to choose shoe, tie, belt and sock sizes (Prompt 24). */
+export function useLastSizes(studentId?: string | null) {
+  return useQuery({
+    queryKey: ['last-sizes', studentId],
+    queryFn: () => api<Record<string, string>>(`/students/${studentId}/last-sizes/`),
+    enabled: Boolean(studentId),
+    staleTime: 10 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+/** Settings for the camera step, read when it opens (see SHOULDER_CALIBRATION_FACTOR). */
+export function useMeasureConfig(enabled: boolean) {
+  return useQuery({
+    queryKey: ['measure-config'],
+    queryFn: () => api<{ shoulder_calibration_factor: number }>('/public/measure-config/'),
+    enabled,
+    staleTime: 30 * 60 * 1000,
+    retry: 1,
+  });
 }
 /** null: not asked yet. 'skipped': the parent chose sizes themselves. */
 export type FitAnswer = Fit | 'skipped' | null;
@@ -139,7 +227,7 @@ export function checkMeasure(text: string, limit: { min: number; max: number }):
 // ---------------------------------------------------------------------------
 const MAX_PRODUCTS = 60;
 
-export function useSizeFit(productIds: string[], answer: FitAnswer, className?: string) {
+export function useSizeFit(productIds: string[], answer: FitAnswer, className?: string, enabled = true) {
   const ids = productIds.slice(0, MAX_PRODUCTS);
   const fit = answer && answer !== 'skipped' ? answer : null;
   return useQuery({
@@ -154,11 +242,11 @@ export function useSizeFit(productIds: string[], answer: FitAnswer, className?: 
         method: 'POST',
         body: JSON.stringify({
           products: ids,
-          ...(fit ? { ...fitPayload(fit), class: className } : {}),
+          ...(fit ? { ...sizeFitNumbers(fit), class: className } : {}),
         }),
       }),
-    // Fetched before the parent answers too: the charts decide whether to ask at all.
-    enabled: ids.length > 0,
+    // Fetched before the parent answers too: the chart is shown next to the sizes.
+    enabled: enabled && ids.length > 0,
     staleTime: 10 * 60 * 1000,
     retry: 1,
   });
@@ -188,4 +276,33 @@ export function preselectSizeId(
 export function formatMeasure(value: number | null | undefined): string {
   if (value === null || value === undefined) return '-';
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+/** "18 Oct 2026" for the measurement card. */
+export function formatMeasuredOn(iso?: string, locale = 'en-IN'): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime())
+    ? ''
+    : date.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/**
+ * Items the child's measurement sizes: uniform clothes that come in sizes
+ * (shirts, trousers, skirts, blazers). Shoes, ties, belts and socks are picked by hand.
+ */
+export function usesMeasurement(product: { category: string; sizes: unknown[] }): boolean {
+  return product.category === 'Uniform' && product.sizes.length > 1;
+}
+
+const TOP_WORDS = /shirt|blouse|kurta|kameez|tee\b|polo|top\b|blazer|sweater|pullover|cardigan|jacket/i;
+const BOTTOM_WORDS = /trouser|pant|skirt|shorts|chino|salwar|pinafore/i;
+
+/** Worn on top or below, so a shirt can suggest its matching trouser (Prompt 24). */
+export function garmentKind(name: string): 'top' | 'bottom' | null {
+  // "Salwar Kameez Set" is a whole outfit, not one half.
+  if (/\bset\b/i.test(name)) return null;
+  if (BOTTOM_WORDS.test(name)) return 'bottom';
+  if (TOP_WORDS.test(name)) return 'top';
+  return null;
 }

@@ -13,8 +13,10 @@ import type { CardProduct } from './ProductCard';
 import './product.css';
 import { useLang } from '../../i18n';
 import { categoryLabel } from '../../i18n/labels';
-import { preselectSizeId, suggestedSizeIds, type ProductFit } from '../../data/fit';
+import { preselectSizeId, suggestedSizeIds, usesMeasurement, type Fit, type ProductFit } from '../../data/fit';
 import { RecommendationNote, SizeChartTable } from '../fit/SizeChartTable';
+import { MeasurementPanel } from '../fit/MeasurementPanel';
+import type { MeasureGarment } from '../fit/MeasureFlow';
 
 export interface ProductSheetProps {
   product: CardProduct | null;
@@ -24,9 +26,38 @@ export interface ProductSheetProps {
   /** This product's size chart and suggestion, when it has one. */
   fit?: ProductFit;
   fitLoading?: boolean;
+  /**
+   * The child's measurement and how to save a new one. Given, a shirt or
+   * trouser opens as a size page with "Accurate size" (Prompt 21).
+   */
+  measurement?: Fit | null;
+  onSaveMeasurement?: (fit: Fit) => Promise<boolean> | boolean;
+  /** Shirts and trousers on this list, for the suggestions after measuring. */
+  garments?: MeasureGarment[];
+  className?: string;
+  /** Which school the bag line is for, so the bag can group lines by child. */
+  schoolName?: string;
+  /** The size this child had last time, chosen when there is no suggestion (Prompt 24). */
+  lastSize?: string;
+  /** Called after the item is in the bag, instead of opening the bag. */
+  onAdded?: (product: CardProduct) => void;
 }
 
-export function ProductSheet({ product, isOpen, onClose, onOpenBag, fit, fitLoading }: ProductSheetProps) {
+export function ProductSheet({
+  product,
+  isOpen,
+  onClose,
+  onOpenBag,
+  fit,
+  fitLoading,
+  measurement,
+  onSaveMeasurement,
+  garments,
+  className,
+  schoolName,
+  lastSize,
+  onAdded,
+}: ProductSheetProps) {
   const { addItem } = useStoreState();
   const { t } = useLang();
 
@@ -41,8 +72,12 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag, fit, fitLoad
   const [openDelivery, setOpenDelivery] = useState(false);
   const [openExchange, setOpenExchange] = useState(false);
 
-  // Each product opens on its suggested size (if in stock), never the last product's choice.
-  const preselected = product ? preselectSizeId(product.sizes, fit) ?? '' : '';
+  const [chartOpen, setChartOpen] = useState(false);
+
+  // Each product opens on its suggested size (if in stock), or the size the
+  // child had last time, never the last product's choice.
+  const lastSizeId = product?.sizes.find((s) => s.size === lastSize && s.inStock)?.id;
+  const preselected = product ? preselectSizeId(product.sizes, fit) ?? lastSizeId ?? '' : '';
   useEffect(() => {
     setSelectedSizeId(preselected);
     setSizeError(undefined);
@@ -64,6 +99,7 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag, fit, fitLoad
   const orderable = product.sizes.some((size) => size.inStock) && !product.needsDetails;
   const suggested = suggestedSizeIds(product.sizes, fit);
   const hasChart = Boolean(fit && fit.chart.length > 0);
+  const sizePage = usesMeasurement(product) && Boolean(onSaveMeasurement);
 
   const handleAdd = (): boolean => {
     if (product.sizes.length > 1 && !selectedSizeId) {
@@ -82,12 +118,20 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag, fit, fitLoad
       pricePaise: product.pricePaise,
       size: chosenSize.size,
       quantity,
+      // The numbers this line was sized from, kept with the line (Prompt 23).
+      ...(sizePage && measurement ? { measurement } : {}),
+      ...(className ? { className } : {}),
+      ...(schoolName ? { schoolName } : {}),
     });
     return true;
   };
 
-  // After the "Added" moment, hand over to the bag
+  // After the "Added" moment, hand over to the next step, or the bag
   const handleSettled = () => {
+    if (onAdded) {
+      onAdded(product);
+      return;
+    }
     if (onOpenBag) {
       onClose();
       onOpenBag();
@@ -158,10 +202,35 @@ export function ProductSheet({ product, isOpen, onClose, onOpenBag, fit, fitLoad
                 </div>
               )}
 
+              {sizePage && (
+                <MeasurementPanel
+                  measurement={measurement ?? null}
+                  garments={garments}
+                  className={className}
+                  onSave={onSaveMeasurement!}
+                />
+              )}
+
               {product.sizes.length > 1 && (
                 <>
                   <RecommendationNote recommendation={fit?.recommendation} />
-                  <SizeChartTable rows={fit?.chart} loading={fitLoading} recommendation={fit?.recommendation} />
+                  {sizePage && hasChart ? (
+                    <>
+                      <button
+                        type="button"
+                        className="size-chart-toggle"
+                        aria-expanded={chartOpen}
+                        onClick={() => setChartOpen(!chartOpen)}
+                      >
+                        {chartOpen ? t('size.hideChart') : t('size.viewChart')}
+                      </button>
+                      {chartOpen && (
+                        <SizeChartTable rows={fit?.chart} recommendation={fit?.recommendation} />
+                      )}
+                    </>
+                  ) : (
+                    <SizeChartTable rows={fit?.chart} loading={fitLoading} recommendation={fit?.recommendation} />
+                  )}
                 </>
               )}
 

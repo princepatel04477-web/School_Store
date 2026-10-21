@@ -17,9 +17,11 @@ export type CardProduct = SeedProduct & { imageUrl?: string; needsDetails?: bool
 export interface ProductCardProps {
   product: CardProduct;
   onOpenDetails?: (product: CardProduct) => void;
+  /** After a one-size item goes in the bag from the card (Prompt 24's next step). */
+  onAdded?: (product: CardProduct) => void;
 }
 
-export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
+export function ProductCard({ product, onOpenDetails, onAdded }: ProductCardProps) {
   const { cart, addItem, updateQuantity } = useStoreState();
   const { t } = useLang();
 
@@ -134,7 +136,10 @@ export function ProductCard({ product, onOpenDetails }: ProductCardProps) {
                     if (ok) setSettling(true);
                     return ok;
                   }}
-                  onSettled={() => setSettling(false)}
+                  onSettled={() => {
+                    setSettling(false);
+                    onAdded?.(product);
+                  }}
                 >
                   {t('product.add')}
                 </AddToBagButton>

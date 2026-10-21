@@ -9,6 +9,7 @@ import { api, deleteChildPhotos, Order, Product } from '../api';
 import { useLang } from '../i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import '../components/photoConsent.css';
+import type { Fit } from '../data/fit';
 
 interface StudentDetail {
   id: string;
@@ -84,7 +85,7 @@ function Dashboard() {
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
-  const handleAddItem = (item: { product: Product; variantId: string; customisationData: Record<string, any> }) => {
+  const handleAddItem = (item: { product: Product; variantId: string; customisationData: Record<string, any>; measurement?: Fit }) => {
     setCartItems((prev) => [
       ...prev,
       {
@@ -94,6 +95,7 @@ function Dashboard() {
         variantSize: item.product.variants.find((v) => v.id === item.variantId)?.size,
         quantity: 1,
         customisationData: item.customisationData,
+        measurement: item.measurement,
       },
     ]);
   };

@@ -3,12 +3,13 @@ from rest_framework.routers import DefaultRouter
 
 from .public import (
     PublicGradeListView,
+    PublicMeasureConfigView,
     PublicProductList,
     PublicSchoolCitiesView,
     PublicSchoolListView,
     PublicSizeFitView,
 )
-from .size_chart_views import SizeChartImportViewSet
+from .size_chart_views import SizeChartImportViewSet, SizeChartViewSet
 from .storefront import StudentCatalogueView, StudentProductDetailView
 from .views import (
     CartValidateView,
@@ -22,6 +23,7 @@ router.register("categories", CategoryViewSet, basename="category")
 router.register("products", ProductViewSet, basename="product")
 router.register("variants", ProductVariantViewSet, basename="variant")
 router.register("size-chart-imports", SizeChartImportViewSet, basename="size-chart-import")
+router.register("size-charts", SizeChartViewSet, basename="size-chart")
 
 urlpatterns = [
     path("public/schools/", PublicSchoolListView.as_view(), name="public-schools"),
@@ -29,6 +31,7 @@ urlpatterns = [
     path("public/grades/", PublicGradeListView.as_view(), name="public-grades"),
     path("public/products/", PublicProductList.as_view(), name="public-products"),
     path("public/size-fit/", PublicSizeFitView.as_view(), name="public-size-fit"),
+    path("public/measure-config/", PublicMeasureConfigView.as_view(), name="public-measure-config"),
     path("cart/validate/", CartValidateView.as_view(), name="cart-validate"),
     path("cart/add/", CartValidateView.as_view(), name="cart-add"),
     path("catalog/cart/validate/", CartValidateView.as_view(), name="catalog-cart-validate"),

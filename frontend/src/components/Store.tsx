@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api, Product, Order, CustomisationField } from '../api';
 import { CustomisationForm, photoPurposeForCategory } from './CustomisationForm';
+import { fitPayload, formatMeasure, type Fit } from '../data/fit';
 
 const demo: Product[] = [
   {
@@ -331,6 +332,8 @@ export interface CartItem {
   variantSize?: string;
   quantity: number;
   customisationData?: Record<string, any>;
+  /** The child's measurement this shirt or trouser was sized from. */
+  measurement?: Fit;
 }
 
 export function Cart({
@@ -409,6 +412,7 @@ export function Cart({
           variant: item.variantId,
           quantity: item.quantity || 1,
           customisation_data: cleanCustomData,
+          ...(item.measurement ? { fit: fitPayload(item.measurement) } : {}),
         };
       });
 
@@ -482,6 +486,12 @@ export function Cart({
                 {hasCustom && (
                   <div style={{ fontSize: '11px', color: '#2a6a4e', marginTop: '2px' }}>
                     Customised
+                  </div>
+                )}
+                {item.measurement && (
+                  <div className="muted" style={{ fontSize: '11px', marginTop: '2px' }}>
+                    Measured: {formatMeasure(item.measurement.heightCm)} cm, {formatMeasure(item.measurement.weightKg)} kg
+                    {item.measurement.shoulderCm !== undefined ? `, shoulders ${formatMeasure(item.measurement.shoulderCm)} cm` : ''}
                   </div>
                 )}
               </div>

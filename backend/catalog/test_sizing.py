@@ -241,8 +241,9 @@ class PublicSizeFitEndpointTests(TestCase):
         })
         self.assertEqual(res.status_code, 200, res.data)
         self.assertEqual(res.data["fit"]["shoulder_cm"], 31.2)
+        # Typed by hand from a tape measure: no confidence, still accepted.
         res = self.post({"products": [str(self.shirt.id)], "height_cm": 133, "weight_kg": 30, "shoulder_cm": 31.2})
-        self.assertEqual(res.data["shoulder_confidence"], ["REQUIRED"])
+        self.assertEqual(res.data["fit"]["shoulder_cm"], 31.2)
 
     def test_soft_warnings_are_returned(self):
         res = self.post({"products": [str(self.shirt.id)], "height_cm": 175, "weight_kg": 40, "class": "Class 1"})
@@ -269,8 +270,11 @@ class ShoulderTests(SimpleTestCase):
         self.assertTrue(check.ok)
         self.assertIsNone(check.shoulder_cm)
 
-    def test_shoulder_needs_a_confidence_and_sane_numbers(self):
-        self.assertEqual(validate_fit(135, 30, shoulder_cm=31).errors, {"shoulder_confidence": "REQUIRED"})
+    def test_shoulder_needs_sane_numbers_and_confidence_is_optional(self):
+        typed = validate_fit(135, 30, shoulder_cm=31)
+        self.assertTrue(typed.ok)
+        self.assertEqual((typed.shoulder_cm, typed.shoulder_confidence), (D("31.0"), None))
+        self.assertEqual(validate_fit(135, 30, shoulder_confidence=0.8).errors, {"shoulder_cm": "REQUIRED"})
         self.assertEqual(
             validate_fit(135, 30, shoulder_cm=95, shoulder_confidence=1.5).errors,
             {"shoulder_cm": "OUT_OF_RANGE", "shoulder_confidence": "OUT_OF_RANGE"},
@@ -311,3 +315,11 @@ class ShoulderTests(SimpleTestCase):
         unsure = validate_fit(135, 30, shoulder_cm=32.5, shoulder_confidence=0.4)
         with override_settings(FIT_USE_SHOULDER=True, FIT_SHOULDER_MIN_CONFIDENCE=0.6):
             self.assertEqual(suggest(SHOULDER_CHART, unsure), (Status.FIT, "30", ""))
+
+
+class MeasureConfigTests(TestCase):
+    def test_phone_reads_the_shoulder_calibration_factor(self):
+        with override_settings(SHOULDER_CALIBRATION_FACTOR=1.08):
+            res = APIClient().get("/api/public/measure-config/")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json(), {"shoulder_calibration_factor": 1.08})

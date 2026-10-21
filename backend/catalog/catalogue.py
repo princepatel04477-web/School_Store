@@ -72,7 +72,7 @@ def catalogue_cache_key(school_id, category) -> str:
 
 
 def build_school_catalogue(school_id, category=None) -> list[dict]:
-    """Build card-sized catalogue entries in a FIXED number of queries (2)."""
+    """Build card-sized catalogue entries in a FIXED number of queries (3)."""
     variant_prefetch = Prefetch(
         "variants",
         queryset=(
@@ -84,7 +84,9 @@ def build_school_catalogue(school_id, category=None) -> list[dict]:
     qs = (
         Product.objects.filter(active=True, needs_review=False, gender__isnull=False)
         .select_related("category")
-        .prefetch_related(variant_prefetch)
+        .prefetch_related(
+            variant_prefetch, Prefetch("grades", queryset=Grade.objects.only("id"))
+        )
         .only(
             "id",
             "name",
@@ -132,6 +134,7 @@ def build_school_catalogue(school_id, category=None) -> list[dict]:
             "needs_review": product.needs_review,
             "class_from": product.class_from,
             "class_to": product.class_to,
+            "grade_ids": [str(grade.id) for grade in product.grades.all()],
             "sizes": [
                 {"variant_id": str(variant.id), "size": variant.size}
                 for variant in product.variants.all()
@@ -162,9 +165,15 @@ def get_school_catalogue(school_id, category=None) -> list[dict]:
     return entries
 
 
-def entry_matches_student(entry: dict, class_number, gender) -> bool:
-    """Class-range and gender targeting for one cached catalogue entry."""
+def entry_matches_student(entry: dict, class_number, gender, grade_id=None) -> bool:
+    """Grade, class-range and gender targeting for one cached catalogue entry.
+
+    Mirrors validate_product_match, so nothing listed here is refused at checkout.
+    """
     if entry.get("needs_review") or not entry.get("gender"):
+        return False
+    grade_ids = entry.get("grade_ids")
+    if grade_ids and (grade_id is None or str(grade_id) not in grade_ids):
         return False
 
     entry_gender = str(entry.get("gender") or "").lower()
@@ -193,11 +202,26 @@ def entry_matches_student(entry: dict, class_number, gender) -> bool:
 def filter_for_student(entries: list[dict], student) -> list[dict]:
     """Narrow a school's cached catalogue to one student's class and gender."""
     class_number = parse_class_number(student.class_name)
+    grade_id = student_grade_id(student)
     return [
         entry
         for entry in entries
-        if entry_matches_student(entry, class_number, student.gender)
+        if entry_matches_student(entry, class_number, student.gender, grade_id)
     ]
+
+
+def student_grade_id(student):
+    """The student's Grade, resolved from the class name the way checkout does."""
+    if student.grade_id:
+        return student.grade_id
+    normalized = normalize_class_name(student.class_name)
+    if not normalized:
+        return None
+    return (
+        Grade.objects.filter(Q(name__iexact=normalized) | Q(name__iexact=student.class_name.strip()))
+        .values_list("id", flat=True)
+        .first()
+    )
 
 
 def validate_product_match(product: Product, school_id, class_name_or_grade, gender):
