@@ -166,6 +166,11 @@ class Order(UUIDModel):
                 fields=["branch", "created_at"],
                 name="idx_order_branch_created",
             ),
+            # Payment webhook looks the order up by the gateway's order id.
+            models.Index(
+                fields=["razorpay_order_id"],
+                name="idx_order_razorpay_id",
+            ),
         ]
 
     def save(self, *args, **kwargs):

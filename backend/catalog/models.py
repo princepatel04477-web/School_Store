@@ -1,5 +1,7 @@
 from django.db import models
 from django.db.models import Q
+from django.db.models.signals import m2m_changed
+from django.dispatch import receiver
 
 from common.models import UUIDModel
 from common.cache_utils import invalidate_catalog_cache
@@ -346,3 +348,11 @@ class SizingSample(UUIDModel):
 
     def __str__(self) -> str:
         return f"{self.month:%Y-%m} {self.recommended_size} -> {self.final_size}"
+
+
+@receiver(m2m_changed, sender=Product.grades.through)
+def invalidate_catalog_on_grades_change(sender, action, **kwargs):
+    # grades.set()/add()/remove() never call Product.save(), and a serializer
+    # writes them after save(), so the cache must be invalidated here too.
+    if action in ("post_add", "post_remove", "post_clear"):
+        invalidate_catalog_cache()

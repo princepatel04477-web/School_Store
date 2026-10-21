@@ -224,7 +224,9 @@ class Student(UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["school_id", "grade__sort_order", "section", "name"]
+        # Columns on this row only: ordering through grade__sort_order would add
+        # a JOIN to every scoped Student query (Rule 3 / Prompt 3 Requirement 2).
+        ordering = ["school_id", "class_name", "section", "name"]
         constraints = [
             models.UniqueConstraint(
                 fields=["school", "gr_number"],
@@ -239,6 +241,12 @@ class Student(UUIDModel):
             models.Index(
                 fields=["school", "class_name", "gender"],
                 name="idx_stud_sch_cls_gen",
+            ),
+            # Student list: WHERE school, class, section ORDER BY name, streamed
+            # straight from the index with no sort node (Rule P3).
+            models.Index(
+                fields=["school", "class_name", "section", "name", "id"],
+                name="idx_student_school_roster",
             ),
             models.Index(
                 fields=["school", "grade", "section"],

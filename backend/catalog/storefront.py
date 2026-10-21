@@ -28,6 +28,7 @@ from .catalogue import (
     filter_for_student,
     get_school_catalogue,
     parse_class_number,
+    student_grade_id,
 )
 from .images import is_remote_image_url, product_thumbnail
 from .models import Product
@@ -130,7 +131,7 @@ class StudentProductDetailView(APIView):
         product = (
             Product.objects.filter(pk=product_id, active=True)
             .select_related("category", "school")
-            .prefetch_related("variants")
+            .prefetch_related("variants", "grades")
             .first()
         )
         if product is None:
@@ -138,14 +139,19 @@ class StudentProductDetailView(APIView):
         # Scope: must be shared or belong to this student's school…
         if product.school_id and product.school_id != student.school_id:
             raise NotFound("Product not available for this student.")
-        # …and match the student's class range and gender.
+        # …and match the student's grade, class range and gender.
         targeting = {
             "gender": product.gender,
+            "needs_review": product.needs_review,
             "class_from": product.class_from,
             "class_to": product.class_to,
+            "grade_ids": [str(grade.id) for grade in product.grades.all()],
         }
         if not entry_matches_student(
-            targeting, parse_class_number(student.class_name), student.gender
+            targeting,
+            parse_class_number(student.class_name),
+            student.gender,
+            student_grade_id(student),
         ):
             raise NotFound("Product not available for this student.")
 
