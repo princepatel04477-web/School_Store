@@ -391,11 +391,28 @@ class PublicProductList(APIView):
         return response
 
 
+class PublicMeasureConfigView(APIView):
+    """
+    GET /api/public/measure-config/
+    Settings the phone's camera measurement needs. Read when the parent opens
+    the measuring screen, so a new calibration needs no new app release.
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [PublicCatalogThrottle]
+
+    def get(self, request):
+        from django.conf import settings
+
+        return Response({"shoulder_calibration_factor": settings.SHOULDER_CALIBRATION_FACTOR})
+
+
 class PublicSizeFitView(APIView):
     """
     POST /api/public/size-fit/
         {"products": [<uuid>, ...], "height_cm": 132, "weight_kg": 29, "class": "Class 4",
-         "shoulder_cm": 31.5, "shoulder_confidence": 0.82}   # shoulder: optional, from the camera step
+         "shoulder_cm": 31.5, "shoulder_confidence": 0.82}   # shoulder optional; no confidence when typed
 
     Returns each product's size chart (cm, kg) and, when height and weight are
     given, the recommended size. Height and weight are not stored here; they

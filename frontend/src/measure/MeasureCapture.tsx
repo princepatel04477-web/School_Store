@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLang } from '../i18n';
+import { useLang, type MessageKey } from '../i18n';
 import { speak, stopSpeaking } from '../i18n/speech';
-import { FRAME_TARGET, MIN_FRAMES, SHOULDER_OFFSET_CM, STILL_MS } from './config';
+import { DETECT_INTERVAL_MS, FRAME_TARGET, HOLD_MS, MIN_FRAMES } from './config';
 import { checkPose, type Guidance } from './measureChecks';
 import {
+  bestFrames,
   measureFrames,
   type Landmark,
   type Mask,
@@ -14,15 +15,23 @@ import './measure.css';
 
 interface MeasureCaptureProps {
   heightCm: number;
-  onResult: (result: MeasureResult) => void;
-  onSkip: () => void;
+  /** Shoulder calibration factor (see config.ts). */
+  factor: number;
+  /** null when no reading could be worked out: the flow asks to retake. */
+  onResult: (result: MeasureResult | null) => void;
+  onCancel: () => void;
+  /** No camera, or the parent said no: the flow offers typing the numbers instead. */
+  onCameraError: () => void;
 }
 
-const GUIDE_KEY: Record<Guidance, 'measure.stepBack' | 'measure.facePhone' | 'measure.holdStill' | 'measure.ready'> = {
-  stepBack: 'measure.stepBack',
-  facePhone: 'measure.facePhone',
-  holdStill: 'measure.holdStill',
-  ready: 'measure.ready',
+const GUIDE_KEY: Record<Guidance, MessageKey> = {
+  moveBack: 'measure.g.moveBack',
+  moveCloser: 'measure.g.moveCloser',
+  standInside: 'measure.g.standInside',
+  showFullBody: 'measure.g.showFullBody',
+  standStraight: 'measure.g.standStraight',
+  holdStill: 'measure.g.holdStill',
+  ready: 'measure.g.ready',
 };
 
 interface PosePoint {
@@ -37,6 +46,7 @@ interface PoseMask {
   width: number;
   height: number;
   getAsUint8Array: () => Uint8Array;
+  close?: () => void;
 }
 
 interface PoseResult {
@@ -44,26 +54,38 @@ interface PoseResult {
   segmentationMasks?: PoseMask[];
 }
 
-function maskFromPose(mask: PoseMask): Mask {
-  return { width: mask.width, height: mask.height, data: mask.getAsUint8Array() };
+type ScoredFrame = MeasureFrame & { quality: number };
+
+/** Frames kept for a manual capture: the last couple of seconds. */
+const RECENT_FRAMES = 20;
+
+function copyMask(mask: PoseMask): Mask {
+  return { width: mask.width, height: mask.height, data: new Uint8Array(mask.getAsUint8Array()) };
 }
 
-export function MeasureCapture({ heightCm, onResult, onSkip }: MeasureCaptureProps) {
+/**
+ * Full-screen rear camera with a dotted child outline. MediaPipe Pose runs on
+ * the phone about 10 times a second and the screen shows one instruction at a
+ * time. When the child fits for 2 seconds the reading is taken by itself; the
+ * parent can also tap Capture. The video is only looked at here: no frame is
+ * kept after the numbers are worked out, and the camera stops at once.
+ */
+export function MeasureCapture({ heightCm, factor, onResult, onCancel, onCameraError }: MeasureCaptureProps) {
   const { t, lang } = useLang();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [guidance, setGuidance] = useState<Guidance>('stepBack');
-  const [error, setError] = useState('');
+  const [guidance, setGuidance] = useState<Guidance>('showFullBody');
+  const [holdShare, setHoldShare] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState('');
   const spoken = useRef<Guidance | null>(null);
-  const finished = useRef(false);
-  const onResultRef = useRef(onResult);
-  const onSkipRef = useRef(onSkip);
-  onResultRef.current = onResult;
-  onSkipRef.current = onSkip;
+  const captureNow = useRef<() => void>(() => undefined);
+  const callbacks = useRef({ onResult, onCancel, onCameraError });
+  callbacks.current = { onResult, onCancel, onCameraError };
 
   useEffect(() => {
     if (spoken.current === guidance) return;
     spoken.current = guidance;
-    speak(`${t(GUIDE_KEY[guidance])}. ${t('measure.shirt')}`, lang);
+    speak(t(GUIDE_KEY[guidance]), lang);
   }, [guidance, lang, t]);
 
   useEffect(() => () => stopSpeaking(), []);
@@ -72,63 +94,98 @@ export function MeasureCapture({ heightCm, onResult, onSkip }: MeasureCapturePro
     const video = videoRef.current;
     if (!video) return undefined;
     let cancelled = false;
+    let finished = false;
     let timer = 0;
+    let lastRun = 0;
     let landmarker: { close: () => void; detectForVideo: (source: HTMLVideoElement, time: number) => PoseResult } | null =
       null;
     let stream: MediaStream | null = null;
-    const frames: MeasureFrame[] = [];
-    let stillSince = 0;
+    let recent: ScoredFrame[] = [];
+    let held: ScoredFrame[] = [];
+    let readySince = 0;
     let previous: Landmark[] | null = null;
 
     const stop = () => {
       window.cancelAnimationFrame(timer);
       landmarker?.close();
+      landmarker = null;
       stream?.getTracks().forEach((track) => track.stop());
+      stream = null;
+      if (video) video.srcObject = null;
     };
 
-    const loop = () => {
-      if (cancelled || finished.current || !landmarker || video.readyState < 2) {
-        timer = window.requestAnimationFrame(loop);
+    const finish = (frames: ScoredFrame[]) => {
+      if (finished) return;
+      if (frames.length < MIN_FRAMES) {
+        setNotice(t('measure.g.showFullBody'));
         return;
       }
-      const result = landmarker.detectForVideo(video, performance.now());
+      finished = true;
+      const measured = measureFrames(bestFrames(frames, FRAME_TARGET), heightCm, factor);
+      // Done with the camera: stop it before anything else happens.
+      stop();
+      recent = [];
+      held = [];
+      callbacks.current.onResult(measured);
+    };
+    captureNow.current = () => finish(held.length >= MIN_FRAMES ? held : recent);
+
+    const loop = (now: number) => {
+      timer = window.requestAnimationFrame(loop);
+      if (cancelled || finished || !landmarker || video.readyState < 2 || now - lastRun < DETECT_INTERVAL_MS) return;
+      lastRun = now;
+      const result = landmarker.detectForVideo(video, now);
       const raw = result.landmarks?.[0];
       const poseMask = result.segmentationMasks?.[0];
-      if (raw && poseMask && video.videoWidth > 0) {
-        const landmarks = raw.map((point) => ({
-          x: point.x,
-          y: point.y,
-          z: point.z,
-          visibility: point.visibility ?? point.presence,
-        }));
-        const pose = checkPose(landmarks, video.videoWidth, video.videoHeight, previous);
-        previous = landmarks;
-        setGuidance(pose.guidance);
-        if (!pose.ready) {
-          frames.length = 0;
-          stillSince = 0;
-        } else {
-          if (stillSince === 0) stillSince = performance.now();
-          if (frames.length < FRAME_TARGET) {
-            frames.push({
-              landmarks,
-              mask: maskFromPose(poseMask),
-              imageWidth: video.videoWidth,
-              imageHeight: video.videoHeight,
-            });
-          }
-          if (performance.now() - stillSince >= STILL_MS && frames.length >= MIN_FRAMES) {
-            finished.current = true;
-            const measured = measureFrames(frames, heightCm, SHOULDER_OFFSET_CM);
-            stop();
-            if (measured) onResultRef.current(measured);
-            else onSkipRef.current();
-            return;
-          }
+      if (!raw || video.videoWidth === 0) {
+        poseMask?.close?.();
+        setGuidance('showFullBody');
+        readySince = 0;
+        held = [];
+        setHoldShare(0);
+        return;
+      }
+      const landmarks = raw.map((point) => ({
+        x: point.x,
+        y: point.y,
+        z: point.z,
+        visibility: point.visibility ?? point.presence,
+      }));
+      const pose = checkPose(landmarks, video.videoWidth, video.videoHeight, previous);
+      previous = landmarks;
+      setGuidance(pose.guidance);
+
+      if (pose.wholeBody) {
+        const frame: ScoredFrame = {
+          landmarks,
+          mask: poseMask ? copyMask(poseMask) : undefined,
+          imageWidth: video.videoWidth,
+          imageHeight: video.videoHeight,
+          quality: pose.quality,
+        };
+        recent = [...recent.slice(-(RECENT_FRAMES - 1)), frame];
+        if (pose.ready) {
+          if (readySince === 0) readySince = now;
+          held = [...held.slice(-(RECENT_FRAMES - 1)), frame];
         }
       }
-      timer = window.requestAnimationFrame(loop);
+      poseMask?.close?.();
+
+      if (!pose.ready) {
+        readySince = 0;
+        held = [];
+        setHoldShare(0);
+        return;
+      }
+      const share = Math.min(1, (now - readySince) / HOLD_MS);
+      setHoldShare(share);
+      if (share >= 1) finish(held);
     };
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      callbacks.current.onCameraError();
+      return undefined;
+    }
 
     navigator.mediaDevices
       .getUserMedia({
@@ -158,39 +215,70 @@ export function MeasureCapture({ heightCm, onResult, onSkip }: MeasureCapturePro
             baseOptions: { ...base, delegate: 'CPU' },
           });
         }
-        if (!cancelled) timer = window.requestAnimationFrame(loop);
+        if (cancelled) {
+          stop();
+          return;
+        }
+        setLoading(false);
+        timer = window.requestAnimationFrame(loop);
       })
       .catch(() => {
-        if (!cancelled) setError(t('measure.cameraError'));
+        if (!cancelled) {
+          stop();
+          callbacks.current.onCameraError();
+        }
       });
 
     return () => {
       cancelled = true;
       stop();
     };
-  }, [heightCm, t]);
+  }, [heightCm, factor, t]);
+
+  const ready = guidance === 'ready';
 
   return (
-    <div className="measure-screen">
+    <div className="measure-screen" role="dialog" aria-modal="true" aria-label={t('measure.cameraTitle')}>
       <video ref={videoRef} className="measure-video" playsInline muted autoPlay />
-      <div className="measure-shade" />
-      <svg className="measure-outline" viewBox="0 0 120 220" aria-hidden="true">
-        <path
-          d="M60 18 a12 12 0 1 1 0 0.1 M60 32 v18 M38 58 h44 M60 50 v70 M60 120 l-16 70 M60 120 l16 70"
-          fill="none"
-          strokeWidth="1"
-          className={guidance === 'ready' ? 'is-ready' : ''}
-        />
-        <line x1="28" y1="196" x2="92" y2="196" strokeWidth="1" className={guidance === 'ready' ? 'is-ready' : ''} />
-      </svg>
+      <ChildOutline ready={ready} />
       <div className="measure-panel">
-        <p>{error || t(GUIDE_KEY[guidance])}</p>
-        <p>{t('measure.shirt')}</p>
-        <p className="measure-note">{t('measure.hold')}</p>
-        <button type="button" className="measure-skip" onClick={onSkip}>
-          {t('measure.skip')}
-        </button>
+        <p className="measure-guide" aria-live="polite">
+          {loading ? t('measure.loadingCamera') : notice && !ready ? notice : t(GUIDE_KEY[guidance])}
+        </p>
+        <div className="measure-hold" aria-hidden="true">
+          <span style={{ transform: `scaleX(${holdShare})` }} />
+        </div>
+        <p className="measure-note">{t('measure.photoStays')}</p>
+        <div className="measure-actions">
+          <button type="button" className="measure-capture" disabled={loading} onClick={() => captureNow.current()}>
+            {t('measure.capture')}
+          </button>
+          <button type="button" className="measure-skip" onClick={onCancel}>
+            {t('measure.cancel')}
+          </button>
+        </div>
       </div>
     </div>
+  );
+}
+
+/** Head-to-feet outline of a standing child, arms a little away from the body. */
+function ChildOutline({ ready }: { ready: boolean }) {
+  return (
+    <svg className={`measure-outline ${ready ? 'is-ready' : ''}`} viewBox="0 0 120 260" aria-hidden="true">
+      <path
+        d="M60 8 c-10 0 -16 8 -16 18 c0 11 7 19 16 19 c9 0 16 -8 16 -19 c0 -10 -6 -18 -16 -18 z
+           M50 46 c0 4 -1 6 -3 7 l-15 5 c-5 2 -7 6 -8 11 l-8 48 c-1 4 1 7 4 7 c3 0 5 -2 6 -5 l9 -40 l2 0
+           l-2 52 l0 4 l2 98 c0 6 3 9 8 9 c5 0 7 -3 7 -8 l2 -86 l2 0 l2 86 c0 5 2 8 7 8 c5 0 8 -3 8 -9
+           l2 -98 l0 -4 l-2 -52 l2 0 l9 40 c1 3 3 5 6 5 c3 0 5 -3 4 -7 l-8 -48 c-1 -5 -3 -9 -8 -11
+           l-15 -5 c-2 -1 -3 -3 -3 -7"
+        fill="none"
+        strokeWidth="1.5"
+        strokeDasharray="4 4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <line x1="22" y1="252" x2="98" y2="252" strokeWidth="1.5" strokeDasharray="4 4" />
+    </svg>
   );
 }

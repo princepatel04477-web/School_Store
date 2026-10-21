@@ -1,5 +1,6 @@
 import uuid
 from decimal import Decimal
+from typing import NamedTuple
 
 from django.db import IntegrityError, transaction
 from django.db.models import F
@@ -19,6 +20,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     variant_size = serializers.CharField(source="variant.size", read_only=True)
     product_name = serializers.CharField(source="variant.product.name", read_only=True)
     customisation_display = serializers.SerializerMethodField()
+    measurement = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
@@ -33,6 +35,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "unit_price_snapshot",
             "customisation_data",
             "customisation_display",
+            "measurement",
         )
         read_only_fields = (
             "id",
@@ -43,6 +46,25 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "unit_price_snapshot",
             "customisation_display",
         )
+
+    def get_measurement(self, obj):
+        """The measurement this line was sized from (copied at order time), or None."""
+        if obj.fit_height_cm is None:
+            return None
+
+        def number(value):
+            return float(value) if value is not None else None
+
+        return {
+            "height_cm": number(obj.fit_height_cm),
+            "weight_kg": number(obj.fit_weight_kg),
+            "shoulder_cm": number(obj.fit_shoulder_cm),
+            "source": obj.fit_source,
+            "shoulder_edited": obj.fit_shoulder_edited,
+            "recommended_size": obj.recommended_size,
+            "recommendation_status": obj.recommendation_status,
+            "chosen_size": obj.chosen_size,
+        }
 
     def get_customisation_display(self, obj):
         """
@@ -170,22 +192,53 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class OrderFitInputSerializer(serializers.Serializer):
+    """The child's measurement from the size page (optional)."""
+
+    height_cm = serializers.CharField(max_length=10)
+    weight_kg = serializers.CharField(max_length=10)
+    # Optional. From the camera (numbers only, with the phone's confidence) or typed.
+    shoulder_cm = serializers.CharField(max_length=10, required=False, allow_null=True)
+    shoulder_confidence = serializers.CharField(max_length=10, required=False, allow_null=True)
+    source = serializers.ChoiceField(choices=("CAMERA", "MANUAL"), required=False, allow_blank=True)
+    shoulder_edited = serializers.BooleanField(required=False, default=False)
+
+
 class OrderCreateItemInputSerializer(serializers.Serializer):
     variant = serializers.PrimaryKeyRelatedField(
         queryset=ProductVariant.objects.select_related("product").all()
     )
     quantity = serializers.IntegerField(min_value=1, max_value=100)
     customisation_data = serializers.JSONField(required=False, default=dict)
+    # The measurement this line was sized from, copied onto the order line (Prompt 23).
+    fit = OrderFitInputSerializer(required=False, allow_null=True)
 
 
-class OrderFitInputSerializer(serializers.Serializer):
-    """The child's height and weight from the size check (optional)."""
+class LineFit(NamedTuple):
+    """A checked measurement plus where the shoulder width came from."""
 
-    height_cm = serializers.CharField(max_length=10)
-    weight_kg = serializers.CharField(max_length=10)
-    # Optional, from the camera step on the phone. Numbers only.
-    shoulder_cm = serializers.CharField(max_length=10, required=False, allow_null=True)
-    shoulder_confidence = serializers.CharField(max_length=10, required=False, allow_null=True)
+    check: object  # catalog.sizing.FitCheck
+    source: str
+    shoulder_edited: bool
+
+
+def _checked_fit(raw: dict, field: str) -> LineFit:
+    from catalog.sizing import validate_fit
+
+    check = validate_fit(
+        raw["height_cm"],
+        raw["weight_kg"],
+        shoulder_cm=raw.get("shoulder_cm"),
+        shoulder_confidence=raw.get("shoulder_confidence"),
+    )
+    if not check.ok:
+        raise serializers.ValidationError({field: {key: [code] for key, code in check.errors.items()}})
+    source = raw.get("source") or ""
+    if not source and check.shoulder_cm is not None:
+        source = "CAMERA" if check.shoulder_confidence is not None else "MANUAL"
+    # Only a camera reading can have been changed by the parent.
+    edited = bool(raw.get("shoulder_edited")) and source == "CAMERA"
+    return LineFit(check, source, edited)
 
 
 class OrderCreateSerializer(serializers.Serializer):
@@ -248,20 +301,10 @@ class OrderCreateSerializer(serializers.Serializer):
                 {"fulfillment_type": "This school does not offer school pickup."}
             )
         if attrs.get("fit"):
-            from catalog.sizing import validate_fit
-
-            fit = attrs["fit"]
-            check = validate_fit(
-                fit["height_cm"],
-                fit["weight_kg"],
-                shoulder_cm=fit.get("shoulder_cm"),
-                shoulder_confidence=fit.get("shoulder_confidence"),
-            )
-            if not check.ok:
-                raise serializers.ValidationError(
-                    {"fit": {field: [code] for field, code in check.errors.items()}}
-                )
-            attrs["fit"] = check
+            attrs["fit"] = _checked_fit(attrs["fit"], "fit")
+        for item in attrs["items"]:
+            if item.get("fit"):
+                item["fit"] = _checked_fit(item["fit"], "items")
         return attrs
 
     @transaction.atomic
@@ -401,8 +444,11 @@ class OrderCreateSerializer(serializers.Serializer):
                     }
                 )
 
-        fit = validated_data.get("fit")
-        recommendations = self._recommendations(fit, variants.values()) if fit else {}
+        # An older phone sends one fit for the whole order; it is used for the
+        # items that have a size chart. A line's own fit (from the size page)
+        # is always copied, chart or not, so the tailor has the numbers.
+        order_fit = validated_data.get("fit")
+        charts = self._charts(variants.values()) if (order_fit or any(i.get("fit") for i in items_data)) else {}
 
         order_items = []
         movements = []
@@ -420,15 +466,9 @@ class OrderCreateSerializer(serializers.Serializer):
                 customisation_data=item.get("customisation_data") or {},
                 chosen_size=variant.size,
             )
-            recommendation = recommendations.get(variant.product_id)
-            if recommendation is not None:
-                order_item.fit_height_cm = fit.height_cm
-                order_item.fit_weight_kg = fit.weight_kg
-                order_item.fit_shoulder_cm = fit.shoulder_cm
-                order_item.fit_shoulder_confidence = fit.shoulder_confidence
-                order_item.recommended_size = recommendation.size
-                order_item.recommended_alt_size = recommendation.alt_size
-                order_item.recommendation_status = recommendation.status
+            line_fit = item.get("fit") or (order_fit if variant.product_id in charts else None)
+            if line_fit is not None:
+                self._copy_fit(order_item, line_fit, charts.get(variant.product_id))
             order_items.append(order_item)
             movements.append(
                 StockMovement(
@@ -443,6 +483,7 @@ class OrderCreateSerializer(serializers.Serializer):
             )
         OrderItem.objects.bulk_create(order_items)
         StockMovement.objects.bulk_create(movements)
+        self._remember_measurement(student, user, [i.get("fit") for i in items_data] + [order_fit])
         OrderStatusEvent.objects.create(
             order=order,
             status=Order.Status.PLACED,
@@ -478,14 +519,10 @@ class OrderCreateSerializer(serializers.Serializer):
         return order
 
     @staticmethod
-    def _recommendations(fit, variants) -> dict:
-        """
-        product_id -> Recommendation, worked out again on the server from the
-        chart as it is now, so the logged recommendation can be trusted.
-        Products without a chart are left out (they only log the chosen size).
-        """
+    def _charts(variants) -> dict:
+        """product_id -> chart rows, for the products in this order that have one."""
         from catalog.models import SizeChartRow
-        from catalog.sizing import chart_rows_from_models, suggest
+        from catalog.sizing import chart_rows_from_models
 
         product_ids = {variant.product_id for variant in variants}
         charts: dict = {}
@@ -493,10 +530,63 @@ class OrderCreateSerializer(serializers.Serializer):
             variant__product_id__in=product_ids, variant__active=True
         ):
             charts.setdefault(row.variant.product_id, []).append(row)
-        return {
-            product_id: suggest(chart_rows_from_models(rows), fit)
-            for product_id, rows in charts.items()
+        return {product_id: chart_rows_from_models(rows) for product_id, rows in charts.items()}
+
+    @staticmethod
+    def _copy_fit(order_item, line_fit: LineFit, chart) -> None:
+        """
+        Copies the measurement onto the line, so a later measurement never
+        changes this order. The suggestion is worked out again on the server
+        from the chart as it is now, so the logged suggestion can be trusted.
+        """
+        from catalog.sizing import suggest
+
+        check = line_fit.check
+        order_item.fit_height_cm = check.height_cm
+        order_item.fit_weight_kg = check.weight_kg
+        order_item.fit_shoulder_cm = check.shoulder_cm
+        order_item.fit_shoulder_confidence = check.shoulder_confidence
+        order_item.fit_source = line_fit.source
+        order_item.fit_shoulder_edited = line_fit.shoulder_edited
+        if chart:
+            recommendation = suggest(chart, check)
+            order_item.recommended_size = recommendation.size
+            order_item.recommended_alt_size = recommendation.alt_size
+            order_item.recommendation_status = recommendation.status
+
+    @staticmethod
+    def _remember_measurement(student, user, fits) -> None:
+        """
+        Saves the measurement the order was sized from on the child's record
+        (Prompt 23), so the next item, or next visit, needs no new measuring.
+        Skipped when it is the same as the child's newest one, which is the
+        case when the phone already saved it before checkout.
+        """
+        from schools.models import StudentMeasurement
+
+        line_fit = next((fit for fit in fits if fit is not None), None)
+        if line_fit is None:
+            return
+        check = line_fit.check
+        values = {
+            "height_cm": check.height_cm,
+            "weight_kg": check.weight_kg,
+            "shoulder_cm": check.shoulder_cm,
+            "shoulder_confidence": check.shoulder_confidence,
+            "source": line_fit.source or StudentMeasurement.Source.MANUAL,
+            "shoulder_edited": line_fit.shoulder_edited,
         }
+        latest = (
+            StudentMeasurement.objects.filter(student_id=student.id)
+            .order_by("-measured_at")
+            .values(*values)
+            .first()
+        )
+        if latest == values:
+            return
+        StudentMeasurement.objects.create(
+            student=student, measured_by=user, measured_by_role=user.role, **values
+        )
 
     @staticmethod
     def _existing_for_actor(order, user):

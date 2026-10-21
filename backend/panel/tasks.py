@@ -48,7 +48,13 @@ def build_export(self, job_id: str) -> dict:
     job.save(update_fields=["status", "error_message", "updated_at"])
 
     try:
-        if job.job_type == ExportJob.JobType.STUDENTS:
+        if job.job_type == ExportJob.JobType.TAILOR_SHEET:
+            from .tailor_sheet import TailorFilters, tailor_orders_qs, write_tailor_workbook
+
+            filters = TailorFilters.from_params(job.filters or {})
+            write_tailor_workbook(job, tailor_orders_qs(filters, city_id=job.city_id))
+            rows = None
+        elif job.job_type == ExportJob.JobType.STUDENTS:
             from schools.models import Student
 
             filters = OrderFilters.from_params(job.filters or {})
@@ -72,7 +78,8 @@ def build_export(self, job_id: str) -> dict:
             columns = ORDERS_COLUMNS
             title = "Orders"
 
-        write_export_workbook(job, rows, columns, title)
+        if rows is not None:
+            write_export_workbook(job, rows, columns, title)
 
         job.status = ExportJob.Status.READY
         job.completed_at = timezone.now()

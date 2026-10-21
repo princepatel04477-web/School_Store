@@ -1,3 +1,5 @@
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -6,7 +8,7 @@ from common.constants import normalize_class_name
 from common.exceptions import Conflict
 from common.models import ImportJob
 
-from .models import City, School, Student
+from .models import City, School, Student, StudentMeasurement
 
 
 class CitySerializer(serializers.ModelSerializer):
@@ -422,3 +424,90 @@ __all__ = [
     "StudentApproveSerializer",
     "StudentAssignParentSerializer",
 ]
+
+
+class StudentMeasurementSerializer(serializers.ModelSerializer):
+    """
+    A child's height, weight and shoulder width (Prompt 20). Height and weight
+    use the same limits as the size check (shared/fit_limits.json). A shoulder
+    width from the camera carries the phone's confidence; one typed by hand
+    has none.
+    """
+
+    class Meta:
+        model = StudentMeasurement
+        fields = (
+            "id",
+            "student",
+            "height_cm",
+            "weight_kg",
+            "shoulder_cm",
+            "shoulder_confidence",
+            "source",
+            "shoulder_edited",
+            "measured_by_role",
+            "measured_at",
+        )
+        read_only_fields = ("id", "student", "measured_by_role", "measured_at")
+        extra_kwargs = {
+            "height_cm": {"coerce_to_string": False},
+            "weight_kg": {"coerce_to_string": False},
+            "shoulder_cm": {"coerce_to_string": False},
+            "shoulder_confidence": {"coerce_to_string": False},
+        }
+
+    def to_internal_value(self, data):
+        # Range checks below give the parent one clear code per field instead
+        # of DecimalField's digit-count messages.
+        from catalog.sizing import SHOULDER_MAX, SHOULDER_MIN, validate_fit
+
+        errors = {}
+        check = validate_fit(data.get("height_cm"), data.get("weight_kg"))
+        errors.update({key: [code] for key, code in check.errors.items()})
+
+        source = data.get("source") or StudentMeasurement.Source.MANUAL
+        if source not in StudentMeasurement.Source.values:
+            errors["source"] = ["INVALID"]
+        shoulder = data.get("shoulder_cm")
+        confidence = data.get("shoulder_confidence")
+        shoulder_value = confidence_value = None
+        if shoulder not in (None, ""):
+            shoulder_value = _decimal_or_none(shoulder)
+            if shoulder_value is None:
+                errors["shoulder_cm"] = ["NOT_A_NUMBER"]
+            elif not SHOULDER_MIN <= shoulder_value <= SHOULDER_MAX:
+                errors["shoulder_cm"] = ["OUT_OF_RANGE"]
+        if confidence not in (None, ""):
+            confidence_value = _decimal_or_none(confidence)
+            if confidence_value is None or not 0 <= confidence_value <= 1:
+                errors["shoulder_confidence"] = ["OUT_OF_RANGE"]
+        if source == StudentMeasurement.Source.CAMERA and shoulder_value is None and "shoulder_cm" not in errors:
+            errors["shoulder_cm"] = ["REQUIRED"]
+        shoulder_edited = data.get("shoulder_edited") in (True, "true", "True", "1", 1)
+        if shoulder_edited and source != StudentMeasurement.Source.CAMERA:
+            # Only a camera reading can be "edited"; a typed number is the parent's own.
+            shoulder_edited = False
+        if errors:
+            raise ValidationError(errors)
+
+        q1 = Decimal("0.1")
+        return {
+            "height_cm": check.height_cm,
+            "weight_kg": check.weight_kg,
+            "shoulder_cm": shoulder_value.quantize(q1, rounding=ROUND_HALF_UP) if shoulder_value is not None else None,
+            "shoulder_confidence": (
+                confidence_value.quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+                if confidence_value is not None and shoulder_value is not None
+                else None
+            ),
+            "source": source,
+            "shoulder_edited": shoulder_edited,
+        }
+
+
+def _decimal_or_none(value):
+    try:
+        number = Decimal(str(value).strip())
+    except (InvalidOperation, ValueError):
+        return None
+    return number if number.is_finite() else None

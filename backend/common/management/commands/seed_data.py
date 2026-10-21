@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from analytics.tasks import refresh_daily_sales_summary
-from catalog.models import Category, Product, ProductVariant
+from catalog.models import Category, Product, ProductVariant, SizeChartRow
 from inventory.models import StockBalance, StockMovement
 from orders.models import Order, OrderItem, OrderStatusEvent
 from schools.models import City, Grade, School, SchoolBranch, Student
@@ -24,6 +24,12 @@ class Command(BaseCommand):
             type=str,
             default="Password@123",
             help="Default password for seeded users (default: Password@123)",
+        )
+        parser.add_argument(
+            "--sample-size-chart",
+            action="store_true",
+            help="Also add a made-up size chart for Udgam's shirt and trousers, to try the "
+            "size check locally. Never use it on a live store.",
         )
 
     @transaction.atomic
@@ -739,6 +745,10 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.SUCCESS(f"Attached product photos; added {added} uniform items."))
 
+        if options.get("sample_size_chart"):
+            written = seed_sample_size_chart()
+            self.stdout.write(self.style.SUCCESS(f"Sample size chart: {written} sizes for Udgam shirt and trousers."))
+
         # 8. Seed a couple of sample orders if none exist yet
         if not Order.objects.filter(order_number__startswith="ORD-SEED-").exists():
             sample_student = seeded_students[0]
@@ -797,3 +807,46 @@ class Command(BaseCommand):
             refresh_daily_sales_summary()
 
         self.stdout.write(self.style.SUCCESS("Baseline seed completed successfully."))
+
+
+# Made-up numbers to try the size check with; a school uploads its real chart.
+# size -> (height min, height max, weight min, weight max, shoulder min, shoulder max)
+SAMPLE_SHIRT_CHART = {
+    "26": (110, 121, 16, 24, 26.0, 28.5),
+    "28": (120, 131, 20, 29, 28.0, 30.5),
+    "30": (130, 141, 25, 35, 30.0, 32.5),
+    "32": (140, 151, 30, 42, 32.0, 35.0),
+    "34": (150, 161, 36, 50, 34.5, 37.5),
+    "36": (160, 175, 42, 62, 37.0, 41.0),
+}
+# Trousers go by height and weight only (waist sizes).
+SAMPLE_TROUSER_CHART = {
+    "22": (110, 121, 16, 24),
+    "24": (120, 131, 20, 29),
+    "26": (130, 141, 25, 35),
+    "28": (140, 151, 30, 42),
+    "30": (150, 161, 36, 50),
+    "32": (160, 175, 42, 62),
+}
+
+
+def seed_sample_size_chart() -> int:
+    """Writes the sample chart for UDG-SHIRT-* and UDG-TRS-*; running it again changes nothing."""
+    written = 0
+    for prefix, chart in (("UDG-SHIRT", SAMPLE_SHIRT_CHART), ("UDG-TRS", SAMPLE_TROUSER_CHART)):
+        for size, values in chart.items():
+            variant = ProductVariant.objects.filter(sku=f"{prefix}-{size}").first()
+            if variant is None:
+                continue
+            fields = {
+                "height_cm_min": Decimal(values[0]),
+                "height_cm_max": Decimal(values[1]),
+                "weight_kg_min": Decimal(values[2]),
+                "weight_kg_max": Decimal(values[3]),
+            }
+            if len(values) == 6:
+                fields["shoulder_cm_min"] = Decimal(str(values[4]))
+                fields["shoulder_cm_max"] = Decimal(str(values[5]))
+            SizeChartRow.objects.update_or_create(variant=variant, defaults=fields)
+            written += 1
+    return written

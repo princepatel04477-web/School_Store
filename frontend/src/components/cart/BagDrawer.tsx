@@ -9,7 +9,21 @@ import { QuantityStepper } from '../product/QuantityStepper';
 import { CategoryOutlineIllustration } from '../product/CategoryOutlineIllustration';
 import { EASING, DURATION_FAST } from '../../motion/motionConfig';
 import { useLang } from '../../i18n';
+import { classLabel } from '../../i18n/labels';
+import { formatMeasure } from '../../data/fit';
+import type { CartItem } from '../../store/storeState';
 import './bagCheckout.css';
+
+/** Bag lines grouped by the child they are for (school + class), in the order added. */
+function byChild(lines: CartItem[]): { key: string; schoolName?: string; className?: string; lines: CartItem[] }[] {
+  const groups = new Map<string, { key: string; schoolName?: string; className?: string; lines: CartItem[] }>();
+  for (const line of lines) {
+    const key = `${line.schoolName ?? ''}|${line.className ?? ''}`;
+    if (!groups.has(key)) groups.set(key, { key, schoolName: line.schoolName, className: line.className, lines: [] });
+    groups.get(key)!.lines.push(line);
+  }
+  return [...groups.values()];
+}
 
 export interface BagDrawerProps {
   isOpen: boolean;
@@ -127,8 +141,19 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
         <div className="bag-lines-container">
           {cart.length > 0 ? (
             <div className="bag-lines-list">
+              {byChild(cart).map((group) => (
+              <section key={group.key} className="bag-child-group">
+              {(group.className || group.schoolName) && (
+                <h3 className="bag-child-head">
+                  {t('bag.forChild', {
+                    name: [group.className ? classLabel(group.className, t) : '', group.schoolName ?? '']
+                      .filter(Boolean)
+                      .join(' · '),
+                  })}
+                </h3>
+              )}
               <AnimatePresence initial={false}>
-                {cart.map((line) => (
+                {group.lines.map((line) => (
                   <motion.div
                     key={line.id}
                     className="bag-line-item"
@@ -155,8 +180,21 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
                       <h3 className="bag-line-name">{line.name}</h3>
                       <div className="bag-line-meta">
                         <span>{t('product.size')} {line.size}</span>
-                        {line.schoolName && <span> · {line.schoolName}</span>}
                       </div>
+                      {line.measurement && (
+                        <div className="bag-line-measure">
+                          {line.measurement.shoulderCm !== undefined
+                            ? t('bag.measuredShoulder', {
+                                h: formatMeasure(line.measurement.heightCm),
+                                w: formatMeasure(line.measurement.weightKg),
+                                s: formatMeasure(line.measurement.shoulderCm),
+                              })
+                            : t('bag.measured', {
+                                h: formatMeasure(line.measurement.heightCm),
+                                w: formatMeasure(line.measurement.weightKg),
+                              })}
+                        </div>
+                      )}
                       <div className="bag-line-price">{formatINR(line.pricePaise * line.quantity)}</div>
 
                       <div className="bag-line-controls">
@@ -180,6 +218,8 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
                   </motion.div>
                 ))}
               </AnimatePresence>
+              </section>
+              ))}
             </div>
           ) : (
             <div className="bag-empty-state">

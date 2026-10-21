@@ -19,6 +19,7 @@ from decimal import Decimal
 from django.db.models import Count, DecimalField, F, IntegerField, Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import FileResponse
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -771,3 +772,102 @@ class CityDailySalesView(APIView):
             "categories": categories,
             "schools": schools_data,
         })
+
+
+# --------------------------------------------------------------------------- #
+# Tailor sheet (Prompt 25): Admin and Boss only; schools never see it
+# --------------------------------------------------------------------------- #
+class TailorSheetViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    POST /api/panel/tailor-sheets/                 -> 202 + job id
+         {"filters": {"schools": [...], "grade": "Class 5", "date_from": "...",
+                      "date_to": "...", "statuses": [...], "order": "<id>"}}
+    GET  /api/panel/tailor-sheets/{id}/            -> poll: status + download link
+    GET  /api/panel/tailor-sheets/{id}/download/   -> the finished workbook
+
+    An Admin's sheet only ever holds their own city's orders: the city is
+    stored on the job and applied again when the file is built.
+    """
+
+    serializer_class = ExportJobSerializer
+    pagination_class = BoundedPageNumberPagination
+    permission_classes = [RoleScopedPermission]
+    read_roles = ("BOSS", "ADMIN")
+    write_roles = ("BOSS", "ADMIN")
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = ExportJob.objects.filter(job_type=ExportJob.JobType.TAILOR_SHEET).select_related("requested_by")
+        if user.role == "ADMIN":
+            qs = qs.filter(city_id=user.city_id)
+        return qs.order_by("-created_at")
+
+    def create(self, request, *args, **kwargs):
+        from orders.models import Order
+        from schools.models import School
+
+        from .tailor_sheet import TailorFilters
+
+        user = request.user
+        filters = TailorFilters.from_params((request.data or {}).get("filters") or {})
+        city_id = user.city_id if user.role == "ADMIN" else None
+        if user.role == "ADMIN" and not city_id:
+            raise PermissionDenied("Your account is not linked to a city.")
+        if filters.schools:
+            found = School.objects.filter(pk__in=filters.schools)
+            if city_id:
+                found = found.filter(city_id=city_id)
+            if found.count() != len(set(filters.schools)):
+                raise ValidationError({"schools": "Choose schools in your city."})
+        label = "all"
+        if filters.order:
+            order = Order.objects.filter(pk=filters.order).only("order_number", "city_id").first()
+            if order is None or (city_id and order.city_id != city_id):
+                raise NotFound("Order not found.")
+            label = order.order_number.lower()
+
+        stamp = timezone.localdate().isoformat()
+        job = ExportJob.objects.create(
+            job_type=ExportJob.JobType.TAILOR_SHEET,
+            status=ExportJob.Status.QUEUED,
+            city_id=city_id,
+            requested_by=user,
+            filters=filters.as_dict(),
+            filename=f"tailor-sheet-{label}-{stamp}.xlsx",
+        )
+        build_export.delay(str(job.id))
+        job.refresh_from_db()
+        data = ExportJobSerializer(job, context={"request": request}).data
+        data["download_url"] = self._download_url(job)
+        return Response(data, status=status.HTTP_202_ACCEPTED)
+
+    def retrieve(self, request, *args, **kwargs):
+        job = self.get_object()
+        data = ExportJobSerializer(job, context={"request": request}).data
+        data["download_url"] = self._download_url(job)
+        return Response(data)
+
+    @staticmethod
+    def _download_url(job):
+        if job.status == ExportJob.Status.READY and job.file and not job.is_expired:
+            return reverse("panel-tailor-sheet-download", args=[job.id])
+        return None
+
+    @action(detail=True, methods=["get"], url_path="download")
+    def download(self, request, pk=None):
+        job = self.get_object()
+        if job.status != ExportJob.Status.READY or not job.file:
+            raise NotFound("This sheet is not ready yet.")
+        if job.is_expired:
+            raise NotFound("This sheet has expired. Request it again.")
+        return FileResponse(
+            job.file.open("rb"),
+            as_attachment=True,
+            filename=job.filename or "tailor-sheet.xlsx",
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )

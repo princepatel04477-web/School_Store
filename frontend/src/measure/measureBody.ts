@@ -1,13 +1,28 @@
-import { SHOULDER_OFFSET_CM } from './config';
+import { DEFAULT_SHOULDER_FACTOR, SHOULDER_TO_HEIGHT } from './config';
 
 /** BlazePose indexes used for a full-body front view. */
 export const NOSE = 0;
+export const LEFT_EYE = 2;
+export const RIGHT_EYE = 5;
+export const MOUTH_LEFT = 9;
+export const MOUTH_RIGHT = 10;
 export const LEFT_SHOULDER = 11;
 export const RIGHT_SHOULDER = 12;
+export const LEFT_HIP = 23;
+export const RIGHT_HIP = 24;
+export const LEFT_ANKLE = 27;
+export const RIGHT_ANKLE = 28;
 export const LEFT_HEEL = 29;
 export const RIGHT_HEEL = 30;
 export const LEFT_FOOT = 31;
 export const RIGHT_FOOT = 32;
+
+/**
+ * The pose model has no point for the top of the head. When the body outline
+ * (segmentation mask) doesn't give it, it is estimated from the face: the top
+ * of a child's head sits about this many eye-to-mouth distances above the eyes.
+ */
+export const CROWN_ABOVE_EYES = 1.6;
 
 export interface Landmark {
   x: number;
@@ -25,7 +40,8 @@ export interface Mask {
 
 export interface MeasureFrame {
   landmarks: Landmark[];
-  mask: Mask;
+  /** Missing when the model gave no outline for this frame. */
+  mask?: Mask;
   imageWidth: number;
   imageHeight: number;
 }
@@ -59,33 +75,53 @@ export function headPixelY(mask: Mask, nose: Landmark): number | null {
   return null;
 }
 
+/** Top of the head in image pixels, from the eyes and mouth. */
+export function crownFromFace(frame: MeasureFrame): number | null {
+  const points = [LEFT_EYE, RIGHT_EYE, MOUTH_LEFT, MOUTH_RIGHT].map((i) => frame.landmarks[i]);
+  if (points.some((p) => !p)) return null;
+  const eyeY = ((points[0].y + points[1].y) / 2) * frame.imageHeight;
+  const mouthY = ((points[2].y + points[3].y) / 2) * frame.imageHeight;
+  const eyeToMouth = mouthY - eyeY;
+  if (eyeToMouth <= 0) return null;
+  return eyeY - CROWN_ABOVE_EYES * eyeToMouth;
+}
+
+function headY(frame: MeasureFrame): number | null {
+  const nose = frame.landmarks[NOSE];
+  if (frame.mask && frame.mask.height > 1 && nose) {
+    const fromMask = headPixelY(frame.mask, nose);
+    if (fromMask != null) return fromMask * (frame.imageHeight / frame.mask.height);
+  }
+  return crownFromFace(frame);
+}
+
+/**
+ * The floor: the lowest heel or toe point. The typed height is measured to the
+ * floor, so this matches it better than the ankles, which sit a few cm higher.
+ */
 function floorPixelY(frame: MeasureFrame): number | null {
   const points = [LEFT_HEEL, RIGHT_HEEL, LEFT_FOOT, RIGHT_FOOT]
     .map((index) => frame.landmarks[index])
     .filter((point): point is Landmark => Boolean(point));
   if (points.length === 0) return null;
-  const lowest = Math.max(...points.map((point) => point.y));
-  return lowest * frame.imageHeight;
+  return Math.max(...points.map((point) => point.y)) * frame.imageHeight;
 }
 
-function frameMeasure(frame: MeasureFrame, heightCm: number, offsetCm: number): MeasureResult | null {
+function frameMeasure(frame: MeasureFrame, heightCm: number, factor: number): MeasureResult | null {
   const nose = frame.landmarks[NOSE];
   const left = frame.landmarks[LEFT_SHOULDER];
   const right = frame.landmarks[RIGHT_SHOULDER];
   if (!nose || !left || !right || heightCm <= 0) return null;
 
-  const headYMask = headPixelY(frame.mask, nose);
+  const top = headY(frame);
   const floorY = floorPixelY(frame);
-  if (headYMask == null || floorY == null || frame.mask.height <= 1) return null;
+  if (top == null || floorY == null) return null;
 
-  const headY = headYMask * (frame.imageHeight / frame.mask.height);
-  const pixelHeight = floorY - headY;
+  const pixelHeight = floorY - top;
   if (pixelHeight < 20) return null;
 
   const scale = heightCm / pixelHeight;
-  const dx = (left.x - right.x) * frame.imageWidth;
-  const dy = (left.y - right.y) * frame.imageHeight;
-  const shoulderPx = Math.hypot(dx, dy);
+  const shoulderPx = Math.hypot((left.x - right.x) * frame.imageWidth, (left.y - right.y) * frame.imageHeight);
   const visibility = Math.min(
     nose.visibility ?? 0,
     left.visibility ?? 0,
@@ -95,23 +131,36 @@ function frameMeasure(frame: MeasureFrame, heightCm: number, offsetCm: number): 
   );
 
   return {
-    shoulder_cm: Math.round((shoulderPx * scale + offsetCm) * 10) / 10,
+    shoulder_cm: Math.round(shoulderPx * scale * factor * 10) / 10,
     confidence: Math.round(Math.max(0, Math.min(1, visibility)) * 1000) / 1000,
   };
 }
 
-/** Median shoulder and confidence across the still frames. */
+/** Median shoulder and confidence across the frames (the best ones around the capture). */
 export function measureFrames(
   frames: MeasureFrame[],
   heightCm: number,
-  offsetCm: number = SHOULDER_OFFSET_CM,
+  factor: number = DEFAULT_SHOULDER_FACTOR,
 ): MeasureResult | null {
   const measured = frames
-    .map((frame) => frameMeasure(frame, heightCm, offsetCm))
+    .map((frame) => frameMeasure(frame, heightCm, factor))
     .filter((row): row is MeasureResult => row != null);
   if (measured.length === 0) return null;
   return {
     shoulder_cm: Math.round(median(measured.map((row) => row.shoulder_cm)) * 10) / 10,
     confidence: Math.round(median(measured.map((row) => row.confidence)) * 1000) / 1000,
   };
+}
+
+/** A shoulder width a child of this height can have; anything else means retake. */
+export function isSaneShoulder(shoulderCm: number, heightCm: number): boolean {
+  if (!(shoulderCm > 0) || !(heightCm > 0)) return false;
+  const ratio = shoulderCm / heightCm;
+  return ratio >= SHOULDER_TO_HEIGHT.min && ratio <= SHOULDER_TO_HEIGHT.max;
+}
+
+/** The best `count` frames by quality, keeping their order. */
+export function bestFrames<T extends { quality: number }>(frames: T[], count: number): T[] {
+  const keep = new Set([...frames].sort((a, b) => b.quality - a.quality).slice(0, count));
+  return frames.filter((frame) => keep.has(frame));
 }

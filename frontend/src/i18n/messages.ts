@@ -13,6 +13,11 @@ type Entry = { en: string; gu: string; hi: string };
 export const messages = {
   // ---------- common ----------
   'common.close': { en: 'Close', gu: 'બંધ કરો', hi: 'बंद करें' },
+  'welcome.message': {
+    en: 'Welcome To Colorbenz',
+    gu: 'Colorbenz માં આપનું સ્વાગત છે',
+    hi: 'Colorbenz में आपका स्वागत है',
+  },
   'common.tryAgain': { en: 'Try again', gu: 'ફરી પ્રયત્ન કરો', hi: 'फिर से कोशिश करें' },
   'common.checkInternet': {
     en: 'Check your internet and try again.',
@@ -281,25 +286,152 @@ export const messages = {
   'fit.camera.remove': { en: 'Remove', gu: 'કાઢી નાખો', hi: 'हटाएँ' },
 
   // ---------- camera measurement (on the phone only) ----------
-  'measure.skip': { en: 'Skip', gu: 'છોડો', hi: 'छोड़ें' },
-  'measure.stepBack': { en: 'Step back', gu: 'પાછળ થાઓ', hi: 'पीछे हटें' },
-  'measure.facePhone': { en: 'Face the phone', gu: 'ફોન સામે ફરો', hi: 'फ़ोन की तरफ मुँह करें' },
-  'measure.holdStill': { en: 'Hold still', gu: 'સ્થિર રહો', hi: 'शांत खड़े रहें' },
-  'measure.ready': { en: 'Hold still', gu: 'સ્થિર રહો', hi: 'शांत खड़े रहें' },
-  'measure.shirt': {
-    en: 'Wear a fitted T-shirt or vest, not the loose uniform shirt.',
-    gu: 'ઢીલું યુનિફોર્મ નહીં, બંધ બેસતી ટી-શર્ટ કે બંડી પહેરો.',
-    hi: 'ढीली यूनिफ़ॉर्म नहीं, फिट टी-शर्ट या बनियान पहनें।',
+  'measure.cameraTitle': { en: 'Measure with the camera', gu: 'કેમેરાથી માપો', hi: 'कैमरे से नापें' },
+  'measure.loadingCamera': { en: 'Opening the camera…', gu: 'કેમેરો ખૂલે છે…', hi: 'कैमरा खुल रहा है…' },
+  'measure.g.moveBack': { en: 'Move back', gu: 'પાછળ જાઓ', hi: 'पीछे जाएँ' },
+  'measure.g.moveCloser': { en: 'Move closer', gu: 'નજીક આવો', hi: 'पास आएँ' },
+  'measure.g.standInside': { en: 'Stand inside the outline', gu: 'આકારની અંદર ઊભા રહો', hi: 'आकार के अंदर खड़े हों' },
+  'measure.g.showFullBody': { en: 'Show full body', gu: 'માથાથી પગ સુધી આખું શરીર બતાવો', hi: 'सिर से पैर तक पूरा शरीर दिखाएँ' },
+  'measure.g.standStraight': { en: 'Stand straight', gu: 'સીધા ઊભા રહો', hi: 'सीधे खड़े हों' },
+  'measure.g.holdStill': { en: 'Hold still', gu: 'સ્થિર રહો', hi: 'शांत खड़े रहें' },
+  'measure.g.ready': { en: 'Fits, hold still', gu: 'બરાબર છે, સ્થિર રહો', hi: 'ठीक है, शांत खड़े रहें' },
+  'measure.photoStays': {
+    en: 'The photo stays on your phone. Only the measurements are saved.',
+    gu: 'ફોટો તમારા ફોનમાં જ રહે છે. ફક્ત માપ સાચવાય છે.',
+    hi: 'फ़ोटो आपके फ़ोन में ही रहती है। सिर्फ़ नाप सेव होते हैं।',
   },
-  'measure.hold': {
-    en: 'Hold the phone at your chest. The child stands about 2 metres away.',
-    gu: 'ફોન છાતીની ઊંચાઈએ પકડો. બાળક લગભગ 2 મીટર દૂર ઊભું રહે.',
-    hi: 'फ़ोन छाती की ऊँचाई पर रखें। बच्चा लगभग 2 मीटर दूर खड़ा हो।',
+  'measure.capture': { en: 'Capture', gu: 'માપ લો', hi: 'नाप लें' },
+  'measure.cancel': { en: 'Cancel', gu: 'રદ કરો', hi: 'रद्द करें' },
+
+  // ---------- accurate size: measuring flow ----------
+  'mf.title': { en: 'Accurate size', gu: 'સાચી સાઈઝ', hi: 'सही साइज़' },
+  'mf.step': { en: 'Step {n} of {total}', gu: 'પગલું {n} / {total}', hi: 'चरण {n} / {total}' },
+  'mf.next': { en: 'Next', gu: 'આગળ', hi: 'आगे' },
+  'mf.back': { en: 'Back', gu: 'પાછળ', hi: 'पीछे' },
+  'mf.details.title': { en: "Your child's height and weight", gu: 'બાળકની ઊંચાઈ અને વજન', hi: 'बच्चे की लंबाई और वज़न' },
+  'mf.details.sub': {
+    en: 'Type them from a recent check. Height without shoes.',
+    gu: 'હાલમાં માપેલું લખો. ઊંચાઈ બૂટ વગર.',
+    hi: 'हाल में नापा हुआ लिखें। लंबाई जूते उतारकर।',
   },
-  'measure.cameraError': {
-    en: 'The camera did not open. You can still pick a size.',
-    gu: 'કેમેરો ખૂલ્યો નહીં. સાઈઝ તમે જ પસંદ કરી શકો છો.',
-    hi: 'कैमरा नहीं खुला। साइज़ आप खुद चुन सकते हैं।',
+  'mf.ins.title': { en: 'Before you start', gu: 'શરૂ કરતા પહેલા', hi: 'शुरू करने से पहले' },
+  'mf.ins.wall': {
+    en: 'Your child stands straight against a plain wall, in fitted clothes, arms a little away from the body, feet together.',
+    gu: 'બાળક સાદી દીવાલ સામે સીધું ઊભું રહે, બંધ બેસતાં કપડાંમાં, હાથ શરીરથી થોડા દૂર, પગ ભેગા.',
+    hi: 'बच्चा सादी दीवार के सामने सीधा खड़ा हो, फिट कपड़ों में, हाथ शरीर से थोड़ा दूर, पैर साथ में।',
+  },
+  'mf.ins.phone': {
+    en: "Hold the phone upright at your child's chest height, about 2 to 3 metres away.",
+    gu: 'ફોન સીધો, બાળકની છાતીની ઊંચાઈએ, લગભગ 2 થી 3 મીટર દૂરથી પકડો.',
+    hi: 'फ़ोन सीधा, बच्चे की छाती की ऊँचाई पर, लगभग 2 से 3 मीटर दूर से पकड़ें।',
+  },
+  'mf.ins.light': {
+    en: 'Use good light, with nobody else in the picture.',
+    gu: 'સારો પ્રકાશ રાખો, ફોટામાં બીજું કોઈ ન હોય.',
+    hi: 'अच्छी रोशनी रखें, फ़ोटो में कोई और न हो।',
+  },
+  'mf.ins.open': { en: 'Open the camera', gu: 'કેમેરો ખોલો', hi: 'कैमरा खोलें' },
+  'mf.ins.type': { en: 'Type the numbers instead', gu: 'તેના બદલે આંકડા લખો', hi: 'इसकी जगह अंक लिखें' },
+  'mf.manual.title': { en: 'Type the measurements', gu: 'માપ લખો', hi: 'नाप लिखें' },
+  'mf.manual.cameraOff': {
+    en: 'The camera did not open. You can type the numbers instead.',
+    gu: 'કેમેરો ખૂલ્યો નહીં. તમે આંકડા લખી શકો છો.',
+    hi: 'कैमरा नहीं खुला। आप अंक लिख सकते हैं।',
+  },
+  'mf.manual.shoulder': { en: 'Shoulder width (cm)', gu: 'ખભાની પહોળાઈ (સે.મી.)', hi: 'कंधों की चौड़ाई (सेमी)' },
+  'mf.manual.shoulderHint': {
+    en: 'Across the back, from one shoulder bone to the other. You can leave it empty.',
+    gu: 'પીઠ પર, એક ખભાના હાડકાથી બીજા સુધી. ખાલી પણ છોડી શકો.',
+    hi: 'पीठ पर, एक कंधे की हड्डी से दूसरी तक। ख़ाली भी छोड़ सकते हैं।',
+  },
+  'mf.manual.diagram': {
+    en: 'Measure across the back, from shoulder bone to shoulder bone',
+    gu: 'પીઠ પર ખભાના હાડકાથી ખભાના હાડકા સુધી માપો',
+    hi: 'पीठ पर कंधे की हड्डी से कंधे की हड्डी तक नापें',
+  },
+  'mf.err.shoulderRange': {
+    en: 'Shoulder width must be between {min} and {max} cm.',
+    gu: 'ખભાની પહોળાઈ {min} થી {max} સે.મી. વચ્ચે હોવી જોઈએ.',
+    hi: 'कंधों की चौड़ाई {min} से {max} सेमी के बीच होनी चाहिए।',
+  },
+  'mf.retakeNeeded': {
+    en: 'That reading did not look right. Please take it again.',
+    gu: 'આ માપ બરાબર લાગ્યું નહીં. ફરી લો.',
+    hi: 'यह नाप ठीक नहीं लगा। फिर से लें।',
+  },
+  'mf.res.title': { en: 'Check the measurements', gu: 'માપ તપાસો', hi: 'नाप जाँचें' },
+  'mf.res.sub': { en: 'Tap a number to change it.', gu: 'બદલવા માટે આંકડા પર ટૅપ કરો.', hi: 'बदलने के लिए अंक पर टैप करें।' },
+  'mf.res.height': { en: 'Height', gu: 'ઊંચાઈ', hi: 'लंबाई' },
+  'mf.res.weight': { en: 'Weight', gu: 'વજન', hi: 'वज़न' },
+  'mf.res.shoulder': { en: 'Shoulder', gu: 'ખભા', hi: 'कंधे' },
+  'mf.res.fromCamera': { en: 'From the camera', gu: 'કેમેરાથી', hi: 'कैमरे से' },
+  'mf.res.changed': { en: 'Changed by you', gu: 'તમે બદલ્યું', hi: 'आपने बदला' },
+  'mf.res.typed': { en: 'Typed by you', gu: 'તમે લખ્યું', hi: 'आपने लिखा' },
+  'mf.res.none': { en: 'Not measured', gu: 'માપ્યું નથી', hi: 'नहीं नापा' },
+  'mf.res.shirt': { en: 'Suggested shirt size', gu: 'શર્ટની સૂચવેલી સાઈઝ', hi: 'शर्ट का सुझाया साइज़' },
+  'mf.res.trouser': { en: 'Suggested trouser size', gu: 'પેન્ટની સૂચવેલી સાઈઝ', hi: 'पैंट का सुझाया साइज़' },
+  'mf.res.noChart': {
+    en: 'Pick the size yourself. The tailor gets these measurements with the order.',
+    gu: 'સાઈઝ તમે જ પસંદ કરો. ઓર્ડર સાથે આ માપ દરજીને મળે છે.',
+    hi: 'साइज़ आप खुद चुनें। ऑर्डर के साथ ये नाप दर्ज़ी को मिलते हैं।',
+  },
+  'mf.res.retake': { en: 'Retake', gu: 'ફરી લો', hi: 'फिर से लें' },
+  'mf.res.save': { en: 'Save and continue', gu: 'સાચવો અને આગળ વધો', hi: 'सेव करें और आगे बढ़ें' },
+  'mf.res.saving': { en: 'Saving…', gu: 'સાચવાય છે…', hi: 'सेव हो रहा है…' },
+  'mf.res.saveError': {
+    en: 'Could not save it on your child\'s record. It is still used for this order.',
+    gu: 'બાળકના રેકોર્ડમાં સાચવી શકાયું નહીં. આ ઓર્ડર માટે તે વપરાશે.',
+    hi: 'बच्चे के रिकॉर्ड में सेव नहीं हुआ। इस ऑर्डर के लिए यह इस्तेमाल होगा।',
+  },
+  'mf.cm': { en: '{v} cm', gu: '{v} સે.મી.', hi: '{v} सेमी' },
+  'mf.kg': { en: '{v} kg', gu: '{v} કિલો', hi: '{v} किलो' },
+
+  // ---------- size page ----------
+  'size.accurate': { en: 'Accurate size', gu: 'સાચી સાઈઝ', hi: 'सही साइज़' },
+  'size.accurateSub': {
+    en: 'Measure once with the camera. It fills every shirt and trouser.',
+    gu: 'કેમેરાથી એક વાર માપો. દરેક શર્ટ અને પેન્ટ માટે ચાલશે.',
+    hi: 'कैमरे से एक बार नापें। हर शर्ट और पैंट के लिए चलेगा।',
+  },
+  'size.accurateTyped': {
+    en: 'Type the height, weight and shoulder width once. It fills every shirt and trouser.',
+    gu: 'ઊંચાઈ, વજન અને ખભાની પહોળાઈ એક વાર લખો. દરેક શર્ટ અને પેન્ટ માટે ચાલશે.',
+    hi: 'लंबाई, वज़न और कंधों की चौड़ाई एक बार लिखें। हर शर्ट और पैंट के लिए चलेगा।',
+  },
+  'size.card.title': { en: 'Measurement', gu: 'માપ', hi: 'नाप' },
+  'size.card.on': { en: 'Measured on {date}', gu: '{date} ના રોજ માપ્યું', hi: '{date} को नापा' },
+  'size.again': { en: 'Measure again', gu: 'ફરી માપો', hi: 'फिर से नापें' },
+  'size.viewChart': { en: 'View size chart', gu: 'સાઈઝ ચાર્ટ જુઓ', hi: 'साइज़ चार्ट देखें' },
+  'size.hideChart': { en: 'Hide size chart', gu: 'સાઈઝ ચાર્ટ છુપાવો', hi: 'साइज़ चार्ट छिपाएँ' },
+
+  // ---------- after adding a uniform item ----------
+  'match.added': { en: 'Added to your bag', gu: 'બેગમાં ઉમેર્યું', hi: 'बैग में डाला' },
+  'match.addBottom': { en: 'Add the matching trouser', gu: 'સાથેનું પેન્ટ ઉમેરો', hi: 'साथ वाली पैंट डालें' },
+  'match.addTop': { en: 'Add the matching shirt', gu: 'સાથેનો શર્ટ ઉમેરો', hi: 'साथ वाली शर्ट डालें' },
+  'match.continue': { en: 'Continue shopping', gu: 'ખરીદી ચાલુ રાખો', hi: 'ख़रीदारी जारी रखें' },
+  'match.viewBag': { en: 'View bag', gu: 'બેગ જુઓ', hi: 'बैग देखें' },
+  'match.shoes': { en: 'Next: school shoes', gu: 'હવે: સ્કૂલ બૂટ', hi: 'अब: स्कूल जूते' },
+  'match.accessories': { en: 'Next: tie, belt and socks', gu: 'હવે: ટાઈ, બેલ્ટ અને મોજાં', hi: 'अब: टाई, बेल्ट और मोज़े' },
+  'match.lastSize': { en: 'Last time: size {size}', gu: 'ગઈ વખતે: સાઈઝ {size}', hi: 'पिछली बार: साइज़ {size}' },
+  'stationery.ask': {
+    en: 'Would you like to buy Stationery items?',
+    gu: 'શું તમે સ્ટેશનરી ખરીદવા માંગો છો?',
+    hi: 'क्या आप स्टेशनरी ख़रीदना चाहेंगे?',
+  },
+  'stationery.yes': { en: 'Yes', gu: 'હા', hi: 'हाँ' },
+  'stationery.no': { en: 'No', gu: 'ના', hi: 'नहीं' },
+
+  // ---------- bag: grouped by child ----------
+  'bag.forChild': { en: 'For {name}', gu: '{name} માટે', hi: '{name} के लिए' },
+  'bag.measured': {
+    en: 'Measured: {h} cm, {w} kg',
+    gu: 'માપ: {h} સે.મી., {w} કિલો',
+    hi: 'नाप: {h} सेमी, {w} किलो',
+  },
+  'bag.measuredShoulder': {
+    en: 'Measured: {h} cm, {w} kg, shoulders {s} cm',
+    gu: 'માપ: {h} સે.મી., {w} કિલો, ખભા {s} સે.મી.',
+    hi: 'नाप: {h} सेमी, {w} किलो, कंधे {s} सेमी',
   },
 
   // ---------- product ----------

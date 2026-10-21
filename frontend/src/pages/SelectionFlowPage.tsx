@@ -18,9 +18,22 @@ import { useLang, type MessageKey } from '../i18n';
 import { categoryLabel, classLabel, genderLabel } from '../i18n/labels';
 import { ListenButton } from '../components/ListenButton';
 import { FullSetSheet } from '../components/product/FullSetSheet';
-import { FitCheck, FitSummary } from '../components/fit/FitCheck';
+import { useQuery } from '@tanstack/react-query';
 import { ProductGridSkeleton } from '../components/ui/Skeleton';
-import { fitKey, setFit, useFitAnswer, useSizeFit } from '../data/fit';
+import { Popup } from '../components/Popup';
+import { api } from '../api';
+import { useAuth } from '../auth';
+import {
+  fitKey,
+  garmentKind,
+  saveMeasurement,
+  setFit,
+  useFitAnswer,
+  useLastSizes,
+  useLatestMeasurement,
+  useSizeFit,
+  type Fit,
+} from '../data/fit';
 import { CATEGORY_PHOTOS } from '../data/categoryPhotos';
 import { CategoryPhoto } from '../components/CategoryPhoto';
 import './flow.css';
@@ -65,21 +78,54 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const productsQuery = useStoreProducts(activeSchool?.id, activeClass?.name, activeGender);
   const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
 
-  // Size check: height and weight once, before any size is picked (only when
-  // something here comes in sizes). Kept per school + class + boy/girl.
+  // The child's measurement (Prompt 21): measured once on any shirt or
+  // trouser's size page, it fills them all. Kept per school + class + boy/girl
+  // for this visit, and on the child's record when the parent is signed in.
   const currentFitKey = fitKey(activeSchool?.id, activeClass?.id, activeGender);
   const fitAnswer = useFitAnswer(currentFitKey);
-  const [editingFit, setEditingFit] = useState(false);
+  const { user } = useAuth();
+  const childrenQuery = useQuery({
+    queryKey: ['parent-students'],
+    queryFn: () =>
+      api<{ results: { id: string; school: string; school_name?: string; grade_name?: string | null; class_name?: string }[] }>(
+        '/students/'
+      ).catch(() => null),
+    enabled: user?.role === 'PARENT',
+  });
+  const childId = useMemo(() => {
+    if (!activeSchool) return null;
+    const atSchool = (childrenQuery.data?.results ?? []).filter((kid) => kid.school === activeSchool.id);
+    const inClass = atSchool.filter((kid) => (kid.grade_name || kid.class_name) === activeClass?.name);
+    const match = inClass.length === 1 ? inClass : atSchool;
+    return match.length === 1 ? match[0].id : null;
+  }, [childrenQuery.data, activeSchool, activeClass?.name]);
+  const savedMeasurement = useLatestMeasurement(childId);
+  const lastSizes = useLastSizes(childId).data;
+  const measurement: Fit | null =
+    fitAnswer && fitAnswer !== 'skipped' ? fitAnswer : savedMeasurement.data ?? null;
+  const saveChildMeasurement = async (fit: Fit): Promise<boolean> => {
+    setFit(currentFitKey, fit);
+    if (!childId) return true; // saved on the child's record with the order
+    try {
+      await saveMeasurement(childId, fit);
+      return true;
+    } catch {
+      return false;
+    }
+  };
   const sizedProductIds = useMemo(
     () => products.filter((p) => p.sizes.length > 1).map((p) => p.id),
     [products]
   );
-  const sizeFit = useSizeFit(sizedProductIds, fitAnswer, activeClass?.name);
+  const sizeFit = useSizeFit(sizedProductIds, measurement, activeClass?.name);
   const fits = sizeFit.data?.products;
-  // Only ask for height and weight when an item here has a size chart to read them against.
-  const hasCharts = Object.values(fits ?? {}).some((p) => p.chart.length > 0);
-  const checkingCharts = sizedProductIds.length > 0 && fitAnswer === null && sizeFit.isLoading;
-  const askFit = hasCharts && (fitAnswer === null || editingFit);
+  const garments = useMemo(
+    () =>
+      products
+        .filter((p) => p.category === 'Uniform' && p.sizes.length > 1 && garmentKind(p.name))
+        .map((p) => ({ id: p.id, name: p.name })),
+    [products]
+  );
 
   // A link from the school (?school=…&class=…) counts as the parent's choice, so the
   // bag and checkout know which school and class the order is for.
@@ -125,6 +171,63 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
 
   // Product Sheet Modal
   const [activeProductForSheet, setActiveProductForSheet] = useState<CardProduct | null>(null);
+
+  // After an item goes in the bag, guide the parent on (Prompt 24): the
+  // matching shirt or trouser, then shoes, then tie, belt and socks, then
+  // the stationery question (once per visit).
+  const { cart: bagLines } = useStoreState();
+  const [added, setAdded] = useState<{ product: CardProduct; match: CardProduct | null } | null>(null);
+  const [askStationery, setAskStationery] = useState(false);
+  const STATIONERY_ASKED = 'school_store_stationery_prompt_dismissed';
+  const nextTab: Record<string, string> = { Uniform: 'School Shoes', 'School Shoes': 'Uniform Accessories' };
+  const matchFor = (product: CardProduct): CardProduct | null => {
+    const kind = garmentKind(product.name);
+    if (!kind) return null;
+    const want = kind === 'top' ? 'bottom' : 'top';
+    // A shirt pairs with a trouser or skirt; a blazer or sweater is not "the matching shirt".
+    const pairs = want === 'bottom' ? /trouser|pant|skirt|shorts|chino/i : /shirt|blouse|kurta|tee\b|polo/i;
+    const preferred = want === 'bottom' ? /trouser|pant/i : /shirt/i;
+    const candidates = products.filter(
+      (p) =>
+        p.category === 'Uniform' &&
+        p.sizes.length > 1 &&
+        garmentKind(p.name) === want &&
+        pairs.test(p.name) &&
+        p.sizes.some((s) => s.inStock) &&
+        !bagLines.some((line) => line.productId === p.id)
+    );
+    return candidates.find((p) => preferred.test(p.name)) ?? candidates[0] ?? null;
+  };
+  const handleAdded = (product: CardProduct, fromCard = false) => {
+    setActiveProductForSheet(null);
+    if (product.category === 'Uniform' || product.category === 'School Shoes') {
+      setAdded({ product, match: product.category === 'Uniform' ? matchFor(product) : null });
+      return;
+    }
+    if (product.category === 'Uniform Accessories') {
+      let asked = false;
+      try {
+        asked = sessionStorage.getItem(STATIONERY_ASKED) === '1';
+      } catch {
+        // storage blocked: ask
+      }
+      if (!asked) {
+        setAskStationery(true);
+        return;
+      }
+    }
+    // From a card the item just shows its count; from the item's sheet the bag opens.
+    if (!fromCard) onOpenBag?.();
+  };
+  const closeStationery = (goToStationery: boolean) => {
+    try {
+      sessionStorage.setItem(STATIONERY_ASKED, '1');
+    } catch {
+      // storage blocked: may ask again next visit
+    }
+    setAskStationery(false);
+    if (goToStationery) selectTab('Stationery');
+  };
 
   // Sync step param
   useEffect(() => {
@@ -626,33 +729,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   <ListenButton text={`${t('flow.s4.title')}. ${t('flow.s4.listen')}`} />
                 </div>
 
-                {checkingCharts ? (
-                  <ProductGridSkeleton count={4} />
-                ) : askFit ? (
-                  <FitCheck
-                    initial={fitAnswer && fitAnswer !== 'skipped' ? fitAnswer : undefined}
-                    onSubmit={(fit) => {
-                      setFit(currentFitKey, fit);
-                      setEditingFit(false);
-                    }}
-                    onSkip={() => {
-                      setFit(currentFitKey, 'skipped');
-                      setEditingFit(false);
-                    }}
-                  />
-                ) : (
                 <>
-                {hasCharts && fitAnswer && (
-                  <FitSummary
-                    answer={fitAnswer}
-                    warnings={sizeFit.data?.fit?.warnings}
-                    className={activeClass?.name}
-                    failed={sizeFit.isError}
-                    onChange={() => setEditingFit(true)}
-                    onRetry={() => sizeFit.refetch()}
-                  />
-                )}
-
                 {fullSetProducts.length > 1 && (
                   <div className="fullset-banner">
                     <div>
@@ -703,8 +780,8 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
 
                 {/* Empty State when no items match */}
                 {productsQuery.isLoading ? (
-                  <div className="flow-empty-state" role="status" style={{ padding: '48px 24px', textAlign: 'center' }}>
-                    <p>{t('flow.loadingItems')}</p>
+                  <div role="status" aria-label={t('flow.loadingItems')}>
+                    <ProductGridSkeleton count={4} />
                   </div>
                 ) : productsQuery.isError ? (
                   <div className="flow-empty-state" role="alert" style={{ padding: '48px 24px', textAlign: 'center' }}>
@@ -756,6 +833,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                               key={p.id}
                               product={p}
                               onOpenDetails={(item) => setActiveProductForSheet(item)}
+                              onAdded={(item) => handleAdded(item, true)}
                             />
                           ))}
                         </Stagger>
@@ -776,6 +854,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                               key={p.id}
                               product={p}
                               onOpenDetails={(item) => setActiveProductForSheet(item)}
+                              onAdded={(item) => handleAdded(item, true)}
                             />
                           ))}
                         </Stagger>
@@ -784,7 +863,6 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   </>
                 )}
                 </>
-                )}
               </div>
             </div>
           </div>
@@ -843,6 +921,58 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         onOpenBag={onOpenBag}
         fit={activeProductForSheet ? fits?.[activeProductForSheet.id] : undefined}
         fitLoading={sizeFit.isLoading}
+        measurement={measurement}
+        onSaveMeasurement={saveChildMeasurement}
+        garments={garments}
+        className={activeClass?.name}
+        schoolName={activeSchool?.name}
+        lastSize={activeProductForSheet ? lastSizes?.[activeProductForSheet.id] : undefined}
+        onAdded={handleAdded}
+      />
+
+      <Popup
+        isOpen={Boolean(added)}
+        onClose={() => setAdded(null)}
+        onDismiss={() => setAdded(null)}
+        title={t('match.added')}
+        message={added?.product.name ?? ''}
+        confirmLabel={
+          added?.match
+            ? t(garmentKind(added.match.name) === 'bottom' ? 'match.addBottom' : 'match.addTop')
+            : t(added?.product.category === 'School Shoes' ? 'match.accessories' : 'match.shoes')
+        }
+        cancelLabel={added?.match ? t('match.continue') : null}
+        onConfirm={() => {
+          if (!added) return;
+          if (added.match) setActiveProductForSheet(added.match);
+          else selectTab(nextTab[added.product.category] ?? 'Uniform Accessories');
+          setAdded(null);
+        }}
+        onCancel={() => {
+          if (added) selectTab(nextTab[added.product.category] ?? 'Uniform Accessories');
+          setAdded(null);
+        }}
+      >
+        <button
+          type="button"
+          className="popup-link"
+          onClick={() => {
+            setAdded(null);
+            onOpenBag?.();
+          }}
+        >
+          {t('match.viewBag')}
+        </button>
+      </Popup>
+
+      <Popup
+        isOpen={askStationery}
+        onClose={() => closeStationery(false)}
+        message={t('stationery.ask')}
+        confirmLabel={t('stationery.yes')}
+        cancelLabel={t('stationery.no')}
+        onConfirm={() => closeStationery(true)}
+        onCancel={() => closeStationery(false)}
       />
     </div>
   );

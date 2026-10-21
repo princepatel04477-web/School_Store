@@ -8,6 +8,7 @@ import { PageTransition } from './motion/PageTransition';
 import { useSchoolTheme } from './theme/schoolTheme';
 import { hasChosenLanguage, useLang } from './i18n';
 import { LanguageChooser } from './components/LanguageChooser';
+import { WelcomePopup } from './components/WelcomePopup';
 
 // Lazy Loaded Components
 const BagDrawer = lazy(() =>
@@ -146,6 +147,7 @@ export default function App() {
         {!isPortal && <Footer />}
 
         {!isPortal && <LanguageChooser open={langOpen} onClose={closeLanguage} />}
+        {!isPortal && <WelcomePopup blocked={langOpen || !hasChosen} />}
 
         {searchOpen && (
           <Suspense fallback={null}>

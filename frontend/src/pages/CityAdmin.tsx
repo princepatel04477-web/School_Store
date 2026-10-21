@@ -3,6 +3,9 @@ import { X } from '../components/ui/icons';
 import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../auth';
+import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
+import { SizeChartManager } from '../components/admin/SizeChartManager';
+import { TailorSheetButton, TailorSheetCard } from '../components/admin/TailorSheetCard';
 import {
   cityAdmin, money, num, relative,
   type CityDailySales, type CityOrderDetail, type CitySchool,
@@ -17,6 +20,7 @@ const NAV = [
   { to: 'inventory', label: 'Inventory & Stock' },
   { to: 'orders', label: 'Orders' },
   { to: 'schools', label: 'Schools' },
+  { to: 'size-charts', label: 'Size Charts' },
 ];
 
 export default function CityAdmin() {
@@ -48,6 +52,7 @@ export default function CityAdmin() {
             <Route path="inventory" element={<CityInventoryView />} />
             <Route path="orders" element={<CityOrdersView />} />
             <Route path="schools" element={<CitySchoolsView />} />
+            <Route path="size-charts" element={<CitySizeChartsView />} />
           </Routes>
         </main>
       </div>
@@ -678,6 +683,8 @@ function CityOrdersView() {
         </div>
       </div>
 
+      <TailorSheetCard schools={schools} />
+
       <div className="card">
         {/* Filters */}
         <div className="filters">
@@ -982,6 +989,8 @@ function OrderDetailModal({
               <span className="mono" style={{ fontSize: '13px' }}>Total: <b>{money(order.total)}</b></span>
             </div>
 
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <TailorSheetButton orderId={order.id} />
             {nextStatus && (
               <button
                 className="primary"
@@ -992,6 +1001,7 @@ function OrderDetailModal({
                 {advanceMutation.isPending ? 'Updating…' : `Mark as ${nextStatus} →`}
               </button>
             )}
+            </div>
           </div>
 
           {/* Items Table */}
@@ -1014,6 +1024,13 @@ function OrderDetailModal({
                     <td>
                       <b>{it.product_name}</b>
                       <small className="muted">Size: {it.variant_size || 'Standard'}</small>
+                      {it.measurement && (
+                        <small className="muted">
+                          Measured: {it.measurement.height_cm} cm, {it.measurement.weight_kg} kg
+                          {it.measurement.shoulder_cm !== null ? `, shoulders ${it.measurement.shoulder_cm} cm` : ''}
+                          {it.measurement.source ? ` (${it.measurement.source === 'CAMERA' ? 'camera' : 'typed'}${it.measurement.shoulder_edited ? ', shoulder changed' : ''})` : ''}
+                        </small>
+                      )}
                       {hasCustom && (
                         <div style={{ marginTop: '8px', padding: '8px 10px', background: '#f5f9f6', border: '1px solid #d4ded6', borderRadius: '6px' }}>
                           <span style={{ fontSize: '11px', fontWeight: 700, color: '#2a6a4e', display: 'block', marginBottom: '4px' }}>
@@ -1519,6 +1536,43 @@ function ResetSchoolAdminPasswordModal({
           )}
         </form>
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Size charts for the schools in this city (Prompt 20)
+ * ------------------------------------------------------------------ */
+function CitySizeChartsView() {
+  const { data, isLoading } = useQuery({ queryKey: ['city-schools-management'], queryFn: () => cityAdmin.schools() });
+  const schools = data?.results ?? [];
+  const [picked, setPicked] = useState('');
+  const scope = picked || schools[0]?.id || '';
+  const school = schools.find((s) => s.id === scope);
+
+  return (
+    <div>
+      <div className="page-head">
+        <div>
+          <div className="eyebrow">SIZE CHARTS</div>
+          <h1>Size Charts</h1>
+          <p className="muted">Body measurements for each size of each school's items, used to suggest a size to parents.</p>
+        </div>
+        {schools.length > 0 && (
+          <select className="school-switch" value={scope} onChange={(e) => setPicked(e.target.value)} aria-label="School">
+            {schools.map((s) => (
+              <option key={s.id} value={s.id}>{s.name} · {s.code}</option>
+            ))}
+          </select>
+        )}
+      </div>
+      {!isLoading && schools.length === 0 && <p className="muted">There are no schools in your city yet.</p>}
+      {scope && school && (
+        <>
+          <SizeChartImportCard key={scope} scope={scope} scopeName={school.code} />
+          <SizeChartManager key={`m-${scope}`} scope={scope} scopeName={school.code} />
+        </>
+      )}
     </div>
   );
 }

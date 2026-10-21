@@ -5,6 +5,7 @@ import { SelectionFlow } from '../components/SelectionFlow';
 import { Cart, type CartItem } from '../components/Store';
 import { api, type Product } from '../api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Fit } from '../data/fit';
 
 const demoStudents = [
   { id: '1', name: 'Anaya Patel', gr: 'DPS-1042', gr_number: 'DPS-1042', class_name: '6', grade_name: '6', section: 'A', gender: 'FEMALE', school_name: 'DPS Surat' },
@@ -211,7 +212,7 @@ function TeacherOrder() {
       }
     : null;
 
-  const handleAddItem = (item: { product: Product; variantId: string; customisationData: Record<string, any> }) => {
+  const handleAddItem = (item: { product: Product; variantId: string; customisationData: Record<string, any>; measurement?: Fit }) => {
     setCartItems((prev) => [
       ...prev,
       {
@@ -221,6 +222,7 @@ function TeacherOrder() {
         variantSize: item.product.variants.find((v) => v.id === item.variantId)?.size,
         quantity: 1,
         customisationData: item.customisationData,
+        measurement: item.measurement,
       },
     ]);
   };

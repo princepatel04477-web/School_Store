@@ -76,6 +76,10 @@ export const Trash2 = makeIcon(
   <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />
 );
 export const Ruler = makeIcon('ruler', <path d="M3 15L15 3l6 6L9 21zM7 11l2 2M10 8l2 2M13 5l2 2" />);
+export const Camera = makeIcon(
+  'camera',
+  <path d="M3 8h4l2-3h6l2 3h4v11H3zM12 10.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7z" />
+);
 export const RefreshCw = makeIcon(
   'refresh',
   <path d="M20 11a8 8 0 0 0-14.5-4.5M4 4v4h4M4 13a8 8 0 0 0 14.5 4.5M20 20v-4h-4" />

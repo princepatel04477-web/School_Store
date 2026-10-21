@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
+import './popup.css';
 
 export interface PopupProps {
   isOpen: boolean;
@@ -6,15 +7,22 @@ export interface PopupProps {
   title?: string;
   message: string;
   confirmLabel?: string;
-  cancelLabel?: string;
-  onConfirm: () => void;
+  /** Leave out (or pass null) for a popup with one button, such as the welcome note. */
+  cancelLabel?: string | null;
+  onConfirm?: () => void;
   onCancel?: () => void;
+  /** Escape and a tap outside. Defaults to onCancel, then onClose. */
+  onDismiss?: () => void;
   children?: ReactNode;
 }
 
+const FOCUSABLE =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 /**
- * Shared modal popup component for prompts and confirmations.
- * Adheres to accessibility requirements (esc key, focus management, aria attributes).
+ * Shared small centred popup. Closes on Escape and on a tap outside, keeps
+ * keyboard focus inside while open, and hands focus back to where it was.
+ * Used by the welcome note and the stationery question.
  */
 export function Popup({
   isOpen,
@@ -25,120 +33,86 @@ export function Popup({
   cancelLabel = 'No',
   onConfirm,
   onCancel,
+  onDismiss,
   children,
 }: PopupProps) {
-  const confirmBtnRef = useRef<HTMLButtonElement | null>(null);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const confirmRef = useRef<HTMLButtonElement | null>(null);
+  const titleId = useId();
+  const messageId = useId();
+  const cancel = onCancel ?? onClose;
+  const dismiss = onDismiss ?? cancel;
+  const dismissRef = useRef(dismiss);
+  dismissRef.current = dismiss;
 
   useEffect(() => {
     if (!isOpen) return;
+    const returnTo = document.activeElement as HTMLElement | null;
 
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (onCancel) {
-          onCancel();
-        } else {
-          onClose();
-        }
+        e.preventDefault();
+        dismissRef.current();
+        return;
+      }
+      if (e.key !== 'Tab' || !boxRef.current) return;
+      const items = Array.from(boxRef.current.querySelectorAll<HTMLElement>(FOCUSABLE));
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    // Focus confirmation button when opened
-    const t = setTimeout(() => confirmBtnRef.current?.focus(), 50);
+    window.addEventListener('keydown', onKeyDown);
+    confirmRef.current?.focus();
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      clearTimeout(t);
+      window.removeEventListener('keydown', onKeyDown);
+      returnTo?.focus?.();
     };
-  }, [isOpen, onClose, onCancel]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   return (
-    <div
-      className="modal-backdrop"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      style={{ zIndex: 1200 }}
-    >
+    <div className="popup-backdrop" onClick={dismiss}>
       <div
-        className="modal"
+        ref={boxRef}
+        className="popup"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : messageId}
+        aria-describedby={title ? messageId : undefined}
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 'min(450px, 92vw)',
-          padding: '28px 24px',
-          textAlign: 'center',
-          borderRadius: '6px',
-          background: '#ffffff',
-        }}
       >
         {title && (
-          <h3
-            style={{
-              margin: '0 0 10px',
-              fontSize: '18px',
-              fontWeight: 700,
-              color: '#1e293b',
-            }}
-          >
+          <h2 id={titleId} className="popup-title">
             {title}
-          </h3>
+          </h2>
         )}
-        <p
-          style={{
-            fontSize: '15px',
-            color: '#475569',
-            margin: '0 0 24px',
-            lineHeight: 1.55,
-            fontWeight: 500,
-          }}
-        >
+        <p id={messageId} className={title ? 'popup-message' : 'popup-message popup-message--lead'}>
           {message}
         </p>
 
         {children}
 
-        <div
-          style={{
-            display: 'flex',
-            gap: '12px',
-            justifyContent: 'center',
-            marginTop: '8px',
-          }}
-        >
+        <div className="popup-actions">
+          {cancelLabel && (
+            <button type="button" className="popup-btn popup-btn--secondary" onClick={cancel}>
+              {cancelLabel}
+            </button>
+          )}
           <button
+            ref={confirmRef}
             type="button"
-            className="secondary"
-            style={{
-              width: '130px',
-              padding: '10px 18px',
-              borderRadius: '4px',
-              fontWeight: 600,
-              fontSize: '14px',
-            }}
-            onClick={() => {
-              if (onCancel) {
-                onCancel();
-              } else {
-                onClose();
-              }
-            }}
-          >
-            {cancelLabel}
-          </button>
-          <button
-            ref={confirmBtnRef}
-            type="button"
-            className="primary"
-            style={{
-              width: '130px',
-              padding: '10px 18px',
-              borderRadius: '4px',
-              fontWeight: 600,
-              fontSize: '14px',
-            }}
-            onClick={onConfirm}
+            className="popup-btn popup-btn--primary"
+            onClick={onConfirm ?? onClose}
           >
             {confirmLabel}
           </button>

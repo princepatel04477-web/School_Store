@@ -5,7 +5,7 @@ import { formatINR } from '../utils/formatINR';
 import { useStoreState } from '../store/storeState';
 import { siteConfig } from '../siteConfig';
 import { useStoreSchools } from '../data/catalog';
-import { fitKey, fitPayload, getFit } from '../data/fit';
+import { fitPayload } from '../data/fit';
 import { buildOrderMessage, whatsappOrderUrl } from '../services/whatsappOrder';
 import { orderErrorMessage, prepareOrder, submitOrder, type PlacedOrder } from '../services/placeOrder';
 import { useAuth } from '../auth';
@@ -134,7 +134,6 @@ export function CheckoutPage() {
     setPlacing(true);
     setRetrying(false);
     const contact = { recipient_name: parentName.trim(), phone: parentMobile };
-    const fit = getFit(fitKey(selection?.schoolId, selection?.gradeId, selection?.gender));
     const payload = prepareOrder({
       student: child.id,
       fulfillment_type: deliveryType === 'HOME' ? 'HOME_DELIVERY' : 'SCHOOL_PICKUP',
@@ -149,8 +148,12 @@ export function CheckoutPage() {
               pincode: pinCode.trim(),
             }
           : contact,
-      items: cart.map((item) => ({ variant: item.variantId, quantity: item.quantity })),
-      ...(fit && fit !== 'skipped' ? { fit: fitPayload(fit) } : {}),
+      // Each shirt or trouser carries the measurement it was sized from (Prompt 23).
+      items: cart.map((item) => ({
+        variant: item.variantId,
+        quantity: item.quantity,
+        ...(item.measurement ? { fit: fitPayload(item.measurement) } : {}),
+      })),
     });
     try {
       const order = await submitOrder(payload, () => setRetrying(true));

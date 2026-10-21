@@ -1,11 +1,11 @@
 {
-  "_comment": "Child height and weight accepted by the size check (ages about 5 to 18), and the shoulder width measured on the phone. Read by backend/catalog/sizing.py and frontend/src/data/fit.ts.",
+  "_comment": "Child height and weight accepted by the size check (Nursery to class 12, ages about 3 to 18), and the shoulder width measured on the phone. Read by backend/catalog/sizing.py and frontend/src/data/fit.ts.",
   "height_cm": {
-    "min": 90,
+    "min": 70,
     "max": 200
   },
   "weight_kg": {
-    "min": 12,
+    "min": 10,
     "max": 120
   },
   "shoulder_cm": {
