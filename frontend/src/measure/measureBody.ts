@@ -1,6 +1,6 @@
 import {
-  BACK_CURVE,
   DEFAULT_SHOULDER_FACTOR,
+  MASS_CURVE,
   MASK_BODY_MIN,
   SHOULDER_EDGE_BLEND,
   SHOULDER_EDGE_MAX_RATIO,
@@ -291,15 +291,18 @@ export function isSaneShoulder(shoulderCm: number, heightCm: number): boolean {
   return ratio >= SHOULDER_TO_HEIGHT.min && ratio <= SHOULDER_TO_HEIGHT.max;
 }
 
-/**
- * The camera reading raised for the curve of the back (see BACK_CURVE): unchanged
- * up to BMI 20, then a little more for every point of weight-for-height.
- */
-export function withBackCurve(shoulderCm: number, heightCm: number, weightKg: number): number {
+/** The mass-correction multiplier for this BMI (see MASS_CURVE in config.ts). */
+export function massMultiplier(bmi: number, curve = MASS_CURVE): number {
+  const d = bmi - curve.bmiBase;
+  const raw = curve.gain + curve.alpha * d + curve.beta * d * Math.abs(d);
+  return Math.min(curve.max, Math.max(curve.min, raw));
+}
+
+/** The camera's shoulder reading corrected for build: scaled down for thin bodies, up for heavy ones. */
+export function withMassCurve(shoulderCm: number, heightCm: number, weightKg: number, curve = MASS_CURVE): number {
   if (!(shoulderCm > 0) || !(heightCm > 0) || !(weightKg > 0)) return shoulderCm;
   const bmi = weightKg / (heightCm / 100) ** 2;
-  const boost = Math.min(BACK_CURVE.maxBoost, Math.max(0, (bmi - BACK_CURVE.bmiStart) * BACK_CURVE.perBmi));
-  return Math.round(shoulderCm * (1 + boost) * 10) / 10;
+  return Math.round(shoulderCm * massMultiplier(bmi, curve) * 10) / 10;
 }
 
 /** The best `count` frames by quality, keeping their order. */

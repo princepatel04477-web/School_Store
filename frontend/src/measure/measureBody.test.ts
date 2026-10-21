@@ -7,7 +7,8 @@ import {
   measureSideFrames,
   shoulderEdgePx,
   sideDepthPx,
-  withBackCurve,
+  massMultiplier,
+  withMassCurve,
   type MeasureFrame,
 } from './measureBody';
 import { checkPose, checkSide, measurable, measurableSide } from './measureChecks';
@@ -247,23 +248,38 @@ describe('side photo', () => {
   });
 });
 
-describe('withBackCurve', () => {
-  it('leaves a slim reading alone', () => {
-    // 166 cm, 55 kg: BMI 20.0. Camera 39.5, tape 40.
-    expect(withBackCurve(39.5, 166, 55)).toBe(39.5);
+describe('mass correction', () => {
+  const flat = { bmiBase: 22, gain: 1, alpha: 0.02, beta: 0, min: 0.85, max: 1.35 };
+
+  it('leaves the baseline build alone when gain is 1', () => {
+    expect(massMultiplier(22, flat)).toBe(1);
   });
 
-  it('raises a heavy reading towards the tape across the back', () => {
-    // 170 cm, 100 kg: BMI 34.6, +21.9%. Camera 44.9, tape 55.
-    expect(withBackCurve(44.9, 170, 100)).toBe(54.7);
+  it('scales thin bodies down and heavy bodies up', () => {
+    expect(massMultiplier(18, flat)).toBeCloseTo(0.92);
+    expect(massMultiplier(32, flat)).toBeCloseTo(1.2);
   });
 
-  it('raises an average build a little', () => {
-    // 170 cm, 70 kg: BMI 24.2, +6.3%.
-    expect(withBackCurve(40, 170, 70)).toBe(42.5);
+  it('bends with beta, the same way on both sides', () => {
+    const bent = { ...flat, beta: 0.001 };
+    // d = +10: 1 + 0.2 + 0.1; d = -4: 1 - 0.08 - 0.016.
+    expect(massMultiplier(32, bent)).toBeCloseTo(1.3);
+    expect(massMultiplier(18, bent)).toBeCloseTo(0.904);
   });
 
-  it('stops at 30% however heavy', () => {
-    expect(withBackCurve(40, 150, 120)).toBe(52);
+  it('stays inside its limits', () => {
+    expect(massMultiplier(60, flat)).toBe(1.35);
+    expect(massMultiplier(5, flat)).toBe(0.85);
+  });
+
+  it('applies the live curve to a reading', () => {
+    // 170 cm, 100 kg: BMI 34.6, d 12.6, multiplier 1.023 + 0.0198 x 12.6 = 1.272.
+    expect(withMassCurve(44.9, 170, 100)).toBe(57.1);
+    // 166 cm, 55 kg: BMI 20.0, d -2.0, multiplier 0.983.
+    expect(withMassCurve(40, 166, 55)).toBe(39.3);
+  });
+
+  it('leaves the reading alone without a height or weight', () => {
+    expect(withMassCurve(40, 0, 55)).toBe(40);
   });
 });
