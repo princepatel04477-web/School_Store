@@ -5,6 +5,7 @@ import {
   MAX_SHOULDER_Z,
   MIN_FILL,
   MIN_VISIBILITY,
+  SIDE_MAX_SHOULDER_GAP,
   STILL_MOVE_PX,
 } from './config';
 import {
@@ -30,6 +31,7 @@ export type Guidance =
   | 'showFullBody'
   | 'standStraight'
   | 'holdStill'
+  | 'turnSide'
   | 'ready';
 
 export interface PoseCheck {
@@ -142,9 +144,70 @@ export function measurable(landmarks: Landmark[]): { ok: boolean; missing: Missi
   if (!visible(landmarks[LEFT_SHOULDER]) || !visible(landmarks[RIGHT_SHOULDER])) {
     return { ok: false, missing: 'shoulders' };
   }
-  const feet = [LEFT_HEEL, RIGHT_HEEL, LEFT_FOOT, RIGHT_FOOT]
-    .map((index) => landmarks[index])
-    .filter((point): point is Landmark => Boolean(point) && (point.visibility ?? 0) >= FEET_VISIBILITY);
+  const feet = seenFeet(landmarks);
   if (feet.length === 0 || feet.some((point) => point.y > 0.995)) return { ok: false, missing: 'feet' };
   return { ok: true, missing: null };
+}
+
+/** The feet points seen well enough to place the floor. */
+function seenFeet(landmarks: Landmark[]): Landmark[] {
+  return [LEFT_HEEL, RIGHT_HEEL, LEFT_FOOT, RIGHT_FOOT]
+    .map((index) => landmarks[index])
+    .filter((point): point is Landmark => Boolean(point) && (point.visibility ?? 0) >= FEET_VISIBILITY);
+}
+
+/** The shoulder the camera sees best: side-on, the far one is hidden behind the body. */
+export function nearShoulder(landmarks: Landmark[]): Landmark | null {
+  const left = landmarks[LEFT_SHOULDER];
+  const right = landmarks[RIGHT_SHOULDER];
+  const best = (left?.visibility ?? 0) >= (right?.visibility ?? 0) ? left : right;
+  return visible(best) ? best : null;
+}
+
+/** Side photo: enough of the child for a reading (head, the near shoulder, the feet). */
+export function measurableSide(landmarks: Landmark[]): { ok: boolean; missing: Missing | null } {
+  const nose = landmarks[NOSE];
+  if (!visible(nose) || nose.y < 0.02) return { ok: false, missing: 'head' };
+  if (!nearShoulder(landmarks)) return { ok: false, missing: 'shoulders' };
+  const feet = seenFeet(landmarks);
+  if (feet.length === 0 || feet.some((point) => point.y > 0.995)) return { ok: false, missing: 'feet' };
+  return { ok: true, missing: null };
+}
+
+/**
+ * Side photo checks, in the order the parent should fix them. Side-on, the two
+ * shoulders sit almost on top of each other in the picture.
+ */
+export function checkSide(
+  landmarks: Landmark[],
+  imageWidth: number,
+  imageHeight: number,
+  previous: Landmark[] | null,
+): { ready: boolean; guidance: Guidance; quality: number } {
+  const nose = landmarks[NOSE];
+  const shoulder = nearShoulder(landmarks);
+  const feet = seenFeet(landmarks);
+  const quality = Math.min(nose?.visibility ?? 0, shoulder?.visibility ?? 0, ...feet.map((f) => f.visibility ?? 0), 1);
+
+  const cutOff = (visible(nose) && nose.y < 0.03) || feet.some((point) => point.y > 0.98);
+  let guidance: Guidance = 'ready';
+  if (cutOff) guidance = 'moveBack';
+  else if (!visible(nose) || !shoulder || feet.length === 0) guidance = 'showFullBody';
+  else {
+    const left = landmarks[LEFT_SHOULDER];
+    const right = landmarks[RIGHT_SHOULDER];
+    const gap = left && right ? Math.abs(left.x - right.x) : 0;
+    const fill = Math.max(...feet.map((point) => point.y)) - nose.y;
+    if (gap > SIDE_MAX_SHOULDER_GAP) guidance = 'turnSide';
+    else if (fill > MAX_FILL) guidance = 'moveBack';
+    else if (fill < MIN_FILL) guidance = 'moveCloser';
+    else if (
+      !previous ||
+      movedPx(nose, previous[NOSE], imageWidth, imageHeight) > STILL_MOVE_PX ||
+      movedPx(shoulder, previous[landmarks.indexOf(shoulder)], imageWidth, imageHeight) > STILL_MOVE_PX
+    ) {
+      guidance = 'holdStill';
+    }
+  }
+  return { ready: guidance === 'ready', guidance, quality };
 }

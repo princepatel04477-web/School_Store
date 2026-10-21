@@ -16,7 +16,7 @@ import {
   type ProductFit,
 } from '../../data/fit';
 import { DEFAULT_SHOULDER_FACTOR, MEASURE_WITH_CAMERA } from '../../measure/config';
-import { isSaneShoulder, type MeasureResult } from '../../measure/measureBody';
+import { isSaneShoulder, type MeasureResult, type SideResult } from '../../measure/measureBody';
 import { InstructionDrawing, ShoulderDiagram } from './MeasureDrawings';
 import './measureFlow.css';
 
@@ -25,7 +25,8 @@ const MeasureCapture = lazy(() =>
   import('../../measure/MeasureCapture').then((m) => ({ default: m.MeasureCapture }))
 );
 
-type Step = 'details' | 'instructions' | 'camera' | 'manual' | 'results';
+/** "side" and "sideCamera" only run in test mode (measuredebug), to collect body depth. */
+type Step = 'details' | 'instructions' | 'camera' | 'side' | 'sideCamera' | 'manual' | 'results';
 
 export interface MeasureGarment {
   id: string;
@@ -76,6 +77,7 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
   const [draft, setDraft] = useState<Fit | null>(null);
   // The camera's raw readings, shown only for tape checks.
   const [raw, setRaw] = useState<MeasureResult | null>(null);
+  const [side, setSide] = useState<SideResult | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const config = useMeasureConfig(step === 'instructions' || step === 'camera');
@@ -154,6 +156,7 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
   const back = () => {
     setNotice(null);
     if (step === 'instructions' || step === 'manual') setStep('details');
+    else if (step === 'side') setStep('instructions');
     else if (step === 'results') setStep(draft?.source === 'CAMERA' ? 'instructions' : 'manual');
     else onClose();
   };
@@ -179,13 +182,38 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
               source: 'CAMERA',
               shoulderEdited: false,
             });
-            setStep('results');
+            setSide(null);
+            setStep(measureDebug() ? 'side' : 'results');
           }}
           onCancel={() => setStep('instructions')}
           onCameraError={() => {
             setNotice('mf.manual.cameraOff');
             setStep('manual');
           }}
+        />
+      </Suspense>
+    );
+  }
+
+  if (step === 'sideCamera') {
+    return (
+      <Suspense fallback={<div className="mflow" role="status"><p className="mflow-loading">{t('measure.loadingCamera')}</p></div>}>
+        <MeasureCapture
+          heightCm={parseMeasure(height)!}
+          factor={factor}
+          view="side"
+          onResult={() => undefined}
+          onSideResult={(result) => {
+            setSide(result);
+            if (!result) {
+              setNotice('mf.side.failed');
+              setStep('side');
+              return;
+            }
+            setStep('results');
+          }}
+          onCancel={() => setStep('side')}
+          onCameraError={() => setStep('results')}
         />
       </Suspense>
     );
@@ -283,6 +311,21 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
           </div>
         )}
 
+        {step === 'side' && (
+          <div className="mflow-form">
+            <h3 className="mflow-title">{t('mf.side.title')}</h3>
+            <p className="mflow-sub">{t('mf.side.body')}</p>
+            <div className="mflow-actions">
+              <button type="button" className="btn btn-primary" onClick={() => { setNotice(null); setStep('sideCamera'); }}>
+                {t('mf.ins.open')}
+              </button>
+              <button type="button" className="mflow-link" onClick={() => { setNotice(null); setStep('results'); }}>
+                {t('mf.side.skip')}
+              </button>
+            </div>
+          </div>
+        )}
+
         {step === 'manual' && (
           <form className="mflow-form" onSubmit={submitManual} noValidate>
             <h3 className="mflow-title">{t('mf.manual.title')}</h3>
@@ -320,9 +363,12 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
             saveFailed={saveFailed}
             debugLine={
               measureDebug() && draft.source === 'CAMERA' && raw
-                ? raw.joint_cm !== undefined
-                  ? `Joints ${raw.joint_cm} cm, outline ${raw.edge_cm} cm, shown ${raw.shoulder_cm} cm`
-                  : `Joints only (no outline edges), shown ${raw.shoulder_cm} cm`
+                ? [
+                    raw.joint_cm !== undefined
+                      ? `Joints ${raw.joint_cm} cm, outline ${raw.edge_cm} cm, shown ${raw.shoulder_cm} cm`
+                      : `Joints only (no outline edges), shown ${raw.shoulder_cm} cm`,
+                    side ? `side depth ${side.depth_cm} cm` : 'no side photo',
+                  ].join(', ')
                 : undefined
             }
             onRetake={() => setStep(draft.source === 'CAMERA' ? 'camera' : 'manual')}

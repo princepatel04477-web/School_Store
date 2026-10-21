@@ -295,6 +295,19 @@ export const messages = {
   'measure.g.standStraight': { en: 'Stand straight', gu: 'સીધા ઊભા રહો', hi: 'सीधे खड़े हों' },
   'measure.g.holdStill': { en: 'Hold still', gu: 'સ્થિર રહો', hi: 'शांत खड़े रहें' },
   'measure.g.ready': { en: 'Fits, hold still', gu: 'બરાબર છે, સ્થિર રહો', hi: 'ठीक है, शांत खड़े रहें' },
+  'measure.g.turnSide': { en: 'Turn sideways', gu: 'બાજુમાં ફરો', hi: 'बगल में घूमें' },
+  'mf.side.title': { en: 'Now from the side', gu: 'હવે બાજુથી', hi: 'अब बगल से' },
+  'mf.side.body': {
+    en: 'Ask the child to turn sideways, arms down. Keep the phone in the same place.',
+    gu: 'બાળકને બાજુમાં ફરવા કહો, હાથ નીચે. ફોન એ જ જગ્યાએ રાખો.',
+    hi: 'बच्चे को बगल में घूमने को कहें, हाथ नीचे। फ़ोन उसी जगह रखें।',
+  },
+  'mf.side.skip': { en: 'Skip the side photo', gu: 'બાજુનો ફોટો છોડો', hi: 'बगल की फ़ोटो छोड़ें' },
+  'mf.side.failed': {
+    en: 'The side photo did not work. Try again, or skip it.',
+    gu: 'બાજુનો ફોટો બરાબર ન આવ્યો. ફરી પ્રયત્ન કરો, અથવા છોડી દો.',
+    hi: 'बगल की फ़ोटो ठीक नहीं आई। फिर से कोशिश करें, या छोड़ दें।',
+  },
   'measure.photoStays': {
     en: 'The photo stays on your phone. Only the measurements are saved.',
     gu: 'ફોટો તમારા ફોનમાં જ રહે છે. ફક્ત માપ સાચવાય છે.',
