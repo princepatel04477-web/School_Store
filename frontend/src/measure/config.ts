@@ -11,6 +11,23 @@ export const MEASURE_WITH_CAMERA = import.meta.env.VITE_MEASURE_WITH_CAMERA !== 
  */
 export const DEFAULT_SHOULDER_FACTOR = 1.0;
 
+/**
+ * MediaPipe's shoulder points are the centres of the shoulder joints. Muscle and
+ * fat sit outside them, a little on a slim child and a lot on a heavy one, so a
+ * joint-to-joint reading comes out short on bigger bodies and no single factor
+ * fixes that. The body outline at shoulder height shows the real edges. The
+ * reading is taken this far from the joint width towards the outline width:
+ * 0 is joints only, 1 is the outline edge to edge. A tape laid across the back
+ * from shoulder point to shoulder point lands between the two.
+ * Starting value from two adults (170 cm 100 kg read 40.1, tape 45; 167 cm 55 kg
+ * close to tape). Set it from tape checks: see docs/shoulder-calibration.md.
+ */
+export const SHOULDER_EDGE_BLEND = 0.5;
+/** The outline is trusted only within this many joint widths; wider means it ran into the background. */
+export const SHOULDER_EDGE_MAX_RATIO = 1.6;
+/** Outline pixels at or above this value (of 255) count as body. */
+export const MASK_BODY_MIN = 128;
+
 /** Pose checks run about 10 times a second. */
 export const DETECT_INTERVAL_MS = 100;
 /** The fit check must hold this long before the picture is taken by itself. */
