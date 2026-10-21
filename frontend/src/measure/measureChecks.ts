@@ -9,11 +9,13 @@ import {
 } from './config';
 import {
   LEFT_ANKLE,
+  LEFT_FOOT,
   LEFT_HEEL,
   LEFT_HIP,
   LEFT_SHOULDER,
   NOSE,
   RIGHT_ANKLE,
+  RIGHT_FOOT,
   RIGHT_HEEL,
   RIGHT_HIP,
   RIGHT_SHOULDER,
@@ -120,4 +122,29 @@ export function checkPose(
     guidance,
     quality,
   };
+}
+
+/** The body part a frame is missing for a reading, in the order the parent should fix them. */
+export type Missing = 'head' | 'shoulders' | 'feet';
+
+/** Feet points are small and often half hidden by shoes, so they count from a lower visibility. */
+const FEET_VISIBILITY = 0.3;
+
+/**
+ * Enough of the child to work out a reading: the head, both shoulders and the
+ * feet, with nothing cut off at the edge. Looser than the auto-capture check
+ * (no need to stand perfectly still or straight), so Capture works whenever a
+ * reading is possible.
+ */
+export function measurable(landmarks: Landmark[]): { ok: boolean; missing: Missing | null } {
+  const nose = landmarks[NOSE];
+  if (!visible(nose) || nose.y < 0.02) return { ok: false, missing: 'head' };
+  if (!visible(landmarks[LEFT_SHOULDER]) || !visible(landmarks[RIGHT_SHOULDER])) {
+    return { ok: false, missing: 'shoulders' };
+  }
+  const feet = [LEFT_HEEL, RIGHT_HEEL, LEFT_FOOT, RIGHT_FOOT]
+    .map((index) => landmarks[index])
+    .filter((point): point is Landmark => Boolean(point) && (point.visibility ?? 0) >= FEET_VISIBILITY);
+  if (feet.length === 0 || feet.some((point) => point.y > 0.995)) return { ok: false, missing: 'feet' };
+  return { ok: true, missing: null };
 }

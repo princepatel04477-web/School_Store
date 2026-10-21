@@ -48,6 +48,7 @@ export const Minus = makeIcon('minus', <path d="M5 12h14" />);
 export const Menu = makeIcon('menu', <path d="M4 7h16M4 12h16M4 17h10" />);
 export const ChevronDown = makeIcon('chevron-down', <path d="M6 9l6 6 6-6" />);
 export const ChevronUp = makeIcon('chevron-up', <path d="M6 15l6-6 6 6" />);
+export const ChevronRight = makeIcon('chevron-right', <path d="M9 6l6 6-6 6" />);
 export const Check = makeIcon('check', <path d="M5 12.5l4.5 4.5L19 7" />);
 export const ShoppingBag = makeIcon(
   'bag',

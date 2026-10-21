@@ -14,22 +14,31 @@ export const DEFAULT_SHOULDER_FACTOR = 1.0;
 /** Pose checks run about 10 times a second. */
 export const DETECT_INTERVAL_MS = 100;
 /** The fit check must hold this long before the picture is taken by itself. */
-export const HOLD_MS = 2000;
+export const HOLD_MS = 1500;
 /** Landmarks are read from the best frames around the capture. */
 export const FRAME_TARGET = 10;
 export const MIN_FRAMES = 5;
+/** Tapping Capture works from fewer frames: the parent has decided the child is in view. */
+export const MANUAL_MIN_FRAMES = 2;
 
-export const MAX_SHOULDER_TILT_DEG = 3;
-/** MediaPipe z is a depth ratio. A small left-right gap means the child faces the phone. */
-export const MAX_SHOULDER_Z = 0.08;
-export const STILL_MOVE_PX = 8;
+/** Looser than a tape needs: a phone held by hand is never quite level. */
+export const MAX_SHOULDER_TILT_DEG = 5;
+/**
+ * MediaPipe z is a depth ratio. A small left-right gap means the child faces the phone.
+ * It is noisy on a phone camera, so only a clearly turned body is refused.
+ */
+export const MAX_SHOULDER_Z = 0.2;
+export const STILL_MOVE_PX = 12;
 export const MIN_VISIBILITY = 0.5;
 
-/** Head to ankles should fill most of the outline, which spans most of the screen height. */
-export const MIN_FILL = 0.55;
+/**
+ * Head to ankles as a share of the picture height. The whole camera picture is shown
+ * (not zoomed), so a child standing far enough back to show the feet fills less of it.
+ */
+export const MIN_FILL = 0.4;
 export const MAX_FILL = 0.88;
 /** How far the middle of the body may sit from the middle of the screen (share of its width). */
-export const CENTRE_TOLERANCE = 0.12;
+export const CENTRE_TOLERANCE = 0.15;
 
 /**
  * Shoulder width as a share of height that a child's body can have. A reading

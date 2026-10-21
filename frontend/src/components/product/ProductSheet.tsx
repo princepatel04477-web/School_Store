@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { X, ChevronDown, ChevronUp } from '../ui/icons';
+import { ArrowLeft, ChevronDown, ChevronUp } from '../ui/icons';
 import { motion } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
 import { useStoreState } from '../../store/storeState';
 import { ProductImage } from './ProductImage';
 import { SizeSelector } from './SizeSelector';
 import { SizeGuide } from './SizeGuide';
+import { SizeGuideNotice } from './SizeGuideNotice';
 import { QuantityStepper } from './QuantityStepper';
 import { AddToBagButton } from './AddToBagButton';
 import { useShake } from '../../motion/useShake';
@@ -94,6 +95,15 @@ export function ProductSheet({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, sizeGuideOpen, onClose]);
 
+  // The product is a full page: the list behind it doesn't scroll.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   if (!isOpen || !product) return null;
 
   const orderable = product.sizes.some((size) => size.inStock) && !product.needsDetails;
@@ -148,15 +158,14 @@ export function ProductSheet({
           aria-label={product.name}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Close button */}
-          <button
-            type="button"
-            className="sheet-close-floating"
-            aria-label={t('common.close')}
-            onClick={onClose}
-          >
-            <X width={22} height={22} strokeWidth={1.5} />
-          </button>
+          {/* Back to the list */}
+          <div className="sheet-topbar">
+            <button type="button" className="sheet-back" aria-label={t('common.close')} onClick={onClose}>
+              <ArrowLeft width={20} height={20} />
+              <span>{t('product.back')}</span>
+            </button>
+            <span className="sheet-topbar-title">{product.name}</span>
+          </div>
 
           <div className="sheet-content-grid">
             {/* Gallery Left */}
@@ -185,6 +194,10 @@ export function ProductSheet({
                 </p>
               ) : (
                 <>
+              {product.sizes.length > 1 && (
+                <SizeGuideNotice productId={product.id} onOpen={() => setSizeGuideOpen(true)} />
+              )}
+
               {/* Sizing Radio Group */}
               {product.sizes.length > 0 && (
                 <div ref={sizeRowRef}>
@@ -195,7 +208,6 @@ export function ProductSheet({
                     setSelectedSizeId(id);
                     setSizeError(undefined);
                   }}
-                  onOpenSizeGuide={hasChart || fitLoading ? undefined : () => setSizeGuideOpen(true)}
                   error={sizeError}
                   suggestedIds={[suggested.primary, suggested.alt].filter((id): id is string => Boolean(id))}
                 />
@@ -322,7 +334,9 @@ export function ProductSheet({
         category={product.category}
         isOpen={sizeGuideOpen}
         onClose={() => setSizeGuideOpen(false)}
-      />
+      >
+        {hasChart ? <SizeChartTable rows={fit?.chart} recommendation={fit?.recommendation} /> : undefined}
+      </SizeGuide>
     </>
   );
 }
