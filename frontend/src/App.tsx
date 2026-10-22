@@ -73,17 +73,14 @@ export default function App() {
 
   useSchoolTheme(!isPortal);
 
-  // First visit to the store: ask for the language before anything else.
+  // The store starts in English. Parents switch from the language link in the
+  // top bar or the menu; the chooser only opens when they ask for it.
   const { hasChosen, setLang } = useLang();
   const [langOpen, setLangOpen] = useState(false);
   useEffect(() => {
-    if (!isPortal && !hasChosen) setLangOpen(true);
-  }, [isPortal, hasChosen]);
-  const closeLanguage = () => {
-    // Closed without picking: stay in English and don't ask on every page.
     if (!hasChosenLanguage()) setLang('en');
-    setLangOpen(false);
-  };
+  }, [setLang]);
+  const closeLanguage = () => setLangOpen(false);
 
   return (
     <ErrorBoundary>

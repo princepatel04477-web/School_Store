@@ -5,7 +5,7 @@ import './languageChooser.css';
 /**
  * Three big buttons, each written in its own script, so a parent who reads only
  * Gujarati or only Hindi finds theirs without reading anything else.
- * Shown on the first visit and from the header's language button.
+ * Opens from the language link in the top bar and the phone menu (the store starts in English).
  */
 export function LanguageChooser({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { lang, hasChosen, setLang } = useLang();
