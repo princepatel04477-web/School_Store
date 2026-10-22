@@ -2,16 +2,17 @@ import { useCallback, useSyncExternalStore } from 'react';
 import { messages, type MessageKey } from './messages';
 
 /**
- * The parent's language: Gujarati, Hindi or English, picked once and remembered
- * on the phone. Staff pages stay in English.
+ * The parent's language: English by default, or Gujarati or Hindi when the parent
+ * switches; the choice is remembered on the phone. Staff pages stay in English.
  */
 export type Lang = 'en' | 'gu' | 'hi';
 export type { MessageKey };
 
+/** English first: it is the default. */
 export const LANGUAGES: { code: Lang; name: string; bcp47: string }[] = [
+  { code: 'en', name: 'English', bcp47: 'en-IN' },
   { code: 'gu', name: 'ગુજરાતી', bcp47: 'gu-IN' },
   { code: 'hi', name: 'हिन्दी', bcp47: 'hi-IN' },
-  { code: 'en', name: 'English', bcp47: 'en-IN' },
 ];
 
 const LANG_KEY = 'schoolstore_lang';

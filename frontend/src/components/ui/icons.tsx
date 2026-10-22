@@ -97,3 +97,29 @@ export const AlertCircle = makeIcon(
     <path d="M12 7v6M12 16.5v.5" />
   </>
 );
+
+/* Panel navigation icons: same 24px grid, square ends and sharp joins */
+export const Overview = makeIcon('overview', <path d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z" />);
+export const BarChart = makeIcon('bar-chart', <path d="M4 20h16M7 20v-7M12 20V5M17 20v-10" />);
+export const Users = makeIcon(
+  'users',
+  <>
+    <circle cx="9" cy="8" r="3.5" />
+    <path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5M15.5 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.6.8 2.8 2.6 3.5 5.2" />
+  </>
+);
+export const SchoolBuilding = makeIcon(
+  'school',
+  <path d="M3 20h18M5 20V10l7-5 7 5v10M10 20v-5h4v5M12 5V2h3" />
+);
+export const Eye = makeIcon(
+  'eye',
+  <>
+    <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+    <circle cx="12" cy="12" r="3" />
+  </>
+);
+export const Package = makeIcon('package', <path d="M4 7.5L12 3l8 4.5v9L12 21l-8-4.5zM4 7.5l8 4.5 8-4.5M12 12v9" />);
+export const Receipt = makeIcon('receipt', <path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3" />);
+export const Download = makeIcon('download', <path d="M12 4v11M7 10l5 5 5-5M4 20h16" />);
+export const SignOut = makeIcon('sign-out', <path d="M10 4H4v16h6M14 8l4 4-4 4M8 12h10" />);

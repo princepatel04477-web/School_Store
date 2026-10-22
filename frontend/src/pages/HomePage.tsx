@@ -20,8 +20,22 @@ import {
 } from '../motion';
 import { siteConfig } from '../siteConfig';
 import { useLang } from '../i18n';
-import { classLabel, genderLabel } from '../i18n/labels';
+import { categoryLabel, classLabel, genderLabel } from '../i18n/labels';
 import './home.css';
+
+/** Real product photos for the hero strip, each linking to its shop category. */
+const HERO_PHOTOS = [
+  { src: '/products/uniform-udgam-blazer.webp', category: 'Uniform' },
+  { src: '/products/uniform-dps-shirt.webp', category: 'Uniform' },
+  { src: '/products/tie-dps-crest.webp', category: 'Uniform Accessories' },
+  { src: '/products/shoes-dps-oxford.webp', category: 'School Shoes' },
+  { src: '/products/uniform-fhs-polo.webp', category: 'Uniform' },
+  { src: '/products/notebook-photo.webp', category: 'Stationery' },
+  { src: '/products/socks-navy.webp', category: 'Uniform Accessories' },
+  { src: '/products/uniform-dps-skirt.webp', category: 'Uniform' },
+  { src: '/products/belt-udgam.webp', category: 'Uniform Accessories' },
+  { src: '/products/shoes-white-pt.webp', category: 'School Shoes' },
+];
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -74,94 +88,114 @@ export function HomePage() {
         <span />
       </div>
 
-      {/* 1. HERO SECTION */}
-      <section className="hero-section container">
-        <div className="hero-grid">
-          <div className="hero-left">
-            <TextReveal
-              lines={[t('home.heroLine1'), t('home.heroLine2')]}
-              className="hero-heading"
-              underlineLast
-            />
-            <Reveal delay={0.15}>
+      {/* 1. HERO SECTION: the headline across the page, the line and the school search
+          under it, then a strip of real product photos running edge to edge */}
+      <section className="hero-section">
+        <div className="container">
+          <TextReveal
+            lines={[t('home.heroLine1'), t('home.heroLine2')]}
+            className="hero-heading"
+            underlineLast
+          />
+
+          <div className="hero-row">
+            <Reveal delay={0.15} className="hero-sub-wrap">
               <p className="hero-subtext">
                 {t('home.heroSub')}
               </p>
             </Reveal>
 
-            {/* Hero Selection State vs School Search Box */}
-            <Reveal delay={0.25}>
-              <AnimatePresence mode="wait">
-                {selection ? (
-                  <motion.div
-                    key="selected"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.25, ease: EASING }}
-                    className="hero-selected-state"
-                  >
-                    <div className="hero-selected-badge">
-                      <SchoolCrest id={selection.schoolId} name={selection.schoolName} code={selection.schoolCode} size={42} />
-                      <div className="hero-selected-text">
-                        <span className="hero-selected-label">{t('home.currentSchool')}</span>
-                        <h2 className="hero-selected-school">{t('home.shoppingFor', { school: selection.schoolName })}</h2>
-                        <span className="hero-selected-grade">
-                          {selection.cityName ? `${selection.cityName} ` : ''}
-                          {selection.gradeName ? `· ${classLabel(selection.gradeName, t)}` : ''}
-                          {selection.gender ? ` · ${genderLabel(selection.gender, t)}` : ''}
-                        </span>
+            <div className="hero-action">
+              {/* Hero Selection State vs School Search Box */}
+              <Reveal delay={0.25}>
+                <AnimatePresence mode="wait">
+                  {selection ? (
+                    <motion.div
+                      key="selected"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.25, ease: EASING }}
+                      className="hero-selected-state"
+                    >
+                      <div className="hero-selected-badge">
+                        <SchoolCrest id={selection.schoolId} name={selection.schoolName} code={selection.schoolCode} size={42} />
+                        <div className="hero-selected-text">
+                          <span className="hero-selected-label">{t('home.currentSchool')}</span>
+                          <h2 className="hero-selected-school">{t('home.shoppingFor', { school: selection.schoolName })}</h2>
+                          <span className="hero-selected-grade">
+                            {selection.cityName ? `${selection.cityName} ` : ''}
+                            {selection.gradeName ? `· ${classLabel(selection.gradeName, t)}` : ''}
+                            {selection.gender ? ` · ${genderLabel(selection.gender, t)}` : ''}
+                          </span>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="hero-selected-actions">
-                        <Button
-                          className="hero-continue-btn"
-                          arrow
-                          onMouseEnter={prefetchFlowPage}
+                      <div className="hero-selected-actions">
+                          <Button
+                            className="hero-continue-btn"
+                            arrow
+                            onMouseEnter={prefetchFlowPage}
+                            onClick={() => {
+                              const nextStep = selection.gradeId
+                                ? selection.gender
+                                  ? '4'
+                                  : '3'
+                                : '2';
+                              navigate(
+                                `/flow?school=${encodeURIComponent(selection.schoolId)}&step=${nextStep}`
+                              );
+                            }}
+                          >
+                            {t('home.continue')}
+                          </Button>
+                        <button
+                          type="button"
+                          className="hero-change-school-link"
                           onClick={() => {
-                            const nextStep = selection.gradeId
-                              ? selection.gender
-                                ? '4'
-                                : '3'
-                              : '2';
-                            navigate(
-                              `/flow?school=${encodeURIComponent(selection.schoolId)}&step=${nextStep}`
-                            );
+                            setSelection(null);
+                            setTimeout(() => {
+                              const input = document.querySelector('.hero-search-input') as HTMLInputElement;
+                              if (input) input.focus();
+                            }, 50);
                           }}
                         >
-                          {t('home.continue')}
-                        </Button>
-                      <button
-                        type="button"
-                        className="hero-change-school-link"
-                        onClick={() => {
-                          setSelection(null);
-                          setTimeout(() => {
-                            const input = document.querySelector('.hero-search-input') as HTMLInputElement;
-                            if (input) input.focus();
-                          }, 50);
-                        }}
-                      >
-                        {t('home.changeSchool')}
-                      </button>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="search"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.25, ease: EASING }}
-                  >
-                    <SchoolSearch schools={schools} onSelect={handleSelectSchool} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </Reveal>
+                          {t('home.changeSchool')}
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="search"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.25, ease: EASING }}
+                    >
+                      <SchoolSearch schools={schools} onSelect={handleSelectSchool} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </Reveal>
+            </div>
           </div>
         </div>
+
+        <Reveal delay={0.3}>
+          <ul className="hero-strip">
+            {HERO_PHOTOS.map((photo, idx) => (
+              <li key={photo.src} className={`hero-strip-item house-${idx % 4}`}>
+                <Link
+                  to={`/shop?cat=${encodeURIComponent(photo.category)}`}
+                  aria-label={categoryLabel(photo.category, t)}
+                  onMouseEnter={prefetchFlowPage}
+                >
+                  <img src={photo.src} alt="" width={240} height={240} loading={idx < 5 ? undefined : 'lazy'} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Reveal>
       </section>
 
       {/* 3. SHOP BY CATEGORY (Editorial Grid), on the one full-width highlight band */}
@@ -253,18 +287,24 @@ export function HomePage() {
         </Reveal>
       </section>
 
-      {/* 6. FOR SCHOOLS (Partner invitation band) */}
-      <section className="container section-wrap">
-        <Reveal>
-          <div className="for-schools-band">
-            <div className="for-schools-text">
-              <span className="label">Institutional Partnership</span>
-              <h3 className="for-schools-title">Partner your school with SchoolStore</h3>
-              <p className="for-schools-sub">
-                Simplify uniform distribution, custom stationery, and RFID cards for your student body with dedicated logistics.
-              </p>
-            </div>
-            <Link to="/for-schools" className="btn btn-outline">
+      {/* 6. FOR SCHOOLS: a full-width house-blue band, big heading left, the line and button right */}
+      <section className="for-schools-band">
+        <div className="house-stripe" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+        <Reveal className="container for-schools-inner">
+          <div className="for-schools-text">
+            <span className="label for-schools-label">Institutional Partnership</span>
+            <h3 className="for-schools-title">Partner your school with SchoolStore</h3>
+          </div>
+          <div className="for-schools-side">
+            <p className="for-schools-sub">
+              Simplify uniform distribution, custom stationery, and RFID cards for your student body with dedicated logistics.
+            </p>
+            <Link to="/for-schools" className="btn btn-lg for-schools-btn">
               Talk to us
             </Link>
           </div>

@@ -14,9 +14,9 @@ export const messages = {
   // ---------- common ----------
   'common.close': { en: 'Close', gu: 'બંધ કરો', hi: 'बंद करें' },
   'welcome.message': {
-    en: 'Welcome To Colorbenz',
-    gu: 'Colorbenz માં આપનું સ્વાગત છે',
-    hi: 'Colorbenz में आपका स्वागत है',
+    en: 'Welcome to SchoolStore',
+    gu: 'SchoolStore માં આપનું સ્વાગત છે',
+    hi: 'SchoolStore में आपका स्वागत है',
   },
   'common.tryAgain': { en: 'Try again', gu: 'ફરી પ્રયત્ન કરો', hi: 'फिर से कोशिश करें' },
   'common.checkInternet': {
