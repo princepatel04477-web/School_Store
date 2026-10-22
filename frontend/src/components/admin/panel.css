@@ -1,0 +1,929 @@
+/*
+ * Staff panels (boss, city admin, school admin).
+ * Everything is scoped to .admin so the store's own cards, badges and modals stay as they are.
+ * Same rules as the store: 1px borders instead of shadows, 3-6px corners, hover changes colour only.
+ */
+
+.admin {
+  --panel-top: 56px;
+  --panel-nav: 232px;
+  --panel-ink: var(--paper-raised);
+  --panel-soft: color-mix(in oklab, var(--paper-raised) 72%, var(--navy));
+  --panel-line: color-mix(in oklab, var(--paper-raised) 18%, var(--navy));
+  --panel-field: color-mix(in oklab, var(--paper-raised) 9%, var(--navy));
+  --ok: #1F7A4D;
+  --ok-tint: color-mix(in oklab, #1F7A4D 12%, white);
+  --warn: #8A5A00;
+  --warn-tint: color-mix(in oklab, #F4B400 18%, white);
+  --info: #24548F;
+  --info-tint: color-mix(in oklab, #2E5EAA 12%, white);
+  --bad-tint: color-mix(in oklab, #B42318 10%, white);
+
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--paper);
+  color: var(--ink);
+}
+
+/* ================== Top bar: navy, like the store's ================== */
+.admin .admin-top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: var(--panel-top);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-6);
+  background-color: var(--navy);
+  color: var(--panel-ink);
+  border: 0;
+}
+
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--panel-ink);
+  flex-shrink: 0;
+}
+
+.admin-brand .brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-md);
+  background-color: var(--paper-raised);
+  color: var(--navy);
+  font-size: 19px;
+}
+
+.admin-brand-name {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 800;
+  font-stretch: 112%;
+  letter-spacing: -0.02em;
+}
+
+.admin-divider {
+  width: 1px;
+  height: 22px;
+  background-color: var(--panel-line);
+  flex-shrink: 0;
+}
+
+.admin .admin-role {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--panel-soft);
+  white-space: nowrap;
+}
+
+.admin-context {
+  min-width: 0;
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--panel-line);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--panel-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The school picker sits on the navy bar */
+.admin .admin-context .school-switch {
+  height: 34px;
+  max-width: 320px;
+  padding: 0 var(--space-3);
+  background-color: var(--panel-field);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius-md);
+  color: var(--panel-ink);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.admin .admin-context .school-switch option {
+  color: var(--ink);
+}
+
+.admin-user {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.admin-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+  background-color: var(--panel-field);
+  border: 1px solid var(--panel-line);
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+.admin-username {
+  font-size: var(--text-sm);
+  color: var(--panel-soft);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-signout {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius-md);
+  color: var(--panel-ink);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.admin-signout:hover {
+  background-color: var(--panel-field);
+}
+
+/* ================== Sidebar ================== */
+.admin .admin-body {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+}
+
+.admin .admin-nav {
+  position: sticky;
+  top: var(--panel-top);
+  width: var(--panel-nav);
+  flex: 0 0 var(--panel-nav);
+  min-height: calc(100vh - var(--panel-top));
+  min-height: calc(100svh - var(--panel-top));
+  padding: var(--space-4) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background-color: var(--paper-raised);
+  border-right: 1px solid var(--line);
+}
+
+.admin .admin-nav a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.25;
+  transition: background-color var(--duration-fast) var(--ease-standard),
+              color var(--duration-fast) var(--ease-standard);
+}
+
+.admin .admin-nav a svg {
+  flex-shrink: 0;
+  color: var(--ink-faint);
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.admin .admin-nav a:hover {
+  background-color: var(--paper);
+  color: var(--ink);
+}
+
+.admin .admin-nav a.active {
+  background-color: color-mix(in oklab, var(--navy) 7%, white);
+  color: var(--navy);
+  font-weight: 600;
+}
+
+.admin .admin-nav a.active svg {
+  color: var(--navy);
+}
+
+/* A short navy bar on the left edge marks the open section */
+.admin .admin-nav a.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background-color: var(--navy);
+}
+
+.admin .admin-main {
+  flex: 1;
+  min-width: 0;
+  max-width: 1440px;
+  padding: var(--space-8) var(--space-8) var(--space-16);
+}
+
+/* ================== Page head ================== */
+.admin .page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-4) var(--space-6);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--line);
+}
+
+.admin .eyebrow {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.admin .page-head h1 {
+  margin: var(--space-1) 0 var(--space-1);
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 1.4rem + 1.2vw, 2.5rem);
+  font-weight: 800;
+  font-stretch: var(--stretch-condensed);
+  text-transform: uppercase;
+  letter-spacing: 0;
+  line-height: 1;
+  color: var(--navy);
+}
+
+.admin .page-head p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  max-width: 70ch;
+}
+
+/* ================== Form controls ================== */
+.admin .admin-main select,
+.admin .admin-main input[type='date'],
+.admin .admin-main input[type='text'],
+.admin .admin-main input[type='number'],
+.admin .admin-main input[type='search'],
+.admin .admin-main input[type='email'],
+.admin .admin-main input[type='password'],
+.admin .admin-main input[type='tel'],
+.admin .admin-main input:not([type]) {
+  min-height: 38px;
+  padding: 0 var(--space-3);
+  background-color: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.admin .admin-main select:hover,
+.admin .admin-main input:hover {
+  border-color: var(--ink-faint);
+}
+
+.admin .admin-main select:focus-visible,
+.admin .admin-main input:focus-visible {
+  outline: 2px solid var(--navy);
+  outline-offset: 1px;
+  border-color: var(--navy);
+}
+
+/* Buttons: navy primary, outlined secondary */
+.admin .primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 38px;
+  padding: 0 var(--space-4);
+  background-color: var(--navy);
+  border: 1px solid var(--navy);
+  border-radius: var(--radius-md);
+  color: var(--paper-raised);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.admin .primary:hover:not(:disabled) {
+  background-color: color-mix(in oklab, var(--navy) 82%, black);
+  border-color: color-mix(in oklab, var(--navy) 82%, black);
+}
+
+.admin .primary:active:not(:disabled) {
+  transform: none;
+}
+
+.admin .primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.admin .secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: auto;
+  min-height: 38px;
+  padding: 0 var(--space-4);
+  background-color: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.admin .secondary:hover:not(:disabled) {
+  border-color: var(--navy);
+}
+
+.admin .link-button,
+.admin .text-button,
+.admin .cell-link {
+  color: var(--info);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.admin .link-button:hover,
+.admin .cell-link:hover {
+  color: var(--navy);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ================== Stat tiles ================== */
+.admin .stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.admin .stat-grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin .stat-grid.four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin .stat-grid + .stat-grid {
+  margin-top: var(--space-3);
+}
+
+.admin .stat-grid .stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-4);
+  background-color: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.admin .stat-grid .stat span {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.admin .stat-grid .stat strong {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.625rem, 1.3rem + 1vw, 2.125rem);
+  font-weight: 700;
+  font-stretch: var(--stretch-numeric);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+  color: var(--ink);
+}
+
+.admin .stat-grid .stat small {
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+}
+
+/* The one headline number: navy */
+.admin .stat.accent {
+  background-color: var(--navy);
+  border-color: var(--navy);
+}
+
+.admin .stat.accent span,
+.admin .stat.accent small {
+  color: var(--panel-soft);
+}
+
+.admin .stat.accent strong {
+  color: var(--paper-raised);
+}
+
+/* ================== Cards ================== */
+.admin .card {
+  margin-top: var(--space-4);
+  background-color: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.admin .card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 52px;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.admin .card-head h2,
+.admin .card-head h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+.admin .card .pad,
+.admin .card .pad-tight {
+  padding: var(--space-4);
+}
+
+.admin .card .pad-tight {
+  padding-top: 0;
+}
+
+.admin .panel-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.admin .panel-grid > .card {
+  margin-top: 0;
+}
+
+/* Filter bar: a card of its own above the numbers */
+.admin .filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.admin .filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.admin .filters label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 38px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* A group of tick boxes in a filter bar (e.g. the tailor sheet's schools): plain row labels */
+.admin .filters fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  min-height: 38px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background-color: var(--paper-raised);
+}
+
+.admin .filters fieldset legend {
+  padding: 0 var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.admin .filters fieldset label {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+}
+
+.admin .card > .muted.pad-tight {
+  padding-top: var(--space-4);
+}
+
+/* ================== Tables ================== */
+.admin .table-scroll {
+  overflow-x: auto;
+}
+
+.admin table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.admin table.data th,
+.admin table.data td {
+  padding: 10px var(--space-4);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.admin table.data thead th {
+  position: sticky;
+  top: 0;
+  background-color: var(--paper);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.admin table.data tbody tr {
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.admin table.data tbody tr:hover {
+  background-color: color-mix(in oklab, var(--navy) 3%, white);
+}
+
+.admin table.data tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.admin table.data tfoot th {
+  border-top: 1px solid var(--ink-faint);
+  border-bottom: 0;
+  font-size: var(--text-sm);
+  background-color: var(--paper);
+}
+
+.admin table.data .r {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin table.data .mono {
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  color: var(--ink-soft);
+}
+
+.admin table.data small.gr {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+}
+
+/* ================== Status badges ================== */
+.admin .badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--paper-sunk);
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.admin .badge.s-delivered,
+.admin .badge.s-approved,
+.admin .badge.s-ready,
+.admin .badge.s-completed {
+  background-color: var(--ok-tint);
+  color: var(--ok);
+}
+
+.admin .badge.s-placed,
+.admin .badge.s-pending,
+.admin .badge.s-packed {
+  background-color: var(--warn-tint);
+  color: var(--warn);
+}
+
+.admin .badge.s-cancelled,
+.admin .badge.s-failed,
+.admin .badge.s-returned {
+  background-color: var(--bad-tint);
+  color: var(--danger);
+}
+
+.admin .badge.s-confirmed,
+.admin .badge.s-processing,
+.admin .badge.s-shipped,
+.admin .badge.s-dispatched,
+.admin .badge.s-validating,
+.admin .badge.s-importing,
+.admin .badge.s-queued,
+.admin .badge.s-running {
+  background-color: var(--info-tint);
+  color: var(--info);
+}
+
+.admin .rate-badge {
+  border-radius: var(--radius-sm);
+  background-color: var(--ok-tint);
+  color: var(--ok);
+}
+
+.admin .rate-badge.muted-badge {
+  background-color: var(--paper-sunk);
+  color: var(--ink-soft);
+}
+
+/* Two measures with different scales: two charts side by side, never two y-axes */
+.admin .chart-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin .chart-pair-item {
+  padding: var(--space-4);
+}
+
+.admin .chart-pair-item + .chart-pair-item {
+  border-left: 1px solid var(--line);
+}
+
+.admin .chart-pair-title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 860px) {
+  .admin .chart-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin .chart-pair-item + .chart-pair-item {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+
+/* Chart text in the panel's own ink */
+.admin .recharts-legend-item-text {
+  color: var(--ink-soft) !important;
+  font-size: var(--text-xs);
+}
+
+/* Share bars and small charts */
+.admin .share {
+  border-radius: var(--radius-sm);
+}
+
+.admin .share i {
+  border-radius: var(--radius-sm);
+  background-color: var(--navy);
+}
+
+.admin .bars .bar {
+  border-radius: 2px 2px 0 0;
+  background-color: color-mix(in oklab, var(--navy) 70%, white);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.admin .bars .bar:hover {
+  background-color: var(--navy);
+}
+
+.admin .progress i {
+  background-color: var(--navy);
+}
+
+/* ================== Notices, empty states ================== */
+.admin .notice {
+  border: 1px solid var(--line);
+  background-color: var(--paper-raised);
+  border-left: 3px solid var(--info);
+  border-radius: var(--radius-md);
+}
+
+.admin .notice b {
+  color: var(--navy);
+}
+
+.admin .empty {
+  background-color: var(--paper-raised);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-lg);
+  color: var(--ink-soft);
+}
+
+.admin .empty h3 {
+  font-family: var(--font-display);
+  color: var(--ink);
+}
+
+.admin .error {
+  border: 1px solid color-mix(in oklab, var(--danger) 30%, white);
+  background-color: var(--bad-tint);
+  border-radius: var(--radius-md);
+}
+
+/* ================== Modals ================== */
+.admin .modal-backdrop {
+  background-color: rgba(20, 33, 61, 0.5);
+}
+
+.admin .modal {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.admin .modal .card-head {
+  background-color: var(--paper);
+}
+
+.admin .modal .form-card label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.admin .modal .form-card input,
+.admin .modal .form-card select {
+  min-height: 40px;
+  padding: 0 var(--space-3);
+}
+
+.admin .icon-btn {
+  transform: none;
+  width: 36px;
+  height: 36px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  color: var(--ink-soft);
+}
+
+.admin .icon-btn:hover {
+  background-color: var(--paper);
+  color: var(--ink);
+}
+
+/* ================== Narrower screens ================== */
+@media (max-width: 1100px) {
+  .admin .panel-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin .stat-grid.three,
+  .admin .stat-grid.four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Phones and small tablets: the sidebar becomes a row of tabs under the top bar */
+@media (max-width: 860px) {
+  .admin {
+    --panel-top: 52px;
+  }
+  .admin .admin-top {
+    gap: var(--space-3);
+    padding: 0 var(--space-4);
+  }
+  .admin .admin-role,
+  .admin-divider,
+  .admin-username,
+  .admin-brand-name {
+    display: none;
+  }
+  .admin-context {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .admin .admin-context .school-switch {
+    max-width: 52vw;
+  }
+  .admin .admin-body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .admin .admin-nav {
+    top: var(--panel-top);
+    z-index: 15;
+    width: auto;
+    flex: none;
+    min-height: 0;
+    flex-direction: row;
+    gap: var(--space-1);
+    padding: 0 var(--space-3);
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .admin .admin-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .admin .admin-nav a {
+    min-height: 46px;
+    padding: 0 var(--space-3);
+    border-radius: 0;
+    white-space: nowrap;
+  }
+  .admin .admin-nav a.active {
+    background-color: transparent;
+  }
+  /* Phones: the marker moves to the bottom edge of the tab */
+  .admin .admin-nav a.active::before {
+    top: auto;
+    left: var(--space-2);
+    right: var(--space-2);
+    bottom: 0;
+    width: auto;
+    height: 3px;
+    border-radius: 2px 2px 0 0;
+  }
+  .admin .admin-main {
+    padding: var(--space-6) var(--space-4) var(--space-16);
+  }
+  .admin .page-head {
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-4);
+  }
+}
+
+@media (max-width: 520px) {
+  .admin .stat-grid,
+  .admin .stat-grid.three,
+  .admin .stat-grid.four {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .admin .stat-grid .stat {
+    padding: var(--space-3);
+  }
+  .admin .filters > * {
+    flex: 1 1 140px;
+  }
+  .admin .filters select,
+  .admin .filters input {
+    width: 100%;
+  }
+}

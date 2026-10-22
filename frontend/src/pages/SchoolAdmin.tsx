@@ -8,6 +8,8 @@ import {
   type ImportJob, type PanelOrder, type PanelSchool, type PanelStudent, type PanelTeacher,
   type StudentOrders,
 } from '../api';
+import { Overview as OverviewIcon, Receipt, User, Users, Download, Ruler } from '../components/ui/icons';
+import { PanelShell, type PanelNavItem } from '../components/admin/PanelShell';
 import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
 import { SizeChartManager } from '../components/admin/SizeChartManager';
 
@@ -21,17 +23,17 @@ const useSchool = () => useContext(SchoolContext);
 /* ------------------------------------------------------------------ *
  * Shell
  * ------------------------------------------------------------------ */
-const NAV = [
-  { to: '', label: 'Overview', end: true },
-  { to: 'orders', label: 'Orders' },
-  { to: 'students', label: 'Students' },
-  { to: 'teachers', label: 'Teachers' },
-  { to: 'exports', label: 'Exports' },
-  { to: 'size-charts', label: 'Size charts', roles: ['SCHOOL_ADMIN', 'BOSS'] },
+const NAV: (PanelNavItem & { roles?: string[] })[] = [
+  { to: '', label: 'Overview', icon: OverviewIcon, end: true },
+  { to: 'orders', label: 'Orders', icon: Receipt },
+  { to: 'students', label: 'Students', icon: User },
+  { to: 'teachers', label: 'Teachers', icon: Users },
+  { to: 'exports', label: 'Exports', icon: Download },
+  { to: 'size-charts', label: 'Size charts', icon: Ruler, roles: ['SCHOOL_ADMIN', 'BOSS'] },
 ];
 
 export default function SchoolAdmin() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const { data } = useQuery({ queryKey: ['panel-schools'], queryFn: () => panel.schools() });
   const schools = data?.results ?? [];
@@ -42,49 +44,36 @@ export default function SchoolAdmin() {
 
   return (
     <SchoolContext.Provider value={{ schoolId, setSchoolId, schools }}>
-      <div className="admin">
-        <header className="admin-top">
-          <Link to="/school" className="brand">
-            <span className="brand-mark">S</span>
-            <span>School<span className="ink">Store</span></span>
-          </Link>
-          <span className="admin-role">{ROLE_LABEL[user?.role ?? 'SCHOOL_ADMIN'] ?? user?.role}</span>
-          {schools.length > 1 && schoolId && (
+      <PanelShell
+        base="/school"
+        role={ROLE_LABEL[user?.role ?? 'SCHOOL_ADMIN'] ?? user?.role ?? ''}
+        context={
+          schools.length > 1 && schoolId ? (
             <select className="school-switch" value={schoolId} onChange={(e) => setSchoolId(e.target.value)}>
               {schools.map((s) => (
                 <option key={s.id} value={s.id}>{s.name} · {s.code}</option>
               ))}
             </select>
-          )}
-          {schools.length === 1 && <span className="school-tag">{schools[0]?.name}</span>}
-          <div className="header-right">
-            <span className="avatar">{user?.username?.slice(0, 1).toUpperCase()}</span>
-            <button className="icon-btn" onClick={signOut} aria-label="Sign out">↗</button>
-          </div>
-        </header>
-        <div className="admin-body">
-          <nav className="admin-nav">
-            {NAV.filter((n) => !n.roles || n.roles.includes(user?.role ?? '')).map((n) => (
-              <AdminNavLink key={n.to} to={n.to} end={n.end}><span>{n.label}</span></AdminNavLink>
-            ))}
-          </nav>
-          <main className="admin-main">
-            {schoolId ? (
-              <Routes>
-                <Route index element={<Overview />} />
-                <Route path="orders" element={<Orders />} />
-                <Route path="students" element={<Students />} />
-                <Route path="students/:id" element={<StudentDetail />} />
-                <Route path="teachers" element={<Teachers />} />
-                <Route path="exports" element={<Exports />} />
-                <Route path="size-charts" element={<SizeCharts />} />
-              </Routes>
-            ) : (
-              <div className="empty"><h3>No school in your scope</h3><p>Ask an admin to link your account to a school.</p></div>
-            )}
-          </main>
-        </div>
-      </div>
+          ) : schools.length === 1 ? (
+            schools[0]?.name
+          ) : null
+        }
+        nav={NAV.filter((n) => !n.roles || n.roles.includes(user?.role ?? ''))}
+      >
+        {schoolId ? (
+          <Routes>
+            <Route index element={<Overview />} />
+            <Route path="orders" element={<Orders />} />
+            <Route path="students" element={<Students />} />
+            <Route path="students/:id" element={<StudentDetail />} />
+            <Route path="teachers" element={<Teachers />} />
+            <Route path="exports" element={<Exports />} />
+            <Route path="size-charts" element={<SizeCharts />} />
+          </Routes>
+        ) : (
+          <div className="empty"><h3>No school in your scope</h3><p>Ask an admin to link your account to a school.</p></div>
+        )}
+      </PanelShell>
     </SchoolContext.Provider>
   );
 }
@@ -92,17 +81,6 @@ export default function SchoolAdmin() {
 const ROLE_LABEL: Record<string, string> = {
   BOSS: 'Boss', ADMIN: 'City admin', SCHOOL_ADMIN: 'School admin', TEACHER: 'Teacher', PARENT: 'Parent',
 };
-
-function AdminNavLink({ to, end, children }: { to: string; end?: boolean; children: ReactNode }) {
-  const { pathname } = useLocation();
-  const base = '/school';
-  const current = end ? pathname === base || pathname === `${base}/` : pathname.startsWith(`${base}/${to}`);
-  return (
-    <Link to={to ? `${base}/${to}` : base} className={current ? 'active' : ''}>
-      <i>{children}</i>
-    </Link>
-  );
-}
 
 /* ------------------------------------------------------------------ *
  * 1 + 7. Overview / dashboard

@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { X } from '../components/ui/icons';
-import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { X, Overview, BarChart as BarChartIcon, Users, SchoolBuilding, Eye, Ruler } from '../components/ui/icons';
+import { PanelShell, type PanelNavItem } from '../components/admin/PanelShell';
+import { Link, Route, Routes, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import { useAuth } from '../auth';
 import {
   bossPanel, cityAdmin, money, num,
   type BossCategoryPoint, type BossCityPoint, type BossFilterOptions,
@@ -16,70 +16,49 @@ import {
 import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
 import { SizeChartManager } from '../components/admin/SizeChartManager';
 
-const NAV = [
-  { to: '', label: 'Executive Overview', end: true },
-  { to: 'analytics', label: 'Detailed Charts' },
-  { to: 'management', label: 'Staff & Cities' },
-  { to: 'schools', label: 'School Commissions' },
-  { to: 'view-as', label: 'View As (Audit)' },
-  { to: 'size-charts', label: 'Size Charts' },
+const NAV: PanelNavItem[] = [
+  { to: '', label: 'Executive Overview', icon: Overview, end: true },
+  { to: 'analytics', label: 'Detailed Charts', icon: BarChartIcon },
+  { to: 'management', label: 'Staff & Cities', icon: Users },
+  { to: 'schools', label: 'School Commissions', icon: SchoolBuilding },
+  { to: 'view-as', label: 'View As (Audit)', icon: Eye },
+  { to: 'size-charts', label: 'Size Charts', icon: Ruler },
 ];
 
-const COLORS = ['#275b4c', '#f4a261', '#4b7c9e', '#9a7742', '#7fae97', '#e76f51', '#2a9d8f', '#e9c46a'];
+/**
+ * Chart colours: the store's house colours in an order that passes the colour-blind and
+ * contrast checks (dataviz validator, light surface). Revenue is always slot 1, profit slot 2.
+ * Yellow is under 3:1 on white, so every chart that uses it keeps its legend.
+ */
+const COLORS = ['#2E5EAA', '#E0A100', '#D7263D', '#13896F', '#E0703A', '#5C88D6'];
+const REVENUE = COLORS[0];
+const PROFIT = COLORS[1];
+const GRID = '#DCE0E5';
+const TICK = { fontSize: 11, fill: '#545C66' };
+const TOOLTIP_STYLE = { border: '1px solid #DCE0E5', borderRadius: 4, boxShadow: 'none', fontSize: 12 };
+
+/** Each shop category keeps its own colour, whatever order the data comes in. */
+const CATEGORY_ORDER = ['Uniform', 'School Shoes', 'Uniform Accessories', 'Stationery', 'ID Cards'];
+const categoryColor = (name: string) => {
+  const slot = CATEGORY_ORDER.indexOf(name);
+  return COLORS[slot >= 0 ? slot : COLORS.length - 1];
+};
 
 export default function BossPanel() {
-  const { user, signOut } = useAuth();
-
   return (
-    <div className="admin">
-      <header className="admin-top">
-        <Link to="/boss" className="brand">
-          <span className="brand-mark">S</span>
-          <span>School<span className="ink">Store</span></span>
-        </Link>
-        <span className="admin-role" style={{ background: '#fdf1dd', color: '#8a6524', padding: '3px 8px', borderRadius: '4px' }}>
-          Owner / Boss Executive
-        </span>
-        <span className="school-tag">Global Business View</span>
-        <div className="header-right">
-          <span className="avatar" style={{ background: '#275b4c', color: 'white' }}>
-            {user?.username?.slice(0, 1).toUpperCase()}
-          </span>
-          <button className="icon-btn" onClick={signOut} aria-label="Sign out">↗</button>
-        </div>
-      </header>
-
-      <div className="admin-body">
-        <nav className="admin-nav">
-          {NAV.map((n) => (
-            <BossNavLink key={n.to} to={n.to} end={n.end}><span>{n.label}</span></BossNavLink>
-          ))}
-        </nav>
-        <main className="admin-main">
-          <Routes>
-            <Route index element={<BossOverviewView />} />
-            <Route path="analytics" element={<BossAnalyticsChartsView />} />
-            <Route path="management" element={<BossStaffManagementView />} />
-            <Route path="schools" element={<BossSchoolsCommissionView />} />
-            <Route path="view-as" element={<BossViewAsView />} />
-            <Route path="size-charts" element={<BossSizeChartsView />} />
-          </Routes>
-        </main>
-      </div>
-    </div>
+    <PanelShell base="/boss" role="Owner / Boss Executive" context="Global Business View" nav={NAV}>
+      <Routes>
+        <Route index element={<BossOverviewView />} />
+        <Route path="analytics" element={<BossAnalyticsChartsView />} />
+        <Route path="management" element={<BossStaffManagementView />} />
+        <Route path="schools" element={<BossSchoolsCommissionView />} />
+        <Route path="view-as" element={<BossViewAsView />} />
+        <Route path="size-charts" element={<BossSizeChartsView />} />
+      </Routes>
+    </PanelShell>
   );
 }
 
-function BossNavLink({ to, end, children }: { to: string; end?: boolean; children: ReactNode }) {
-  const { pathname } = useLocation();
-  const base = '/boss';
-  const current = end ? pathname === base || pathname === `${base}/` : pathname.startsWith(`${base}/${to}`);
-  return (
-    <Link to={to ? `${base}/${to}` : base} className={current ? 'active' : ''}>
-      <i>{children}</i>
-    </Link>
-  );
-}
 
 /* ------------------------------------------------------------------ *
  * Reusable Filters Bar for Boss Panel
@@ -259,7 +238,7 @@ function BossOverviewView() {
         </div>
         <div className="stat">
           <span>GROSS PROFIT</span>
-          <strong style={{ color: '#275b4c' }}>{money(kpis?.gross_profit)}</strong>
+          <strong>{money(kpis?.gross_profit)}</strong>
           <small>Revenue − Cost</small>
         </div>
         <div className="stat">
@@ -304,23 +283,13 @@ function BossOverviewView() {
             {trendData && trendData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trendData}>
-                  <defs>
-                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#275b4c" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#275b4c" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f4a261" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#f4a261" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#dfe5dd" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${Number(v).toLocaleString('en-IN')}`} />
-                  <Tooltip formatter={(value: any) => [money(value), '']} />
+                  <CartesianGrid vertical={false} stroke={GRID} />
+                  <XAxis dataKey="date" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} />
+                  <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${Number(v).toLocaleString('en-IN')}`} />
+                  <Tooltip formatter={(value: any) => [money(value), '']} contentStyle={TOOLTIP_STYLE} cursor={{ stroke: GRID }} />
                   <Legend />
-                  <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#275b4c" fillOpacity={1} fill="url(#colorRev)" />
-                  <Area type="monotone" dataKey="profit" name="Profit" stroke="#f4a261" fillOpacity={1} fill="url(#colorProfit)" />
+                  <Area type="monotone" dataKey="revenue" name="Revenue" stroke={REVENUE} strokeWidth={2} fill={REVENUE} fillOpacity={0.1} />
+                  <Area type="monotone" dataKey="profit" name="Profit" stroke={PROFIT} strokeWidth={2} fill={PROFIT} fillOpacity={0.12} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
@@ -340,20 +309,22 @@ function BossOverviewView() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={catData}
+                    /* Money arrives as a string; the donut sums its slices, so it needs numbers */
+                    data={catData.map((c) => ({ ...c, revenue: Number(c.revenue) }))}
                     dataKey="revenue"
                     nameKey="name"
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
                     outerRadius={95}
-                    paddingAngle={3}
+                    stroke="#FFFFFF"
+                    strokeWidth={2}
                   >
-                    {catData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {catData.map((c) => (
+                      <Cell key={c.category_id} fill={categoryColor(c.name)} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(val: any) => [money(val), 'Revenue']} />
+                  <Tooltip formatter={(val: any) => [money(val), 'Revenue']} contentStyle={TOOLTIP_STYLE} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -373,14 +344,14 @@ function BossOverviewView() {
         <div style={{ height: '260px', padding: '16px' }}>
           {cityData && cityData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={cityData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#dfe5dd" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${Number(v).toLocaleString('en-IN')}`} />
-                <Tooltip formatter={(val: any) => [money(val), '']} />
+              <BarChart data={cityData} barGap={2}>
+                <CartesianGrid vertical={false} stroke={GRID} />
+                <XAxis dataKey="name" tick={{ ...TICK, fontSize: 12 }} tickLine={false} axisLine={{ stroke: GRID }} />
+                <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${Number(v).toLocaleString('en-IN')}`} />
+                <Tooltip formatter={(val: any) => [money(val), '']} contentStyle={TOOLTIP_STYLE} cursor={{ fill: '#F1F3F5' }} />
                 <Legend />
-                <Bar dataKey="revenue" name="Revenue" fill="#275b4c" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="profit" name="Profit" fill="#f4a261" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="revenue" name="Revenue" fill={REVENUE} radius={[4, 4, 0, 0]} maxBarSize={56} />
+                <Bar dataKey="profit" name="Profit" fill={PROFIT} radius={[4, 4, 0, 0]} maxBarSize={56} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -440,11 +411,11 @@ function BossAnalyticsChartsView() {
             {topSchools && topSchools.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={topSchools} layout="vertical" margin={{ left: 40, right: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#dfe5dd" />
-                  <XAxis type="number" tickFormatter={(v) => `₹${Number(v).toLocaleString('en-IN')}`} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={120} />
-                  <Tooltip formatter={(v: any) => [money(v), 'Revenue']} />
-                  <Bar dataKey="revenue" fill="#275b4c" radius={[0, 4, 4, 0]} />
+                  <CartesianGrid horizontal={false} stroke={GRID} />
+                  <XAxis type="number" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} tickFormatter={(v) => `₹${Number(v).toLocaleString('en-IN')}`} />
+                  <YAxis type="category" dataKey="name" tick={TICK} tickLine={false} axisLine={false} width={120} interval={0} />
+                  <Tooltip formatter={(v: any) => [money(v), 'Revenue']} contentStyle={TOOLTIP_STYLE} cursor={{ fill: '#F1F3F5' }} />
+                  <Bar dataKey="revenue" fill={REVENUE} radius={[0, 4, 4, 0]} maxBarSize={22} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -463,11 +434,11 @@ function BossAnalyticsChartsView() {
             {topProducts && topProducts.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={topProducts} layout="vertical" margin={{ left: 40, right: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#dfe5dd" />
-                  <XAxis type="number" />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={130} />
-                  <Tooltip formatter={(v: any) => [num(v), 'Units Sold']} />
-                  <Bar dataKey="units" fill="#4b7c9e" radius={[0, 4, 4, 0]} />
+                  <CartesianGrid horizontal={false} stroke={GRID} />
+                  <XAxis type="number" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} />
+                  <YAxis type="category" dataKey="name" tick={TICK} tickLine={false} axisLine={false} width={130} interval={0} />
+                  <Tooltip formatter={(v: any) => [num(v), 'Units Sold']} contentStyle={TOOLTIP_STYLE} cursor={{ fill: '#F1F3F5' }} />
+                  <Bar dataKey="units" fill={REVENUE} radius={[0, 4, 4, 0]} maxBarSize={22} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -483,24 +454,39 @@ function BossAnalyticsChartsView() {
           <h2>Stock Level &amp; Valuation by Category</h2>
           <span className="badge s-delivered">On-hand Inventory</span>
         </div>
-        <div style={{ height: '280px', padding: '16px' }}>
-          {stockCats && stockCats.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stockCats}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#dfe5dd" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis yAxisId="left" orientation="left" tick={{ fontSize: 11 }} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${Number(v).toLocaleString('en-IN')}`} />
-                <Tooltip formatter={(v: any, name: any) => [name === 'Stock Value' ? money(v) : num(v), name]} />
-                <Legend />
-                <Bar yAxisId="left" dataKey="units" name="Units on Hand" fill="#2a9d8f" radius={[4, 4, 0, 0]} />
-                <Bar yAxisId="right" dataKey="stock_value" name="Stock Value" fill="#f4a261" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
+        {stockCats && stockCats.length > 0 ? (
+          /* Units and rupees have different scales, so each gets its own chart (never two y-axes) */
+          <div className="chart-pair">
+            {([
+              { key: 'units', name: 'Units on Hand', format: (v: any) => num(v) },
+              { key: 'stock_value', name: 'Stock Value', format: (v: any) => money(v) },
+            ] as const).map((m) => (
+              <div key={m.key} className="chart-pair-item">
+                <h3 className="chart-pair-title">{m.name}</h3>
+                <div style={{ height: '240px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stockCats}>
+                      <CartesianGrid vertical={false} stroke={GRID} />
+                      <XAxis dataKey="name" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} interval={0} />
+                      <YAxis
+                        tick={TICK}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={m.key === 'stock_value' ? (v) => `₹${Number(v).toLocaleString('en-IN')}` : undefined}
+                      />
+                      <Tooltip formatter={(v: any) => [m.format(v), m.name]} contentStyle={TOOLTIP_STYLE} cursor={{ fill: '#F1F3F5' }} />
+                      <Bar dataKey={m.key} name={m.name} fill={REVENUE} radius={[4, 4, 0, 0]} maxBarSize={48} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="pad">
             <div className="empty slim">No stock records found.</div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1052,7 +1038,7 @@ function BossViewAsView() {
                     padding: '10px 14px',
                     border: '1px solid var(--line)',
                     borderRadius: '4px',
-                    background: '#fafbf8',
+                    background: 'var(--paper)',
                   }}
                 >
                   <div>
@@ -1088,7 +1074,7 @@ function BossViewAsView() {
                     padding: '10px 14px',
                     border: '1px solid var(--line)',
                     borderRadius: '4px',
-                    background: '#fafbf8',
+                    background: 'var(--paper)',
                   }}
                 >
                   <div>

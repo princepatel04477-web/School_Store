@@ -74,9 +74,9 @@ html :is(.link-button, .text-button, .action-signin-link, .back, .cell-link, .bt
     background-color: var(--paper-sunk);
   }
 
-  /* Icon buttons get a tinted square */
+  /* Icon buttons on the navy header get a lighter navy square */
   html :is(.mobile-menu-trigger, .action-account-btn):hover {
-    background-color: var(--paper-sunk);
+    background-color: var(--bar-field);
   }
 
   /* Admin filter chips take the brand colour on hover */

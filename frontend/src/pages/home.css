@@ -10,28 +10,108 @@
 .hero-section {
   position: relative;
   z-index: 2;
-  padding-top: var(--space-16);
-  padding-bottom: var(--space-8); /* 32px under the search */
+  padding-top: var(--space-12);
+  padding-bottom: var(--space-8);
 }
 
 @media (min-width: 1024px) {
   .hero-section {
+    padding-top: var(--space-12);
     padding-bottom: 56px;
   }
 }
 
-/* Single column: headline, one line, search, steps */
-.hero-grid {
+/* Under the headline: the line and the school search. Side by side on wide screens. */
+.hero-row {
+  position: relative;
+  z-index: 2; /* the school list opens over the photo strip */
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  max-width: 760px;
+  gap: var(--space-6);
 }
 
-/* Stretch so the search box can take its full width; text keeps its own measure */
-.hero-left {
+@media (min-width: 1024px) {
+  .hero-row {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: var(--space-16);
+    align-items: end;
+  }
+}
+
+.hero-action {
+  min-width: 0;
+  max-width: 640px;
+}
+
+@media (min-width: 1024px) {
+  .hero-action {
+    justify-self: end;
+    width: 100%;
+  }
+}
+
+/* Real product photos, edge to edge. Phones swipe through them; wide screens show
+   as many as fit and the rest run off the edge. */
+.hero-strip {
+  list-style: none;
+  margin: var(--space-12) 0 0;
+  /* Starts in line with the text above, then runs to the right edge */
+  --strip-start: max(var(--gutter), calc((100% - var(--max-width)) / 2 + var(--gutter)));
+  padding: 0 var(--gutter) 0 var(--strip-start);
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  gap: var(--space-3);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--strip-start) var(--gutter);
+  scrollbar-width: none;
+}
+
+.hero-strip::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .hero-strip {
+    margin-top: 56px;
+    padding-right: 0;
+    gap: var(--space-4);
+    overflow: hidden;
+  }
+}
+
+.hero-strip-item {
+  --tile: var(--house-red);
+  flex: 0 0 clamp(132px, 38vw, 220px);
+  scroll-snap-align: start;
+  border-top: 4px solid var(--tile);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--paper-raised);
+}
+
+.hero-strip-item.house-1 { --tile: var(--house-blue); }
+.hero-strip-item.house-2 { --tile: var(--house-green); }
+.hero-strip-item.house-3 { --tile: var(--house-yellow); }
+
+.hero-strip-item a {
+  display: block;
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.hero-strip-item a:hover {
+  border-color: var(--tile);
+}
+
+.hero-strip-item img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  background-color: var(--paper-sunk);
 }
 
 /* Sports-day voice: tall condensed caps */
@@ -45,6 +125,13 @@
   letter-spacing: 0.005em;
   margin-bottom: var(--space-6);
   color: var(--navy);
+}
+
+/* Wide screens: sized so the first line fits on one line and the photo strip shows on the first screen */
+@media (min-width: 1024px) {
+  .hero-heading {
+    font-size: clamp(4rem, 6.4vw, 6.25rem);
+  }
 }
 
 /* Each line balances its own wrap; the payoff line takes the house red */
@@ -85,14 +172,8 @@
   font-size: var(--text-lg);
   color: var(--ink-soft);
   max-width: 46ch;
-  margin-bottom: var(--space-6); /* 24px to the search */
+  margin: 0;
   line-height: 1.6;
-}
-
-@media (min-width: 1024px) {
-  .hero-subtext {
-    margin-bottom: 40px;
-  }
 }
 
 /* Hero Selected State */
@@ -385,35 +466,80 @@
 }
 
 /* ================== For Schools Band ================== */
+/* Full width, house blue, the last thing before the footer */
 .for-schools-band {
-  background-color: var(--brand-tint);
-  border: 1px solid color-mix(in oklab, var(--brand) 20%, transparent);
-  border-radius: var(--radius-lg);
-  padding: var(--space-8) var(--space-12);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  align-items: flex-start;
-  justify-content: space-between;
+  margin-top: calc(var(--section-gap) / 2);
+  background-color: var(--house-blue);
+  color: var(--paper-raised);
 }
 
-@media (min-width: 768px) {
-  .for-schools-band {
-    flex-direction: row;
-    align-items: center;
+.for-schools-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-8);
+  padding-block: clamp(48px, 7vw, 96px);
+}
+
+@media (min-width: 1024px) {
+  .for-schools-inner {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: var(--space-16);
+    align-items: end;
   }
 }
 
+.for-schools-label {
+  display: block;
+  color: color-mix(in oklab, var(--paper-raised) 80%, var(--house-blue));
+  margin-bottom: var(--space-4);
+}
+
 .for-schools-title {
-  font-size: var(--text-2xl);
-  color: var(--brand-deep);
-  margin-top: var(--space-1);
-  margin-bottom: var(--space-2);
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: var(--stretch-condensed);
+  text-transform: uppercase;
+  font-size: clamp(2.5rem, 1.5rem + 4.4vw, 5rem);
+  line-height: 0.92;
+  color: var(--paper-raised);
+  text-wrap: balance;
+}
+
+.for-schools-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-6);
+  padding-top: var(--space-6);
+  border-top: 1px solid color-mix(in oklab, var(--paper-raised) 30%, var(--house-blue));
 }
 
 .for-schools-sub {
-  font-size: var(--text-base);
-  color: var(--ink-soft);
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: 1.55;
+  color: color-mix(in oklab, var(--paper-raised) 88%, var(--house-blue));
+  max-width: 44ch;
+}
+
+/* Paper button on the blue band; hover turns it house yellow (colour only) */
+.for-schools-btn {
+  background-color: var(--paper-raised);
+  color: var(--navy);
+  border-color: var(--paper-raised);
+  font-weight: 700;
+}
+
+.for-schools-btn:hover {
+  background-color: var(--house-yellow);
+  border-color: var(--house-yellow);
+  color: var(--on-house-yellow);
+}
+
+/* The band sits right on top of the footer: no gap between them */
+body:has(.home-page) .site-footer {
+  margin-top: 0;
 }
 
 /* ================== House colours (home page only) ================== */

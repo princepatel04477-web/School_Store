@@ -17,28 +17,129 @@
   top: var(--space-4);
 }
 
+/* ================== Navy header block ================== */
+/* The utility bar and the main bar are store navy on every page, whatever school
+   is picked, with white text. These tokens keep the two in step. */
+.utility-bar,
+.site-header {
+  --bar-ink: var(--paper-raised);
+  --bar-soft: color-mix(in oklab, var(--paper-raised) 74%, var(--navy));
+  --bar-line: color-mix(in oklab, var(--paper-raised) 18%, var(--navy));
+  --bar-field: color-mix(in oklab, var(--paper-raised) 9%, var(--navy));
+}
+
+/* ================== Utility bar ================== */
+/* A thin line of small links above the main bar, a shade deeper. It scrolls away with the page. */
+.utility-bar {
+  background-color: color-mix(in oklab, var(--navy) 82%, black);
+  font-size: var(--text-xs);
+  color: var(--bar-soft);
+}
+
+.utility-inner {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.utility-lang {
+  background: none;
+  border: 0;
+  padding: var(--space-2) 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.utility-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.utility-link {
+  color: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.utility-lang:hover,
+.utility-link:hover {
+  color: var(--bar-ink);
+}
+
+.utility-phone {
+  white-space: nowrap;
+  padding-left: var(--space-6);
+  border-left: 1px solid var(--bar-line);
+}
+
+.utility-phone a {
+  color: var(--bar-ink);
+  font-weight: 600;
+}
+
+/* The picked school, at the start of the utility links */
+.selected-school-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px var(--space-6) 2px 0;
+  border-right: 1px solid var(--bar-line);
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* One slow pulse when a school is picked, to confirm the choice */
+.selected-school-pill.is-confirming {
+  animation: pill-confirm 1.6s var(--ease-retint) 1;
+}
+
+@keyframes pill-confirm {
+  0%   { background-color: var(--highlight-glow); }
+  100% { background-color: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selected-school-pill.is-confirming {
+    animation: none;
+  }
+}
+
+.pill-school-info {
+  font-weight: 500;
+  color: var(--bar-ink);
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pill-change-link {
+  color: var(--bar-ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  flex-shrink: 0;
+}
+
 /* ================== Header ================== */
+/* 60px everywhere: the shop's sticky category tabs sit right under it (flow.css) */
 .site-header {
   position: sticky;
   top: 0;
   left: 0;
   right: 0;
-  /* The container sets the gutter; this cancels the old global header padding in styles.css */
   padding-inline: 0;
-  height: 72px;
-  background-color: var(--paper);
-  z-index: 40;
-  transition: height var(--duration-fast) var(--ease-standard),
-              background-color var(--duration-fast) var(--ease-standard),
-              border-color var(--duration-fast) var(--ease-standard),
-              box-shadow var(--duration-fast) var(--ease-standard);
-  border-bottom: 1px solid transparent;
-}
-
-.site-header.is-scrolled {
   height: 60px;
-  background-color: var(--paper);
-  border-bottom: 1px solid var(--line);
+  background-color: var(--navy);
+  color: var(--bar-ink);
+  z-index: 40;
 }
 
 .header-inner {
@@ -50,9 +151,10 @@
 }
 
 .brand-group {
+  height: 100%;
   display: flex;
   align-items: center;
-  gap: clamp(8px, 1.2vw, 16px);
+  gap: clamp(12px, 1.6vw, 24px);
   min-width: 0;
   flex-shrink: 1;
 }
@@ -72,9 +174,20 @@
   color: var(--ink);
 }
 
+/* On the navy bar the mark turns white with a navy letter, and the wordmark white */
+.site-header .site-brand .brand-mark {
+  background-color: var(--paper-raised);
+  color: var(--navy);
+}
+
+.site-header .brand-wordmark {
+  color: var(--bar-ink);
+}
+
 /* The logo stays store navy on every page, whatever school is picked.
-   Scoped to .site-brand so the older .brand-mark rule in styles.css can't win. */
-.site-brand .brand-mark {
+   Scoped so the older .brand-mark rule in styles.css can't win. */
+.site-brand .brand-mark,
+.footer-brand .brand-mark {
   flex-shrink: 0;
   background-color: var(--navy);
   color: var(--paper-raised);
@@ -101,107 +214,60 @@
   color: var(--navy);
 }
 
-.selected-school-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  background-color: var(--paper-raised);
-  border: 1px solid var(--highlight);
-  padding: 4px var(--space-3);
-  border-radius: var(--radius-full);
-  font-size: var(--text-xs);
-  white-space: nowrap;
-  flex-shrink: 1;
-  min-width: 0;
-}
-
-/* One slow pulse when a school is picked, to confirm the choice */
-.selected-school-pill.is-confirming {
-  animation: pill-confirm 1.6s var(--ease-retint) 1;
-}
-
-@keyframes pill-confirm {
-  0%   { outline: 4px solid var(--highlight-glow); outline-offset: 2px; }
-  100% { outline: 4px solid transparent; outline-offset: 2px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .selected-school-pill.is-confirming {
-    animation: none;
-  }
-}
-
-.pill-school-info {
-  font-weight: 500;
-  color: var(--ink);
-  max-width: clamp(100px, 12vw, 170px);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.pill-change-link {
-  color: var(--brand);
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  white-space: nowrap;
+/* Hairline between the brand and the categories */
+.header-divider {
+  display: none;
+  width: 1px;
+  height: 24px;
+  background-color: var(--bar-line);
   flex-shrink: 0;
 }
 
-/* Desktop nav */
+/* Desktop categories: full-height tabs, the active one underlined on the header's edge */
 .desktop-nav {
   display: none;
-  align-items: center;
-  gap: clamp(4px, 0.8vw, 10px);
+  height: 100%;
+  align-items: stretch;
+  gap: clamp(12px, 1.4vw, 24px);
   white-space: nowrap;
   flex-shrink: 0;
-  position: relative;
 }
 
 .nav-link {
   position: relative;
-  font-family: var(--font-body);
-  font-size: clamp(0.8125rem, 0.85vw, 0.9375rem);
-  font-weight: 500;
-  color: var(--ink-soft);
-  text-decoration: none;
-  padding: 6px 14px;
-  border-radius: var(--radius-full);
   display: flex;
-  flex-direction: column;
   align-items: center;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--bar-soft);
+  text-decoration: none;
   white-space: nowrap;
-  flex-shrink: 0;
   transition: color var(--duration-fast) var(--ease-standard);
 }
 
+.nav-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background-color: transparent;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
 .nav-link:hover {
-  color: var(--brand);
+  color: var(--bar-ink);
 }
 
 .nav-link.is-active {
-  color: var(--brand);
+  color: var(--bar-ink);
+  font-weight: 600;
 }
 
-.nav-active-pill {
-  position: absolute;
-  inset: 0;
-  background-color: var(--brand-tint);
-  border: 1px solid color-mix(in oklab, var(--brand) 15%, transparent);
-  border-radius: var(--radius-full);
-  z-index: 0;
-}
-
-.nav-link span {
-  position: relative;
-  z-index: 1;
-}
-
-.nav-thread {
-  position: absolute;
-  bottom: 2px;
-  z-index: 1;
+.nav-link.is-active::after {
+  background-color: var(--bar-ink);
 }
 
 /* Actions right */
@@ -213,13 +279,40 @@
   white-space: nowrap;
 }
 
+/* Reads as a search field; opens the school search */
+.header-search-field {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  width: clamp(150px, 14vw, 210px);
+  height: 40px;
+  padding: 0 var(--space-3);
+  background-color: var(--bar-field);
+  border: 1px solid var(--bar-line);
+  border-radius: var(--radius-md);
+  color: var(--bar-soft);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.header-search-field svg {
+  color: var(--bar-soft);
+  flex-shrink: 0;
+}
+
+.header-search-field:hover {
+  border-color: var(--bar-soft);
+}
+
 .action-icon-btn {
   background: transparent;
   border: none;
-  color: var(--ink);
+  color: var(--bar-ink);
   width: 44px;
   height: 44px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   display: inline-grid;
   place-items: center;
   cursor: pointer;
@@ -229,23 +322,23 @@
 }
 
 .action-icon-btn:hover {
-  background-color: var(--paper-sunk);
+  background-color: var(--bar-field);
 }
 
 .action-signin-link {
   font-size: var(--text-sm);
   font-weight: 600;
-  color: var(--brand);
+  color: var(--bar-ink);
   padding: var(--space-2) var(--space-3);
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .action-account-btn {
-  color: var(--ink);
+  color: var(--bar-ink);
   width: 44px;
   height: 44px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   display: inline-grid;
   place-items: center;
 }
@@ -259,8 +352,9 @@
   top: 4px;
   right: 4px;
   /* Ink, not --highlight: the count is 11px white text */
-  background-color: var(--highlight-ink);
-  color: var(--paper-raised);
+  /* White on the navy bar, with a navy number */
+  background-color: var(--paper-raised);
+  color: var(--navy);
   font-size: 11px;
   font-weight: 600;
   min-width: 18px;
@@ -285,135 +379,185 @@
 }
 
 .mobile-menu-trigger {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   background: transparent;
   border: none;
-  color: var(--ink);
+  border-radius: var(--radius-md);
+  color: var(--bar-ink);
   width: 44px;
   height: 44px;
   cursor: pointer;
 }
 
-/* Mobile sheet */
-.mobile-menu-backdrop {
+/* ================== Phone menu: full screen ================== */
+.mobile-menu-sheet {
   position: fixed;
   inset: 0;
-  background-color: rgba(21, 24, 30, 0.4);
   z-index: 100;
-  display: flex;
-}
-
-.mobile-menu-sheet {
-  width: min(340px, 85vw);
-  height: 100%;
   background-color: var(--paper);
-  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
-  padding: var(--space-6);
   overflow-y: auto;
 }
 
 .sheet-top {
+  height: 60px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-8);
+  border-bottom: 1px solid var(--line);
 }
 
 .sheet-close-btn {
   background: transparent;
   border: none;
+  border-radius: var(--radius-md);
   color: var(--ink);
   width: 44px;
   height: 44px;
+  margin-right: -10px;
   display: grid;
   place-items: center;
   cursor: pointer;
 }
 
+.sheet-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--space-8);
+}
+
 .sheet-nav-links {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  flex: 1;
 }
 
 .sheet-nav-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: 2.25rem 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  font-family: var(--font-display);
-  font-size: var(--text-xl);
-  font-weight: 500;
-  color: var(--ink);
+  gap: var(--space-3);
+  min-height: 64px;
+  color: var(--navy);
   text-decoration: none;
-  padding: var(--space-2) 0;
   border-bottom: 1px solid var(--line);
+  transition: color var(--duration-fast) var(--ease-standard);
 }
 
-.sheet-divider {
-  height: 1px;
-  background-color: var(--line);
-  margin: var(--space-4) 0;
+.sheet-nav-item:hover {
+  color: var(--brand);
+}
+
+.sheet-index {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+}
+
+.sheet-nav-label {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  font-stretch: var(--stretch-condensed);
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.sheet-nav-item svg {
+  color: var(--ink-soft);
+}
+
+/* Smaller links: two columns of plain rows */
+.sheet-secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: var(--space-4);
+  padding-top: var(--space-4);
 }
 
 .sheet-secondary-item {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
   font-size: var(--text-base);
   color: var(--ink-soft);
   text-decoration: none;
-  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--line);
+  transition: color var(--duration-fast) var(--ease-standard);
 }
 
 .sheet-secondary-item:hover {
   color: var(--brand);
 }
 
-.sheet-footer {
-  margin-top: auto;
-  padding-top: var(--space-6);
-  border-top: 1px solid var(--line);
+.sheet-lang-item {
+  grid-column: 1 / -1;
+  background: none;
+  border-width: 0 0 1px;
+  border-style: solid;
+  border-color: var(--line);
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  font-size: var(--text-base);
+  cursor: pointer;
 }
 
-.sheet-support-row {
+.sheet-footer {
+  margin-top: auto;
+  padding-top: var(--space-8);
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
 .sheet-contact-link {
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
   color: var(--brand);
+}
+
+/* ================== Breakpoints ================== */
+.action-search-btn {
+  display: inline-grid;
 }
 
 @media (max-width: 1023px) {
   .mobile-menu-trigger {
     display: inline-grid;
   }
-  .desktop-nav {
-    display: none !important;
-  }
 }
 
 @media (min-width: 1024px) {
-  .mobile-menu-trigger {
-    display: none !important;
+  .header-divider {
+    display: block;
   }
   .desktop-nav {
     display: flex;
   }
+  .header-search-field {
+    display: inline-flex;
+  }
+  .action-search-btn {
+    display: none;
+  }
 }
 
 @media (max-width: 640px) {
-  .site-header {
-    height: 60px;
-  }
-  .selected-school-pill {
+  /* Phones: the language line only. Size guide, help and the school live in the menu. */
+  .utility-right {
     display: none;
   }
-  /* Sign in and My Account live in the menu drawer on phones. Search stays:
+  .utility-inner {
+    min-height: 32px;
+  }
+  /* Sign in and My Account live in the menu on phones. Search stays:
      it opens the full-screen school search. */
   .action-signin-link,
   .action-account-btn {
@@ -425,8 +569,7 @@
   .header-actions {
     gap: 0;
   }
-  /* Four 44px buttons and the wordmark don't fit at 360px. Keep the touch targets
-     and let the outer two reach into the side gutter; their icons stay inset. */
+  /* Keep the 44px touch targets and let the outer two reach into the side gutter */
   .mobile-menu-trigger {
     margin-left: -12px;
   }
@@ -442,61 +585,129 @@
 }
 
 /* ================== Footer ================== */
+/* Store navy on every page. Columns sit between hairlines, the wordmark runs full width. */
 .site-footer {
-  background-color: var(--paper-sunk);
-  border-top: 1px solid var(--line);
+  --footer-ink: var(--paper-raised);
+  --footer-soft: color-mix(in oklab, var(--paper-raised) 72%, var(--navy));
+  --footer-line: color-mix(in oklab, var(--paper-raised) 16%, var(--navy));
+  background-color: var(--navy);
+  color: var(--footer-soft);
   padding-top: var(--space-16);
-  padding-bottom: var(--space-8);
+  padding-bottom: var(--space-6);
   margin-top: calc(var(--section-gap) / 2);
 }
 
+.footer-top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding-bottom: var(--space-12);
+}
+
+@media (min-width: 768px) {
+  .footer-top {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+}
+
+.footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  text-decoration: none;
+}
+
+/* On navy the mark turns paper with a navy letter */
+.footer-brand .brand-mark {
+  background-color: var(--paper-raised);
+  color: var(--navy);
+}
+
+.footer-brand-name {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  font-stretch: 112%;
+  letter-spacing: -0.02em;
+  color: var(--footer-ink);
+}
+
+.footer-contact {
+  max-width: 420px;
+}
+
+/* Phones: Shop and Help side by side, About us under them */
 .footer-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-8);
-  margin-bottom: var(--space-12);
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid var(--footer-line);
+}
+
+.footer-col {
+  padding: var(--space-6) 0;
+  border-bottom: 1px solid var(--footer-line);
+}
+
+.footer-col:nth-child(2) {
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--footer-line);
+}
+
+.footer-col:last-child {
+  grid-column: 1 / -1;
 }
 
 @media (min-width: 768px) {
   .footer-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
+    border-bottom: 1px solid var(--footer-line);
   }
-}
-
-@media (min-width: 1024px) {
-  .footer-grid {
-    grid-template-columns: 1.2fr 1.2fr 1.2fr 1.8fr;
+  .footer-col,
+  .footer-col:nth-child(2) {
+    padding: var(--space-8) var(--space-6);
+    border-bottom: 0;
+  }
+  .footer-col:last-child {
+    grid-column: auto;
+  }
+  .footer-col:first-child {
+    padding-left: 0;
+  }
+  .footer-col + .footer-col {
+    border-left: 1px solid var(--footer-line);
   }
 }
 
 .footer-title {
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   font-weight: 600;
-  color: var(--ink);
-  margin-bottom: var(--space-4);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--footer-soft);
+  margin: 0 0 var(--space-4);
 }
 
 .footer-list {
   list-style: none;
   padding: 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
 }
 
-.sheet-lang-item {
-  background: none;
-  border: 0;
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
+.footer-list a {
+  color: var(--footer-soft);
+  font-size: var(--text-base);
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-standard);
 }
 
-.footer-list a {
-  color: var(--ink-soft);
-  font-size: var(--text-sm);
-  text-decoration: none;
+.footer-list a:hover {
+  color: var(--footer-ink);
 }
 
 /* Phones: taller rows so each link is an easy thumb target */
@@ -510,45 +721,62 @@
   }
 }
 
-.footer-list a:hover {
-  color: var(--brand);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 .footer-hours {
   font-size: var(--text-sm);
-  color: var(--ink-soft);
-  margin-bottom: var(--space-3);
+  margin: 0 0 var(--space-4);
 }
 
 .footer-contact-links {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-8);
   margin-bottom: var(--space-4);
 }
 
-.plain-link {
+.footer-label {
   display: block;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--brand);
-  text-decoration: none;
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
 }
 
-.plain-link:hover {
-  text-decoration: underline;
+.footer-contact-value {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--footer-ink);
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.footer-contact-value:hover {
+  color: var(--footer-soft);
 }
 
 .footer-address {
   font-size: var(--text-xs);
-  color: var(--ink-soft);
   line-height: 1.5;
 }
 
-.footer-thread-wrap {
-  margin: var(--space-8) 0;
+/* Full-width wordmark; the SVG stretches the name to the container's width */
+.footer-wordmark {
+  padding-block: var(--space-8) var(--space-4);
+}
+
+.footer-wordmark svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.footer-wordmark text {
+  font-family: var(--font-display);
+  font-size: 180px;
+  font-weight: 800;
+  font-stretch: var(--stretch-condensed);
+  text-transform: uppercase;
+  fill: color-mix(in oklab, var(--paper-raised) 14%, var(--navy));
 }
 
 .footer-bottom-row {
@@ -556,8 +784,9 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--footer-line);
   font-size: var(--text-xs);
-  color: var(--ink-soft);
 }
 
 @media (min-width: 768px) {
@@ -568,20 +797,40 @@
   }
 }
 
+.footer-copyright,
+.footer-hours,
+.footer-address {
+  color: var(--footer-soft);
+}
+
+.footer-copyright {
+  margin: 0;
+}
+
 .footer-legal-links {
   display: flex;
-  gap: var(--space-2);
-  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
 }
 
 .footer-legal-links a {
-  color: var(--ink-soft);
+  color: var(--footer-soft);
+  transition: color var(--duration-fast) var(--ease-standard);
 }
 
 .footer-legal-links a:hover {
-  color: var(--brand);
+  color: var(--footer-ink);
 }
 
-.legal-dot {
-  color: var(--ink-faint);
+/* Shared small link style (the home page uses it too) */
+.plain-link {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--brand);
+  text-decoration: none;
+}
+
+.plain-link:hover {
+  text-decoration: underline;
 }

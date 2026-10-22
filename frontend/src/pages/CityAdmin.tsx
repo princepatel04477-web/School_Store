@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { X } from '../components/ui/icons';
-import { Link, Route, Routes, useLocation } from 'react-router-dom';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { X, BarChart, Package, Receipt, SchoolBuilding, Ruler } from '../components/ui/icons';
+import { PanelShell, type PanelNavItem } from '../components/admin/PanelShell';
+import { Route, Routes } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../auth';
 import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
@@ -15,61 +16,30 @@ import {
 /* ------------------------------------------------------------------ *
  * City Admin Navigation & Shell
  * ------------------------------------------------------------------ */
-const NAV = [
-  { to: '', label: 'Daily Sales', end: true },
-  { to: 'inventory', label: 'Inventory & Stock' },
-  { to: 'orders', label: 'Orders' },
-  { to: 'schools', label: 'Schools' },
-  { to: 'size-charts', label: 'Size Charts' },
+const NAV: PanelNavItem[] = [
+  { to: '', label: 'Daily Sales', icon: BarChart, end: true },
+  { to: 'inventory', label: 'Inventory & Stock', icon: Package },
+  { to: 'orders', label: 'Orders', icon: Receipt },
+  { to: 'schools', label: 'Schools', icon: SchoolBuilding },
+  { to: 'size-charts', label: 'Size Charts', icon: Ruler },
 ];
 
 export default function CityAdmin() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
 
   return (
-    <div className="admin">
-      <header className="admin-top">
-        <Link to="/city" className="brand">
-          <span className="brand-mark">S</span>
-          <span>School<span className="ink">Store</span></span>
-        </Link>
-        <span className="admin-role">City Admin Panel</span>
-        <span className="school-tag">{user?.city_name || 'My City'}</span>
-        <div className="header-right">
-          <span className="avatar">{user?.username?.slice(0, 1).toUpperCase()}</span>
-          <button className="icon-btn" onClick={signOut} aria-label="Sign out">↗</button>
-        </div>
-      </header>
-      <div className="admin-body">
-        <nav className="admin-nav">
-          {NAV.map((n) => (
-            <CityNavLink key={n.to} to={n.to} end={n.end}><span>{n.label}</span></CityNavLink>
-          ))}
-        </nav>
-        <main className="admin-main">
-          <Routes>
-            <Route index element={<CityDailySalesViewComponent />} />
-            <Route path="inventory" element={<CityInventoryView />} />
-            <Route path="orders" element={<CityOrdersView />} />
-            <Route path="schools" element={<CitySchoolsView />} />
-            <Route path="size-charts" element={<CitySizeChartsView />} />
-          </Routes>
-        </main>
-      </div>
-    </div>
+    <PanelShell base="/city" role="City Admin Panel" context={user?.city_name || 'My City'} nav={NAV}>
+      <Routes>
+        <Route index element={<CityDailySalesViewComponent />} />
+        <Route path="inventory" element={<CityInventoryView />} />
+        <Route path="orders" element={<CityOrdersView />} />
+        <Route path="schools" element={<CitySchoolsView />} />
+        <Route path="size-charts" element={<CitySizeChartsView />} />
+      </Routes>
+    </PanelShell>
   );
 }
 
-function CityNavLink({ to, end, children }: { to: string; end?: boolean; children: ReactNode }) {
-  const { pathname } = useLocation();
-  const base = '/city';
-  const current = end ? pathname === base || pathname === `${base}/` : pathname.startsWith(`${base}/${to}`);
-  return (
-    <Link to={to ? `${base}/${to}` : base} className={current ? 'active' : ''}>
-      <i>{children}</i>
-    </Link>
-  );
-}
 
 /* ------------------------------------------------------------------ *
  * 1. Daily Sales View (Requirement 2 & 6: indexed by (date, city), no cost/margin)

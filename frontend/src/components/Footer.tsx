@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { siteConfig } from '../siteConfig';
-import { Thread } from '../motion/Thread';
 import { useLang } from '../i18n';
 import { categoryLabel } from '../i18n/labels';
 import './headerFooter.css';
@@ -13,8 +12,55 @@ export function Footer() {
   return (
     <footer className="site-footer">
       <div className="container footer-content">
+        {/* Top: the brand, and the contact details when they are filled in (see siteConfig) */}
+        <div className="footer-top">
+          <Link to="/" className="footer-brand" aria-label={`${siteConfig.name} Home`}>
+            <span className="brand-mark">{siteConfig.mark}</span>
+            <span className="footer-brand-name">{siteConfig.logoText}</span>
+          </Link>
+
+          {hasContact && (
+            <div className="footer-contact">
+              <h4 className="footer-title">{t('foot.contact')}</h4>
+              <p className="footer-hours">{siteConfig.hours}</p>
+              <div className="footer-contact-links">
+                {siteConfig.supportPhone && (
+                  <div>
+                    <span className="footer-label">{t('foot.phone')}</span>
+                    <a href={siteConfig.supportPhoneHref} className="footer-contact-value">
+                      {siteConfig.supportPhone}
+                    </a>
+                  </div>
+                )}
+                {siteConfig.whatsappHref && (
+                  <div>
+                    <span className="footer-label">WhatsApp</span>
+                    <a
+                      href={siteConfig.whatsappHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="footer-contact-value"
+                    >
+                      {t('foot.message')}
+                    </a>
+                  </div>
+                )}
+                {siteConfig.supportEmail && (
+                  <div>
+                    <span className="footer-label">{t('foot.email')}</span>
+                    <a href={siteConfig.supportEmailHref} className="footer-contact-value">
+                      {siteConfig.supportEmail}
+                    </a>
+                  </div>
+                )}
+              </div>
+              {siteConfig.address && <p className="footer-address">{siteConfig.address}</p>}
+            </div>
+          )}
+        </div>
+
+        {/* Link columns, divided by hairlines */}
         <div className="footer-grid">
-          {/* Col 1: Shop */}
           <div className="footer-col">
             <h4 className="footer-title">{t('foot.shop')}</h4>
             <ul className="footer-list">
@@ -26,7 +72,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Col 2: Help */}
           <div className="footer-col">
             <h4 className="footer-title">{t('foot.help')}</h4>
             <ul className="footer-list">
@@ -38,7 +83,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Col 3: Company */}
           <div className="footer-col">
             <h4 className="footer-title">{t('foot.company')}</h4>
             <ul className="footer-list">
@@ -47,63 +91,26 @@ export function Footer() {
               <li><Link to="/contact">{t('foot.contact')}</Link></li>
             </ul>
           </div>
-
-          {/* Col 4: Contact (only details that are filled in; see siteConfig) */}
-          {hasContact && (
-          <div className="footer-col footer-contact-col">
-            <h4 className="footer-title">{t('foot.contact')}</h4>
-            <p className="footer-hours">{siteConfig.hours}</p>
-            <div className="footer-contact-links">
-              {siteConfig.supportPhone && (
-              <div>
-                <span className="label">{t('foot.phone')}</span>
-                <a href={siteConfig.supportPhoneHref} className="plain-link">
-                  {siteConfig.supportPhone}
-                </a>
-              </div>
-              )}
-              {siteConfig.whatsappHref && (
-              <div>
-                <span className="label">WhatsApp</span>
-                <a
-                  href={siteConfig.whatsappHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="plain-link"
-                >
-                  {t('foot.message')}
-                </a>
-              </div>
-              )}
-              {siteConfig.supportEmail && (
-              <div>
-                <span className="label">{t('foot.email')}</span>
-                <a href={siteConfig.supportEmailHref} className="plain-link">
-                  {siteConfig.supportEmail}
-                </a>
-              </div>
-              )}
-            </div>
-            {siteConfig.address && <p className="footer-address">{siteConfig.address}</p>}
-          </div>
-          )}
         </div>
+      </div>
 
-        {/* Full-width Thread sitting above copyright */}
-        <div className="footer-thread-wrap">
-          <Thread />
-        </div>
+      {/* The wordmark, set across the full width. The brand link above carries the name. */}
+      <div className="footer-wordmark container" aria-hidden="true">
+        <svg viewBox="0 0 1000 170" preserveAspectRatio="xMidYMid meet" focusable="false">
+          <text x="0" y="150" textLength="1000" lengthAdjust="spacingAndGlyphs">
+            {siteConfig.logoText}
+          </text>
+        </svg>
+      </div>
 
-        {/* Bottom row */}
+      <div className="container">
         <div className="footer-bottom-row">
           <p className="footer-copyright">
             © {currentYear} {siteConfig.businessName}. All rights reserved.
           </p>
           <div className="footer-legal-links">
             <Link to="/privacy">{t('co.privacy')}</Link>
-            <span className="legal-dot">·</span>
             <Link to="/terms">{t('co.terms')}</Link>
-            <span className="legal-dot">·</span>
             <Link to="/refunds">{t('co.refunds')}</Link>
           </div>
         </div>
