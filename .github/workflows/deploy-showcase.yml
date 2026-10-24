@@ -1,0 +1,48 @@
+# Builds the store and deploys the showcase Worker (frontend/wrangler.showcase.jsonc)
+# to Cloudflare on every merge to main, so schoolstore-showcase stays current
+# without anyone running wrangler from a laptop. Needs the CLOUDFLARE_API_TOKEN
+# repository secret (Cloudflare template "Edit Cloudflare Workers"); add
+# CLOUDFLARE_ACCOUNT_ID too if the token can see more than one account.
+name: Deploy showcase to Cloudflare
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-showcase.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-showcase
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Stop if the Cloudflare key isn't set
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        working-directory: .
+        run: |
+          echo "::error::Add the CLOUDFLARE_API_TOKEN repository secret (Settings > Secrets and variables > Actions)."
+          exit 1
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm run build
+        env:
+          VITE_API_URL: /api
+      - name: Deploy
+        run: npx --yes wrangler@4 deploy -c wrangler.showcase.jsonc
