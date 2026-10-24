@@ -18,6 +18,7 @@ import {
 import { DEFAULT_SHOULDER_FACTOR, MEASURE_WITH_CAMERA } from '../../measure/config';
 import { isSaneShoulder, withMassCurve, type MeasureResult, type SideResult } from '../../measure/measureBody';
 import { InstructionDrawing, ShoulderDiagram } from './MeasureDrawings';
+import { measureDebug } from '../../utils/measureDebug';
 import './measureFlow.css';
 
 // The camera step (and MediaPipe) only downloads when the parent opens it.
@@ -46,25 +47,6 @@ export interface MeasureFlowProps {
 
 const asText = (value?: number) => (value === undefined ? '' : String(value));
 
-/**
- * Tape checks: with "measuredebug" in the address (once is enough for the visit),
- * the results screen also shows the two raw camera readings.
- */
-function measureDebug(): boolean {
-  try {
-    if (window.location.search.includes('measuredebug')) sessionStorage.setItem('measuredebug', '1');
-    return sessionStorage.getItem('measuredebug') === '1';
-  } catch {
-    return window.location.search.includes('measuredebug');
-  }
-}
-
-/**
- * "Accurate size" (Prompts 21 to 23): height and weight, a short how-to,
- * then the camera (or typing the numbers when there is no camera), then a
- * results screen where every number can be changed before it is saved.
- * The camera picture never leaves the phone; only the numbers are saved.
- */
 export function MeasureFlow({ initial, garments = [], className, onSave, onClose }: MeasureFlowProps) {
   const { t } = useLang();
   const [step, setStep] = useState<Step>('details');
@@ -365,6 +347,7 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
             debugLine={
               measureDebug() && draft.source === 'CAMERA' && raw
                 ? [
+                    `Build ${__BUILD__}`,
                     raw.corner_cm !== undefined ? `Shoulder points ${raw.corner_cm} cm` : 'Shoulder points not found',
                     raw.joint_cm !== undefined
                       ? `Joints ${raw.joint_cm} cm, outline ${raw.edge_cm} cm, camera ${raw.shoulder_cm} cm`

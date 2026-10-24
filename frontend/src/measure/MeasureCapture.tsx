@@ -15,6 +15,7 @@ import {
   type SideResult,
 } from './measureBody';
 import { drawOverlay, type OverlayColours } from './overlay';
+import { measureDebug } from '../utils/measureDebug';
 import './measure.css';
 
 interface MeasureCaptureProps {
@@ -351,6 +352,7 @@ export function MeasureCapture({
           <span style={{ transform: `scaleX(${holdShare})` }} />
         </div>
         <p className="measure-note">{t('measure.photoStays')}</p>
+        {measureDebug() && <p className="measure-note">Build {__BUILD__}</p>}
         <div className="measure-actions">
           <button type="button" className="measure-capture" disabled={loading} onClick={() => captureNow.current()}>
             {t('measure.capture')}

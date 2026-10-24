@@ -190,6 +190,9 @@ async function api(request, env, path) {
     return json({ count: results.length, next: null, previous: null, results });
   }
 
+  // Camera measuring settings: no tape checks behind the showcase, so the reading is used as is.
+  if (path === '/public/measure-config/' && method === 'GET') return json({ shoulder_calibration_factor: 1 });
+
   // Parent sign-in (code shown on screen)
   // Size check: the showcase catalogue has no size charts, so there is nothing to suggest.
   if (path === '/public/size-fit/' && method === 'POST') {
