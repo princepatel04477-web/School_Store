@@ -6,6 +6,8 @@ import {
   SHOULDER_EDGE_MAX_RATIO,
   SHOULDER_TO_HEIGHT,
   DEPTH_TO_HEIGHT,
+  CORNER_SLOPE,
+  CORNER_TO_JOINTS,
 } from './config';
 
 /** BlazePose indexes used for a full-body front view. */
@@ -64,6 +66,8 @@ export interface MeasureResult {
    */
   joint_cm?: number;
   edge_cm?: number;
+  /** Shoulder point to shoulder point on the outline (the reading used when it is found). */
+  corner_cm?: number;
 }
 
 function median(values: number[]): number {
@@ -125,6 +129,66 @@ export function shoulderEdgePx(frame: MeasureFrame): number | null {
   }
   if (spans.length < EDGE_ROWS + 1) return null;
   return median(spans) * (frame.imageWidth / mask.width);
+}
+
+/** The two shoulder points found on the outline, as shares of the picture (0 to 1). */
+export interface ShoulderCorners {
+  left: { x: number; y: number };
+  right: { x: number; y: number };
+}
+
+/**
+ * The shoulder points a tailor puts the tape on, found on the body outline.
+ * Going down from the neck, each side of the outline first runs out fast along
+ * the slope of the shoulder (flatter than 45 degrees), then turns down into the
+ * arm. The shoulder point is where it turns: the first row after the slope where
+ * the edge moves out less than CORNER_SLOPE pixels per row. null when the outline
+ * doesn't show that shape on both sides (loose clothes, arms raised, no outline).
+ */
+export function shoulderCorners(frame: MeasureFrame): ShoulderCorners | null {
+  const mask = frame.mask;
+  const nose = frame.landmarks[NOSE];
+  const left = frame.landmarks[LEFT_SHOULDER];
+  const right = frame.landmarks[RIGHT_SHOULDER];
+  if (!mask || mask.width < 2 || mask.height < 2 || !nose || !left || !right) return null;
+  const noseY = nose.y * mask.height;
+  const lineY = ((left.y + right.y) / 2) * mask.height;
+  const reach = lineY - noseY;
+  if (reach < 4) return null;
+  const centre = Math.round(((left.x + right.x) / 2) * mask.width);
+  if (centre < 0 || centre >= mask.width) return null;
+
+  // From the chin to a little below the shoulder joints.
+  const firstRow = Math.max(0, Math.round(noseY + 0.35 * reach));
+  const lastRow = Math.min(mask.height - 1, Math.round(lineY + 0.6 * reach));
+  const outLeft: (number | null)[] = [];
+  const outRight: (number | null)[] = [];
+  for (let y = firstRow; y <= lastRow; y += 1) {
+    const run = runAt(mask, y * mask.width, centre);
+    outLeft.push(run && run[0] > 0 ? centre - run[0] : null);
+    outRight.push(run && run[1] < mask.width - 1 ? run[1] - centre : null);
+  }
+
+  // How far out each side reaches at the shoulder point, and on which row.
+  const corner = (out: (number | null)[]): { reach: number; row: number } | null => {
+    let onSlope = false;
+    for (let i = 1; i < out.length - 1; i += 1) {
+      const before = out[i - 1];
+      const after = out[i + 1];
+      if (before == null || after == null || out[i] == null) continue;
+      const speed = (after - before) / 2;
+      if (speed >= CORNER_SLOPE) onSlope = true;
+      else if (onSlope) return { reach: out[i]!, row: firstRow + i };
+    }
+    return null;
+  };
+  const l = corner(outLeft);
+  const r = corner(outRight);
+  if (!l || !r) return null;
+  return {
+    left: { x: (centre - l.reach) / mask.width, y: l.row / mask.height },
+    right: { x: (centre + r.reach + 1) / mask.width, y: r.row / mask.height },
+  };
 }
 
 /** Body run on one outline row that contains column x: [left edge, right edge], or null. */
@@ -243,7 +307,18 @@ function frameMeasure(frame: MeasureFrame, heightCm: number, factor: number): Me
   // Move towards the outline's edges when they can be trusted (see SHOULDER_EDGE_BLEND).
   const edgePx = shoulderEdgePx(frame);
   const edgeOk = edgePx != null && edgePx >= jointPx && edgePx <= jointPx * SHOULDER_EDGE_MAX_RATIO;
-  const shoulderPx = edgeOk ? jointPx + SHOULDER_EDGE_BLEND * (edgePx - jointPx) : jointPx;
+  const blendPx = edgeOk ? jointPx + SHOULDER_EDGE_BLEND * (edgePx - jointPx) : jointPx;
+  // The shoulder points on the outline come first; the joint and outline blend is the fallback.
+  const corners = shoulderCorners(frame);
+  const cornerPx = corners
+    ? Math.hypot(
+        (corners.right.x - corners.left.x) * frame.imageWidth,
+        (corners.right.y - corners.left.y) * frame.imageHeight,
+      )
+    : null;
+  const cornerOk =
+    cornerPx != null && cornerPx >= jointPx * CORNER_TO_JOINTS.min && cornerPx <= jointPx * CORNER_TO_JOINTS.max;
+  const shoulderPx = cornerOk ? cornerPx : blendPx;
   const visibility = Math.min(
     nose.visibility ?? 0,
     left.visibility ?? 0,
@@ -258,6 +333,7 @@ function frameMeasure(frame: MeasureFrame, heightCm: number, factor: number): Me
     ...(edgeOk
       ? { joint_cm: Math.round(jointPx * scale * 10) / 10, edge_cm: Math.round(edgePx * scale * 10) / 10 }
       : {}),
+    ...(cornerOk ? { corner_cm: Math.round(cornerPx * scale * 10) / 10 } : {}),
   };
 }
 
@@ -279,6 +355,14 @@ export function measureFrames(
       ? {
           joint_cm: Math.round(median(withEdges.map((row) => row.joint_cm!)) * 10) / 10,
           edge_cm: Math.round(median(withEdges.map((row) => row.edge_cm!)) * 10) / 10,
+        }
+      : {}),
+    ...(measured.some((row) => row.corner_cm !== undefined)
+      ? {
+          corner_cm:
+            Math.round(
+              median(measured.filter((row) => row.corner_cm !== undefined).map((row) => row.corner_cm!)) * 10,
+            ) / 10,
         }
       : {}),
   };

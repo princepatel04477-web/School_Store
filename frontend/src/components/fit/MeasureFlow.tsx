@@ -365,6 +365,7 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
             debugLine={
               measureDebug() && draft.source === 'CAMERA' && raw
                 ? [
+                    raw.corner_cm !== undefined ? `Shoulder points ${raw.corner_cm} cm` : 'Shoulder points not found',
                     raw.joint_cm !== undefined
                       ? `Joints ${raw.joint_cm} cm, outline ${raw.edge_cm} cm, camera ${raw.shoulder_cm} cm`
                       : `Joints only (no outline edges), camera ${raw.shoulder_cm} cm`,

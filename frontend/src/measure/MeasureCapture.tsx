@@ -7,12 +7,14 @@ import {
   bestFrames,
   measureFrames,
   measureSideFrames,
+  shoulderCorners,
   type Landmark,
   type Mask,
   type MeasureFrame,
   type MeasureResult,
   type SideResult,
 } from './measureBody';
+import { drawOverlay, type OverlayColours } from './overlay';
 import './measure.css';
 
 interface MeasureCaptureProps {
@@ -79,6 +81,25 @@ function copyMask(mask: PoseMask): Mask {
   return { width: mask.width, height: mask.height, data: new Uint8Array(mask.getAsUint8Array()) };
 }
 
+/** The page's colour tokens as plain colours the canvas can use. */
+function overlayColours(el: HTMLElement | null): OverlayColours {
+  const resolve = (token: string, fallback: string) => {
+    if (!el) return fallback;
+    const probe = document.createElement('span');
+    probe.style.color = `var(${token})`;
+    el.appendChild(probe);
+    const colour = getComputedStyle(probe).color || fallback;
+    probe.remove();
+    return colour;
+  };
+  return {
+    rim: resolve('--ink', '#15181e'),
+    line: resolve('--paper', '#f1f3f5'),
+    ready: resolve('--brand-tint', '#e8f0ec'),
+    marker: resolve('--brand-tint', '#e8f0ec'),
+  };
+}
+
 /**
  * Asks for the camera's own 4:3 shape (landscape in sensor terms). Asking for a
  * tall 720x1280 picture made phones crop the sensor, which looked zoomed in and
@@ -94,7 +115,8 @@ const CAMERA: MediaTrackConstraints = {
 };
 
 /**
- * Rear camera with a dotted child outline over the whole camera picture. MediaPipe Pose runs on
+ * Rear camera showing the whole picture, with a dotted outline drawn live around
+ * the person and the two shoulder points the reading is taken from. MediaPipe Pose runs on
  * the phone about 10 times a second and the screen shows one instruction at a
  * time. When the child fits for 2 seconds the reading is taken by itself; the
  * parent can also tap Capture. The video is only looked at here: no frame is
@@ -111,6 +133,7 @@ export function MeasureCapture({
 }: MeasureCaptureProps) {
   const { t, lang } = useLang();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [guidance, setGuidance] = useState<Guidance>('showFullBody');
   const [holdShare, setHoldShare] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -146,6 +169,7 @@ export function MeasureCapture({
     let previous: Landmark[] | null = null;
     // The part of the child Capture would need; null while no child is seen at all.
     let missing: Missing | null = null;
+    const colours = overlayColours(canvasRef.current?.parentElement ?? null);
 
     const stop = () => {
       window.cancelAnimationFrame(timer);
@@ -184,8 +208,10 @@ export function MeasureCapture({
       const result = landmarker.detectForVideo(video, now);
       const raw = result.landmarks?.[0];
       const poseMask = result.segmentationMasks?.[0];
+      const mask = poseMask ? copyMask(poseMask) : null;
+      poseMask?.close?.();
       if (!raw || video.videoWidth === 0) {
-        poseMask?.close?.();
+        if (canvasRef.current) drawOverlay(canvasRef.current, null, null, false, colours);
         missing = null;
         recent = [];
         setGuidance('showFullBody');
@@ -206,6 +232,14 @@ export function MeasureCapture({
           : checkPose(landmarks, video.videoWidth, video.videoHeight, previous);
       previous = landmarks;
       setGuidance(pose.guidance);
+      // The live outline around the person, and on the front photo the two shoulder points measured.
+      if (canvasRef.current) {
+        const corners =
+          view === 'front' && mask
+            ? shoulderCorners({ landmarks, mask, imageWidth: video.videoWidth, imageHeight: video.videoHeight })
+            : null;
+        drawOverlay(canvasRef.current, mask, corners, pose.ready, colours);
+      }
       const inView = view === 'side' ? measurableSide(landmarks) : measurable(landmarks);
       missing = inView.missing;
       if (inView.ok) setNotice('');
@@ -215,7 +249,7 @@ export function MeasureCapture({
       if (inView.ok) {
         const frame: ScoredFrame = {
           landmarks,
-          mask: poseMask ? copyMask(poseMask) : undefined,
+          mask: mask ?? undefined,
           imageWidth: video.videoWidth,
           imageHeight: video.videoHeight,
           quality: pose.quality,
@@ -226,7 +260,6 @@ export function MeasureCapture({
           held = [...held.slice(-(RECENT_FRAMES - 1)), frame];
         }
       }
-      poseMask?.close?.();
 
       if (!pose.ready) {
         readySince = 0;
@@ -307,7 +340,7 @@ export function MeasureCapture({
               if (videoWidth > 0 && videoHeight > 0) setAspect(videoWidth / videoHeight);
             }}
           />
-          <ChildOutline ready={ready} />
+          <canvas ref={canvasRef} className="measure-overlay" aria-hidden="true" />
         </div>
       </div>
       <div className="measure-panel">
@@ -328,26 +361,5 @@ export function MeasureCapture({
         </div>
       </div>
     </div>
-  );
-}
-
-/** Head-to-feet outline of a standing child, arms a little away from the body. */
-function ChildOutline({ ready }: { ready: boolean }) {
-  return (
-    <svg className={`measure-outline ${ready ? 'is-ready' : ''}`} viewBox="0 0 120 260" aria-hidden="true">
-      <path
-        d="M60 8 c-10 0 -16 8 -16 18 c0 11 7 19 16 19 c9 0 16 -8 16 -19 c0 -10 -6 -18 -16 -18 z
-           M50 46 c0 4 -1 6 -3 7 l-15 5 c-5 2 -7 6 -8 11 l-8 48 c-1 4 1 7 4 7 c3 0 5 -2 6 -5 l9 -40 l2 0
-           l-2 52 l0 4 l2 98 c0 6 3 9 8 9 c5 0 7 -3 7 -8 l2 -86 l2 0 l2 86 c0 5 2 8 7 8 c5 0 8 -3 8 -9
-           l2 -98 l0 -4 l-2 -52 l2 0 l9 40 c1 3 3 5 6 5 c3 0 5 -3 4 -7 l-8 -48 c-1 -5 -3 -9 -8 -11
-           l-15 -5 c-2 -1 -3 -3 -3 -7"
-        fill="none"
-        strokeWidth="1.5"
-        strokeDasharray="4 4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <line x1="22" y1="252" x2="98" y2="252" strokeWidth="1.5" strokeDasharray="4 4" />
-    </svg>
   );
 }

@@ -139,7 +139,7 @@ class Command(BaseCommand):
             COPY orders_order (
                 id, order_number, idempotency_key, placed_by_id, placed_by_role, payer_id,
                 student_id, parent_id, school_id, city_id, student_class, status,
-                subtotal, total, payment_status, fulfillment_type,
+                subtotal, total, payment_status, payment_method, fulfillment_type,
                 razorpay_order_id, razorpay_payment_id, razorpay_signature,
                 delivery_details, created_at, updated_at
             ) FROM STDIN
@@ -147,7 +147,9 @@ class Command(BaseCommand):
         item_copy_sql = """
             COPY orders_orderitem (
                 id, order_id, variant_id, category_id,
-                quantity, unit_price_snapshot, unit_cost_snapshot, customisation_data
+                quantity, unit_price_snapshot, unit_cost_snapshot, customisation_data,
+                fit_source, fit_shoulder_edited, recommended_size, recommended_alt_size,
+                recommendation_status, chosen_size
             ) FROM STDIN
         """
 
@@ -214,6 +216,7 @@ class Command(BaseCommand):
                             total_str,
                             total_str,
                             pay_status,
+                            Order.PaymentMethod.ONLINE,
                             fulfillment_type,
                             f"order_rzp_{seq:07d}",
                             f"pay_rzp_{seq:07d}" if pay_status == "PAID" else "",
@@ -233,6 +236,13 @@ class Command(BaseCommand):
                             price_str,
                             cost_str,
                             empty_json,
+                            # No measurement or size suggestion on these orders.
+                            "",
+                            False,
+                            "",
+                            "",
+                            "",
+                            "",
                         )
                     )
 

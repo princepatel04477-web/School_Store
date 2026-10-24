@@ -20,7 +20,24 @@ The shown reading is `joints + SHOULDER_EDGE_BLEND x (outline - joints)`, then m
 
 A tape across the back follows the curve of the back. The camera, from the front, sees a straight line across. On a slim, flat back the two are close; on a heavy, round back the curve is much longer (the 100 kg adult later taped 55 cm where the camera read 44.5). How round the back is can't be seen from the front, so test mode also takes a side photo and reads the body's depth at the shoulders. Width plus depth gives the curve; the exact formula is set from the checks below.
 
-## Mass correction (live)
+## Shoulder points on the outline (live, from 2026-10-24)
+
+The reading is now taken between the two shoulder points found on the body outline: going down from the neck, the point on each side where the slope of the shoulder turns down into the arm (steeper than 45 degrees). That is where a tailor puts the tape. When the outline doesn't show that shape (loose clothes, arms raised), the joints and outline blend below is the fallback. The camera screen draws the live outline and the two points, so a bad reading can be seen before it is taken. Test mode shows `Shoulder points P cm` first on the results line.
+
+### A/B test, 2026-10-24 (before this change; app value includes the old mass curve)
+
+| Name | Weight | Height | BMI | Tape | App | App - tape | Camera before curve |
+|---|---|---|---|---|---|---|---|
+| Jayesh | 99 kg | 170 cm | 34.3 | 47 | 54.0 | +7.0 | 42.7 |
+| Prince | 74 kg | 170 cm | 25.6 | 42 | 45 | +3.0 | 41.1 |
+| Parth | 86.8 kg | 173 cm | 29.0 | 47 | 52.7 | +5.7 | 45.4 |
+| Kaka | 71 kg | 167 cm | 25.5 | 46 | 43.4 | -2.6 | 39.8 |
+| Arbaz | 65 kg | 168 cm | 23.0 | 47 | | | |
+| Pareshbhai | 60 kg | 168 cm | 21.3 | 45 | | | |
+
+With this tape method the heavy builds taped 47 cm, so the mass curve (fitted to earlier 55 to 58 cm tapes) read them 3 to 7 cm wide. It is set to no change (`gain` 1, `alpha` 0) until checks show a trend again.
+
+## Mass correction (off)
 
 The camera reading is multiplied by a curve of BMI, scaled down below the baseline build and up above it (`MASS_CURVE` in `frontend/src/measure/config.ts`):
 

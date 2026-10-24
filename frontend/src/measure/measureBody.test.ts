@@ -5,6 +5,7 @@ import {
   isSaneShoulder,
   measureFrames,
   measureSideFrames,
+  shoulderCorners,
   shoulderEdgePx,
   sideDepthPx,
   massMultiplier,
@@ -272,14 +273,58 @@ describe('mass correction', () => {
     expect(massMultiplier(5, flat)).toBe(0.85);
   });
 
-  it('applies the live curve to a reading', () => {
-    // 170 cm, 100 kg: BMI 34.6, d 12.6, multiplier 1.023 + 0.0198 x 12.6 = 1.272.
-    expect(withMassCurve(44.9, 170, 100)).toBe(57.1);
-    // 166 cm, 55 kg: BMI 20.0, d -2.0, multiplier 0.983.
-    expect(withMassCurve(40, 166, 55)).toBe(39.3);
+  it('is switched off for now: the live curve leaves readings alone', () => {
+    expect(withMassCurve(44.9, 170, 100)).toBe(44.9);
+    expect(withMassCurve(40, 166, 55)).toBe(40);
   });
 
   it('leaves the reading alone without a height or weight', () => {
     expect(withMassCurve(40, 0, 55)).toBe(40);
+  });
+});
+
+describe('shoulder points on the outline', () => {
+  /**
+   * A front-on outline on the 100 x 200 test frame (1 cm per px): neck 10 px wide
+   * down to row 60, shoulders sloping out 3 px a row each side to row 65 (40 px),
+   * then turning down into the arms (0.5 px a row, then straight) to row 110.
+   * Joints at x 32 and 68 on row 70 (36 px apart). The corner is on row 65.
+   */
+  function shouldersFrame(): MeasureFrame {
+    const f = frame(0.32);
+    f.landmarks[12] = { x: 0.68, y: 0.35, z: 0, visibility: 1 };
+    const { width } = f.mask!;
+    const halfWidth = (y: number) => (y < 60 ? 5 : y <= 65 ? 5 + 3 * (y - 60) : y <= 70 ? 20 + 0.5 * (y - 65) : 22.5);
+    for (let y = 30; y <= 110; y += 1) {
+      const h = Math.floor(halfWidth(y));
+      for (let x = 50 - h; x < 50 + h; x += 1) f.mask!.data[y * width + x] = 255;
+    }
+    return f;
+  }
+
+  it('finds where the shoulder slope turns down into the arm', () => {
+    const corners = shoulderCorners(shouldersFrame())!;
+    expect(corners).not.toBeNull();
+    expect(corners.left.y * 200).toBeGreaterThanOrEqual(64);
+    expect(corners.left.y * 200).toBeLessThanOrEqual(67);
+    // About 20 px out from the middle on each side.
+    expect((corners.right.x - corners.left.x) * 100).toBeGreaterThanOrEqual(39);
+    expect((corners.right.x - corners.left.x) * 100).toBeLessThanOrEqual(42);
+  });
+
+  it('measures shoulder point to shoulder point when it finds them', () => {
+    const result = measureFrames([shouldersFrame()], 170, 1)!;
+    expect(result.corner_cm).toBeGreaterThanOrEqual(39);
+    expect(result.corner_cm).toBeLessThanOrEqual(42);
+    expect(result.shoulder_cm).toBe(result.corner_cm);
+  });
+
+  it('falls back when the outline has no shoulder slope (a straight block)', () => {
+    const f = frame(0.32);
+    f.landmarks[12] = { x: 0.68, y: 0.35, z: 0, visibility: 1 };
+    const { width } = f.mask!;
+    for (let y = 30; y <= 110; y += 1) for (let x = 28; x < 72; x += 1) f.mask!.data[y * width + x] = 255;
+    expect(shoulderCorners(f)).toBeNull();
+    expect(measureFrames([f], 170, 1)?.corner_cm).toBeUndefined();
   });
 });

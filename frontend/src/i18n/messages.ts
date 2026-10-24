@@ -290,7 +290,7 @@ export const messages = {
   'measure.loadingCamera': { en: 'Opening the camera…', gu: 'કેમેરો ખૂલે છે…', hi: 'कैमरा खुल रहा है…' },
   'measure.g.moveBack': { en: 'Move back', gu: 'પાછળ જાઓ', hi: 'पीछे जाएँ' },
   'measure.g.moveCloser': { en: 'Move closer', gu: 'નજીક આવો', hi: 'पास आएँ' },
-  'measure.g.standInside': { en: 'Stand inside the outline', gu: 'આકારની અંદર ઊભા રહો', hi: 'आकार के अंदर खड़े हों' },
+  'measure.g.standInside': { en: 'Stand in the middle of the screen', gu: 'સ્ક્રીનની વચ્ચે ઊભા રહો', hi: 'स्क्रीन के बीच में खड़े हों' },
   'measure.g.showFullBody': { en: 'Show full body', gu: 'માથાથી પગ સુધી આખું શરીર બતાવો', hi: 'सिर से पैर तक पूरा शरीर दिखाएँ' },
   'measure.g.standStraight': { en: 'Stand straight', gu: 'સીધા ઊભા રહો', hi: 'सीधे खड़े हों' },
   'measure.g.holdStill': { en: 'Hold still', gu: 'સ્થિર રહો', hi: 'शांत खड़े रहें' },

@@ -70,12 +70,21 @@
   display: none;
 }
 
+/* Wide screens: six equal tiles inside the same column as the text, so the strip
+   lines up on both sides however wide the window (on a 1728px MacBook screen the
+   bleed to the right edge left a 312px gap on the left only). */
 @media (min-width: 1024px) {
   .hero-strip {
-    margin-top: 56px;
-    padding-right: 0;
+    margin: 56px auto 0;
+    max-width: var(--max-width);
+    padding: 0 var(--gutter);
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: var(--space-4);
-    overflow: hidden;
+    overflow: visible;
+  }
+  .hero-strip-item:nth-child(n + 7) {
+    display: none;
   }
 }
 
