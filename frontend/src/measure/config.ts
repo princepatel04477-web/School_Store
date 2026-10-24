@@ -39,12 +39,20 @@ export const SHOULDER_EDGE_BLEND = 0.5;
  * beta   bend: positive grows faster for very heavy bodies, negative slower
  * min/max  limits, so an odd weight can't run away with the reading
  *
- * Fitted (least squares) to five approximate readings from four Indian adults,
- * BMI 19.5 to 34.6; the best fit still leaves about 2 cm either way, which is
- * scatter (tape method, clothes), not trend. Refit from tape checks with
- * scripts/fit_shoulder_curve.py and paste the printed values here.
+ * Off (multiplier 1) since the shoulder points on the outline are measured
+ * directly: the 6-person A/B test on 2026-10-24 taped heavy builds at 47 cm, and
+ * the earlier curve (gain 1.023, alpha 0.0198) read them 3 to 7 cm wide. Refit
+ * from tape checks with scripts/fit_shoulder_curve.py if a trend shows up again.
  */
-export const MASS_CURVE = { bmiBase: 22, gain: 1.023, alpha: 0.0198, beta: 0, min: 0.85, max: 1.35 };
+export const MASS_CURVE = { bmiBase: 22, gain: 1, alpha: 0, beta: 0, min: 0.85, max: 1.35 };
+
+/**
+ * Shoulder points on the outline: the edge turns from the shoulder slope into the
+ * arm where it moves out less than this many pixels per row going down (45 degrees).
+ */
+export const CORNER_SLOPE = 1;
+/** Shoulder points are trusted only this many joint widths apart; outside it, the blend below is used. */
+export const CORNER_TO_JOINTS = { min: 1, max: 1.5 };
 
 /** The outline is trusted only within this many joint widths; wider means it ran into the background. */
 export const SHOULDER_EDGE_MAX_RATIO = 1.6;
