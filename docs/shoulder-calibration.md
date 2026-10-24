@@ -35,6 +35,17 @@ The reading is now taken between the two shoulder points found on the body outli
 | Arbaz | 65 kg | 168 cm | 23.0 | 47 | | | |
 | Pareshbhai | 60 kg | 168 cm | 21.3 | 45 | | | |
 
+### A/B test 2 (same people, new tape readings)
+
+| Name | Weight | Height | Tape | App | App - tape |
+|---|---|---|---|---|---|
+| Jayesh | 99 kg | 170 cm | 52 | 54.2 | +2.2 |
+| Prince | 74 kg | 170 cm | 47 | 45 | -2.0 |
+| Parth | 86.8 kg | 173 cm | 51 | 52 | +1.0 |
+| Kaka | 71 kg | 167 cm | 44.5 | 46.2 | +1.7 |
+
+The app values match test 1 within 1 cm (54.0, 45, 52.7, 43.4), so they are most likely from the old version (mass curve on); the camera screen didn't show the live outline either. The gap shrank because the tape moved 4 to 5 cm (Jayesh 47 to 52, Prince 42 to 47). Test mode now shows `Build <commit>` on the camera and results screens, so each reading can be tied to the code that took it.
+
 With this tape method the heavy builds taped 47 cm, so the mass curve (fitted to earlier 55 to 58 cm tapes) read them 3 to 7 cm wide. It is set to no change (`gain` 1, `alpha` 0) until checks show a trend again.
 
 ## Mass correction (off)
