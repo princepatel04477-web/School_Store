@@ -24,7 +24,7 @@
 /* Under the headline: the line and the school search. Side by side on wide screens. */
 .hero-row {
   position: relative;
-  z-index: 2; /* the school list opens over the photo strip */
+  z-index: 2; /* the school list opens over the content below */
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-6);
@@ -52,77 +52,6 @@
 
 /* Real product photos, edge to edge. Phones swipe through them; wide screens show
    as many as fit and the rest run off the edge. */
-.hero-strip {
-  list-style: none;
-  margin: var(--space-12) 0 0;
-  /* Starts in line with the text above, then runs to the right edge */
-  --strip-start: max(var(--gutter), calc((100% - var(--max-width)) / 2 + var(--gutter)));
-  padding: 0 var(--gutter) 0 var(--strip-start);
-  display: flex;
-  gap: var(--space-3);
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scroll-padding-inline: var(--strip-start) var(--gutter);
-  scrollbar-width: none;
-}
-
-.hero-strip::-webkit-scrollbar {
-  display: none;
-}
-
-/* Wide screens: six equal tiles inside the same column as the text, so the strip
-   lines up on both sides however wide the window (on a 1728px MacBook screen the
-   bleed to the right edge left a 312px gap on the left only). */
-@media (min-width: 1024px) {
-  .hero-strip {
-    margin: 56px auto 0;
-    max-width: var(--max-width);
-    padding: 0 var(--gutter);
-    display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: var(--space-4);
-    overflow: visible;
-  }
-  .hero-strip-item:nth-child(n + 7) {
-    display: none;
-  }
-}
-
-.hero-strip-item {
-  --tile: var(--house-red);
-  flex: 0 0 clamp(132px, 38vw, 220px);
-  scroll-snap-align: start;
-  border-top: 4px solid var(--tile);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background-color: var(--paper-raised);
-}
-
-.hero-strip-item.house-1 { --tile: var(--house-blue); }
-.hero-strip-item.house-2 { --tile: var(--house-green); }
-.hero-strip-item.house-3 { --tile: var(--house-yellow); }
-
-.hero-strip-item a {
-  display: block;
-  border: 1px solid var(--line);
-  border-top: 0;
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-  transition: border-color var(--duration-fast) var(--ease-standard);
-}
-
-.hero-strip-item a:hover {
-  border-color: var(--tile);
-}
-
-.hero-strip-item img {
-  display: block;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 1 / 1;
-  object-fit: cover;
-  background-color: var(--paper-sunk);
-}
-
 /* Sports-day voice: tall condensed caps */
 .hero-heading {
   font-family: var(--font-display);
