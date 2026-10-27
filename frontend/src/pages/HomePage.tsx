@@ -20,22 +20,8 @@ import {
 } from '../motion';
 import { siteConfig } from '../siteConfig';
 import { useLang } from '../i18n';
-import { categoryLabel, classLabel, genderLabel } from '../i18n/labels';
+import { classLabel, genderLabel } from '../i18n/labels';
 import './home.css';
-
-/** Real product photos for the hero strip, each linking to its shop category. */
-const HERO_PHOTOS = [
-  { src: '/products/uniform-udgam-blazer.webp', category: 'Uniform' },
-  { src: '/products/uniform-dps-shirt.webp', category: 'Uniform' },
-  { src: '/products/tie-dps-crest.webp', category: 'Uniform Accessories' },
-  { src: '/products/shoes-dps-oxford.webp', category: 'School Shoes' },
-  { src: '/products/uniform-fhs-polo.webp', category: 'Uniform' },
-  { src: '/products/notebook-photo.webp', category: 'Stationery' },
-  { src: '/products/socks-navy.webp', category: 'Uniform Accessories' },
-  { src: '/products/uniform-dps-skirt.webp', category: 'Uniform' },
-  { src: '/products/belt-udgam.webp', category: 'Uniform Accessories' },
-  { src: '/products/shoes-white-pt.webp', category: 'School Shoes' },
-];
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -181,21 +167,6 @@ export function HomePage() {
           </div>
         </div>
 
-        <Reveal delay={0.3}>
-          <ul className="hero-strip">
-            {HERO_PHOTOS.map((photo, idx) => (
-              <li key={photo.src} className={`hero-strip-item house-${idx % 4}`}>
-                <Link
-                  to={`/shop?cat=${encodeURIComponent(photo.category)}`}
-                  aria-label={categoryLabel(photo.category, t)}
-                  onMouseEnter={prefetchFlowPage}
-                >
-                  <img src={photo.src} alt="" width={240} height={240} loading={idx < 5 ? undefined : 'lazy'} />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Reveal>
       </section>
 
       {/* 3. SHOP BY CATEGORY (Editorial Grid), on the one full-width highlight band */}

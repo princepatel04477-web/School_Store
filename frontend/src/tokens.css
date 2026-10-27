@@ -88,7 +88,10 @@
   --space-32: 128px;
 
   /* Container & Gutters */
-  --max-width: 1200px;
+  /* Content width grows with the screen: 1200px on laptops, up to 1440px on big
+     screens (84% of the window), so wide monitors aren't left with empty margins.
+     Phones and tablets are narrower than 1200px and use the full width less --gutter. */
+  --max-width: clamp(1200px, 84vw, 1440px);
   --gutter: clamp(16px, 4vw, 48px);
   --section-padding: clamp(56px, 8vw, 128px);
 
