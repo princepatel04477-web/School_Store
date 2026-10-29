@@ -51,8 +51,19 @@ export const MASS_CURVE = { bmiBase: 22, gain: 1, alpha: 0, beta: 0, min: 0.85, 
  * arm where it moves out less than this many pixels per row going down (45 degrees).
  */
 export const CORNER_SLOPE = 1;
-/** Shoulder points are trusted only this many joint widths apart; outside it, the blend below is used. */
-export const CORNER_TO_JOINTS = { min: 1, max: 1.5 };
+/**
+ * The outline is smoothed over this share of the nose-to-shoulder distance (in rows)
+ * before its slope is read, so a jagged pixel or two on the neck can't pass for the
+ * shoulder turning.
+ */
+export const CORNER_SMOOTH = 0.05;
+/**
+ * Each shoulder point must sit this far out from the middle, as a share of the
+ * distance from the middle to that side's shoulder joint. The neck sits at about
+ * 0.35 and the shoulder point just outside the joint (1 or a little more). Outside
+ * the range the outline was read wrong, and the blend below is used.
+ */
+export const CORNER_TO_JOINTS = { min: 0.95, max: 1.5 };
 
 /** The outline is trusted only within this many joint widths; wider means it ran into the background. */
 export const SHOULDER_EDGE_MAX_RATIO = 1.6;

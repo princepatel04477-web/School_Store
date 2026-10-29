@@ -1,0 +1,180 @@
+/* Retail shops: the retailer's school requests and the Boss's review of them. */
+
+.retail-logo {
+  width: 72px;
+  height: 72px;
+  flex: none;
+  object-fit: contain;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.retail-logo.small {
+  width: 40px;
+  height: 40px;
+}
+
+.retail-logo-empty {
+  display: grid;
+  place-items: center;
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.retail-field-error {
+  color: var(--danger);
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.retail-form textarea,
+.retail-reason textarea {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 11px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  resize: vertical;
+  min-height: 72px;
+}
+
+.retail-form .retail-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+@media (min-width: 560px) {
+  .retail-form .retail-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.retail-logo-pick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.retail-hint {
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-transform: none;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.retail-requests {
+  display: grid;
+  gap: 0;
+}
+
+.retail-request {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  border-top: 1px solid var(--line);
+}
+
+.retail-request:first-child {
+  border-top: 0;
+}
+
+.retail-request-head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.retail-request-head h3 {
+  margin: 0 0 4px;
+}
+
+.retail-request-meta {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.retail-request-meta .mono {
+  letter-spacing: 0.5px;
+}
+
+.retail-compare {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px;
+  background: var(--paper-sunk);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+}
+
+.retail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.retail-actions .primary,
+.retail-actions .secondary {
+  width: auto;
+}
+
+.retail-reason {
+  display: grid;
+  gap: 8px;
+}
+
+.retail-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.retail-skeleton-row {
+  display: flex;
+  gap: 14px;
+  padding: 16px 18px;
+  border-top: 1px solid var(--line);
+}
+
+.retail-skeleton-row:first-child {
+  border-top: 0;
+}
+
+.retail-skeleton-lines {
+  flex: 1;
+  display: grid;
+  gap: 8px;
+}
+
+.retail-logo-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.retail-logo-choice legend {
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.retail-logo-choice label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}

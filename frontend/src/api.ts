@@ -1,4 +1,4 @@
-export type Role='PARENT'|'TEACHER'|'SCHOOL_ADMIN'|'ADMIN'|'BOSS';
+export type Role='PARENT'|'TEACHER'|'SCHOOL_ADMIN'|'ADMIN'|'BOSS'|'RETAILER';
 export type User={id:string;username:string;role:Role;city?:string|null;city_name?:string|null;school?:{name:string}|string|null;school_name?:string|null;school_code?:string|null;phone?:string;email?:string;first_name?:string;last_name?:string;is_active?:boolean;created_at?:string};
 export type CustomisationField = {
   key: string;
@@ -39,7 +39,7 @@ function toUrl(path:string){return path.startsWith('/api/')?`${API}${path.slice(
 export class ApiError extends Error{constructor(message:string,public status:number,public data:Record<string,unknown>={}){super(message);this.name='ApiError';}}
 export async function api<T>(path:string, init:RequestInit={},{retry=true}={}):Promise<T>{const headers=new Headers(init.headers); headers.set('Content-Type','application/json'); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); let res=await fetch(toUrl(path),{...init,headers}); if(res.status===401&&retry&&localStorage.getItem('refresh')){refreshing??=(refresh().finally(()=>{refreshing=null})); try{const token=await refreshing; return api<T>(path,{...init,headers:new Headers({...Object.fromEntries(headers),Authorization:`Bearer ${token}`})},{retry:false})}catch{logout();}} if(!res.ok){const data=await res.json().catch(()=>({})); throw new ApiError(data.detail||'Something went wrong',res.status,data);} return res.status===204?undefined as T:res.json();}
 /** Multipart upload: never sets Content-Type so the browser can add the boundary. */
-export async function upload<T>(path:string, form:FormData):Promise<T>{const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{method:'POST',headers,body:form}); if(!res.ok) throw new Error((await res.json().catch(()=>({}))).detail||'Upload failed'); return res.json();}
+export async function upload<T>(path:string, form:FormData):Promise<T>{const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{method:'POST',headers,body:form}); if(!res.ok){const data=await res.json().catch(()=>({})); throw new ApiError(data.detail||'Upload failed',res.status,data);} return res.json();}
 /** Stream a protected file with the bearer token attached (no token in the URL). */
 export async function download(path:string, filename:string){const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{headers}); if(!res.ok) throw new Error((await res.json().catch(()=>({}))).detail||'Download failed'); const blob=await res.blob(); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);}
 export function logout(){localStorage.removeItem('access');localStorage.removeItem('refresh'); window.location.href='/login';}
@@ -465,3 +465,64 @@ export const money2=(v:Money|number|null|undefined)=>{
   return '₹'+n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
 };
 export const num=(v:Money|number|null|undefined)=>v===null||v===undefined?'-':Number(v).toLocaleString('en-IN');
+
+/* ------------------------------------------------------------------ *
+ * Retail shops and their school requests
+ * ------------------------------------------------------------------ */
+export type SchoolBoard='CBSE'|'ICSE'|'GSEB'|'OTHER';
+export const SCHOOL_BOARDS:{value:SchoolBoard;label:string}[]=[
+  {value:'CBSE',label:'CBSE'},
+  {value:'ICSE',label:'ICSE'},
+  {value:'GSEB',label:'GSEB (Gujarat Board)'},
+  {value:'OTHER',label:'Other'},
+];
+export type RequestStatus='PENDING'|'APPROVED'|'REJECTED';
+export type RetailStore={
+  id:string;name:string;address:string;phone:string;gst_number:string;
+  city:string;city_name:string;username:string;owner_name:string;
+  schools:{id:string;name:string;udise_code:string|null;active:boolean}[];
+  active:boolean;created_at:string;
+};
+export type SchoolRequest={
+  id:string;store:string;store_name:string;name:string;udise_code:string;address:string;
+  city:string;city_name:string;board:SchoolBoard;board_label:string;pincode:string;
+  status:RequestStatus;school:string|null;school_name:string|null;reviewed_by_name:string|null;
+  reviewed_at:string|null;reject_reason:string;
+  /** Pending only: the school with this UDISE code already on the store. */
+  existing_school:{id:string;name:string;has_logo:boolean}|null;
+  created_at:string;
+};
+export type NewRetailer={
+  username:string;password:string;first_name?:string;last_name?:string;email?:string;
+  store_name:string;address:string;phone:string;gst_number?:string;city:string;
+};
+
+export const retail={
+  myStore:()=>api<RetailStore>('/retail/my-store/'),
+  cities:()=>api<{id:string;name:string}[]>('/retail/cities/'),
+  requests:(status?:RequestStatus)=>api<Page<SchoolRequest>>(`/retail/school-requests/${status?`?status=${status}`:''}`),
+  /** Multipart: name, udise_code, address, city, board, pincode, logo. */
+  sendRequest:(form:FormData)=>upload<SchoolRequest>('/retail/school-requests/',form),
+  approve:(id:string,body:{school?:string|null;use_new_logo:boolean})=>api<SchoolRequest>(`/retail/school-requests/${id}/approve/`,{method:'POST',body:JSON.stringify(body)}),
+  reject:(id:string,reason:string)=>api<SchoolRequest>(`/retail/school-requests/${id}/reject/`,{method:'POST',body:JSON.stringify({reason})}),
+  retailers:()=>api<Page<RetailStore>>('/retail/retailers/'),
+  createRetailer:(body:NewRetailer)=>api<RetailStore>('/retail/retailers/',{method:'POST',body:JSON.stringify(body)}),
+  requestLogoPath:(id:string)=>`/retail/school-requests/${id}/logo/`,
+};
+
+/** The school's public logo (cached by the browser for a day). */
+export const schoolLogoUrl=(schoolId:string)=>toUrl(`/public/schools/${schoolId}/logo/`);
+
+/** A signed-in file (e.g. a pending request's logo) as an object URL an <img> can show. */
+export async function fetchBlobUrl(path:string):Promise<string>{const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{headers}); if(!res.ok) throw new ApiError('Could not load the picture',res.status); return URL.createObjectURL(await res.blob());}
+
+/** Field errors from a 400 response, joined per field, for showing under each input. */
+export function fieldErrors(err:unknown):Record<string,string>{
+  if(!(err instanceof ApiError)) return {};
+  const out:Record<string,string>={};
+  for(const [key,value] of Object.entries(err.data)){
+    if(key==='detail') continue;
+    out[key]=Array.isArray(value)?value.join(' '):String(value);
+  }
+  return out;
+}

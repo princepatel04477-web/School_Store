@@ -291,7 +291,7 @@ export function MeasureCapture({
         if (video.videoWidth > 0 && video.videoHeight > 0) setAspect(video.videoWidth / video.videoHeight);
         const vision = await import('@mediapipe/tasks-vision');
         const files = await vision.FilesetResolver.forVisionTasks('/mediapipe/wasm');
-        const base = { modelAssetPath: '/mediapipe/pose_landmarker_lite.task' };
+        const base = { modelAssetPath: '/mediapipe/pose_landmarker_full.task' };
         const shared = { runningMode: 'VIDEO' as const, numPoses: 1, outputSegmentationMasks: true };
         try {
           landmarker = await vision.PoseLandmarker.createFromOptions(files, {

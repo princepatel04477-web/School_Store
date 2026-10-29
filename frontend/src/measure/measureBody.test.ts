@@ -319,6 +319,60 @@ describe('shoulder points on the outline', () => {
     expect(result.shoulder_cm).toBe(result.corner_cm);
   });
 
+  /** shouldersFrame with its neck rows (above row 60) redrawn by `neck(y)`. */
+  function withNeck(neck: (y: number) => number): MeasureFrame {
+    const f = shouldersFrame();
+    const { width } = f.mask!;
+    for (let y = 30; y < 60; y += 1) {
+      f.mask!.data.fill(0, y * width, (y + 1) * width);
+      const h = neck(y);
+      f.mask!.data.fill(255, y * width + 50 - h, y * width + 50 + h);
+    }
+    return f;
+  }
+
+  it('does not take a jagged neck edge for the shoulder', () => {
+    const corners = shoulderCorners(withNeck((y) => (y % 4 < 2 ? 5 : 7)))!;
+    expect(corners).not.toBeNull();
+    expect(corners.left.y * 200).toBeGreaterThanOrEqual(63);
+    expect((corners.right.x - corners.left.x) * 100).toBeGreaterThanOrEqual(39);
+  });
+
+  it('does not take a shirt collar for the shoulder', () => {
+    // The outline widens from 5 to 9 px at the collar, then runs straight down to the shoulders.
+    const corners = shoulderCorners(withNeck((y) => (y < 52 ? 5 : y < 54 ? 5 + 2 * (y - 51) : 9)))!;
+    expect(corners).not.toBeNull();
+    expect((corners.right.x - corners.left.x) * 100).toBeGreaterThanOrEqual(39);
+  });
+
+  it('reads a noisy full-size outline to within a centimetre', () => {
+    // 400 x 800 picture, 0.25 cm per px: crown row 40, floor row 720 (170 cm).
+    const width = 400;
+    const height = 800;
+    const landmarks = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility: 1 }));
+    landmarks[0] = { x: 0.5, y: 100 / height, z: 0, visibility: 1 };
+    landmarks[11] = { x: 128 / width, y: 190 / height, z: 0, visibility: 1 };
+    landmarks[12] = { x: 272 / width, y: 190 / height, z: 0, visibility: 1 };
+    for (const i of [29, 30, 31, 32]) landmarks[i] = { x: 0.5, y: 720 / height, z: 0, visibility: 1 };
+    const data = new Uint8Array(width * height);
+    // Head, neck, shoulder slope out to 84 px (42 cm across) at row 175, then down the arm.
+    const half = (y: number) =>
+      y < 120 ? 30 : y < 160 ? 24 : y <= 175 ? 24 + 4 * (y - 160) : y <= 200 ? 84 + 0.3 * (y - 175) : 91;
+    let seed = 7;
+    const jitter = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return (seed % 3) - 1;
+    };
+    for (let y = 40; y <= 720; y += 1) {
+      const h = Math.round(half(y));
+      data.fill(255, y * width + 200 - h + jitter(), y * width + 200 + h + jitter());
+    }
+    const f: MeasureFrame = { landmarks, imageWidth: width, imageHeight: height, mask: { width, height, data } };
+    const result = measureFrames([f], 170, 1)!;
+    expect(result.corner_cm).toBeDefined();
+    expect(Math.abs(result.shoulder_cm - 42)).toBeLessThanOrEqual(1);
+  });
+
   it('falls back when the outline has no shoulder slope (a straight block)', () => {
     const f = frame(0.32);
     f.landmarks[12] = { x: 0.68, y: 0.35, z: 0, visibility: 1 };

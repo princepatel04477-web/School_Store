@@ -46,6 +46,17 @@ The reading is now taken between the two shoulder points found on the body outli
 
 The app values match test 1 within 1 cm (54.0, 45, 52.7, 43.4), so they are most likely from the old version (mass curve on); the camera screen didn't show the live outline either. The gap shrank because the tape moved 4 to 5 cm (Jayesh 47 to 52, Prince 42 to 47). Test mode now shows `Build <commit>` on the camera and results screens, so each reading can be tied to the code that took it.
 
+### Tape check 3
+
+| Name | Tape |
+|---|---|
+| Jayesh | 43.5 |
+| Kaka | 42.3 |
+
+App readings from the new build still to be written in. Jayesh has now taped 47, 52 and 43.5 cm, an 8.5 cm spread on one person, so the tape method moves more than the camera does. Use the method in "Collecting checks" every time.
+
+**Fix after this check:** the shoulder point sometimes landed on the neck. One ragged pixel row on the neck's outline counted as the shoulder slope starting, so the next row was taken as the shoulder point. Now the outline is smoothed before its slope is read, the search starts at the neck (the narrowest row), each point must sit outside its own shoulder joint (`CORNER_TO_JOINTS`), and the camera screen only draws points the reading uses. The pose model went from `lite` to `full` for a tighter outline.
+
 With this tape method the heavy builds taped 47 cm, so the mass curve (fitted to earlier 55 to 58 cm tapes) read them 3 to 7 cm wide. It is set to no change (`gain` 1, `alpha` 0) until checks show a trend again.
 
 ## Mass correction (off)

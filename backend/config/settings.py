@@ -93,6 +93,7 @@ INSTALLED_APPS = [
     "orders",
     "analytics",
     "panel",
+    "retail",
 ]
 
 MIDDLEWARE = [

@@ -137,6 +137,8 @@ class AuditLog(UUIDModel):
         STOCK_CHANGED = "STOCK_CHANGED", "Stock Changed"
         ORDER_STATUS_CHANGED = "ORDER_STATUS_CHANGED", "Order Status Changed"
         PRICE_CHANGED = "PRICE_CHANGED", "Price Changed"
+        SCHOOL_REQUEST_APPROVED = "SCHOOL_REQUEST_APPROVED", "School Request Approved"
+        SCHOOL_REQUEST_REJECTED = "SCHOOL_REQUEST_REJECTED", "School Request Rejected"
 
     action = models.CharField(max_length=40, choices=Action.choices)
     actor = models.ForeignKey(

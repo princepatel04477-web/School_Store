@@ -47,6 +47,13 @@ class Grade(UUIDModel):
         return self.name
 
 
+class Board(models.TextChoices):
+    CBSE = "CBSE", "CBSE"
+    ICSE = "ICSE", "ICSE"
+    GSEB = "GSEB", "GSEB (Gujarat Board)"
+    OTHER = "OTHER", "Other"
+
+
 class School(UUIDModel):
     city = models.ForeignKey(
         City,
@@ -76,6 +83,16 @@ class School(UUIDModel):
     address = models.TextField(blank=True, default="")
     contact_email = models.EmailField(blank=True, default="")
     contact_phone = models.CharField(max_length=20, blank=True, default="")
+    udise_code = models.CharField(
+        max_length=11,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="The school's 11-digit UDISE+ code from the government register. Empty for schools added before it was asked.",
+    )
+    board = models.CharField(max_length=10, choices=Board.choices, blank=True, default="")
+    pincode = models.CharField(max_length=6, blank=True, default="")
+    logo = models.ImageField(upload_to="school-logos/%Y/%m/", blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

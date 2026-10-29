@@ -44,7 +44,7 @@ describe('camera measurement stays on the phone', () => {
   it('loads the pose model from this site, not a third party', () => {
     const source = sources['./MeasureCapture.tsx'];
     expect(source).toContain("'/mediapipe/wasm'");
-    expect(source).toContain("'/mediapipe/pose_landmarker_lite.task'");
+    expect(source).toContain("'/mediapipe/pose_landmarker_full.task'");
     expect(source).not.toMatch(/https?:\/\//);
   });
 });

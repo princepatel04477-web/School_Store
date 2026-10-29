@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { X, Overview, BarChart as BarChartIcon, Users, SchoolBuilding, Eye, Ruler } from '../components/ui/icons';
+import { X, Overview, BarChart as BarChartIcon, Users, SchoolBuilding, Eye, Ruler, ShoppingBag, ShieldCheck } from '../components/ui/icons';
 import { PanelShell, type PanelNavItem } from '../components/admin/PanelShell';
 import { Link, Route, Routes, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -15,6 +15,8 @@ import {
 } from '../api';
 import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
 import { SizeChartManager } from '../components/admin/SizeChartManager';
+import { RetailersManager } from '../components/admin/retail/RetailersManager';
+import { SchoolRequestsReview } from '../components/admin/retail/SchoolRequestsReview';
 
 const NAV: PanelNavItem[] = [
   { to: '', label: 'Executive Overview', icon: Overview, end: true },
@@ -23,6 +25,8 @@ const NAV: PanelNavItem[] = [
   { to: 'schools', label: 'School Commissions', icon: SchoolBuilding },
   { to: 'view-as', label: 'View As (Audit)', icon: Eye },
   { to: 'size-charts', label: 'Size Charts', icon: Ruler },
+  { to: 'school-requests', label: 'School Requests', icon: ShieldCheck },
+  { to: 'retailers', label: 'Retailers', icon: ShoppingBag },
 ];
 
 /**
@@ -54,6 +58,8 @@ export default function BossPanel() {
         <Route path="schools" element={<BossSchoolsCommissionView />} />
         <Route path="view-as" element={<BossViewAsView />} />
         <Route path="size-charts" element={<BossSizeChartsView />} />
+        <Route path="school-requests" element={<SchoolRequestsReview />} />
+        <Route path="retailers" element={<RetailersManager />} />
       </Routes>
     </PanelShell>
   );

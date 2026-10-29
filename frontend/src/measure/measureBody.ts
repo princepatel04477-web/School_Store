@@ -7,6 +7,7 @@ import {
   SHOULDER_TO_HEIGHT,
   DEPTH_TO_HEIGHT,
   CORNER_SLOPE,
+  CORNER_SMOOTH,
   CORNER_TO_JOINTS,
 } from './config';
 
@@ -141,9 +142,12 @@ export interface ShoulderCorners {
  * The shoulder points a tailor puts the tape on, found on the body outline.
  * Going down from the neck, each side of the outline first runs out fast along
  * the slope of the shoulder (flatter than 45 degrees), then turns down into the
- * arm. The shoulder point is where it turns: the first row after the slope where
- * the edge moves out less than CORNER_SLOPE pixels per row. null when the outline
- * doesn't show that shape on both sides (loose clothes, arms raised, no outline).
+ * arm. The shoulder point is where it turns: where the smoothed edge starts moving
+ * out less than CORNER_SLOPE pixels per row and keeps to that. The search starts
+ * at the neck (the narrowest row), and a turn that close to the neck is skipped.
+ * null when the outline doesn't show that shape on both sides, or a point lands
+ * outside CORNER_TO_JOINTS (loose clothes, arms raised, no outline): then the
+ * reading falls back to the joints and outline blend.
  */
 export function shoulderCorners(frame: MeasureFrame): ShoulderCorners | null {
   const mask = frame.mask;
@@ -157,6 +161,10 @@ export function shoulderCorners(frame: MeasureFrame): ShoulderCorners | null {
   if (reach < 4) return null;
   const centre = Math.round(((left.x + right.x) / 2) * mask.width);
   if (centre < 0 || centre >= mask.width) return null;
+  // Middle to each joint, in mask pixels: the yardstick for where a shoulder point can be.
+  const jointLeft = centre - Math.min(left.x, right.x) * mask.width;
+  const jointRight = Math.max(left.x, right.x) * mask.width - centre;
+  if (jointLeft <= 0 || jointRight <= 0) return null;
 
   // From the chin to a little below the shoulder joints.
   const firstRow = Math.max(0, Math.round(noseY + 0.35 * reach));
@@ -166,29 +174,120 @@ export function shoulderCorners(frame: MeasureFrame): ShoulderCorners | null {
   for (let y = firstRow; y <= lastRow; y += 1) {
     const run = runAt(mask, y * mask.width, centre);
     outLeft.push(run && run[0] > 0 ? centre - run[0] : null);
-    outRight.push(run && run[1] < mask.width - 1 ? run[1] - centre : null);
+    outRight.push(run && run[1] < mask.width - 1 ? run[1] + 1 - centre : null);
   }
+  const radius = Math.max(1, Math.round(reach * CORNER_SMOOTH));
+  const lineIndex = Math.round(lineY) - firstRow;
 
-  // How far out each side reaches at the shoulder point, and on which row.
-  const corner = (out: (number | null)[]): { reach: number; row: number } | null => {
-    let onSlope = false;
-    for (let i = 1; i < out.length - 1; i += 1) {
-      const before = out[i - 1];
-      const after = out[i + 1];
-      if (before == null || after == null || out[i] == null) continue;
-      const speed = (after - before) / 2;
-      if (speed >= CORNER_SLOPE) onSlope = true;
-      else if (onSlope) return { reach: out[i]!, row: firstRow + i };
-    }
-    return null;
-  };
-  const l = corner(outLeft);
-  const r = corner(outRight);
+  const l = findCorner(smoothProfile(outLeft, radius), radius, lineIndex, jointLeft);
+  const r = findCorner(smoothProfile(outRight, radius), radius, lineIndex, jointRight);
   if (!l || !r) return null;
   return {
-    left: { x: (centre - l.reach) / mask.width, y: l.row / mask.height },
-    right: { x: (centre + r.reach + 1) / mask.width, y: r.row / mask.height },
+    left: { x: (centre - l.reach) / mask.width, y: (firstRow + l.row) / mask.height },
+    right: { x: (centre + r.reach) / mask.width, y: (firstRow + r.row) / mask.height },
   };
+}
+
+/** A turn this close to the neck (share of the middle-to-joint distance) is a wobble in the neck's outline. */
+const NECK_CLEAR = 0.75;
+
+/**
+ * Where one side of the outline turns from the shoulder slope into the arm, as
+ * {reach out from the middle, row index}, both to a fraction of a pixel. `out` is
+ * the smoothed edge per row, `joint` the middle-to-joint distance on this side.
+ */
+function findCorner(
+  out: (number | null)[],
+  radius: number,
+  lineIndex: number,
+  joint: number,
+): { reach: number; row: number } | null {
+  // The neck: the narrowest row above the shoulder line.
+  let neck = -1;
+  for (let i = 0; i <= Math.min(lineIndex, out.length - 1); i += 1) {
+    const value = out[i];
+    if (value != null && (neck < 0 || value < out[neck]!)) neck = i;
+  }
+  if (neck < 0) return null;
+
+  const speedAt = (i: number): number | null => {
+    const before = out[i - radius];
+    const after = out[i + radius];
+    return before == null || after == null ? null : (after - before) / (2 * radius);
+  };
+  let onSlope = false;
+  let previous: { index: number; speed: number } | null = null;
+  for (let i = Math.max(neck, radius); i < out.length - radius; i += 1) {
+    const speed = speedAt(i);
+    const here = out[i];
+    if (speed == null || here == null) {
+      previous = null;
+      continue;
+    }
+    if (speed >= CORNER_SLOPE) {
+      onSlope = true;
+      previous = { index: i, speed };
+      continue;
+    }
+    if (!onSlope) continue;
+    if (here < joint * NECK_CLEAR) {
+      onSlope = false;
+      previous = null;
+      continue;
+    }
+    // The turn must hold for the next few rows, not be one flat step on the slope.
+    let holds = true;
+    for (let k = 1; k <= radius; k += 1) {
+      const next = speedAt(i + k);
+      if (next != null && next >= CORNER_SLOPE) holds = false;
+    }
+    if (!holds) continue;
+    // Between the last slope row and this one, where the edge crosses 45 degrees.
+    let row = i;
+    let reach = here;
+    if (previous && previous.index === i - 1 && out[i - 1] != null) {
+      const t = (previous.speed - CORNER_SLOPE) / (previous.speed - speed);
+      row = i - 1 + t;
+      reach = out[i - 1]! + t * (here - out[i - 1]!);
+    }
+    const ratio = reach / joint;
+    return ratio >= CORNER_TO_JOINTS.min && ratio <= CORNER_TO_JOINTS.max ? { reach, row } : null;
+  }
+  return null;
+}
+
+/**
+ * The edge per row with mask noise taken out: short gaps filled in straight,
+ * then a running median (drops single-row spikes) and a running mean, each
+ * `radius` rows either side. Long gaps stay empty.
+ */
+function smoothProfile(out: (number | null)[], radius: number): (number | null)[] {
+  const filled = [...out];
+  for (let i = 0; i < filled.length; i += 1) {
+    if (filled[i] != null) continue;
+    let end = i;
+    while (end < filled.length && filled[end] == null) end += 1;
+    const before = filled[i - 1];
+    const after = filled[end];
+    if (before != null && after != null && end - i <= 2 * radius) {
+      for (let k = i; k < end; k += 1) filled[k] = before + ((after - before) * (k - i + 1)) / (end - i + 1);
+    }
+    i = end;
+  }
+  const window = (values: (number | null)[], i: number) => {
+    const picked: number[] = [];
+    for (let k = i - radius; k <= i + radius; k += 1) {
+      const value = values[k];
+      if (value != null) picked.push(value);
+    }
+    return picked;
+  };
+  const medians = filled.map((value, i) => (value == null ? null : median(window(filled, i))));
+  return medians.map((value, i) => {
+    if (value == null) return null;
+    const picked = window(medians, i);
+    return picked.reduce((sum, v) => sum + v, 0) / picked.length;
+  });
 }
 
 /** Body run on one outline row that contains column x: [left edge, right edge], or null. */
@@ -316,9 +415,7 @@ function frameMeasure(frame: MeasureFrame, heightCm: number, factor: number): Me
         (corners.right.y - corners.left.y) * frame.imageHeight,
       )
     : null;
-  const cornerOk =
-    cornerPx != null && cornerPx >= jointPx * CORNER_TO_JOINTS.min && cornerPx <= jointPx * CORNER_TO_JOINTS.max;
-  const shoulderPx = cornerOk ? cornerPx : blendPx;
+  const shoulderPx = cornerPx ?? blendPx;
   const visibility = Math.min(
     nose.visibility ?? 0,
     left.visibility ?? 0,
@@ -333,7 +430,7 @@ function frameMeasure(frame: MeasureFrame, heightCm: number, factor: number): Me
     ...(edgeOk
       ? { joint_cm: Math.round(jointPx * scale * 10) / 10, edge_cm: Math.round(edgePx * scale * 10) / 10 }
       : {}),
-    ...(cornerOk ? { corner_cm: Math.round(cornerPx * scale * 10) / 10 } : {}),
+    ...(cornerPx != null ? { corner_cm: Math.round(cornerPx * scale * 10) / 10 } : {}),
   };
 }
 

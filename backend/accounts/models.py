@@ -10,6 +10,7 @@ class User(AbstractUser):
         SCHOOL_ADMIN = "SCHOOL_ADMIN", "School Admin"
         TEACHER = "TEACHER", "Teacher"
         PARENT = "PARENT", "Parent"
+        RETAILER = "RETAILER", "Retailer"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     role = models.CharField(
