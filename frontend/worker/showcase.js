@@ -7,9 +7,11 @@
 // Parent sign-in works like the real store, but the one-time code is shown on screen instead of
 // being sent by SMS. "My children" are example children, one boy and one girl per school.
 // Orders are kept in KV under the parent's phone. Refresh the catalogue with the export in the PR.
+// Staff (the Boss and retail shops) sign in with a username and password: see showcaseRetail.js.
 
 import DATA from './showcase-data.json';
 import PHOTOS from './showcase-photos.json';
+import { publicLogo, showcaseCities, staffApi, staffFromSession, staffSignIn } from './showcaseRetail.js';
 
 const PHOTO_SET = new Set(PHOTOS);
 const SCHOOLS_BY_ID = Object.fromEntries(DATA.schools.map((s) => [s.id, s]));
@@ -40,21 +42,29 @@ async function otpFor(env, phone, windowOffset = 0) {
   return String(n).padStart(6, '0');
 }
 
-async function makeToken(env, phone, days) {
-  const body = b64url(enc.encode(JSON.stringify({ phone, exp: Date.now() + days * 86400000 })));
+/** A signed token for a parent ({ phone }) or a staff member ({ sid, role }). */
+async function makeToken(env, subject, days) {
+  const body = b64url(enc.encode(JSON.stringify({ ...subject, exp: Date.now() + days * 86400000 })));
   return `${body}.${await hmac(env.SHOWCASE_SECRET, body)}`;
 }
 
+/** The token's subject ({ phone } or { sid, role }), or null when it is missing, forged or expired. */
 async function readToken(env, request, raw) {
   const token = raw ?? (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
   const [body, sig] = token.split('.');
   if (!body || !sig || sig !== (await hmac(env.SHOWCASE_SECRET, body))) return null;
   try {
     const data = JSON.parse(fromB64url(body));
-    return data.exp > Date.now() ? data.phone : null;
+    if (!(data.exp > Date.now())) return null;
+    if (data.phone) return { phone: data.phone };
+    return data.sid ? { sid: data.sid, role: data.role } : null;
   } catch {
     return null;
   }
+}
+
+async function tokensFor(env, subject) {
+  return { access: await makeToken(env, subject, 1), refresh: await makeToken(env, subject, 7) };
 }
 
 const parentUser = (phone) => ({
@@ -212,8 +222,8 @@ async function api(request, env, path) {
     const ok = [await otpFor(env, digits), await otpFor(env, digits, 1)].includes(String(otp));
     if (!ok) return json({ detail: 'Wrong code.' }, 400);
     return json({
-      access: await makeToken(env, digits, 7),
-      refresh: await makeToken(env, digits, 30),
+      access: await makeToken(env, { phone: digits }, 7),
+      refresh: await makeToken(env, { phone: digits }, 30),
       user: parentUser(digits),
       created: false,
       children_linked: DATA.schools.length * 2,
@@ -221,12 +231,40 @@ async function api(request, env, path) {
   }
   if (path === '/auth/token/refresh/' && method === 'POST') {
     const { refresh } = await readJson(request);
-    const phone = await readToken(env, request, refresh || '');
-    return phone ? json({ access: await makeToken(env, phone, 7) }) : json({ detail: 'Session expired.' }, 401);
+    const subject = await readToken(env, request, refresh || '');
+    if (!subject) return json({ detail: 'Session expired.' }, 401);
+    return json({ access: await makeToken(env, subject, subject.phone ? 7 : 1) });
+  }
+
+  // Staff sign-in (Boss and retail shops): username and password
+  if (path === '/auth/token/' && method === 'POST') {
+    const { username, password } = await readJson(request);
+    const { user, error } = await staffSignIn(env, username, password);
+    if (error) return error;
+    return json({ ...(await tokensFor(env, { sid: user.id, role: user.role })), user });
+  }
+
+  const logo = await publicLogo(env, path);
+  if (logo) return logo;
+
+  const session = await readToken(env, request);
+  const staff = await staffFromSession(env, session);
+  if (session?.sid && !staff) return json({ detail: 'Your account was removed.' }, 401);
+  if (path === '/auth/me/' && staff) return json(staff);
+
+  const staffAnswer = await staffApi(request, env, path, staff, DATA);
+  if (staffAnswer) return staffAnswer;
+  if (staff?.role === 'BOSS' && method === 'GET') {
+    // Boss panel lists that have nothing behind them on the showcase.
+    if (path === '/cities/') {
+      const results = showcaseCities(DATA).map((c) => ({ ...c, state: 'Gujarat', active: true }));
+      return json({ count: results.length, next: null, previous: null, results });
+    }
+    if (path === '/accounts/users/') return json({ count: 0, next: null, previous: null, results: [] });
   }
 
   // Everything below needs a signed-in parent
-  const phone = await readToken(env, request);
+  const phone = session?.phone ?? null;
   if (path === '/auth/me/') return phone ? json(parentUser(phone)) : json({ detail: 'Not signed in.' }, 401);
   if (!phone) {
     return path.startsWith('/students/') || path.startsWith('/orders/') ? json({ detail: 'Not signed in.' }, 401) : notHere();

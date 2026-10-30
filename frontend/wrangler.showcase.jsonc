@@ -14,5 +14,16 @@
   },
   // Orders placed in the showcase, kept for 90 days. SHOWCASE_SECRET (wrangler secret put) signs
   // sign-in codes and sessions.
-  "kv_namespaces": [{ "binding": "ORDERS", "id": "08e34c8b7a52456386f743a9d1f9f91e" }]
+  "kv_namespaces": [{ "binding": "ORDERS", "id": "08e34c8b7a52456386f743a9d1f9f91e" }],
+  // Retail shops and their school requests (see worker/showcaseRetail.js). Logos are kept in ORDERS.
+  // Schema: worker/migrations. Apply with: npx wrangler d1 migrations apply schoolstore-showcase --remote -c wrangler.showcase.jsonc
+  // The Boss signs in with the BOSS_USERNAME and BOSS_PASSWORD secrets (wrangler secret put).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "schoolstore-showcase",
+      "database_id": "730df6ea-44bb-4ba0-be1e-be10ac5059bc",
+      "migrations_dir": "worker/migrations"
+    }
+  ]
 }
