@@ -12,6 +12,7 @@
 import DATA from './showcase-data.json';
 import PHOTOS from './showcase-photos.json';
 import { publicLogo, showcaseCities, staffApi, staffFromSession, staffSignIn } from './showcaseRetail.js';
+import { publicMockup, uniformsApi } from './showcaseUniforms.js';
 
 const PHOTO_SET = new Set(PHOTOS);
 const SCHOOLS_BY_ID = Object.fromEntries(DATA.schools.map((s) => [s.id, s]));
@@ -244,15 +245,15 @@ async function api(request, env, path) {
     return json({ ...(await tokensFor(env, { sid: user.id, role: user.role })), user });
   }
 
-  const logo = await publicLogo(env, path);
-  if (logo) return logo;
+  const picture = (await publicLogo(env, path)) ?? (await publicMockup(env, path));
+  if (picture) return picture;
 
   const session = await readToken(env, request);
   const staff = await staffFromSession(env, session);
   if (session?.sid && !staff) return json({ detail: 'Your account was removed.' }, 401);
   if (path === '/auth/me/' && staff) return json(staff);
 
-  const staffAnswer = await staffApi(request, env, path, staff, DATA);
+  const staffAnswer = (await uniformsApi(request, env, path, staff)) ?? (await staffApi(request, env, path, staff, DATA));
   if (staffAnswer) return staffAnswer;
   if (staff?.role === 'BOSS' && method === 'GET') {
     // Boss panel lists that have nothing behind them on the showcase.

@@ -18,6 +18,7 @@
   // Retail shops and their school requests (see worker/showcaseRetail.js). Logos are kept in ORDERS.
   // Schema: worker/migrations. Apply with: npx wrangler d1 migrations apply schoolstore-showcase --remote -c wrangler.showcase.jsonc
   // The Boss signs in with the BOSS_USERNAME and BOSS_PASSWORD secrets (wrangler secret put).
+  // Uniform mock-ups (worker/showcaseUniforms.js) use FASHN try-on: FASHN_API_KEY secret.
   "d1_databases": [
     {
       "binding": "DB",

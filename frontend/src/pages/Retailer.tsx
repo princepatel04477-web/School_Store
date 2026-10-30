@@ -3,12 +3,16 @@ import { Route, Routes } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { retail } from '../api';
 import { PanelShell, type PanelNavItem } from '../components/admin/PanelShell';
-import { SchoolBuilding } from '../components/ui/icons';
+import { Package, SchoolBuilding } from '../components/ui/icons';
 import { SchoolRequestForm } from '../components/admin/retail/SchoolRequestForm';
 import { RequestSkeleton, SignedInLogo, StatusBadge, formatDate } from '../components/admin/retail/RetailBits';
 import { Skeleton } from '../components/ui/Skeleton';
+import { UniformDetail, UniformsList } from '../components/admin/retail/UniformViews';
 
-const NAV: PanelNavItem[] = [{ to: '', label: 'My schools', icon: SchoolBuilding, end: true }];
+const NAV: PanelNavItem[] = [
+  { to: '', label: 'My schools', icon: SchoolBuilding, end: true },
+  { to: 'uniforms', label: 'My uniforms', icon: Package },
+];
 
 export default function Retailer() {
   const store = useQuery({ queryKey: ['retail-my-store'], queryFn: retail.myStore });
@@ -16,6 +20,8 @@ export default function Retailer() {
     <PanelShell base="/retailer" role="Retail Shop" context={store.data?.name} nav={NAV}>
       <Routes>
         <Route index element={<MySchoolsView />} />
+        <Route path="uniforms" element={<UniformsList />} />
+        <Route path="uniforms/:id" element={<UniformDetail />} />
       </Routes>
     </PanelShell>
   );

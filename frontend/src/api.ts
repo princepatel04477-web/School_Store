@@ -508,7 +508,28 @@ export const retail={
   retailers:()=>api<Page<RetailStore>>('/retail/retailers/'),
   createRetailer:(body:NewRetailer)=>api<RetailStore>('/retail/retailers/',{method:'POST',body:JSON.stringify(body)}),
   requestLogoPath:(id:string)=>`/retail/school-requests/${id}/logo/`,
+  uniforms:()=>api<Page<UniformSet>>('/retail/uniforms/'),
+  uniform:(id:string)=>api<UniformSet>(`/retail/uniforms/${id}/`),
+  /** Multipart: school, gender, class_from, class_to, name, price, sizes (comma list), top_photo, bottom_photo. */
+  addUniform:(form:FormData)=>upload<UniformSet>('/retail/uniforms/',form),
+  uniformAction:(id:string,action:'generate'|'tick'|'publish'|'unpublish'|'hide')=>api<UniformSet&{missing_models?:number[]}>(`/retail/uniforms/${id}/${action}/`,{method:'POST'}),
+  /** "retry" a failed class with the same seed, or ask for "another" version with the next seed. */
+  mockupAgain:(id:string,classNo:number,how:'retry'|'another')=>api<UniformSet>(`/retail/uniforms/${id}/mockups/${classNo}/${how}/`,{method:'POST'}),
+  uniformPhotoPath:(id:string,part:'top'|'bottom')=>`/retail/uniforms/${id}/photo/${part}/`,
 };
+
+export type UniformGender='BOY'|'GIRL';
+export type MockupStatus='QUEUED'|'TOP'|'BOTTOM'|'DONE'|'FAILED';
+export type Mockup={id:string;class_no:number;status:MockupStatus;error:string;
+  /** Site path of the finished picture (only when DONE). */
+  image:string|null};
+export type UniformSet={
+  id:string;store:string;store_name:string;school:string;school_name:string;gender:UniformGender;
+  class_from:number;class_to:number;name:string;price:number;sizes:string[];
+  status:'DRAFT'|'LIVE'|'HIDDEN';mockups:Mockup[];mockups_done:number;mockups_total:number;created_at:string;
+};
+/** A mock-up picture's address in this app (the API gives a site path). */
+export const mockupUrl=(path:string)=>toUrl(path);
 
 /** The school's public logo (cached by the browser for a day). */
 export const schoolLogoUrl=(schoolId:string)=>toUrl(`/public/schools/${schoolId}/logo/`);
