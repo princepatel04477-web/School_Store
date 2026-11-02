@@ -37,7 +37,7 @@ function checkForm(form: FormState, top: File | null, bottom: File | null): Reco
   if (!/^\d+$/.test(form.price) || Number(form.price) <= 0) errors.price = 'Enter the price of the set in rupees.';
   if (!form.sizes.split(',').some((s) => s.trim())) errors.sizes = 'Enter the sizes you have, separated by commas.';
   const topError = photoError(top, 'shirt');
-  const bottomError = photoError(bottom, form.gender === 'GIRL' ? 'skirt' : 'pant');
+  const bottomError = photoError(bottom, form.gender === 'GIRL' ? 'skirt cloth' : 'pant cloth');
   if (topError) errors.top_photo = topError;
   if (bottomError) errors.bottom_photo = bottomError;
   return errors;
@@ -133,7 +133,7 @@ export function UniformForm({ store, onClose, onAdded }: { store: RetailStore; o
     if (Object.keys(found).length === 0) add.mutate();
   };
   const err = (key: string) => (errors[key] ? <span className="retail-field-error">{errors[key]}</span> : null);
-  const bottomLabel = form.gender === 'GIRL' ? 'Skirt photo' : form.gender === 'BOY' ? 'Pant photo' : 'Pant or skirt photo';
+  const bottomLabel = form.gender === 'GIRL' ? 'Skirt cloth close-up' : form.gender === 'BOY' ? 'Pant cloth close-up' : 'Pant or skirt cloth close-up';
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -146,7 +146,7 @@ export function UniformForm({ store, onClose, onAdded }: { store: RetailStore; o
         </div>
         <form onSubmit={submit} className="form-card retail-form" noValidate>
           <p className="retail-hint">
-            A set is the shirt with the pant (boys) or skirt (girls). Photograph each one laid flat on a plain floor, from straight above, in good light.
+            A set is the shirt with the pant (boys) or skirt (girls). We fill the model's pant or skirt with your cloth. For now the model keeps a plain white shirt.
           </p>
           {message && Object.keys(errors).length === 0 && <div className="error" role="alert">{message}</div>}
 
@@ -217,7 +217,7 @@ export function UniformForm({ store, onClose, onAdded }: { store: RetailStore; o
           <PhotoPick
             id={`${id}-top`}
             label="Shirt photo"
-            hint="The real shirt, laid flat. PNG, JPG or WebP, up to 8 MB."
+            hint="The real shirt, kept with the set. PNG, JPG or WebP, up to 8 MB."
             file={top}
             error={errors.top_photo}
             onPick={(f) => {
@@ -228,7 +228,7 @@ export function UniformForm({ store, onClose, onAdded }: { store: RetailStore; o
           <PhotoPick
             id={`${id}-bottom`}
             label={bottomLabel}
-            hint="The real one that goes with the shirt, laid flat."
+            hint="Only the cloth: flat, from straight above, in good light, about an A4 sheet of it, with no folds, buttons or logos."
             file={bottom}
             error={errors.bottom_photo}
             onPick={(f) => {

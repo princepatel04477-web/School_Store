@@ -512,15 +512,14 @@ export const retail={
   uniform:(id:string)=>api<UniformSet>(`/retail/uniforms/${id}/`),
   /** Multipart: school, gender, class_from, class_to, name, price, sizes (comma list), top_photo, bottom_photo. */
   addUniform:(form:FormData)=>upload<UniformSet>('/retail/uniforms/',form),
-  uniformAction:(id:string,action:'generate'|'tick'|'publish'|'unpublish'|'hide')=>api<UniformSet&{missing_models?:number[]}>(`/retail/uniforms/${id}/${action}/`,{method:'POST'}),
-  /** "retry" a failed class with the same seed, or ask for "another" version with the next seed. */
-  mockupAgain:(id:string,classNo:number,how:'retry'|'another')=>api<UniformSet>(`/retail/uniforms/${id}/mockups/${classNo}/${how}/`,{method:'POST'}),
+  uniformAction:(id:string,action:'publish'|'unpublish'|'hide')=>api<UniformSet>(`/retail/uniforms/${id}/${action}/`,{method:'POST'}),
+  /** The picture the browser's mock-up engine made for one class. */
+  saveMockup:(id:string,classNo:number,picture:Blob)=>api<UniformSet>(`/retail/uniforms/${id}/mockups/${classNo}/image/`,{method:'POST',body:picture}),
   uniformPhotoPath:(id:string,part:'top'|'bottom')=>`/retail/uniforms/${id}/photo/${part}/`,
 };
 
 export type UniformGender='BOY'|'GIRL';
-export type MockupStatus='QUEUED'|'TOP'|'BOTTOM'|'DONE'|'FAILED';
-export type Mockup={id:string;class_no:number;status:MockupStatus;error:string;
+export type Mockup={id:string;class_no:number;status:'DONE';error:string;
   /** Site path of the finished picture (only when DONE). */
   image:string|null};
 export type UniformSet={
