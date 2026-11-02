@@ -157,8 +157,10 @@ async function saveMockup(env, request, uniform, classNo) {
   if (!bytes.byteLength || bytes.byteLength > MAX_MOCKUP_BYTES) return json({ detail: 'The mock-up picture must be 8 MB or smaller.' }, 400);
   const type = logoType(bytes);
   if (!type) return json({ detail: 'The mock-up must be a PNG, JPG or WebP picture.' }, 400);
-  const done = await env.DB.prepare("SELECT 1 FROM mockups WHERE uniform_id = ? AND class_no = ? AND status = 'DONE'").bind(uniform.id, classNo).first();
-  if (done) return json({ detail: 'This mock-up is already made.' }, 409);
+  const existing = await env.DB.prepare("SELECT image_key FROM mockups WHERE uniform_id = ? AND class_no = ?").bind(uniform.id, classNo).first();
+  if (existing?.image_key) {
+    await env.ORDERS.delete(existing.image_key).catch(() => {});
+  }
   const id = crypto.randomUUID();
   const key = `mockup:${id}`;
   await env.ORDERS.put(key, bytes, { metadata: { type } });
