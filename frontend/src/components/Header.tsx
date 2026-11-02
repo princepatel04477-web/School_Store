@@ -145,7 +145,7 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
             <nav className="desktop-nav" aria-label="Primary Navigation">
               {siteConfig.categories.map((cat) => {
                 const isActive =
-                  location.pathname.startsWith('/shop') && location.search.includes(`cat=${encodeURIComponent(cat.slug)}`);
+                  /^\/(shop|flow)/.test(location.pathname) && new URLSearchParams(location.search).get('cat') === cat.slug;
                 return (
                   <Link
                     key={cat.slug}

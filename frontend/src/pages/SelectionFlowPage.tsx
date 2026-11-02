@@ -6,6 +6,7 @@ import { seedClasses, type SeedClass } from '../data/seedData';
 import { useStoreSchools, useStoreProducts, type StoreSchool } from '../data/catalog';
 import type { CardProduct } from '../components/product/ProductCard';
 import { useStoreState, storeState } from '../store/storeState';
+import { resolveFlowStep } from '../store/flowStep';
 import { SchoolCrest } from '../components/school/SchoolCrest';
 import { ProductCard } from '../components/product/ProductCard';
 import { ProductSheet } from '../components/product/ProductSheet';
@@ -52,18 +53,20 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const { t } = useLang();
   const [fullSetOpen, setFullSetOpen] = useState(false);
 
-  // Read URL params or fallback to active stored selection
-  const stepParam = parseInt(searchParams.get('step') || '1', 10);
-  const [currentStep, setCurrentStep] = useState<number>(stepParam || 1);
   const [stepDirection, setStepDirection] = useState<'forward' | 'backward'>('forward');
 
   // School Search query
   const [schoolQuery, setSchoolQuery] = useState('');
 
   // Selected School, Class, and Gender State
-  const activeSchoolId = searchParams.get('school') || selection?.schoolId || '';
-  const activeClassId = searchParams.get('class') || selection?.gradeId || '';
-  const activeGender = (searchParams.get('gender') as 'boy' | 'girl' | null) || selection?.gender || null;
+  // Read URL params or fallback to active stored selection. A link to another school
+  // does not inherit the class and boy/girl chosen for the saved school.
+  const linkedSchoolId = searchParams.get('school');
+  const savedAnswers = !linkedSchoolId || linkedSchoolId === selection?.schoolId ? selection : null;
+  const genderParam = searchParams.get('gender');
+  const activeSchoolId = linkedSchoolId || selection?.schoolId || '';
+  const activeClassId = searchParams.get('class') || savedAnswers?.gradeId || '';
+  const activeGender = genderParam === 'boy' || genderParam === 'girl' ? genderParam : savedAnswers?.gender || null;
 
   const schoolsQuery = useStoreSchools();
   const schools = useMemo(() => schoolsQuery.data ?? [], [schoolsQuery.data]);
@@ -75,6 +78,14 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     () => seedClasses.find((c) => c.id === activeClassId) || null,
     [activeClassId]
   );
+  // A saved school that has left the store counts as no school; a linked one gets its own message.
+  const savedSchoolGone = schoolsQuery.isSuccess && !activeSchool && !linkedSchoolId;
+  const stepParam = resolveFlowStep(searchParams.get('step'), {
+    school: Boolean(activeSchoolId) && !savedSchoolGone,
+    grade: Boolean(activeClass),
+    gender: Boolean(activeGender),
+  });
+  const [currentStep, setCurrentStep] = useState<number>(stepParam);
   const productsQuery = useStoreProducts(activeSchool?.id, activeClass?.name, activeGender);
   const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
 
@@ -156,17 +167,26 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
 
   // Active Category Tab on Step 4
   // A home page category tile links here with ?cat=…, so open on that category.
-  const [activeTab, setActiveTab] = useState<string>(() => {
-    const cat = searchParams.get('cat');
-    return cat && CATEGORY_PHOTOS[cat] ? cat : 'Uniform';
-  });
+  const catParam = searchParams.get('cat');
+  const activeTab = catParam && CATEGORY_PHOTOS[catParam] ? catParam : 'Uniform';
 
   // Changing category while scrolled down jumps back to the start of that category's list
   const tabsTopRef = useRef<HTMLDivElement>(null);
-  const selectTab = (cat: string) => {
-    setActiveTab(cat);
-    const top = tabsTopRef.current ? tabsTopRef.current.getBoundingClientRect().top + window.scrollY - 60 : 0;
+  useEffect(() => {
+    if (!tabsTopRef.current) return;
+    const top = tabsTopRef.current.getBoundingClientRect().top + window.scrollY - 60;
     if (window.scrollY > top) window.scrollTo({ top });
+  }, [activeTab]);
+  // Kept in the address, so the header's category links and these tabs stay in step
+  const selectTab = (cat: string) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('cat', cat);
+        return next;
+      },
+      { replace: true }
+    );
   };
 
   // Product Sheet Modal
@@ -231,7 +251,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
 
   // Sync step param
   useEffect(() => {
-    if (stepParam && stepParam !== currentStep) {
+    if (stepParam !== currentStep) {
       setStepDirection(stepParam > currentStep ? 'forward' : 'backward');
       setCurrentStep(stepParam);
     }

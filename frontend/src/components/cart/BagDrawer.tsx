@@ -233,7 +233,7 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
                 className="btn btn-outline"
                 onClick={() => {
                   onClose();
-                  navigate('/flow?step=1');
+                  navigate('/shop');
                 }}
               >
                 {t('home.findSchool')}

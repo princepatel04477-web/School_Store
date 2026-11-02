@@ -89,7 +89,13 @@ export const storeState = {
     notify();
   },
 
-  addItem: (item: Omit<CartItem, 'id'>) => {
+  addItem: (newItem: Omit<CartItem, 'id'>) => {
+    // Every line says which child it is for, however it was added, so the bag can group them.
+    const item = {
+      schoolName: selectionState?.schoolName,
+      className: selectionState?.gradeName,
+      ...newItem,
+    };
     const id = `${item.productId}_${item.variantId}_${JSON.stringify(item.customisationData || {})}`;
     const existingIndex = cartState.findIndex((c) => c.id === id);
     if (existingIndex > -1) {
