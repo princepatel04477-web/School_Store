@@ -241,7 +241,7 @@ export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCanc
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const found: Record<string, string> = {};
-    const photoProblem = photoError(photo, 'uniform');
+    const photoProblem = photoError(photo, isUniformPhoto ? 'uniform' : 'fabric');
     if (photoProblem) found.photo = photoProblem;
     if (!description.trim()) found.description = 'Describe the uniform.';
     if (!sizes.split(',').some((s) => s.trim())) found.sizes = 'Enter the sizes you have, separated by commas.';
@@ -253,10 +253,39 @@ export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCanc
   return (
     <form onSubmit={submit} className="form-card retail-form" noValidate>
       {message && Object.keys(errors).length === 0 && <div className="error" role="alert">{message}</div>}
+      <fieldset className="retail-logo-choice">
+        <legend className="muted">Photo type</legend>
+        <label>
+          <input
+            type="radio"
+            name={`${id}-photo-source`}
+            checked={isUniformPhoto}
+            onChange={() => {
+              setPhotoSource('UNIFORM');
+              setPhoto(null);
+              setErrors(({ photo: _gone, ...rest }) => rest);
+            }}
+          />
+          Full uniform photo
+        </label>
+        <label>
+          <input
+            type="radio"
+            name={`${id}-photo-source`}
+            checked={!isUniformPhoto}
+            onChange={() => {
+              setPhotoSource('FABRIC');
+              setPhoto(null);
+              setErrors(({ photo: _gone, ...rest }) => rest);
+            }}
+          />
+          Fabric close-up
+        </label>
+      </fieldset>
       <PhotoPick
         id={`${id}-photo`}
-        label="Photo"
-        hint="A clear photo of the whole uniform on a plain background. We find the clothes and their colours ourselves."
+        label={photoLabel}
+        hint={`${photoHint} PNG, JPG or WebP, up to 8 MB.`}
         file={photo}
         error={errors.photo}
         onPick={(file) => {

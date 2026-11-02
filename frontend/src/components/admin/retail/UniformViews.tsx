@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, fetchBlobUrl, mockupUrl, retail, type UniformSet } from '../../../api';
 import { Skeleton } from '../../ui/Skeleton';
 import { MockupForm, UniformForm } from './UniformForm';
-import { FIRST_MODEL_CLASS, preparePhoto, renderMockup } from './mockupEngine';
+import { FIRST_MODEL_CLASS, prepareFabricPhoto, preparePhoto, renderMockup, type PreparedPhoto } from './mockupEngine';
 import { RequestSkeleton, SignedInLogo } from './RetailBits';
 import './retail.css';
 
@@ -145,7 +145,12 @@ export function UniformDetail() {
     mutationFn: async (uniform: UniformSet) => {
       const ready = new Set(uniform.mockups.map((m) => m.class_no));
       const url = await fetchBlobUrl(retail.clothPhotoPath(uniform));
-      const prepared = await preparePhoto(url, uniform.gender).finally(() => URL.revokeObjectURL(url));
+      let prepared: PreparedPhoto | null = null;
+      try {
+        prepared = (await preparePhoto(url, uniform.gender)) ?? (await prepareFabricPhoto(url));
+      } finally {
+        URL.revokeObjectURL(url);
+      }
       if (!prepared) throw new Error('No uniform found');
       const problems: Record<number, string> = {};
       setFailed({});
@@ -161,7 +166,7 @@ export function UniformDetail() {
     },
     onSettled: () => setMaking(null),
     onSuccess: () => setError(null),
-    onError: () => setError("We couldn't find the uniform in your photo. Change it for a clear photo of the whole uniform on a plain background."),
+    onError: () => setError("We couldn't read the clothes or fabric from your photo. Change it for a clear photo of the whole uniform or a close-up of the fabric."),
   });
 
   if (set.isLoading) {
