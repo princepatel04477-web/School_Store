@@ -161,6 +161,23 @@ export async function preparePhoto(url: string, gender: UniformGender): Promise<
   return detection && { photo, detection };
 }
 
+/** Reads a close-up fabric photo. The whole image becomes the lower-garment swatch. */
+export async function prepareFabricPhoto(url: string): Promise<PreparedPhoto | null> {
+  const photo = await loadPicture(url);
+  if (!photo.naturalWidth || !photo.naturalHeight) return null;
+  return {
+    photo,
+    detection: {
+      cloth: { x: 0, y: 0, width: 1, height: 1 },
+      plain: null,
+      garmentWidth: 1,
+      top: null,
+      trim: null,
+      onePiece: false,
+    },
+  };
+}
+
 /** The found piece of cloth, cut from the full-size photo. */
 function cutCloth({ photo, detection }: PreparedPhoto): HTMLCanvasElement {
   const { x, y, width, height } = detection.cloth;
