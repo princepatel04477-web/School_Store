@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compose, flattenLight, makePlainIfEven } from './mockupEngine';
+import { compose, composeTrackPants, drawPiping, flattenLight, makePlainIfEven, renderPoloDetails } from './mockupEngine';
 
 const pixels = (...rows: number[][]) => new Uint8ClampedArray(rows.flat());
 
@@ -55,5 +55,70 @@ describe('makePlainIfEven', () => {
     const cloth = pixels([20, 30, 90, 255], [220, 220, 220, 255]);
     makePlainIfEven(cloth);
     expect(Array.from(cloth)).toEqual([20, 30, 90, 255, 220, 220, 220, 255]);
+  });
+});
+
+describe('composeTrackPants', () => {
+  it('softens creases and prevents shadow crushing with minimum light floor', () => {
+    const W = 10;
+    const H = 10;
+    const model = new Uint8ClampedArray(W * H * 4);
+    const ref = new Uint8ClampedArray(W * H * 4);
+    const garment = new Uint8ClampedArray(W * H * 4);
+    const cloth = new Uint8ClampedArray(W * H * 4);
+    for (let i = 0; i < W * H; i += 1) {
+      garment[i * 4] = 255;
+      const val = i % 2 === 0 ? 20 : 200;
+      ref[i * 4] = val;
+      ref[i * 4 + 1] = val;
+      ref[i * 4 + 2] = val;
+      ref[i * 4 + 3] = 255;
+      cloth[i * 4] = 50;
+      cloth[i * 4 + 1] = 80;
+      cloth[i * 4 + 2] = 150;
+      cloth[i * 4 + 3] = 255;
+    }
+    composeTrackPants(model, ref, garment, cloth, W, H);
+    expect(model[0]).toBeGreaterThan(25);
+    expect(model[0]).toBeLessThan(120);
+  });
+});
+
+describe('drawPiping', () => {
+  it('draws piping lines on garment edges', () => {
+    const W = 100;
+    const H = 80;
+    const model = new Uint8ClampedArray(W * H * 4);
+    const ref = new Uint8ClampedArray(W * H * 4);
+    const garment = new Uint8ClampedArray(W * H * 4);
+    ref.fill(128);
+    for (let y = 10; y < 70; y += 1) {
+      for (let x = 20; x <= 80; x += 1) {
+        garment[(y * W + x) * 4] = 255;
+      }
+    }
+    drawPiping(model, ref, garment, W, H, [240, 240, 240]);
+    let nonZero = 0;
+    for (let i = 0; i < model.length; i += 4) if (model[i] > 100) nonZero += 1;
+    expect(nonZero).toBeGreaterThan(50);
+  });
+});
+
+describe('renderPoloDetails', () => {
+  it('draws center chest placket and sleeve cuffs', () => {
+    const W = 100;
+    const H = 100;
+    const model = new Uint8ClampedArray(W * H * 4);
+    const ref = new Uint8ClampedArray(W * H * 4);
+    const shirt = new Uint8ClampedArray(W * H * 4);
+    ref.fill(180);
+    for (let y = 10; y < 80; y += 1) {
+      for (let x = 10; x <= 90; x += 1) {
+        shirt[(y * W + x) * 4] = 255;
+      }
+    }
+    renderPoloDetails(model, ref, shirt, W, H, [20, 30, 80]);
+    expect(model[(25 * W + 50) * 4 + 2]).toBeGreaterThan(15);
+    expect(model[(50 * W + 12) * 4 + 2]).toBeGreaterThan(15);
   });
 });

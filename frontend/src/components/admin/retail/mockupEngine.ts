@@ -48,6 +48,286 @@ export function compose(model: Uint8ClampedArray, reference: Uint8ClampedArray, 
  * Takes the photo's own light out of the cloth, keeping its colour and pattern. Tiled, a shadow in
  * the photo would otherwise repeat as bands across the garment; the model's folds give the light.
  */
+function blurLumaGarment(
+  reference: Uint8ClampedArray,
+  garment: Uint8ClampedArray,
+  width: number,
+  height: number,
+  radius = 7
+): Float32Array {
+  let y0 = height;
+  let y1 = 0;
+  for (let i = 0; i < garment.length; i += 4) {
+    if (garment[i] > 127) {
+      const y = Math.floor(i / 4 / width);
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+  }
+  y0 = Math.max(0, y0 - 10);
+  y1 = Math.min(height - 1, y1 + 10);
+
+  const lumaMap = new Float32Array(width * height);
+  for (let y = y0; y <= y1; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = (y * width + x) * 4;
+      lumaMap[y * width + x] = 0.299 * reference[i] + 0.587 * reference[i + 1] + 0.114 * reference[i + 2];
+    }
+  }
+
+  const temp = new Float32Array(width * height);
+  const out = new Float32Array(width * height);
+
+  for (let y = y0; y <= y1; y += 1) {
+    const rowOffset = y * width;
+    let sum = 0;
+    for (let i = 0; i <= radius && i < width; i += 1) sum += lumaMap[rowOffset + i];
+    for (let x = 0; x < width; x += 1) {
+      const left = Math.max(0, x - radius);
+      const right = Math.min(width - 1, x + radius);
+      if (x > 0) {
+        sum +=
+          (x + radius < width ? lumaMap[rowOffset + x + radius] : lumaMap[rowOffset + width - 1]) -
+          (x - radius - 1 >= 0 ? lumaMap[rowOffset + x - radius - 1] : lumaMap[rowOffset]);
+      }
+      temp[rowOffset + x] = sum / (right - left + 1);
+    }
+  }
+
+  for (let x = 0; x < width; x += 1) {
+    let sum = 0;
+    for (let i = y0; i <= Math.min(y1, y0 + radius); i += 1) sum += temp[i * width + x];
+    for (let y = y0; y <= y1; y += 1) {
+      const top = Math.max(y0, y - radius);
+      const bottom = Math.min(y1, y + radius);
+      if (y > y0) {
+        sum +=
+          (y + radius <= y1 ? temp[(y + radius) * width + x] : temp[y1 * width + x]) -
+          (y - radius - 1 >= y0 ? temp[(y - radius - 1) * width + x] : temp[y0 * width + x]);
+      }
+      out[y * width + x] = sum / (bottom - top + 1);
+    }
+  }
+
+  return out;
+}
+
+/**
+ * Writes cloth onto model through garment mask, using softened lighting to eliminate formal trouser creases
+ * while keeping 3D body volume, giving the appearance of soft knit track pants.
+ */
+export function composeTrackPants(
+  model: Uint8ClampedArray,
+  reference: Uint8ClampedArray,
+  garment: Uint8ClampedArray,
+  cloth: Uint8ClampedArray,
+  width: number,
+  height: number
+): void {
+  const blurred = blurLumaGarment(reference, garment, width, height, 7);
+  const values: number[] = [];
+  for (let i = 0; i < garment.length; i += 4) {
+    if (garment[i] > 127) values.push(blurred[i / 4]);
+  }
+  values.sort((a, b) => a - b);
+  const base = values[values.length >> 1] || 1;
+
+  for (let i = 0; i < model.length; i += 4) {
+    if (garment[i] === 0) continue;
+    const p = i / 4;
+    const coverage = garment[i] / 255;
+    const light = Math.min(1.22, Math.max(0.68, blurred[p] / base));
+    for (let c = 0; c < 3; c += 1) model[i + c] += (cloth[i + c] * light - model[i + c]) * coverage;
+  }
+}
+
+/**
+ * Draws vertical side piping along the outer seam of both pant legs.
+ */
+export function drawPiping(
+  model: Uint8ClampedArray,
+  reference: Uint8ClampedArray,
+  garment: Uint8ClampedArray,
+  width: number,
+  height: number,
+  pipingColour: Rgb
+): void {
+  let yMin = height;
+  let yMax = 0;
+  for (let i = 0; i < garment.length; i += 4) {
+    if (garment[i] > 127) {
+      const y = Math.floor(i / 4 / width);
+      if (y < yMin) yMin = y;
+      if (y > yMax) yMax = y;
+    }
+  }
+  const span = yMax - yMin;
+  if (span < 40) return;
+
+  const yStart = yMin + Math.round(span * 0.08);
+  const yEnd = yMax - Math.round(span * 0.02);
+  const inset = Math.round(width * 0.01);
+  const pipeW = Math.max(2, Math.round(width * 0.007));
+
+  for (let y = yStart; y < yEnd; y += 1) {
+    let leftX = width;
+    let rightX = 0;
+    const rowOffset = y * width;
+    for (let x = 0; x < width; x += 1) {
+      if (garment[(rowOffset + x) * 4] > 127) {
+        if (x < leftX) leftX = x;
+        if (x > rightX) rightX = x;
+      }
+    }
+    if (rightX - leftX < 30) continue;
+
+    // Left leg outer boundary
+    const xLeft = leftX + inset;
+    for (let w = 0; w < pipeW; w += 1) {
+      const p = (y * width + (xLeft + w)) * 4;
+      if (garment[p] > 100) {
+        const lumaVal = (0.299 * reference[p] + 0.587 * reference[p + 1] + 0.114 * reference[p + 2]) / 128;
+        const light = Math.min(1.2, Math.max(0.7, lumaVal));
+        for (let c = 0; c < 3; c += 1) model[p + c] = Math.round(pipingColour[c] * light);
+      }
+    }
+
+    // Right leg outer boundary
+    const xRight = rightX - inset - pipeW;
+    for (let w = 0; w < pipeW; w += 1) {
+      const p = (y * width + (xRight + w)) * 4;
+      if (garment[p] > 100) {
+        const lumaVal = (0.299 * reference[p] + 0.587 * reference[p + 1] + 0.114 * reference[p + 2]) / 128;
+        const light = Math.min(1.2, Math.max(0.7, lumaVal));
+        for (let c = 0; c < 3; c += 1) model[p + c] = Math.round(pipingColour[c] * light);
+      }
+    }
+  }
+}
+
+/**
+ * Draws polo t-shirt details: vertical center chest button placket and sleeve cuff trims.
+ */
+export function renderPoloDetails(
+  model: Uint8ClampedArray,
+  reference: Uint8ClampedArray,
+  shirt: Uint8ClampedArray,
+  width: number,
+  height: number,
+  trimColour: Rgb
+): void {
+  let sMinX = width;
+  let sMaxX = 0;
+  let sMinY = height;
+  let sMaxY = 0;
+  for (let i = 0; i < shirt.length; i += 4) {
+    if (shirt[i] > 100) {
+      const p = i / 4;
+      const x = p % width;
+      const y = (p - x) / width;
+      if (x < sMinX) sMinX = x;
+      if (x > sMaxX) sMaxX = x;
+      if (y < sMinY) sMinY = y;
+      if (y > sMaxY) sMaxY = y;
+    }
+  }
+  const sW = sMaxX - sMinX;
+  const sH = sMaxY - sMinY;
+  if (sW < 50 || sH < 50) return;
+
+  const cx = Math.round((sMinX + sMaxX) / 2);
+  const placketW = Math.round(sW * 0.055);
+  const placketH = Math.round(sH * 0.2);
+  const placketTop = sMinY + Math.round(sH * 0.14);
+  const placketLeft = cx - Math.round(placketW / 2);
+
+  // Placket down the center chest
+  for (let y = placketTop; y < placketTop + placketH; y += 1) {
+    for (let x = placketLeft; x < placketLeft + placketW; x += 1) {
+      const i = (y * width + x) * 4;
+      if (shirt[i] > 120) {
+        const lumaVal = (0.299 * reference[i] + 0.587 * reference[i + 1] + 0.114 * reference[i + 2]) / 180;
+        const light = Math.min(1.15, Math.max(0.65, lumaVal));
+        for (let c = 0; c < 3; c += 1) model[i + c] = Math.round(trimColour[c] * light);
+      }
+    }
+  }
+
+  // Sleeve cuffs (left and right sleeve edges)
+  const cuffW = Math.round(sW * 0.11);
+  const cuffTop = sMinY + Math.round(sH * 0.35);
+  const cuffBottom = sMinY + Math.round(sH * 0.7);
+
+  for (let y = cuffTop; y < cuffBottom; y += 1) {
+    for (let x = sMinX; x < sMinX + cuffW; x += 1) {
+      const i = (y * width + x) * 4;
+      if (shirt[i] > 120) {
+        const lumaVal = (0.299 * reference[i] + 0.587 * reference[i + 1] + 0.114 * reference[i + 2]) / 180;
+        const light = Math.min(1.15, Math.max(0.65, lumaVal));
+        for (let c = 0; c < 3; c += 1) model[i + c] = Math.round(trimColour[c] * light);
+      }
+    }
+    for (let x = sMaxX - cuffW; x <= sMaxX; x += 1) {
+      const i = (y * width + x) * 4;
+      if (shirt[i] > 120) {
+        const lumaVal = (0.299 * reference[i] + 0.587 * reference[i + 1] + 0.114 * reference[i + 2]) / 180;
+        const light = Math.min(1.15, Math.max(0.65, lumaVal));
+        for (let c = 0; c < 3; c += 1) model[i + c] = Math.round(trimColour[c] * light);
+      }
+    }
+  }
+}
+
+/**
+ * Pastes the school crest / logo badge detected from the uniform onto the model's left chest.
+ */
+function drawBadgeOnCanvas(
+  ctx: CanvasRenderingContext2D,
+  prepared: PreparedPhoto,
+  shirt: Uint8ClampedArray,
+  width: number,
+  height: number
+): void {
+  const badge = prepared.detection.badge;
+  if (!badge) return;
+
+  let sMinX = width;
+  let sMaxX = 0;
+  let sMinY = height;
+  let sMaxY = 0;
+  for (let i = 0; i < shirt.length; i += 4) {
+    if (shirt[i] > 100) {
+      const p = i / 4;
+      const x = p % width;
+      const y = (p - x) / width;
+      if (x < sMinX) sMinX = x;
+      if (x > sMaxX) sMaxX = x;
+      if (y < sMinY) sMinY = y;
+      if (y > sMaxY) sMaxY = y;
+    }
+  }
+  const sW = sMaxX - sMinX;
+  const sH = sMaxY - sMinY;
+  if (sW < 50 || sH < 50) return;
+
+  const cx = Math.round((sMinX + sMaxX) / 2);
+  const badgeTargetW = Math.round(sW * 0.13);
+  const badgeAspect = badge.height / (badge.width || 1);
+  const badgeTargetH = Math.round(badgeTargetW * badgeAspect);
+
+  const targetX = cx + Math.round(sW * 0.14);
+  const targetY = sMinY + Math.round(sH * 0.22);
+
+  const sx = badge.x * prepared.photo.naturalWidth;
+  const sy = badge.y * prepared.photo.naturalHeight;
+  const sw = badge.width * prepared.photo.naturalWidth;
+  const sh = badge.height * prepared.photo.naturalHeight;
+
+  ctx.save();
+  ctx.drawImage(prepared.photo, sx, sy, sw, sh, targetX, targetY, badgeTargetW, badgeTargetH);
+  ctx.restore();
+}
+
 export function flattenLight(cloth: Uint8ClampedArray, light: Uint8ClampedArray): void {
   const mean = [0, 0, 0];
   for (let i = 0; i < light.length; i += 4) for (let c = 0; c < 3; c += 1) mean[c] += light[i + c];
@@ -174,6 +454,8 @@ export async function prepareFabricPhoto(url: string): Promise<PreparedPhoto | n
       top: null,
       trim: null,
       onePiece: false,
+      badge: null,
+      trackPant: null,
     },
   };
 }
@@ -243,14 +525,29 @@ export async function renderMockup(classNo: number, gender: UniformGender, prepa
   const reference = model.data.slice();
   const [garment, shirt, trim] = await Promise.all(['garment', 'shirt', 'trim'].map((part) => maskPixels(name, part, width, height)));
 
-  const cloth = prepared.detection.plain ? solid(prepared.detection.plain, width, height) : patternPixels(prepared, garment, width, height);
+  const isTrack = Boolean(prepared.detection.trackPant);
+  const pantClothRgb = prepared.detection.plain
+    ? (isTrack ? (prepared.detection.plain.map((c) => Math.min(255, Math.round(c * 1.25))) as Rgb) : prepared.detection.plain)
+    : null;
+  const cloth = pantClothRgb ? solid(pantClothRgb, width, height) : patternPixels(prepared, garment, width, height);
 
-  compose(model.data, reference, garment, cloth);
-  const { top, trim: trimColour, onePiece } = prepared.detection;
+  if (isTrack) {
+    composeTrackPants(model.data, reference, garment, cloth, width, height);
+    drawPiping(model.data, reference, garment, width, height, prepared.detection.trackPant?.piping ?? [242, 242, 242]);
+  } else {
+    compose(model.data, reference, garment, cloth);
+  }
+  const { top, trim: trimColour, onePiece, badge } = prepared.detection;
   if (onePiece) compose(model.data, reference, shirt, cloth, SHIRT_DEPTH);
   else if (top) compose(model.data, reference, shirt, solid(top, width, height), SHIRT_DEPTH);
-  if (top && trimColour) compose(model.data, reference, trim, solid(trimColour, width, height));
+  if (top && trimColour) {
+    compose(model.data, reference, trim, solid(trimColour, width, height));
+    renderPoloDetails(model.data, reference, shirt, width, height, trimColour);
+  }
   ctx.putImageData(model, 0, 0);
+  if (badge && top) {
+    drawBadgeOnCanvas(ctx, prepared, shirt, width, height);
+  }
 
   // Safari can't write WebP and quietly returns a large PNG: use JPEG there.
   const webp = await toBlob(canvas, 'image/webp', WEBP_QUALITY);

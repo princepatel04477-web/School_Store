@@ -86,6 +86,22 @@ describe('detectUniform', () => {
     expect(detectUniform(shirt, 'BOY')?.top).toBeNull();
   });
 
+  it('detects track pants with side piping and chest badge on sports uniform', () => {
+    const sports = photo(WHITE, [
+      [90, 30, 120, 150, YELLOW],
+      [160, 60, 25, 30, [180, 40, 40]],
+      [90, 180, 50, 200, NAVY],
+      [160, 180, 50, 200, NAVY],
+      [140, 180, 20, 60, NAVY],
+      [93, 200, 3, 160, WHITE],
+      [204, 200, 3, 160, WHITE],
+    ]);
+    const found = detectUniform(sports, 'BOY');
+    expect(found).not.toBeNull();
+    expect(found?.trackPant).not.toBeNull();
+    expect(found?.badge).not.toBeNull();
+  });
+
   it('finds nothing in an empty photo', () => {
     expect(detectUniform(photo([200, 200, 200], []), 'BOY')).toBeNull();
   });

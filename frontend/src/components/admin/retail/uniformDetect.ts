@@ -24,6 +24,10 @@ export interface Detection {
   trim: Rgb | null;
   /** One garment from top to hem, such as a dress: the top is the same cloth. */
   onePiece: boolean;
+  /** School crest or logo badge detected on the top. */
+  badge?: { x: number; y: number; width: number; height: number } | null;
+  /** Track pant styling with side piping. */
+  trackPant?: { piping: Rgb } | null;
 }
 
 const RING_SHARE = 0.08;       // a border colour this common is backdrop, not a garment running off the edge
@@ -343,6 +347,148 @@ function readTop(data: Uint8ClampedArray, pixels: number[]): { top: Rgb | null; 
 }
 
 /**
+ * Detects whether the pant has side piping (such as track pants with white or contrast stripe running down the outer leg seam).
+ */
+function findPiping(photo: PhotoPixels, outfit: Outfit, plain: Rgb | null): { piping: Rgb } | null {
+  if (!outfit.isPant) return null;
+  const { data, width } = photo;
+  const span = outfit.part.bottom - outfit.waist;
+  if (span < 40) return null;
+
+  const fromY = outfit.waist + Math.round(span * 0.25);
+  const toY = outfit.waist + Math.round(span * 0.92);
+
+  let pipingRows = 0;
+  let totalChecked = 0;
+  const pipingPixels: Rgb[] = [];
+
+  for (let y = fromY; y < toY; y += 1) {
+    const row = outfit.rows.get(y);
+    if (!row || row.length < 20) continue;
+    totalChecked += 1;
+
+    let minX = width;
+    let maxX = 0;
+    for (const p of row) {
+      const x = p % width;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+    }
+    if (maxX - minX < 15) continue;
+
+    let rowHasPiping = false;
+    for (let dx = 2; dx <= 12; dx += 1) {
+      for (const targetX of [minX + dx, maxX - dx]) {
+        if (targetX < 0 || targetX >= width) continue;
+        const i = (y * width + targetX) * 4;
+        const rgb: Rgb = [data[i], data[i + 1], data[i + 2]];
+        const isBrightPiping =
+          isWhite(rgb) ||
+          (plain && colourDistance(rgb, plain) > 70 && rgb[0] + rgb[1] + rgb[2] > plain[0] + plain[1] + plain[2] + 50);
+        if (isBrightPiping) {
+          rowHasPiping = true;
+          pipingPixels.push(rgb);
+          break;
+        }
+      }
+      if (rowHasPiping) break;
+    }
+    if (rowHasPiping) pipingRows += 1;
+  }
+
+  if (totalChecked > 10 && pipingRows / totalChecked >= 0.2) {
+    const avg = pipingPixels.length
+      ? (pipingPixels
+          .reduce((acc, c) => [acc[0] + c[0], acc[1] + c[1], acc[2] + c[2]], [0, 0, 0])
+          .map((v) => Math.round(v / pipingPixels.length)) as Rgb)
+      : ([242, 242, 242] as Rgb);
+    return { piping: avg[0] > 180 && avg[1] > 180 && avg[2] > 180 ? [242, 242, 242] : avg };
+  }
+  return null;
+}
+
+/**
+ * Detects whether the top has a school crest or logo badge (typically on the student's left chest / viewer's right).
+ */
+function findBadge(
+  photo: PhotoPixels,
+  topPixels: number[],
+  topColour: Rgb | null
+): { x: number; y: number; width: number; height: number } | null {
+  if (!topPixels.length || !topColour) return null;
+  const { data, width, height } = photo;
+
+  let minX = width;
+  let maxX = 0;
+  let minY = height;
+  let maxY = 0;
+  for (const p of topPixels) {
+    const x = p % width;
+    const y = (p - x) / width;
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  const topW = maxX - minX;
+  const topH = maxY - minY;
+  if (topW < 30 || topH < 30) return null;
+
+  const cx = Math.round((minX + maxX) / 2);
+  const chestY0 = minY + Math.round(topH * 0.18);
+  const chestY1 = minY + Math.round(topH * 0.65);
+  const chestX0 = cx + Math.round(topW * 0.04);
+  const chestX1 = maxX - Math.round(topW * 0.06);
+
+  const badgePixels: [number, number][] = [];
+  const topSet = new Set(topPixels);
+
+  for (let y = chestY0; y < chestY1; y += 1) {
+    for (let x = chestX0; x < chestX1; x += 1) {
+      const p = y * width + x;
+      if (!topSet.has(p)) continue;
+      const i = p * 4;
+      const rgb: Rgb = [data[i], data[i + 1], data[i + 2]];
+      const dist = colourDistance(rgb, topColour);
+      if (dist > 70 && !isSkinOrMannequin(rgb)) {
+        badgePixels.push([x, y]);
+      }
+    }
+  }
+
+  if (badgePixels.length < 25) return null;
+
+  let bMinX = width;
+  let bMaxX = 0;
+  let bMinY = height;
+  let bMaxY = 0;
+  for (const [x, y] of badgePixels) {
+    if (x < bMinX) bMinX = x;
+    if (x > bMaxX) bMaxX = x;
+    if (y < bMinY) bMinY = y;
+    if (y > bMaxY) bMaxY = y;
+  }
+
+  const bw = bMaxX - bMinX + 1;
+  const bh = bMaxY - bMinY + 1;
+
+  if (bw < topW * 0.04 || bw > topW * 0.55 || bh < topH * 0.04 || bh > topH * 0.55) return null;
+
+  const pad = 2;
+  const clampedX = Math.max(0, bMinX - pad);
+  const clampedY = Math.max(0, bMinY - pad);
+  const clampedW = Math.min(width - clampedX, bw + pad * 2);
+  const clampedH = Math.min(height - clampedY, bh + pad * 2);
+
+  return {
+    x: clampedX / width,
+    y: clampedY / height,
+    width: clampedW / width,
+    height: clampedH / height,
+  };
+}
+
+/**
  * The cloth's one colour, when it has no pattern. Folds and shine stay close to its middle brightness
  * and a bit of backdrop is only a small part of the piece; a pattern's colours are far apart.
  */
@@ -419,11 +565,17 @@ export function detectUniform(photo: PhotoPixels, gender: UniformGender): Detect
   }
   const sameCloth = topPixels.filter((p) => clothBins.has(binOf(data[p * 4], data[p * 4 + 1], data[p * 4 + 2]))).length;
   const onePiece = !chosen.isPant && (!topPixels.length || sameCloth > topPixels.length * 0.35);
+  const plain = plainColour(photo, cloth);
+  const topDetails = readTop(data, topPixels);
+  const badge = findBadge(photo, topPixels, topDetails.top);
+  const trackPant = findPiping(photo, chosen, plain);
   return {
-    plain: plainColour(photo, cloth),
+    plain,
     cloth: { x: cloth.x / width, y: cloth.y / height, width: cloth.width / width, height: cloth.height / height },
     garmentWidth: hipWidth(chosen) / width,
-    ...readTop(data, topPixels),
+    ...topDetails,
+    badge,
+    trackPant,
     onePiece,
   };
 }
