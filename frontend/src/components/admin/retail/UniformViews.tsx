@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, fetchBlobUrl, mockupUrl, retail, type UniformSet } from '../../../api';
 import { Skeleton } from '../../ui/Skeleton';
-import { UniformForm } from './UniformForm';
+import { MockupForm, UniformForm } from './UniformForm';
 import { FIRST_MODEL_CLASS, loadPicture, renderMockup } from './mockupEngine';
 import { RequestSkeleton, SignedInLogo } from './RetailBits';
 import './retail.css';
@@ -13,11 +13,10 @@ const SET_STATUS: Record<UniformSet['status'], { label: string; cls: string }> =
   LIVE: { label: 'Live', cls: 's-approved' },
   HIDDEN: { label: 'Hidden by store owner', cls: 's-cancelled' },
 };
-const classRange = (set: UniformSet) => (set.class_from === set.class_to ? `Class ${set.class_from}` : `Class ${set.class_from}–${set.class_to}`);
+const classRange = (set: UniformSet) => `Class ${set.classes.join(', ')}`;
 const forWhom = (set: UniformSet) => (set.gender === 'BOY' ? 'Boys' : 'Girls');
 /** The classes in this set that have a model student. */
-const modelClasses = (set: UniformSet) =>
-  Array.from({ length: set.class_to - set.class_from + 1 }, (_, i) => set.class_from + i).filter((c) => c >= FIRST_MODEL_CLASS);
+const modelClasses = (set: UniformSet) => set.classes.filter((c) => c >= FIRST_MODEL_CLASS);
 
 /** Retailer: their uniform sets. */
 export function UniformsList() {
@@ -35,10 +34,10 @@ export function UniformsList() {
         <div>
           <div className="eyebrow">YOUR SHOP</div>
           <h1>My uniforms</h1>
-          <p className="muted">Add each uniform set with your shirt photo and a close-up of the pant or skirt cloth. We show it on our model students for every class, and you publish it.</p>
+          <p className="muted">Add a uniform and choose its classes, then create the mock-ups with a photo, description and sizes. You check them and publish.</p>
         </div>
         <button type="button" className="primary" onClick={() => setAdding(true)} disabled={!store.data || noSchools || !store.data.active}>
-          Add uniform set
+          Add uniform
         </button>
       </div>
 
@@ -69,8 +68,10 @@ export function UniformsList() {
                   <div className="retail-request-head">
                     {cover?.image ? (
                       <img className="retail-logo" src={mockupUrl(cover.image)} alt={`${set.name} on the model`} loading="lazy" />
+                    ) : set.has_photo ? (
+                      <SignedInLogo path={retail.uniformPhotoPath(set.id, 'bottom')} alt={`${set.name} cloth`} />
                     ) : (
-                      <SignedInLogo path={retail.uniformPhotoPath(set.id, 'top')} alt={`${set.name} shirt`} />
+                      <span className="retail-logo retail-logo-empty">No photo</span>
                     )}
                     <div className="retail-request-meta">
                       <h3>{set.name}</h3>
@@ -109,6 +110,7 @@ export function UniformDetail() {
   const [error, setError] = useState<string | null>(null);
   const [making, setMaking] = useState<number | null>(null);
   const [failed, setFailed] = useState<Record<number, string>>({});
+  const [changing, setChanging] = useState(false);
   const set = useQuery({ queryKey: ['retail-uniform', id], queryFn: () => retail.uniform(id) });
   const data = set.data;
 
@@ -172,7 +174,7 @@ export function UniformDetail() {
     );
   }
 
-  const classes = Array.from({ length: data.class_to - data.class_from + 1 }, (_, i) => data.class_from + i);
+  const classes = data.classes;
   const total = modelClasses(data).length;
   const byClass = new Map(data.mockups.map((m) => [m.class_no, m]));
   const hidden = data.status === 'HIDDEN';
@@ -184,7 +186,8 @@ export function UniformDetail() {
         <div>
           <Link className="link-button" to="/retailer/uniforms">← My uniforms</Link>
           <h1>{data.name}</h1>
-          <p className="muted">{data.school_name} · {forWhom(data)} · {classRange(data)} · ₹{data.price.toLocaleString('en-IN')} · Sizes {data.sizes.join(', ')}</p>
+          <p className="muted">{data.school_name} · {forWhom(data)} · {classRange(data)} · ₹{data.price.toLocaleString('en-IN')} {data.sizes.length > 0 && ` · Sizes ${data.sizes.join(', ')}`}</p>
+          {data.description && <p className="muted">{data.description}</p>}
         </div>
         <div className="retail-actions">
           <span className={`badge ${SET_STATUS[data.status].cls}`}>{SET_STATUS[data.status].label}</span>
@@ -195,8 +198,8 @@ export function UniformDetail() {
               type="button"
               className="primary"
               onClick={() => action.mutate('publish')}
-              disabled={hidden || action.isPending || make.isPending || total === 0 || missing > 0}
-              title={total === 0 || missing > 0 ? 'All mock-ups must be ready first' : undefined}
+              disabled={hidden || action.isPending || make.isPending || !data.has_photo || total === 0 || missing > 0}
+              title={!data.has_photo || total === 0 || missing > 0 ? 'All mock-ups must be ready first' : undefined}
             >
               Publish
             </button>
@@ -208,17 +211,37 @@ export function UniformDetail() {
       {error && <div className="error" role="alert">{error}</div>}
       {hidden && <div className="error" role="alert">The store owner has hidden this set. Contact them to show it again.</div>}
 
-      <div className="card">
-        <div className="card-head">
-          <h2>Your photos</h2>
+      {(!data.has_photo || changing) && (
+        <div className="card">
+          <div className="card-head">
+            <h2>Create mock-up</h2>
+          </div>
+          <MockupForm
+            set={data}
+            onCancel={changing ? () => setChanging(false) : undefined}
+            onSaved={(fresh) => {
+              setChanging(false);
+              setNotice(null);
+              keep(fresh);
+              make.mutate(fresh);
+            }}
+          />
         </div>
-        <div className="pad retail-actions">
-          <SignedInLogo path={retail.uniformPhotoPath(data.id, 'top')} alt="Shirt" />
-          <SignedInLogo path={retail.uniformPhotoPath(data.id, 'bottom')} alt={data.gender === 'GIRL' ? 'Skirt cloth' : 'Pant cloth'} />
-        </div>
-      </div>
+      )}
 
-      <div className="card">
+      {data.has_photo && !changing && (
+        <div className="card">
+          <div className="card-head">
+            <h2>Your photo</h2>
+            <button type="button" className="link-button" onClick={() => setChanging(true)} disabled={hidden || make.isPending}>Change</button>
+          </div>
+          <div className="pad retail-actions">
+            <SignedInLogo path={retail.uniformPhotoPath(data.id, 'bottom')} alt={data.gender === 'GIRL' ? 'Skirt cloth' : 'Pant cloth'} />
+          </div>
+        </div>
+      )}
+
+      {data.has_photo && <div className="card">
         <div className="card-head">
           <h2>On our model students</h2>
           <span className="muted">{data.mockups_done} of {total} ready</span>
@@ -260,7 +283,7 @@ export function UniformDetail() {
             </div>
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }

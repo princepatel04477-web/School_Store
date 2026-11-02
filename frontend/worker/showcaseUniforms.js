@@ -1,17 +1,19 @@
 // Uniform sets and their mock-ups on the showcase store (Cloudflare D1 + KV).
 //
-// A retailer adds a set for one of their approved schools: shirt + pant (boys) or shirt + skirt
-// (girls), a shirt photo, a close-up of the bottom's cloth, a class range, price and sizes. The
-// mock-up engine runs in the retailer's browser (src/components/admin/retail/mockupEngine.ts): it
-// fills the garment of the store's fixed model student for each class with that cloth and sends
-// the picture here. Only clothes pixels change, so every school's Class 6 boy is the same boy in
-// the same pose. The retailer checks the mock-ups and publishes the set; the Boss can hide any set.
+// A retailer adds a set for one of their approved schools (boys or girls), with its classes, name
+// and price. They then create its mock-ups by uploading a close-up of the pant or skirt cloth with
+// a description and sizes. The mock-up engine runs in the retailer's browser
+// (src/components/admin/retail/mockupEngine.ts): it fills the garment of the store's fixed model
+// student for each class with that cloth and sends the picture here. Only clothes pixels change, so
+// every school's Class 6 boy is the same boy in the same pose. The retailer checks the mock-ups and
+// publishes the set; the Boss can hide any set.
 
 import { logoType } from './showcaseRetail.js';
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 const MAX_MOCKUP_BYTES = 8 * 1024 * 1024;
 const FIRST_MODEL_CLASS = 2; // no Class 1 model student yet
+const MAX_DESCRIPTION = 500;
 const GENDERS = { BOY: 'boy', GIRL: 'girl' };
 
 const json = (body, status = 200) =>
@@ -21,6 +23,9 @@ const now = () => new Date().toISOString();
 const clean = (v) => String(v ?? '').trim();
 
 // ---- rows to API shapes -------------------------------------------------------------------------
+
+const classesOf = (row) =>
+  row.classes ? JSON.parse(row.classes) : Array.from({ length: row.class_to - row.class_from + 1 }, (_, i) => row.class_from + i);
 
 function uniformOut(row, mockups = []) {
   const done = mockups.filter((m) => m.status === 'DONE').length;
@@ -33,6 +38,9 @@ function uniformOut(row, mockups = []) {
     gender: row.gender,
     class_from: row.class_from,
     class_to: row.class_to,
+    classes: classesOf(row),
+    description: row.description,
+    has_photo: !!row.bottom_photo_key,
     name: row.name,
     price: row.price,
     sizes: JSON.parse(row.sizes || '[]'),
@@ -82,52 +90,66 @@ async function readPhoto(form, name, errors, label) {
 }
 
 async function createUniform(env, request, store) {
-  const form = await request.formData().catch(() => null);
-  if (!form) return json({ detail: 'Send the form with both photos.' }, 400);
+  const body = await request.json().catch(() => null);
+  if (!body) return json({ detail: 'Send the set as JSON.' }, 400);
   const errors = {};
-  const school = clean(form.get('school'));
-  const gender = clean(form.get('gender'));
-  const classFrom = Number(form.get('class_from'));
-  const classTo = Number(form.get('class_to'));
-  const name = clean(form.get('name')).replace(/\s+/g, ' ');
-  const price = Number(form.get('price'));
-  const sizes = clean(form.get('sizes'))
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 30);
+  const school = clean(body.school);
+  const gender = clean(body.gender);
+  const classes = [...new Set(Array.isArray(body.classes) ? body.classes.map(Number) : [])].sort((a, b) => a - b);
+  const name = clean(body.name).replace(/\s+/g, ' ');
+  const price = Number(body.price);
 
   const approved = school && (await env.DB.prepare('SELECT 1 FROM store_schools WHERE store_id = ? AND school_id = ?').bind(store.id, school).first());
   if (!approved) errors.school = ['Choose one of your approved schools.'];
   if (!GENDERS[gender]) errors.gender = ['Choose boys or girls.'];
-  if (!Number.isInteger(classFrom) || classFrom < 1 || classFrom > 12) errors.class_from = ['Choose a class from 1 to 12.'];
-  if (!Number.isInteger(classTo) || classTo < 1 || classTo > 12) errors.class_to = ['Choose a class from 1 to 12.'];
-  else if (!errors.class_from && classTo < classFrom) errors.class_to = ['The last class must be the same as or after the first.'];
+  if (!classes.length || !classes.every((c) => Number.isInteger(c) && c >= 1 && c <= 12)) errors.classes = ['Choose at least one class.'];
   if (!name) errors.name = ['Name the set, for example "Summer uniform".'];
   if (!Number.isInteger(price) || price <= 0 || price > 100000) errors.price = ['Enter the price of the set in rupees.'];
-  if (!sizes.length) errors.sizes = ['Enter the sizes you have, separated by commas.'];
-  const top = await readPhoto(form, 'top_photo', errors, 'shirt');
-  const bottom = await readPhoto(form, 'bottom_photo', errors, gender === 'GIRL' ? 'skirt cloth' : 'pant cloth');
   if (Object.keys(errors).length) return fields(errors);
 
   const id = crypto.randomUUID();
-  const topKey = `uniform:${id}:top`;
-  const bottomKey = `uniform:${id}:bottom`;
-  await env.ORDERS.put(topKey, top.bytes, { metadata: { type: top.type } });
-  await env.ORDERS.put(bottomKey, bottom.bytes, { metadata: { type: bottom.type } });
   const at = now();
   await env.DB.prepare(
-    'INSERT INTO uniforms (id, store_id, school_id, gender, class_from, class_to, name, price, sizes, top_photo_key, bottom_photo_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    "INSERT INTO uniforms (id, store_id, school_id, gender, class_from, class_to, classes, name, price, sizes, top_photo_key, bottom_photo_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', '', '', ?, ?)"
   )
-    .bind(id, store.id, school, gender, classFrom, classTo, name, price, JSON.stringify(sizes), topKey, bottomKey, at, at)
+    .bind(id, store.id, school, gender, classes[0], classes[classes.length - 1], JSON.stringify(classes), name, price, at, at)
     .run();
   const loaded = await loadUniform(env, id);
   return json(uniformOut(loaded.row, loaded.mockups), 201);
 }
 
+/** The cloth photo, description and sizes. A new photo clears the old mock-ups: they show the old cloth. */
+async function saveDetails(env, request, uniform, mockups) {
+  const form = await request.formData().catch(() => null);
+  if (!form) return json({ detail: 'Send the form with the photo.' }, 400);
+  const errors = {};
+  const description = clean(form.get('description'));
+  const sizes = clean(form.get('sizes'))
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 30);
+  if (!description) errors.description = ['Describe the uniform.'];
+  else if (description.length > MAX_DESCRIPTION) errors.description = [`Keep the description to ${MAX_DESCRIPTION} characters.`];
+  if (!sizes.length) errors.sizes = ['Enter the sizes you have, separated by commas.'];
+  const photo = await readPhoto(form, 'photo', errors, uniform.gender === 'GIRL' ? 'skirt cloth' : 'pant cloth');
+  if (Object.keys(errors).length) return fields(errors);
+
+  const key = `uniform:${uniform.id}:bottom`;
+  await env.ORDERS.put(key, photo.bytes, { metadata: { type: photo.type } });
+  await env.DB.batch([
+    env.DB.prepare("UPDATE uniforms SET bottom_photo_key = ?, description = ?, sizes = ?, status = 'DRAFT', updated_at = ? WHERE id = ?").bind(key, description, JSON.stringify(sizes), now(), uniform.id),
+    env.DB.prepare('DELETE FROM mockups WHERE uniform_id = ?').bind(uniform.id),
+  ]);
+  await Promise.all(mockups.filter((m) => m.image_key).map((m) => env.ORDERS.delete(m.image_key)));
+  const loaded = await loadUniform(env, uniform.id);
+  return json(uniformOut(loaded.row, loaded.mockups));
+}
+
 /** Saves a finished picture from the retailer's browser as that class's mock-up. */
 async function saveMockup(env, request, uniform, classNo) {
-  if (classNo < uniform.class_from || classNo > uniform.class_to) return json({ detail: 'That class is not in this set.' }, 400);
+  if (!classesOf(uniform).includes(classNo)) return json({ detail: 'That class is not in this set.' }, 400);
+  if (!uniform.bottom_photo_key) return json({ detail: 'Upload the cloth photo first.' }, 409);
   if (classNo < FIRST_MODEL_CLASS) return json({ detail: "The model student for this class isn't ready yet." }, 400);
   const bytes = await request.arrayBuffer();
   if (!bytes.byteLength || bytes.byteLength > MAX_MOCKUP_BYTES) return json({ detail: 'The mock-up picture must be 8 MB or smaller.' }, 400);
@@ -191,7 +213,7 @@ export async function uniformsApi(request, env, path, user) {
     return json({ count: out.length, next: null, previous: null, results: out });
   }
 
-  const m = path.match(/^\/retail\/uniforms\/([0-9a-f-]{36})\/(?:(photo\/(?:top|bottom)|publish|unpublish|hide|mockups\/(\d+)\/image)\/)?$/);
+  const m = path.match(/^\/retail\/uniforms\/([0-9a-f-]{36})\/(?:(photo\/(?:top|bottom)|details|publish|unpublish|hide|mockups\/(\d+)\/image)\/)?$/);
   if (!m) return json({ detail: 'Not found.' }, 404);
   const loaded = await loadUniform(env, m[1]);
   if (!loaded || (isRetailer && loaded.row.store_id !== store.id)) return json({ detail: 'Not found.' }, 404);
@@ -201,7 +223,7 @@ export async function uniformsApi(request, env, path, user) {
   if (!action) return json(uniformOut(uniform, loaded.mockups));
   if (action.startsWith('photo/')) {
     const key = action.endsWith('top') ? uniform.top_photo_key : uniform.bottom_photo_key;
-    const { value, metadata } = await env.ORDERS.getWithMetadata(key, 'arrayBuffer');
+    const { value, metadata } = key ? await env.ORDERS.getWithMetadata(key, 'arrayBuffer') : {};
     if (!value) return json({ detail: 'Not found.' }, 404);
     return new Response(value, { headers: { 'content-type': metadata?.type || 'image/jpeg', 'cache-control': 'private, max-age=3600' } });
   }
@@ -214,8 +236,10 @@ export async function uniformsApi(request, env, path, user) {
     return json({ detail: 'Only the retailer can change their set.' }, 403);
   } else if (uniform.status === 'HIDDEN') {
     return json({ detail: 'The store owner has hidden this set. Contact them to show it again.' }, 403);
+  } else if (action === 'details') {
+    return saveDetails(env, request, uniform, loaded.mockups);
   } else if (action === 'publish') {
-    const total = uniform.class_to - Math.max(uniform.class_from, FIRST_MODEL_CLASS) + 1;
+    const total = classesOf(uniform).filter((c) => c >= FIRST_MODEL_CLASS).length;
     const done = loaded.mockups.filter((x) => x.status === 'DONE').length;
     if (total < 1 || done < total) return json({ detail: `All ${Math.max(total, 1)} mock-ups must be ready before the set can go live (${done} ready).` }, 409);
     await env.DB.prepare("UPDATE uniforms SET status = 'LIVE', updated_at = ? WHERE id = ?").bind(now(), uniform.id).run();

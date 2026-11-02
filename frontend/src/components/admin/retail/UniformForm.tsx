@@ -6,16 +6,13 @@ import './retail.css';
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 const PHOTO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
-const CLASSES = Array.from({ length: 12 }, (_, i) => i + 1);
+const CLASSES: number[] = Array.from({ length: 12 }, (_, i) => i + 1);
 
 interface FormState {
   school: string;
   gender: UniformGender | '';
-  class_from: string;
-  class_to: string;
   name: string;
   price: string;
-  sizes: string;
 }
 
 function photoError(file: File | null, label: string): string | undefined {
@@ -26,20 +23,13 @@ function photoError(file: File | null, label: string): string | undefined {
 }
 
 /** Checks the browser can do before sending; the server checks everything again. */
-function checkForm(form: FormState, top: File | null, bottom: File | null): Record<string, string> {
+function checkForm(form: FormState, classes: number[]): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!form.school) errors.school = 'Choose the school.';
   if (!form.gender) errors.gender = 'Choose boys or girls.';
-  if (!form.class_from) errors.class_from = 'Choose the first class.';
-  if (!form.class_to) errors.class_to = 'Choose the last class.';
-  else if (form.class_from && Number(form.class_to) < Number(form.class_from)) errors.class_to = 'The last class must be the same as or after the first.';
+  if (!classes.length) errors.classes = 'Choose at least one class.';
   if (!form.name.trim()) errors.name = 'Name the set, for example "Summer uniform".';
   if (!/^\d+$/.test(form.price) || Number(form.price) <= 0) errors.price = 'Enter the price of the set in rupees.';
-  if (!form.sizes.split(',').some((s) => s.trim())) errors.sizes = 'Enter the sizes you have, separated by commas.';
-  const topError = photoError(top, 'shirt');
-  const bottomError = photoError(bottom, form.gender === 'GIRL' ? 'skirt cloth' : 'pant cloth');
-  if (topError) errors.top_photo = topError;
-  if (bottomError) errors.bottom_photo = bottomError;
   return errors;
 }
 
@@ -83,30 +73,17 @@ function PhotoPick({
   );
 }
 
+/** Step 1: which school and classes the uniform is for. */
 export function UniformForm({ store, onClose, onAdded }: { store: RetailStore; onClose: () => void; onAdded: (set: UniformSet) => void }) {
   const id = useId();
-  const [form, setForm] = useState<FormState>({
-    school: store.schools.length === 1 ? store.schools[0].id : '',
-    gender: '',
-    class_from: '',
-    class_to: '',
-    name: '',
-    price: '',
-    sizes: '',
-  });
-  const [top, setTop] = useState<File | null>(null);
-  const [bottom, setBottom] = useState<File | null>(null);
+  const [form, setForm] = useState<FormState>({ school: store.schools.length === 1 ? store.schools[0].id : '', gender: '', name: '', price: '' });
+  const [classes, setClasses] = useState<number[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
 
   const add = useMutation({
-    mutationFn: () => {
-      const body = new FormData();
-      for (const [key, value] of Object.entries(form)) body.append(key, value.trim());
-      body.append('top_photo', top as File);
-      body.append('bottom_photo', bottom as File);
-      return retail.addUniform(body);
-    },
+    mutationFn: () =>
+      retail.addUniform({ school: form.school, gender: form.gender as UniformGender, classes, name: form.name.trim(), price: Number(form.price) }),
     onSuccess: onAdded,
     onError: (err: unknown) => {
       setErrors(fieldErrors(err));
@@ -125,29 +102,30 @@ export function UniformForm({ store, onClose, onAdded }: { store: RetailStore; o
     setForm((f) => ({ ...f, [key]: value }));
     clearError(key);
   };
+  const toggleClass = (classNo: number) => {
+    setClasses((current) => (current.includes(classNo) ? current.filter((c) => c !== classNo) : [...current, classNo].sort((a, b) => a - b)));
+    clearError('classes');
+  };
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const found = checkForm(form, top, bottom);
+    const found = checkForm(form, classes);
     setErrors(found);
     setMessage(null);
     if (Object.keys(found).length === 0) add.mutate();
   };
   const err = (key: string) => (errors[key] ? <span className="retail-field-error">{errors[key]}</span> : null);
-  const bottomLabel = form.gender === 'GIRL' ? 'Skirt cloth close-up' : form.gender === 'BOY' ? 'Pant cloth close-up' : 'Pant or skirt cloth close-up';
+  const allChosen = classes.length === CLASSES.length;
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} onClick={(e) => e.stopPropagation()}>
         <div className="card-head">
-          <h2 id={`${id}-title`}>Add uniform set</h2>
+          <h2 id={`${id}-title`}>Add uniform</h2>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
             <X width={18} height={18} />
           </button>
         </div>
         <form onSubmit={submit} className="form-card retail-form" noValidate>
-          <p className="retail-hint">
-            A set is the shirt with the pant (boys) or skirt (girls). We fill the model's pant or skirt with your cloth. For now the model keeps a plain white shirt.
-          </p>
           {message && Object.keys(errors).length === 0 && <div className="error" role="alert">{message}</div>}
 
           <label>
@@ -172,28 +150,19 @@ export function UniformForm({ store, onClose, onAdded }: { store: RetailStore; o
           </fieldset>
           {err('gender')}
 
-          <div className="retail-row">
-            <label>
-              <span>From class</span>
-              <select value={form.class_from} onChange={(e) => set('class_from')(e.target.value)} aria-invalid={!!errors.class_from}>
-                <option value="">Choose</option>
-                {CLASSES.map((c) => (
-                  <option key={c} value={c}>Class {c}</option>
-                ))}
-              </select>
-              {err('class_from')}
-            </label>
-            <label>
-              <span>To class</span>
-              <select value={form.class_to} onChange={(e) => set('class_to')(e.target.value)} aria-invalid={!!errors.class_to}>
-                <option value="">Choose</option>
-                {CLASSES.map((c) => (
-                  <option key={c} value={c}>Class {c}</option>
-                ))}
-              </select>
-              {err('class_to')}
-            </label>
-          </div>
+          <fieldset className="retail-logo-choice" aria-invalid={!!errors.classes}>
+            <legend className="muted">Classes</legend>
+            {CLASSES.map((c) => (
+              <label key={c}>
+                <input type="checkbox" checked={classes.includes(c)} onChange={() => toggleClass(c)} />
+                Class {c}
+              </label>
+            ))}
+            <button type="button" className="link-button" onClick={() => { setClasses(allChosen ? [] : CLASSES); clearError('classes'); }}>
+              {allChosen ? 'Clear all' : 'Choose all'}
+            </button>
+          </fieldset>
+          {err('classes')}
 
           <label>
             <span>Name of the set</span>
@@ -201,50 +170,87 @@ export function UniformForm({ store, onClose, onAdded }: { store: RetailStore; o
             {err('name')}
           </label>
 
-          <div className="retail-row">
-            <label>
-              <span>Price of the set (₹)</span>
-              <input value={form.price} onChange={(e) => set('price')(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" aria-invalid={!!errors.price} />
-              {err('price')}
-            </label>
-            <label>
-              <span>Sizes</span>
-              <input value={form.sizes} onChange={(e) => set('sizes')(e.target.value)} placeholder="22, 24, 26, 28" aria-invalid={!!errors.sizes} />
-              {err('sizes')}
-            </label>
-          </div>
-
-          <PhotoPick
-            id={`${id}-top`}
-            label="Shirt photo"
-            hint="The real shirt, kept with the set. PNG, JPG or WebP, up to 8 MB."
-            file={top}
-            error={errors.top_photo}
-            onPick={(f) => {
-              setTop(f);
-              clearError('top_photo');
-            }}
-          />
-          <PhotoPick
-            id={`${id}-bottom`}
-            label={bottomLabel}
-            hint="Only the cloth: flat, from straight above, in good light, about an A4 sheet of it, with no folds, buttons or logos."
-            file={bottom}
-            error={errors.bottom_photo}
-            onPick={(f) => {
-              setBottom(f);
-              clearError('bottom_photo');
-            }}
-          />
+          <label>
+            <span>Price of the set (₹)</span>
+            <input value={form.price} onChange={(e) => set('price')(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" aria-invalid={!!errors.price} />
+            {err('price')}
+          </label>
 
           <div className="modal-actions">
             <button type="button" className="secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="primary" disabled={add.isPending}>
-              {add.isPending ? 'Adding…' : 'Add set'}
+              {add.isPending ? 'Adding…' : 'Add uniform'}
             </button>
           </div>
         </form>
       </div>
     </div>
+  );
+}
+
+/** Step 2: the cloth photo, description and sizes the mock-ups are created from. */
+export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCancel?: () => void; onSaved: (set: UniformSet) => void }) {
+  const id = useId();
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [description, setDescription] = useState(set.description);
+  const [sizes, setSizes] = useState(set.sizes.join(', '));
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [message, setMessage] = useState<string | null>(null);
+  const cloth = set.gender === 'GIRL' ? 'skirt cloth' : 'pant cloth';
+
+  const save = useMutation({
+    mutationFn: () => {
+      const body = new FormData();
+      body.append('photo', photo as File);
+      body.append('description', description.trim());
+      body.append('sizes', sizes.trim());
+      return retail.uniformDetails(set.id, body);
+    },
+    onSuccess: onSaved,
+    onError: (err: unknown) => {
+      setErrors(fieldErrors(err));
+      setMessage(err instanceof ApiError ? err.message : 'Could not save. Check your connection and try again.');
+    },
+  });
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    const found: Record<string, string> = {};
+    const photoProblem = photoError(photo, cloth);
+    if (photoProblem) found.photo = photoProblem;
+    if (!description.trim()) found.description = 'Describe the uniform.';
+    if (!sizes.split(',').some((s) => s.trim())) found.sizes = 'Enter the sizes you have, separated by commas.';
+    setErrors(found);
+    setMessage(null);
+    if (Object.keys(found).length === 0) save.mutate();
+  };
+
+  return (
+    <form onSubmit={submit} className="form-card retail-form" noValidate>
+      {message && Object.keys(errors).length === 0 && <div className="error" role="alert">{message}</div>}
+      <PhotoPick
+        id={`${id}-photo`}
+        label="Photo"
+        hint={`A close-up of the ${cloth} only: flat, from straight above, in good light, about an A4 sheet of it, with no folds, buttons or logos.`}
+        file={photo}
+        error={errors.photo}
+        onPick={setPhoto}
+      />
+      <label>
+        <span>Description</span>
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} rows={3} aria-invalid={!!errors.description} />
+        {errors.description && <span className="retail-field-error">{errors.description}</span>}
+      </label>
+      <label>
+        <span>Size details</span>
+        <input value={sizes} onChange={(e) => setSizes(e.target.value)} placeholder="22, 24, 26, 28" aria-invalid={!!errors.sizes} />
+        {errors.sizes ? <span className="retail-field-error">{errors.sizes}</span> : <span className="retail-hint">Separate sizes with commas.</span>}
+      </label>
+      <div className="retail-actions">
+        {onCancel && <button type="button" className="secondary" onClick={onCancel}>Cancel</button>}
+        <button type="submit" className="primary" disabled={save.isPending}>
+          {save.isPending ? 'Saving…' : 'Create mock-up'}
+        </button>
+      </div>
+    </form>
   );
 }

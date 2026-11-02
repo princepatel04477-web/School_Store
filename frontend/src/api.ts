@@ -510,8 +510,9 @@ export const retail={
   requestLogoPath:(id:string)=>`/retail/school-requests/${id}/logo/`,
   uniforms:()=>api<Page<UniformSet>>('/retail/uniforms/'),
   uniform:(id:string)=>api<UniformSet>(`/retail/uniforms/${id}/`),
-  /** Multipart: school, gender, class_from, class_to, name, price, sizes (comma list), top_photo, bottom_photo. */
-  addUniform:(form:FormData)=>upload<UniformSet>('/retail/uniforms/',form),
+  addUniform:(body:{school:string;gender:UniformGender;classes:number[];name:string;price:number})=>api<UniformSet>('/retail/uniforms/',{method:'POST',body:JSON.stringify(body)}),
+  /** Multipart: photo (the cloth), description, sizes (comma list). Clears any earlier mock-ups. */
+  uniformDetails:(id:string,form:FormData)=>upload<UniformSet>(`/retail/uniforms/${id}/details/`,form),
   uniformAction:(id:string,action:'publish'|'unpublish'|'hide')=>api<UniformSet>(`/retail/uniforms/${id}/${action}/`,{method:'POST'}),
   /** The picture the browser's mock-up engine made for one class. */
   saveMockup:(id:string,classNo:number,picture:Blob)=>api<UniformSet>(`/retail/uniforms/${id}/mockups/${classNo}/image/`,{method:'POST',body:picture}),
@@ -524,7 +525,7 @@ export type Mockup={id:string;class_no:number;status:'DONE';error:string;
   image:string|null};
 export type UniformSet={
   id:string;store:string;store_name:string;school:string;school_name:string;gender:UniformGender;
-  class_from:number;class_to:number;name:string;price:number;sizes:string[];
+  class_from:number;class_to:number;classes:number[];description:string;has_photo:boolean;name:string;price:number;sizes:string[];
   status:'DRAFT'|'LIVE'|'HIDDEN';mockups:Mockup[];mockups_done:number;mockups_total:number;created_at:string;
 };
 /** A mock-up picture's address in this app (the API gives a site path). */
