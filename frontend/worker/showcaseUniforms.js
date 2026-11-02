@@ -41,6 +41,7 @@ function uniformOut(row, mockups = []) {
     classes: classesOf(row),
     description: row.description,
     has_photo: !!row.bottom_photo_key,
+    updated_at: row.updated_at,
     name: row.name,
     price: row.price,
     sizes: JSON.parse(row.sizes || '[]'),

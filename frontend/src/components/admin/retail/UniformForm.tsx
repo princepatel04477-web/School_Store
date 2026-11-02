@@ -2,6 +2,8 @@ import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { ApiError, fieldErrors, retail, type RetailStore, type UniformGender, type UniformSet } from '../../../api';
 import { X } from '../../ui/icons';
+import { ClothPicker, type ClothBox } from './ClothPicker';
+import { cropCloth } from './mockupEngine';
 import './retail.css';
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
@@ -192,6 +194,7 @@ export function UniformForm({ store, onClose, onAdded }: { store: RetailStore; o
 export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCancel?: () => void; onSaved: (set: UniformSet) => void }) {
   const id = useId();
   const [photo, setPhoto] = useState<File | null>(null);
+  const [box, setBox] = useState<ClothBox | null>(null);
   const [description, setDescription] = useState(set.description);
   const [sizes, setSizes] = useState(set.sizes.join(', '));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -199,9 +202,9 @@ export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCanc
   const cloth = set.gender === 'GIRL' ? 'skirt cloth' : 'pant cloth';
 
   const save = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const body = new FormData();
-      body.append('photo', photo as File);
+      body.append('photo', await cropCloth(photo as File, box as ClothBox), 'cloth.jpg');
       body.append('description', description.trim());
       body.append('sizes', sizes.trim());
       return retail.uniformDetails(set.id, body);
@@ -217,6 +220,7 @@ export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCanc
     const found: Record<string, string> = {};
     const photoProblem = photoError(photo, cloth);
     if (photoProblem) found.photo = photoProblem;
+    else if (!box) found.photo = `Drag a box over the ${cloth} in your photo.`;
     if (!description.trim()) found.description = 'Describe the uniform.';
     if (!sizes.split(',').some((s) => s.trim())) found.sizes = 'Enter the sizes you have, separated by commas.';
     setErrors(found);
@@ -230,11 +234,26 @@ export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCanc
       <PhotoPick
         id={`${id}-photo`}
         label="Photo"
-        hint={`A close-up of the ${cloth} only: flat, from straight above, in good light, about an A4 sheet of it, with no folds, buttons or logos.`}
+        hint="A clear photo of the uniform. PNG, JPG or WebP, up to 8 MB."
         file={photo}
         error={errors.photo}
-        onPick={setPhoto}
+        onPick={(file) => {
+          setPhoto(file);
+          setBox(null);
+          setErrors(({ photo: _gone, ...rest }) => rest);
+        }}
       />
+      {photo && !photoError(photo, cloth) && (
+        <ClothPicker
+          file={photo}
+          cloth={cloth}
+          box={box}
+          onChange={(next) => {
+            setBox(next);
+            setErrors(({ photo: _gone, ...rest }) => rest);
+          }}
+        />
+      )}
       <label>
         <span>Description</span>
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} rows={3} aria-invalid={!!errors.description} />

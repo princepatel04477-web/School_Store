@@ -69,7 +69,7 @@ export function UniformsList() {
                     {cover?.image ? (
                       <img className="retail-logo" src={mockupUrl(cover.image)} alt={`${set.name} on the model`} loading="lazy" />
                     ) : set.has_photo ? (
-                      <SignedInLogo path={retail.uniformPhotoPath(set.id, 'bottom')} alt={`${set.name} cloth`} />
+                      <SignedInLogo path={retail.clothPhotoPath(set)} alt={`${set.name} cloth`} />
                     ) : (
                       <span className="retail-logo retail-logo-empty">No photo</span>
                     )}
@@ -133,7 +133,7 @@ export function UniformDetail() {
   const make = useMutation({
     mutationFn: async (uniform: UniformSet) => {
       const ready = new Set(uniform.mockups.map((m) => m.class_no));
-      const cloth = await fetchBlobUrl(retail.uniformPhotoPath(uniform.id, 'bottom')).then(async (url) => {
+      const cloth = await fetchBlobUrl(retail.clothPhotoPath(uniform)).then(async (url) => {
         try {
           return await loadPicture(url);
         } finally {
@@ -236,7 +236,7 @@ export function UniformDetail() {
             <button type="button" className="link-button" onClick={() => setChanging(true)} disabled={hidden || make.isPending}>Change</button>
           </div>
           <div className="pad retail-actions">
-            <SignedInLogo path={retail.uniformPhotoPath(data.id, 'bottom')} alt={data.gender === 'GIRL' ? 'Skirt cloth' : 'Pant cloth'} />
+            <SignedInLogo path={retail.clothPhotoPath(data)} alt={data.gender === 'GIRL' ? 'Skirt cloth' : 'Pant cloth'} />
           </div>
         </div>
       )}

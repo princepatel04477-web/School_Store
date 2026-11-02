@@ -9,8 +9,13 @@ import type { UniformGender } from '../../../api';
 /** There is no Class 1 model student yet. */
 export const FIRST_MODEL_CLASS = 2;
 
-/** The photographed cloth (about an A4 sheet) spans this many pixels of a model photo. */
+/** The marked cloth spans this many pixels of a model photo. */
 const CLOTH_PIXELS = 260;
+const MAX_CLOTH_SIDE = 1000;
+/** Light in the cloth photo is measured over this many cells across: larger shapes count as shadow. */
+const LIGHT_CELLS = 4;
+/** Colour spread (0 to 255) under which cloth counts as plain. */
+const PLAIN_SPREAD = 12;
 const LIGHT_MIN = 0.45;
 const LIGHT_MAX = 1.3;
 const WEBP_QUALITY = 0.9;
@@ -35,6 +40,37 @@ export function compose(model: Uint8ClampedArray, mask: Uint8ClampedArray, cloth
     const light = Math.min(LIGHT_MAX, Math.max(LIGHT_MIN, luma(model, i) / base));
     for (let c = 0; c < 3; c += 1) model[i + c] += (cloth[i + c] * light - model[i + c]) * coverage;
   }
+}
+
+/**
+ * Takes the photo's own light out of the cloth, keeping its colour and pattern. Tiled, a shadow in
+ * the photo would otherwise repeat as bands across the garment; the model's folds give the light.
+ */
+export function flattenLight(cloth: Uint8ClampedArray, light: Uint8ClampedArray): void {
+  const mean = [0, 0, 0];
+  for (let i = 0; i < light.length; i += 4) for (let c = 0; c < 3; c += 1) mean[c] += light[i + c];
+  const pixels = light.length / 4;
+  for (let i = 0; i < cloth.length; i += 4) {
+    for (let c = 0; c < 3; c += 1) cloth[i + c] = (cloth[i + c] * (mean[c] / pixels)) / (light[i + c] || 1);
+  }
+}
+
+/**
+ * Cloth with no real pattern becomes one even colour, so a crease in the photo can't repeat across
+ * the garment. Patterned cloth is left as it is.
+ */
+export function makePlainIfEven(cloth: Uint8ClampedArray): void {
+  const pixels = cloth.length / 4;
+  const mean = [0, 0, 0];
+  const square = [0, 0, 0];
+  for (let i = 0; i < cloth.length; i += 4) {
+    for (let c = 0; c < 3; c += 1) {
+      mean[c] += cloth[i + c] / pixels;
+      square[c] += (cloth[i + c] * cloth[i + c]) / pixels;
+    }
+  }
+  if (mean.some((m, c) => Math.sqrt(Math.max(0, square[c] - m * m)) > PLAIN_SPREAD)) return;
+  for (let i = 0; i < cloth.length; i += 4) for (let c = 0; c < 3; c += 1) cloth[i + c] = mean[c];
 }
 
 /** Left and right edge of the mask's middle, where the cloth's mirror line should fall. */
@@ -68,22 +104,61 @@ function canvasOf(width: number, height: number): [HTMLCanvasElement, CanvasRend
   return [canvas, ctx];
 }
 
+/** The cloth at this size with its photo's light and shadows taken out. */
+function evenCloth(cloth: HTMLImageElement, w: number, h: number): HTMLCanvasElement {
+  const [canvas, ctx] = canvasOf(w, h);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(cloth, 0, 0, w, h);
+  const [small, smallCtx] = canvasOf(LIGHT_CELLS, LIGHT_CELLS);
+  smallCtx.imageSmoothingQuality = 'high';
+  smallCtx.drawImage(canvas, 0, 0, LIGHT_CELLS, LIGHT_CELLS);
+  const [, lightCtx] = canvasOf(w, h);
+  lightCtx.imageSmoothingQuality = 'high';
+  lightCtx.drawImage(small, 0, 0, w, h);
+  const image = ctx.getImageData(0, 0, w, h);
+  flattenLight(image.data, lightCtx.getImageData(0, 0, w, h).data);
+  makePlainIfEven(image.data);
+  ctx.putImageData(image, 0, 0);
+  return canvas;
+}
+
 /** The cloth mirrored into a block that repeats without seams. */
 function clothBlock(cloth: HTMLImageElement): HTMLCanvasElement {
   const scale = CLOTH_PIXELS / Math.max(cloth.naturalWidth, cloth.naturalHeight);
   const w = Math.max(1, Math.round(cloth.naturalWidth * scale));
   const h = Math.max(1, Math.round(cloth.naturalHeight * scale));
+  const flat = evenCloth(cloth, w, h);
   const [block, ctx] = canvasOf(w * 2, h * 2);
   ctx.imageSmoothingQuality = 'high';
   for (const [flipX, flipY] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
     ctx.setTransform(flipX, 0, 0, flipY, w, h);
-    ctx.drawImage(cloth, 0, 0, w, h);
+    ctx.drawImage(flat, 0, 0, w, h);
   }
   return block;
 }
 
 function toBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> {
   return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+}
+
+/** The marked part of the retailer's photo: the only pixels the engine treats as cloth. */
+export async function cropCloth(file: File, box: { x: number; y: number; width: number; height: number }): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  try {
+    const photo = await loadPicture(url);
+    const sx = box.x * photo.naturalWidth;
+    const sy = box.y * photo.naturalHeight;
+    const sw = box.width * photo.naturalWidth;
+    const sh = box.height * photo.naturalHeight;
+    const scale = Math.min(1, MAX_CLOTH_SIDE / Math.max(sw, sh));
+    const [canvas, ctx] = canvasOf(Math.max(1, Math.round(sw * scale)), Math.max(1, Math.round(sh * scale)));
+    ctx.drawImage(photo, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    const crop = await toBlob(canvas, 'image/jpeg', JPEG_QUALITY);
+    if (!crop) throw new Error('Could not read your photo.');
+    return crop;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 /** One finished mock-up. */

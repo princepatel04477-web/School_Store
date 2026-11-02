@@ -516,7 +516,8 @@ export const retail={
   uniformAction:(id:string,action:'publish'|'unpublish'|'hide')=>api<UniformSet>(`/retail/uniforms/${id}/${action}/`,{method:'POST'}),
   /** The picture the browser's mock-up engine made for one class. */
   saveMockup:(id:string,classNo:number,picture:Blob)=>api<UniformSet>(`/retail/uniforms/${id}/mockups/${classNo}/image/`,{method:'POST',body:picture}),
-  uniformPhotoPath:(id:string,part:'top'|'bottom')=>`/retail/uniforms/${id}/photo/${part}/`,
+  /** Includes the set's version: a changed photo must not come from the browser's cache. */
+  clothPhotoPath:(set:UniformSet)=>`/retail/uniforms/${set.id}/photo/bottom/?v=${encodeURIComponent(set.updated_at)}`,
 };
 
 export type UniformGender='BOY'|'GIRL';
@@ -525,7 +526,7 @@ export type Mockup={id:string;class_no:number;status:'DONE';error:string;
   image:string|null};
 export type UniformSet={
   id:string;store:string;store_name:string;school:string;school_name:string;gender:UniformGender;
-  class_from:number;class_to:number;classes:number[];description:string;has_photo:boolean;name:string;price:number;sizes:string[];
+  class_from:number;class_to:number;classes:number[];description:string;has_photo:boolean;updated_at:string;name:string;price:number;sizes:string[];
   status:'DRAFT'|'LIVE'|'HIDDEN';mockups:Mockup[];mockups_done:number;mockups_total:number;created_at:string;
 };
 /** A mock-up picture's address in this app (the API gives a site path). */
