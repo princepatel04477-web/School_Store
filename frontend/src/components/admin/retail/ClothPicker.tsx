@@ -26,9 +26,9 @@ function SwatchPreview({ src, box }: { src: string; box: ClothBox }) {
           src={src}
           alt="Selected fabric swatch preview"
           style={{
-            width: \`\${100 / box.width}%\`,
+            width: `${100 / box.width}%`,
             maxWidth: 'none',
-            transform: \`translate(-\${box.x * 100}%, -\${box.y * 100}%)\`,
+            transform: `translate(-${box.x * 100}%, -${box.y * 100}%)`,
           }}
         />
       </div>
@@ -89,7 +89,7 @@ export function ClothPicker({ file, cloth, box, onChange }: { file: File; cloth:
   return (
     <div className="retail-cloth">
       <span className="retail-cloth-title">Mark the {cloth}</span>
-      <span className="retail-hint">Drag a box on one flat, evenly lit section of the \${cloth} only. Do not select the whole uniform.</span>
+      <span className="retail-hint">Drag a box on one flat, evenly lit section of the ${cloth} only. Do not select the whole uniform.</span>
       {src && (
         <>
           <div
