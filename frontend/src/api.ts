@@ -513,7 +513,8 @@ export const retail={
   addUniform:(body:{school:string;gender:UniformGender;classes:number[];name:string;price:number})=>api<UniformSet>('/retail/uniforms/',{method:'POST',body:JSON.stringify(body)}),
   /** Multipart: photo (the cloth), description, sizes (comma list). Clears any earlier mock-ups. */
   uniformDetails:(id:string,form:FormData)=>upload<UniformSet>(`/retail/uniforms/${id}/details/`,form),
-  uniformAction:(id:string,action:'publish'|'unpublish'|'hide')=>api<UniformSet>(`/retail/uniforms/${id}/${action}/`,{method:'POST'}),
+  uniformAction:(id:string,action:'accept-all'|'publish'|'unpublish'|'hide')=>api<UniformSet>(`/retail/uniforms/${id}/${action}/`,{method:'POST'}),
+  reviewMockup:(id:string,classNo:number,how:'accept'|'reject')=>api<UniformSet>(`/retail/uniforms/${id}/mockups/${classNo}/${how}/`,{method:'POST'}),
   /** The picture the browser's mock-up engine made for one class. */
   saveMockup:(id:string,classNo:number,picture:Blob)=>api<UniformSet>(`/retail/uniforms/${id}/mockups/${classNo}/image/`,{method:'POST',body:picture}),
   /** Includes the set's version: a changed photo must not come from the browser's cache. */
@@ -521,7 +522,7 @@ export const retail={
 };
 
 export type UniformGender='BOY'|'GIRL';
-export type Mockup={id:string;class_no:number;status:'DONE';error:string;
+export type Mockup={id:string;class_no:number;status:'DONE';review:'PENDING'|'ACCEPTED'|'REJECTED';error:string;
   /** Site path of the finished picture (only when DONE). */
   image:string|null};
 export type UniformSet={

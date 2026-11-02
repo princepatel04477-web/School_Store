@@ -13,6 +13,7 @@ const SET_STATUS: Record<UniformSet['status'], { label: string; cls: string }> =
   LIVE: { label: 'Live', cls: 's-approved' },
   HIDDEN: { label: 'Hidden by store owner', cls: 's-cancelled' },
 };
+const REVIEW_LABEL = { PENDING: 'Check this mock-up', ACCEPTED: 'Accepted', REJECTED: 'Rejected' } as const;
 const classRange = (set: UniformSet) => `Class ${set.classes.join(', ')}`;
 const forWhom = (set: UniformSet) => (set.gender === 'BOY' ? 'Boys' : 'Girls');
 /** The classes in this set that have a model student. */
@@ -120,11 +121,21 @@ export function UniformDetail() {
   };
 
   const action = useMutation({
-    mutationFn: (what: 'publish' | 'unpublish') => retail.uniformAction(id, what),
+    mutationFn: (what: 'accept-all' | 'publish' | 'unpublish') => retail.uniformAction(id, what),
     onSuccess: (fresh, what) => {
       setError(null);
       keep(fresh);
       setNotice(what === 'publish' ? 'The set is live.' : null);
+    },
+    onError: (err: unknown) => setError(err instanceof ApiError ? err.message : 'Something went wrong. Try again.'),
+  });
+
+  const review = useMutation({
+    mutationFn: ({ classNo, how }: { classNo: number; how: 'accept' | 'reject' }) => retail.reviewMockup(id, classNo, how),
+    onSuccess: (fresh) => {
+      setError(null);
+      setNotice(null);
+      keep(fresh);
     },
     onError: (err: unknown) => setError(err instanceof ApiError ? err.message : 'Something went wrong. Try again.'),
   });
@@ -179,6 +190,9 @@ export function UniformDetail() {
   const byClass = new Map(data.mockups.map((m) => [m.class_no, m]));
   const hidden = data.status === 'HIDDEN';
   const missing = total - data.mockups_done;
+  const accepted = data.mockups.filter((m) => m.review === 'ACCEPTED').length;
+  const rejected = data.mockups.some((m) => m.review === 'REJECTED');
+  const toReview = data.mockups.some((m) => m.review === 'PENDING');
 
   return (
     <div>
@@ -198,8 +212,8 @@ export function UniformDetail() {
               type="button"
               className="primary"
               onClick={() => action.mutate('publish')}
-              disabled={hidden || action.isPending || make.isPending || !data.has_photo || total === 0 || missing > 0}
-              title={!data.has_photo || total === 0 || missing > 0 ? 'All mock-ups must be ready first' : undefined}
+              disabled={hidden || action.isPending || make.isPending || total === 0 || accepted < total}
+              title={total === 0 || accepted < total ? 'Accept all the mock-ups first' : undefined}
             >
               Publish
             </button>
@@ -244,7 +258,7 @@ export function UniformDetail() {
       {data.has_photo && <div className="card">
         <div className="card-head">
           <h2>On our model students</h2>
-          <span className="muted">{data.mockups_done} of {total} ready</span>
+          <span className="muted">{accepted} of {total} accepted</span>
         </div>
         {total === 0 && (
           <div className="pad"><div className="empty slim">The model student for this class isn't ready yet.</div></div>
@@ -265,12 +279,42 @@ export function UniformDetail() {
                   )}
                   <figcaption>
                     <b>Class {classNo}</b>
-                    <span className="muted">{m ? 'Ready' : making === classNo ? 'Making…' : hasModel ? 'Not made yet' : 'Waiting for the model student'}</span>
+                    <span className="muted">{m ? REVIEW_LABEL[m.review] : making === classNo ? 'Making…' : hasModel ? 'Not made yet' : 'Waiting for the model student'}</span>
                     {failed[classNo] && <span className="retail-field-error">{failed[classNo]}</span>}
+                    {m && (
+                      <span className="retail-actions">
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={hidden || review.isPending || m.review === 'ACCEPTED'}
+                          onClick={() => review.mutate({ classNo, how: 'accept' })}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={hidden || review.isPending || m.review === 'REJECTED'}
+                          onClick={() => review.mutate({ classNo, how: 'reject' })}
+                        >
+                          Reject
+                        </button>
+                      </span>
+                    )}
                   </figcaption>
                 </figure>
               );
             })}
+          </div>
+        )}
+        {rejected && (
+          <div className="pad retail-reason">
+            <p className="retail-hint">To fix a rejected mock-up, change your photo above and mark the cloth again. All the mock-ups are then made again for you to check.</p>
+          </div>
+        )}
+        {toReview && missing === 0 && !make.isPending && (
+          <div className="pad retail-actions">
+            <button type="button" className="secondary" onClick={() => action.mutate('accept-all')} disabled={hidden || action.isPending}>Accept all waiting</button>
           </div>
         )}
         {missing > 0 && (

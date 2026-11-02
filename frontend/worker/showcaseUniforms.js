@@ -50,6 +50,7 @@ function uniformOut(row, mockups = []) {
       id: m.id,
       class_no: m.class_no,
       status: m.status,
+      review: m.review,
       error: m.error,
       image: m.status === 'DONE' ? `/api/public/mockups/${m.id}/` : null,
     })),
@@ -205,7 +206,7 @@ export async function uniformsApi(request, env, path, user) {
     const sql = `${UNIFORM_SELECT}${isRetailer ? ' WHERE u.store_id = ?' : ''} ORDER BY u.created_at DESC LIMIT 200`;
     const { results } = await (isRetailer ? env.DB.prepare(sql).bind(store.id) : env.DB.prepare(sql)).all();
     const { results: counts } = await env.DB.prepare(
-      `SELECT uniform_id, class_no, status, id, error FROM mockups WHERE uniform_id IN (${results.map(() => '?').join(',') || "''"})`
+      `SELECT uniform_id, class_no, status, review, id, error FROM mockups WHERE uniform_id IN (${results.map(() => '?').join(',') || "''"})`
     )
       .bind(...results.map((r) => r.id))
       .all();
@@ -214,7 +215,7 @@ export async function uniformsApi(request, env, path, user) {
     return json({ count: out.length, next: null, previous: null, results: out });
   }
 
-  const m = path.match(/^\/retail\/uniforms\/([0-9a-f-]{36})\/(?:(photo\/(?:top|bottom)|details|publish|unpublish|hide|mockups\/(\d+)\/image)\/)?$/);
+  const m = path.match(/^\/retail\/uniforms\/([0-9a-f-]{36})\/(?:(photo\/(?:top|bottom)|details|accept-all|publish|unpublish|hide|mockups\/(\d+)\/(?:image|accept|reject))\/)?$/);
   if (!m) return json({ detail: 'Not found.' }, 404);
   const loaded = await loadUniform(env, m[1]);
   if (!loaded || (isRetailer && loaded.row.store_id !== store.id)) return json({ detail: 'Not found.' }, 404);
@@ -241,13 +242,25 @@ export async function uniformsApi(request, env, path, user) {
     return saveDetails(env, request, uniform, loaded.mockups);
   } else if (action === 'publish') {
     const total = classesOf(uniform).filter((c) => c >= FIRST_MODEL_CLASS).length;
-    const done = loaded.mockups.filter((x) => x.status === 'DONE').length;
-    if (total < 1 || done < total) return json({ detail: `All ${Math.max(total, 1)} mock-ups must be ready before the set can go live (${done} ready).` }, 409);
+    const accepted = loaded.mockups.filter((x) => x.status === 'DONE' && x.review === 'ACCEPTED').length;
+    if (total < 1 || accepted < total) return json({ detail: `All ${Math.max(total, 1)} mock-ups must be accepted before the set can go live (${accepted} accepted).` }, 409);
     await env.DB.prepare("UPDATE uniforms SET status = 'LIVE', updated_at = ? WHERE id = ?").bind(now(), uniform.id).run();
   } else if (action === 'unpublish') {
     await env.DB.prepare("UPDATE uniforms SET status = 'DRAFT', updated_at = ? WHERE id = ?").bind(now(), uniform.id).run();
-  } else {
+  } else if (action === 'accept-all') {
+    await env.DB.prepare("UPDATE mockups SET review = 'ACCEPTED', updated_at = ? WHERE uniform_id = ? AND status = 'DONE' AND review = 'PENDING'").bind(now(), uniform.id).run();
+  } else if (action.endsWith('/image')) {
     return saveMockup(env, request, uniform, Number(m[3]));
+  } else {
+    const classNo = Number(m[3]);
+    if (!loaded.mockups.some((x) => x.class_no === classNo && x.status === 'DONE')) return json({ detail: 'This mock-up is not ready.' }, 404);
+    const reject = action.endsWith('/reject');
+    const statements = [
+      env.DB.prepare('UPDATE mockups SET review = ?, updated_at = ? WHERE uniform_id = ? AND class_no = ?').bind(reject ? 'REJECTED' : 'ACCEPTED', now(), uniform.id, classNo),
+    ];
+    // A set can't stay live showing a mock-up its retailer turned down.
+    if (reject) statements.push(env.DB.prepare("UPDATE uniforms SET status = 'DRAFT', updated_at = ? WHERE id = ?").bind(now(), uniform.id));
+    await env.DB.batch(statements);
   }
   const after = await loadUniform(env, uniform.id);
   return json(uniformOut(after.row, after.mockups));

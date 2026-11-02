@@ -309,3 +309,13 @@
   outline: 2px solid var(--danger);
   pointer-events: none;
 }
+
+.retail-mockup figcaption .retail-actions .secondary {
+  width: auto;
+  flex: 1;
+  justify-content: center;
+}
+
+.retail-mockup figcaption .retail-actions .secondary:disabled {
+  opacity: 0.45;
+}
