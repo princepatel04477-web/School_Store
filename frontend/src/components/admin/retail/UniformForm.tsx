@@ -221,7 +221,7 @@ export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCanc
     const found: Record<string, string> = {};
     const photoProblem = photoError(photo, cloth);
     if (photoProblem) found.photo = photoProblem;
-    else if (!box) found.photo = \`Drag a box over the \${cloth} in your photo.\`;
+    else if (!box) found.photo = `Drag a box over the ${cloth} in your photo.`;
     else if (!fabricConfirmed) found.swatch = 'Confirm that the selected area contains only flat fabric.';
     if (!description.trim()) found.description = 'Describe the uniform.';
     if (!sizes.split(',').some((s) => s.trim())) found.sizes = 'Enter the sizes you have, separated by commas.';
@@ -268,7 +268,7 @@ export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCanc
               if (e.target.checked) setErrors(({ swatch: _gone, ...rest }) => rest);
             }}
           />
-          <span>I checked the preview: this selection contains only flat \${cloth}, not the full uniform, seams, folds, logos or background.</span>
+          <span>I checked the preview: this selection contains only flat ${cloth}, not the full uniform, seams, folds, logos or background.</span>
           {errors.swatch && <span className="retail-field-error">{errors.swatch}</span>}
         </label>
       )}
