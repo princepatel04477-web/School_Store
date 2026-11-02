@@ -397,12 +397,8 @@ function findPiping(photo: PhotoPixels, outfit: Outfit, plain: Rgb | null): { pi
   }
 
   if (totalChecked > 10 && pipingRows / totalChecked >= 0.2) {
-    const avg = pipingPixels.length
-      ? (pipingPixels
-          .reduce((acc, c) => [acc[0] + c[0], acc[1] + c[1], acc[2] + c[2]], [0, 0, 0])
-          .map((v) => Math.round(v / pipingPixels.length)) as Rgb)
-      : ([242, 242, 242] as Rgb);
-    return { piping: avg[0] > 180 && avg[1] > 180 && avg[2] > 180 ? [242, 242, 242] : avg };
+    // Athletic track pants side piping is crisp white
+    return { piping: [248, 248, 252] as Rgb };
   }
   return null;
 }

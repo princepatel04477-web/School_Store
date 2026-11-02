@@ -181,25 +181,21 @@ export function drawPiping(
     }
     if (rightX - leftX < 30) continue;
 
-    // Left leg outer boundary
+    // Left leg outer boundary: crisp white piping
     const xLeft = leftX + inset;
     for (let w = 0; w < pipeW; w += 1) {
       const p = (y * width + (xLeft + w)) * 4;
-      if (garment[p] > 100) {
-        const lumaVal = (0.299 * reference[p] + 0.587 * reference[p + 1] + 0.114 * reference[p + 2]) / 128;
-        const light = Math.min(1.2, Math.max(0.7, lumaVal));
-        for (let c = 0; c < 3; c += 1) model[p + c] = Math.round(pipingColour[c] * light);
+      if (garment[p] > 80) {
+        for (let c = 0; c < 3; c += 1) model[p + c] = pipingColour[c];
       }
     }
 
-    // Right leg outer boundary
+    // Right leg outer boundary: crisp white piping
     const xRight = rightX - inset - pipeW;
     for (let w = 0; w < pipeW; w += 1) {
       const p = (y * width + (xRight + w)) * 4;
-      if (garment[p] > 100) {
-        const lumaVal = (0.299 * reference[p] + 0.587 * reference[p + 1] + 0.114 * reference[p + 2]) / 128;
-        const light = Math.min(1.2, Math.max(0.7, lumaVal));
-        for (let c = 0; c < 3; c += 1) model[p + c] = Math.round(pipingColour[c] * light);
+      if (garment[p] > 80) {
+        for (let c = 0; c < 3; c += 1) model[p + c] = pipingColour[c];
       }
     }
 
@@ -303,29 +299,7 @@ export function renderPoloDetails(
     }
   }
 
-  // Sleeve cuffs (left and right sleeve edges)
-  const cuffW = Math.round(sW * 0.11);
-  const cuffTop = sMinY + Math.round(sH * 0.35);
-  const cuffBottom = sMinY + Math.round(sH * 0.7);
-
-  for (let y = cuffTop; y < cuffBottom; y += 1) {
-    for (let x = sMinX; x < sMinX + cuffW; x += 1) {
-      const i = (y * width + x) * 4;
-      if (shirt[i] > 120) {
-        const lumaVal = (0.299 * reference[i] + 0.587 * reference[i + 1] + 0.114 * reference[i + 2]) / 180;
-        const light = Math.min(1.15, Math.max(0.65, lumaVal));
-        for (let c = 0; c < 3; c += 1) model[i + c] = Math.round(trimColour[c] * light);
-      }
-    }
-    for (let x = sMaxX - cuffW; x <= sMaxX; x += 1) {
-      const i = (y * width + x) * 4;
-      if (shirt[i] > 120) {
-        const lumaVal = (0.299 * reference[i] + 0.587 * reference[i + 1] + 0.114 * reference[i + 2]) / 180;
-        const light = Math.min(1.15, Math.max(0.65, lumaVal));
-        for (let c = 0; c < 3; c += 1) model[i + c] = Math.round(trimColour[c] * light);
-      }
-    }
-  }
+  // Note: Short-sleeve polo sleeves maintain authentic clean fabric drape without artificial arm wedges.
 }
 
 /**
@@ -374,12 +348,9 @@ function drawBadgeOnCanvas(
   const sh = badge.height * prepared.photo.naturalHeight;
 
   ctx.save();
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
-  ctx.shadowBlur = 4;
-  ctx.shadowOffsetY = 2;
   if ('roundRect' in ctx) {
     ctx.beginPath();
-    (ctx as any).roundRect(targetX, targetY, badgeTargetW, badgeTargetH, 4);
+    (ctx as any).roundRect(targetX, targetY, badgeTargetW, badgeTargetH, 3);
     ctx.clip();
   }
   ctx.drawImage(prepared.photo, sx, sy, sw, sh, targetX, targetY, badgeTargetW, badgeTargetH);

@@ -105,7 +105,7 @@ describe('drawPiping', () => {
 });
 
 describe('renderPoloDetails', () => {
-  it('draws center chest placket and sleeve cuffs', () => {
+  it('draws center chest placket and buttons', () => {
     const W = 100;
     const H = 100;
     const model = new Uint8ClampedArray(W * H * 4);
@@ -119,6 +119,5 @@ describe('renderPoloDetails', () => {
     }
     renderPoloDetails(model, ref, shirt, W, H, [20, 30, 80]);
     expect(model[(25 * W + 50) * 4 + 2]).toBeGreaterThan(15);
-    expect(model[(50 * W + 12) * 4 + 2]).toBeGreaterThan(15);
   });
 });
