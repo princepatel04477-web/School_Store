@@ -17,6 +17,8 @@ interface FormState {
   price: string;
 }
 
+type PhotoSource = 'UNIFORM' | 'FABRIC';
+
 function photoError(file: File | null, label: string): string | undefined {
   if (!file) return `Add a photo of the ${label}.`;
   if (!PHOTO_TYPES.includes(file.type)) return 'Use a PNG, JPG or WebP photo.';
@@ -196,11 +198,17 @@ export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCanc
   const [photo, setPhoto] = useState<File | null>(null);
   const [box, setBox] = useState<ClothBox | null>(null);
   const [fabricConfirmed, setFabricConfirmed] = useState(false);
+  const [photoSource, setPhotoSource] = useState<PhotoSource>('UNIFORM');
   const [description, setDescription] = useState(set.description);
   const [sizes, setSizes] = useState(set.sizes.join(', '));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const cloth = set.gender === 'GIRL' ? 'skirt cloth' : 'pant cloth';
+  const isUniformPhoto = photoSource === 'UNIFORM';
+  const photoLabel = isUniformPhoto ? 'Uniform photo' : 'Fabric close-up';
+  const photoHint = isUniformPhoto
+    ? 'Upload a clear front view of the complete uniform, then mark one flat section of the trouser or skirt fabric below.'
+    : 'Upload a close-up of one flat trouser or skirt fabric section, then mark the cleanest area below.';
 
   const save = useMutation({
     mutationFn: async () => {
@@ -233,10 +241,37 @@ export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCanc
   return (
     <form onSubmit={submit} className="form-card retail-form" noValidate>
       {message && Object.keys(errors).length === 0 && <div className="error" role="alert">{message}</div>}
+      <fieldset className="retail-logo-choice">
+        <legend className="muted">Photo type</legend>
+        <label>
+          <input
+            type="radio"
+            name={`${id}-photo-source`}
+            checked={isUniformPhoto}
+            onChange={() => {
+              setPhotoSource('UNIFORM');
+              setFabricConfirmed(false);
+            }}
+          />
+          Full uniform photo
+        </label>
+        <label>
+          <input
+            type="radio"
+            name={`${id}-photo-source`}
+            checked={!isUniformPhoto}
+            onChange={() => {
+              setPhotoSource('FABRIC');
+              setFabricConfirmed(false);
+            }}
+          />
+          Fabric close-up
+        </label>
+      </fieldset>
       <PhotoPick
         id={`${id}-photo`}
-        label="Fabric photo"
-        hint="Use a close-up of a flat trouser or skirt fabric section—not a full uniform photo. PNG, JPG or WebP, up to 8 MB."
+        label={photoLabel}
+        hint={`${photoHint} PNG, JPG or WebP, up to 8 MB.`}
         file={photo}
         error={errors.photo}
         onPick={(file) => {
@@ -268,7 +303,10 @@ export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCanc
               if (e.target.checked) setErrors(({ swatch: _gone, ...rest }) => rest);
             }}
           />
-          <span>I checked the preview: this selection contains only flat ${cloth}, not the full uniform, seams, folds, logos or background.</span>
+          <span>
+            I checked the preview: this selection contains only flat ${cloth}
+            {isUniformPhoto ? ', not the full uniform,' : ','} with no seams, folds, logos or background.
+          </span>
           {errors.swatch && <span className="retail-field-error">{errors.swatch}</span>}
         </label>
       )}
