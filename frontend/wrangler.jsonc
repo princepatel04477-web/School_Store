@@ -3,18 +3,14 @@
   "name": "school-store",
   "main": "worker/index.js",
   "compatibility_date": "2026-09-01",
-  // The Worker (worker/index.js) is the permanent public address. It serves the React build below and
-  // forwards /api, /admin, /static and /media through a Cloudflare tunnel to Django on our own server.
-  // Frontend release: `vite build` (VITE_API_URL=/api) then `wrangler deploy`.
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
     "run_worker_first": true
   },
-  // KV key "origin" = the server's current tunnel URL. The server (deploy/publish.ps1) writes it by POSTing to
-  // /__origin with the REGISTER_SECRET Worker secret (set with: wrangler secret put REGISTER_SECRET).
-  "kv_namespaces": [{ "binding": "CONFIG", "id": "566ceb75e73540df8aa002cfed256fdc" }]
-  // Custom domain, once the domain is on this Cloudflare account:
-  // "routes": [{ "pattern": "store.yourdomain.com", "custom_domain": true }]
+  "kv_namespaces": [{ "binding": "CONFIG", "id": "566ceb75e73540df8aa002cfed256fdc" }],
+  "services": [
+    { "binding": "SHOWCASE", "service": "schoolstore-showcase" }
+  ]
 }
