@@ -2,7 +2,7 @@ import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { ApiError, fieldErrors, retail, type RetailStore, type UniformGender, type UniformSet } from '../../../api';
 import { X } from '../../ui/icons';
-import { preparePhoto } from './mockupEngine';
+import { prepareFabricPhoto, preparePhoto } from './mockupEngine';
 import './retail.css';
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
@@ -15,6 +15,8 @@ interface FormState {
   name: string;
   price: string;
 }
+
+type PhotoSource = 'UNIFORM' | 'FABRIC';
 
 function photoError(file: File | null, label: string): string | undefined {
   if (!file) return `Add a photo of the ${label}.`;
@@ -195,17 +197,26 @@ class NoUniformFound extends Error {}
 export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCancel?: () => void; onSaved: (set: UniformSet) => void }) {
   const id = useId();
   const [photo, setPhoto] = useState<File | null>(null);
+  const [photoSource, setPhotoSource] = useState<PhotoSource>('UNIFORM');
   const [description, setDescription] = useState(set.description);
   const [sizes, setSizes] = useState(set.sizes.join(', '));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
+  const isUniformPhoto = photoSource === 'UNIFORM';
+  const photoLabel = isUniformPhoto ? 'Full uniform photo' : 'Fabric close-up';
+  const photoHint = isUniformPhoto
+    ? 'A clear front view of the complete uniform on a plain background. We find the clothes and their colours.'
+    : 'A close-up of the trouser or skirt fabric. We use it to make the lower garment.';
 
   const save = useMutation({
     mutationFn: async () => {
       // Refuse a photo the engine can't read now, not after it has been saved.
       const url = URL.createObjectURL(photo as File);
       try {
-        if (!(await preparePhoto(url, set.gender))) throw new NoUniformFound();
+        const prepared = isUniformPhoto
+          ? await preparePhoto(url, set.gender)
+          : await prepareFabricPhoto(url);
+        if (!prepared) throw new NoUniformFound();
       } finally {
         URL.revokeObjectURL(url);
       }
@@ -218,7 +229,9 @@ export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCanc
     onSuccess: onSaved,
     onError: (err: unknown) => {
       if (err instanceof NoUniformFound) {
-        setErrors({ photo: "We couldn't find the uniform in this photo. Use a clear photo of the whole uniform on a plain background." });
+        setErrors({ photo: isUniformPhoto
+          ? "We couldn't find the uniform in this photo. Use a clear photo of the whole uniform on a plain background."
+          : "We couldn't read this fabric photo. Choose a clear PNG, JPG or WebP image." });
         return;
       }
       setErrors(fieldErrors(err));
