@@ -319,3 +319,43 @@
 .retail-mockup figcaption .retail-actions .secondary:disabled {
   opacity: 0.45;
 }
+
+
+.retail-swatch-preview {
+  display: grid;
+  gap: 6px;
+  max-width: 320px;
+}
+
+.retail-swatch-image {
+  position: relative;
+  width: min(100%, 260px);
+  overflow: hidden;
+  border: 2px solid var(--brand);
+  border-radius: var(--radius-md);
+  background: var(--paper-sunk);
+}
+
+.retail-swatch-image img {
+  display: block;
+  height: auto;
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+.retail-swatch-confirm {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper-sunk);
+}
+
+.retail-swatch-confirm input {
+  width: auto;
+  margin: 2px 0 0;
+}
+
+.retail-swatch-confirm span {
+  text-transform: none;
+  letter-spacing: 0;
+}
