@@ -10,10 +10,12 @@
 // Paths Django answers on the server; everything else is the React app.
 const SERVER_PATH = /^\/(api|admin|static|media)(\/|$)/;
 
-const TUNNEL_DOWN =new Set([502, 503, 504, 521, 522, 523, 524, 530]);
+const TUNNEL_DOWN = new Set([502, 503, 504, 521, 522, 523, 524, 530]);
 
 // Only accept tunnel addresses (quick tunnels now; add your own domain here later).
 const ORIGIN_OK = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/;
+
+const SHOWCASE_ORIGIN = 'https://schoolstore-showcase.aqualite.workers.dev';
 
 const OFFLINE_PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SchoolStore is offline</title>
@@ -42,6 +44,22 @@ async function register(request, env) {
   return Response.json({ ok: true, origin });
 }
 
+async function fetchFromShowcase(url, request, bodyBytes) {
+  const targetUrl = new URL(url.pathname + url.search, SHOWCASE_ORIGIN);
+  const headers = new Headers(request.headers);
+  headers.set('X-Forwarded-Host', url.host);
+  headers.set('Host', targetUrl.host);
+  const init = {
+    method: request.method,
+    headers,
+    redirect: request.redirect,
+  };
+  if (bodyBytes && !['GET', 'HEAD'].includes(request.method)) {
+    init.body = bodyBytes;
+  }
+  return fetch(targetUrl.toString(), init);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -57,17 +75,71 @@ export default {
       return out;
     }
 
+    // Retailer endpoints (/api/retail/...) live on the Cloudflare Showcase (D1 + KV).
+    // Forward directly to showcase if Django does not have retail endpoints configured.
+    const isRetail = url.pathname.startsWith('/api/retail/');
+    const isAuth = url.pathname === '/api/auth/token/' || url.pathname === '/api/auth/token/refresh/' || url.pathname === '/api/auth/me/';
+    const isPublicRetail = url.pathname.startsWith('/api/public/schools/') || url.pathname.startsWith('/api/public/mockups/');
+
+    const bodyBytes = (['POST', 'PUT', 'PATCH'].includes(request.method))
+      ? await request.arrayBuffer()
+      : null;
+
+    if (isRetail) {
+      try {
+        const scRes = await fetchFromShowcase(url, request, bodyBytes);
+        const out = new Response(scRes.body, scRes);
+        out.headers.set('x-served-by', 'showcase');
+        return out;
+      } catch (_) {
+        // Fall through to Django if showcase is unreachable
+      }
+    }
+
     const origin = await env.CONFIG.get('origin', { cacheTtl: 60 });
-    if (!origin) return offline();
+    if (!origin) {
+      if (isAuth || isRetail || isPublicRetail) {
+        return fetchFromShowcase(url, request, bodyBytes);
+      }
+      return offline();
+    }
+
     try {
-      const upstream = new Request(new URL(url.pathname + url.search, origin), request);
-      upstream.headers.set('X-Forwarded-Host', url.host);
-      const res = await fetch(upstream);
+      const headers = new Headers(request.headers);
+      headers.set('X-Forwarded-Host', url.host);
+      const init = {
+        method: request.method,
+        headers,
+        redirect: request.redirect,
+      };
+      if (bodyBytes && !['GET', 'HEAD'].includes(request.method)) {
+        init.body = bodyBytes;
+      }
+      const upstreamUrl = new URL(url.pathname + url.search, origin);
+      const res = await fetch(upstreamUrl.toString(), init);
+
+      // If Django returns 401 on auth (e.g. retailer account in D1) or 404 on retail/public assets, fall back to showcase
+      if ((isAuth && res.status === 401) || ((isRetail || isPublicRetail) && res.status === 404) || TUNNEL_DOWN.has(res.status)) {
+        try {
+          const scRes = await fetchFromShowcase(url, request, bodyBytes);
+          if (scRes.ok || (TUNNEL_DOWN.has(res.status) && scRes.status !== 404)) {
+            const out = new Response(scRes.body, scRes);
+            out.headers.set('x-served-by', 'showcase-fallback');
+            return out;
+          }
+        } catch (_) {}
+      }
+
       if (TUNNEL_DOWN.has(res.status)) return offline();
       const out = new Response(res.body, res);
       out.headers.set('x-served-by', 'local');
       return out;
     } catch (_) {
+      if (isAuth || isRetail || isPublicRetail) {
+        try {
+          return await fetchFromShowcase(url, request, bodyBytes);
+        } catch (_) {}
+      }
       return offline();
     }
   },

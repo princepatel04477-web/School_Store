@@ -91,17 +91,24 @@ const staffUser = (row) => ({
 /** Username + password sign-in for the Boss and retailers. Returns the user, or an error response. */
 export async function staffSignIn(env, username, password) {
   const name = clean(username).toLowerCase();
-  if (!name || !password) return { error: json({ detail: 'Enter your username and password.' }, 400) };
+  const pw = String(password ?? '').trim();
+  if (!name || (!password && !pw)) return { error: json({ detail: 'Enter your username and password.' }, 400) };
   const triesKey = `login-fail:${name}`;
   const tries = Number((await env.ORDERS.get(triesKey)) || 0);
   if (tries >= LOGIN_TRIES) return { error: json({ detail: 'Too many tries. Wait 10 minutes and try again.' }, 429) };
 
   let user = null;
   if (env.BOSS_PASSWORD && sameText(name, (env.BOSS_USERNAME || 'boss').toLowerCase())) {
-    if (sameText(password, env.BOSS_PASSWORD)) user = bossUser(env);
+    if (sameText(password, env.BOSS_PASSWORD) || sameText(pw, env.BOSS_PASSWORD)) user = bossUser(env);
   } else {
-    const row = await env.DB.prepare('SELECT * FROM staff WHERE username = ?').bind(name).first();
-    if (row && (await checkPassword(password, row.password_hash))) user = staffUser(row);
+    const digits = name.replace(/\D/g, '');
+    const phoneAlt = digits.length === 10 ? '0' + digits : (digits.startsWith('0') ? digits.slice(1) : name);
+    const row = await env.DB.prepare(
+      'SELECT * FROM staff WHERE username = ? OR email = ? OR phone = ? OR phone = ?'
+    ).bind(name, name, name, phoneAlt).first();
+    if (row && ((await checkPassword(password, row.password_hash)) || (await checkPassword(pw, row.password_hash)))) {
+      user = staffUser(row);
+    }
   }
   if (!user) {
     await env.ORDERS.put(triesKey, String(tries + 1), { expirationTtl: 600 });
