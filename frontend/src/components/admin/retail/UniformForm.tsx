@@ -2,8 +2,7 @@ import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { ApiError, fieldErrors, retail, type RetailStore, type UniformGender, type UniformSet } from '../../../api';
 import { X } from '../../ui/icons';
-import { ClothPicker, type ClothBox } from './ClothPicker';
-import { cropCloth } from './mockupEngine';
+import { preparePhoto } from './mockupEngine';
 import './retail.css';
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
@@ -190,27 +189,38 @@ export function UniformForm({ store, onClose, onAdded }: { store: RetailStore; o
   );
 }
 
-/** Step 2: the cloth photo, description and sizes the mock-ups are created from. */
+class NoUniformFound extends Error {}
+
+/** Step 2: the uniform photo, description and sizes the mock-ups are created from. */
 export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCancel?: () => void; onSaved: (set: UniformSet) => void }) {
   const id = useId();
   const [photo, setPhoto] = useState<File | null>(null);
-  const [box, setBox] = useState<ClothBox | null>(null);
   const [description, setDescription] = useState(set.description);
   const [sizes, setSizes] = useState(set.sizes.join(', '));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
-  const cloth = set.gender === 'GIRL' ? 'skirt cloth' : 'pant cloth';
 
   const save = useMutation({
     mutationFn: async () => {
+      // Refuse a photo the engine can't read now, not after it has been saved.
+      const url = URL.createObjectURL(photo as File);
+      try {
+        if (!(await preparePhoto(url, set.gender))) throw new NoUniformFound();
+      } finally {
+        URL.revokeObjectURL(url);
+      }
       const body = new FormData();
-      body.append('photo', await cropCloth(photo as File, box as ClothBox), 'cloth.jpg');
+      body.append('photo', photo as File);
       body.append('description', description.trim());
       body.append('sizes', sizes.trim());
       return retail.uniformDetails(set.id, body);
     },
     onSuccess: onSaved,
     onError: (err: unknown) => {
+      if (err instanceof NoUniformFound) {
+        setErrors({ photo: "We couldn't find the uniform in this photo. Use a clear photo of the whole uniform on a plain background." });
+        return;
+      }
       setErrors(fieldErrors(err));
       setMessage(err instanceof ApiError ? err.message : 'Could not save. Check your connection and try again.');
     },
@@ -218,9 +228,8 @@ export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCanc
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const found: Record<string, string> = {};
-    const photoProblem = photoError(photo, cloth);
+    const photoProblem = photoError(photo, 'uniform');
     if (photoProblem) found.photo = photoProblem;
-    else if (!box) found.photo = `Drag a box over the ${cloth} in your photo.`;
     if (!description.trim()) found.description = 'Describe the uniform.';
     if (!sizes.split(',').some((s) => s.trim())) found.sizes = 'Enter the sizes you have, separated by commas.';
     setErrors(found);
@@ -234,26 +243,14 @@ export function MockupForm({ set, onCancel, onSaved }: { set: UniformSet; onCanc
       <PhotoPick
         id={`${id}-photo`}
         label="Photo"
-        hint="A clear photo of the uniform. PNG, JPG or WebP, up to 8 MB."
+        hint="A clear photo of the whole uniform on a plain background. We find the clothes and their colours ourselves."
         file={photo}
         error={errors.photo}
         onPick={(file) => {
           setPhoto(file);
-          setBox(null);
           setErrors(({ photo: _gone, ...rest }) => rest);
         }}
       />
-      {photo && !photoError(photo, cloth) && (
-        <ClothPicker
-          file={photo}
-          cloth={cloth}
-          box={box}
-          onChange={(next) => {
-            setBox(next);
-            setErrors(({ photo: _gone, ...rest }) => rest);
-          }}
-        />
-      )}
       <label>
         <span>Description</span>
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} rows={3} aria-invalid={!!errors.description} />

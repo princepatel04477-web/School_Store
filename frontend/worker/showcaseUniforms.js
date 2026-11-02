@@ -1,10 +1,10 @@
 // Uniform sets and their mock-ups on the showcase store (Cloudflare D1 + KV).
 //
 // A retailer adds a set for one of their approved schools (boys or girls), with its classes, name
-// and price. They then create its mock-ups by uploading a close-up of the pant or skirt cloth with
-// a description and sizes. The mock-up engine runs in the retailer's browser
-// (src/components/admin/retail/mockupEngine.ts): it fills the garment of the store's fixed model
-// student for each class with that cloth and sends the picture here. Only clothes pixels change, so
+// and price. They then create its mock-ups by uploading a photo of the uniform with a description
+// and sizes. The mock-up engine runs in the retailer's browser
+// (src/components/admin/retail/mockupEngine.ts): it finds the clothes in the photo, dresses the store's fixed model
+// student for each class in them and sends the picture here. Only clothes pixels change, so
 // every school's Class 6 boy is the same boy in the same pose. The retailer checks the mock-ups and
 // publishes the set; the Boss can hide any set.
 
@@ -120,7 +120,7 @@ async function createUniform(env, request, store) {
   return json(uniformOut(loaded.row, loaded.mockups), 201);
 }
 
-/** The cloth photo, description and sizes. A new photo clears the old mock-ups: they show the old cloth. */
+/** The uniform photo, description and sizes. A new photo clears the old mock-ups: they show the old uniform. */
 async function saveDetails(env, request, uniform, mockups) {
   const form = await request.formData().catch(() => null);
   if (!form) return json({ detail: 'Send the form with the photo.' }, 400);
@@ -134,7 +134,7 @@ async function saveDetails(env, request, uniform, mockups) {
   if (!description) errors.description = ['Describe the uniform.'];
   else if (description.length > MAX_DESCRIPTION) errors.description = [`Keep the description to ${MAX_DESCRIPTION} characters.`];
   if (!sizes.length) errors.sizes = ['Enter the sizes you have, separated by commas.'];
-  const photo = await readPhoto(form, 'photo', errors, uniform.gender === 'GIRL' ? 'skirt cloth' : 'pant cloth');
+  const photo = await readPhoto(form, 'photo', errors, 'uniform');
   if (Object.keys(errors).length) return fields(errors);
 
   const key = `uniform:${uniform.id}:bottom`;
@@ -151,7 +151,7 @@ async function saveDetails(env, request, uniform, mockups) {
 /** Saves a finished picture from the retailer's browser as that class's mock-up. */
 async function saveMockup(env, request, uniform, classNo) {
   if (!classesOf(uniform).includes(classNo)) return json({ detail: 'That class is not in this set.' }, 400);
-  if (!uniform.bottom_photo_key) return json({ detail: 'Upload the cloth photo first.' }, 409);
+  if (!uniform.bottom_photo_key) return json({ detail: 'Upload the uniform photo first.' }, 409);
   if (classNo < FIRST_MODEL_CLASS) return json({ detail: "The model student for this class isn't ready yet." }, 400);
   const bytes = await request.arrayBuffer();
   if (!bytes.byteLength || bytes.byteLength > MAX_MOCKUP_BYTES) return json({ detail: 'The mock-up picture must be 8 MB or smaller.' }, 400);

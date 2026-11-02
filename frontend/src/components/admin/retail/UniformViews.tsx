@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, fetchBlobUrl, mockupUrl, retail, type UniformSet } from '../../../api';
 import { Skeleton } from '../../ui/Skeleton';
 import { MockupForm, UniformForm } from './UniformForm';
-import { FIRST_MODEL_CLASS, loadPicture, renderMockup } from './mockupEngine';
+import { FIRST_MODEL_CLASS, preparePhoto, renderMockup } from './mockupEngine';
 import { RequestSkeleton, SignedInLogo } from './RetailBits';
 import './retail.css';
 
@@ -70,7 +70,7 @@ export function UniformsList() {
                     {cover?.image ? (
                       <img className="retail-logo" src={mockupUrl(cover.image)} alt={`${set.name} on the model`} loading="lazy" />
                     ) : set.has_photo ? (
-                      <SignedInLogo path={retail.clothPhotoPath(set)} alt={`${set.name} cloth`} />
+                      <SignedInLogo path={retail.clothPhotoPath(set)} alt={`${set.name} uniform`} />
                     ) : (
                       <span className="retail-logo retail-logo-empty">No photo</span>
                     )}
@@ -144,19 +144,15 @@ export function UniformDetail() {
   const make = useMutation({
     mutationFn: async (uniform: UniformSet) => {
       const ready = new Set(uniform.mockups.map((m) => m.class_no));
-      const cloth = await fetchBlobUrl(retail.clothPhotoPath(uniform)).then(async (url) => {
-        try {
-          return await loadPicture(url);
-        } finally {
-          URL.revokeObjectURL(url);
-        }
-      });
+      const url = await fetchBlobUrl(retail.clothPhotoPath(uniform));
+      const prepared = await preparePhoto(url, uniform.gender).finally(() => URL.revokeObjectURL(url));
+      if (!prepared) throw new Error('No uniform found');
       const problems: Record<number, string> = {};
       setFailed({});
       for (const classNo of modelClasses(uniform).filter((c) => !ready.has(c))) {
         setMaking(classNo);
         try {
-          keep(await retail.saveMockup(uniform.id, classNo, await renderMockup(classNo, uniform.gender, cloth)));
+          keep(await retail.saveMockup(uniform.id, classNo, await renderMockup(classNo, uniform.gender, prepared)));
         } catch (err) {
           problems[classNo] = err instanceof ApiError ? err.message : 'Could not make this one.';
           setFailed({ ...problems });
@@ -165,7 +161,7 @@ export function UniformDetail() {
     },
     onSettled: () => setMaking(null),
     onSuccess: () => setError(null),
-    onError: () => setError('Could not read your cloth photo. Check your connection and try again.'),
+    onError: () => setError("We couldn't find the uniform in your photo. Change it for a clear photo of the whole uniform on a plain background."),
   });
 
   if (set.isLoading) {
@@ -250,7 +246,7 @@ export function UniformDetail() {
             <button type="button" className="link-button" onClick={() => setChanging(true)} disabled={hidden || make.isPending}>Change</button>
           </div>
           <div className="pad retail-actions">
-            <SignedInLogo path={retail.clothPhotoPath(data)} alt={data.gender === 'GIRL' ? 'Skirt cloth' : 'Pant cloth'} />
+            <SignedInLogo path={retail.clothPhotoPath(data)} alt="Your uniform" />
           </div>
         </div>
       )}
@@ -309,7 +305,7 @@ export function UniformDetail() {
         )}
         {rejected && (
           <div className="pad retail-reason">
-            <p className="retail-hint">To fix a rejected mock-up, change your photo above and mark the cloth again. All the mock-ups are then made again for you to check.</p>
+            <p className="retail-hint">To fix a rejected mock-up, change your photo above. All the mock-ups are then made again for you to check.</p>
           </div>
         )}
         {toReview && missing === 0 && !make.isPending && (

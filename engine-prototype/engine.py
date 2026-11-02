@@ -96,6 +96,68 @@ def garment_mask(img, style):
     return cv2.medianBlur(fill_holes(mask, skin) * 255, 5)
 
 
+def shirt_mask(img, garment):
+    """The white top above the bottom garment, clear of the backdrop."""
+    h, w, _ = img.shape
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV).astype(int)
+    top = int(np.flatnonzero(garment.max(axis=1) > 127)[0])
+    rough = ((hsv[..., 1] < 45) & (hsv[..., 2] > 170) & (student_map(img) > 12)).astype(np.uint8)
+    rough[top + 40:] = 0
+    rough[:h // 8] = 0
+    rough[garment > 127] = 0
+    rough = cv2.morphologyEx(rough, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+    rough = cv2.morphologyEx(rough, cv2.MORPH_OPEN, np.ones((7, 7), np.uint8))
+    _, labels, stats, _ = cv2.connectedComponentsWithStats(rough)
+    rough = (labels == 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])).astype(np.uint8)
+    kernel = np.ones((15, 15), np.uint8)
+    marks = np.where(cv2.dilate(rough, kernel) > 0, cv2.GC_PR_FGD, cv2.GC_BGD).astype(np.uint8)
+    marks[cv2.erode(rough, kernel) > 0] = cv2.GC_FGD
+    marks[(hsv[..., 0] < 25) & (hsv[..., 1] > 45)] = cv2.GC_BGD
+    marks[garment > 127] = cv2.GC_BGD
+    cv2.grabCut(img, marks, None, np.zeros((1, 65)), np.zeros((1, 65)), 4, cv2.GC_INIT_WITH_MASK)
+    mask = np.isin(marks, (cv2.GC_FGD, cv2.GC_PR_FGD)).astype(np.uint8)
+    _, labels, stats, _ = cv2.connectedComponentsWithStats(mask)
+    mask = (labels == 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])).astype(np.uint8)
+    return cv2.medianBlur(fill_holes(mask, np.zeros_like(mask)) * 255, 5)
+
+
+def with_waist_corners(img, garment, shirt):
+    """The waistband's grey corners beside the top's hem belong to the garment."""
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV).astype(int)
+    top = int(np.flatnonzero(garment.max(axis=1) > 127)[0])
+    xs = np.flatnonzero(garment[top + WAIST_ROWS] > 127)
+    corners = (student_map(img) > 16) & (shirt < 128) & ~((hsv[..., 0] < 25) & (hsv[..., 1] > 45))
+    corners[:top - 14] = False
+    corners[top + WAIST_ROWS:] = False
+    corners[:, :xs[0]] = False
+    corners[:, xs[-1] + 1:] = False
+    return np.maximum(garment, corners.astype(np.uint8) * 255)
+
+
+def trim_mask(img, shirt, collared):
+    """Where a contrast colour goes: the rim at the neck (wider on a collared shirt) and at the sleeve ends."""
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV).astype(int)
+    skin = ((hsv[..., 0] < 25) & (hsv[..., 1] > 45)).astype(np.uint8)
+    on = (shirt > 127).astype(np.uint8)
+    rows = np.flatnonzero(on.max(axis=1))
+    top, height = rows[0], rows[-1] - rows[0]
+    xs = np.flatnonzero(on[top + height // 2])
+    cx, half = (xs[0] + xs[-1]) // 2, (xs[-1] - xs[0]) // 2
+    neck_skin = skin.copy()
+    neck_skin[top + height // 4:] = 0
+    neck_skin[:, :cx - 90] = 0
+    neck_skin[:, cx + 90:] = 0
+    size = 40 if collared else 14
+    neck = cv2.dilate(neck_skin, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (size * 2, size * 2))) & on
+    neck[top + height * 22 // 100:] = 0
+    arm_skin = skin.copy()
+    arm_skin[:top + height // 5] = 0
+    arm_skin[top + height * (60 if collared else 45) // 100:] = 0
+    sleeves = cv2.dilate(arm_skin, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (28, 28))) & on
+    sleeves[:, cx - half + 4:cx + half - 4] = 0
+    return cv2.GaussianBlur(np.maximum(neck, sleeves).astype(np.float32) * 255, (0, 0), 0.8).astype(np.uint8)
+
+
 def student_height(img):
     rows = np.flatnonzero((student_map(img) > BACKDROP_DISTANCE * 2).sum(axis=1) > 20)
     return rows[-1] - rows[0]
@@ -138,7 +200,13 @@ def build(model_dir, template_dir):
     os.makedirs(template_dir, exist_ok=True)
     for path in photos(model_dir):
         name = os.path.basename(path)[:-5]
-        cv2.imwrite(f'{template_dir}/{name}-garment.png', garment_mask(cv2.imread(path), garment_style(name)))
+        img = cv2.imread(path)
+        garment = garment_mask(img, garment_style(name))
+        shirt = shirt_mask(img, garment)
+        garment = with_waist_corners(img, garment, shirt)
+        cv2.imwrite(f'{template_dir}/{name}-garment.png', garment)
+        cv2.imwrite(f'{template_dir}/{name}-shirt.png', shirt)
+        cv2.imwrite(f'{template_dir}/{name}-trim.png', trim_mask(img, shirt, int(name[3:5]) >= 8))
 
 
 def sheet(model_dir, template_dir, swatch_path, out_path):
