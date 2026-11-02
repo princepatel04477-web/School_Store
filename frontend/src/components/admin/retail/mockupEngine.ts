@@ -124,19 +124,32 @@ export function composeTrackPants(
   width: number,
   height: number
 ): void {
-  const blurred = blurLumaGarment(reference, garment, width, height, 7);
+  const blurred = blurLumaGarment(reference, garment, width, height, 12);
   const values: number[] = [];
+  let yMin = height;
+  let yMax = 0;
   for (let i = 0; i < garment.length; i += 4) {
-    if (garment[i] > 127) values.push(blurred[i / 4]);
+    if (garment[i] > 127) {
+      values.push(blurred[i / 4]);
+      const y = Math.floor(i / 4 / width);
+      if (y < yMin) yMin = y;
+      if (y > yMax) yMax = y;
+    }
   }
   values.sort((a, b) => a - b);
   const base = values[values.length >> 1] || 1;
+  const wbH = Math.round((yMax - yMin) * 0.045);
 
   for (let i = 0; i < model.length; i += 4) {
     if (garment[i] === 0) continue;
     const p = i / 4;
+    const x = p % width;
+    const y = Math.floor(p / width);
     const coverage = garment[i] / 255;
-    const light = Math.min(1.22, Math.max(0.68, blurred[p] / base));
+    const tricot = 1 + 0.012 * Math.sin(x * 0.8 + y * 0.4);
+    const isWb = y >= yMin && y < yMin + wbH;
+    const wbWave = isWb ? 0.92 * (1 + 0.04 * Math.sin(x * 0.45)) : 1.0;
+    const light = Math.min(1.22, Math.max(0.68, (blurred[p] / base) * tricot * wbWave));
     for (let c = 0; c < 3; c += 1) model[i + c] += (cloth[i + c] * light - model[i + c]) * coverage;
   }
 }
@@ -299,7 +312,58 @@ export function renderPoloDetails(
     }
   }
 
-  // Note: Short-sleeve polo sleeves maintain authentic clean fabric drape without artificial arm wedges.
+  // Ribbed sleeve cuffs with clean white tipping at sleeve hems
+  const cuffHeight = 15;
+  const pipingColour: Rgb = [250, 250, 255];
+  for (let x = sMinX; x < cx - 60; x += 1) {
+    let botY = -1;
+    for (let y = sMaxY; y >= sMinY; y -= 1) {
+      if (shirt[(y * width + x) * 4] > 120) {
+        if (y < sMaxY - 30) {
+          botY = y;
+          break;
+        }
+      }
+    }
+    if (botY > 0) {
+      for (let cy = botY - cuffHeight; cy <= botY; cy += 1) {
+        const i = (cy * width + x) * 4;
+        if (cy >= 0 && cy < height && shirt[i] > 80) {
+          const lumaVal = (0.299 * reference[i] + 0.587 * reference[i + 1] + 0.114 * reference[i + 2]) / 180;
+          const light = Math.min(1.15, Math.max(0.7, lumaVal));
+          for (let c = 0; c < 3; c += 1) model[i + c] = Math.round(trimColour[c] * light);
+          if (cy === botY - Math.floor(cuffHeight / 2) || cy === botY - Math.floor(cuffHeight / 2) + 1) {
+            for (let c = 0; c < 3; c += 1) model[i + c] = pipingColour[c];
+          }
+        }
+      }
+    }
+  }
+
+  for (let x = cx + 60; x <= sMaxX; x += 1) {
+    let botY = -1;
+    for (let y = sMaxY; y >= sMinY; y -= 1) {
+      if (shirt[(y * width + x) * 4] > 120) {
+        if (y < sMaxY - 30) {
+          botY = y;
+          break;
+        }
+      }
+    }
+    if (botY > 0) {
+      for (let cy = botY - cuffHeight; cy <= botY; cy += 1) {
+        const i = (cy * width + x) * 4;
+        if (cy >= 0 && cy < height && shirt[i] > 80) {
+          const lumaVal = (0.299 * reference[i] + 0.587 * reference[i + 1] + 0.114 * reference[i + 2]) / 180;
+          const light = Math.min(1.15, Math.max(0.7, lumaVal));
+          for (let c = 0; c < 3; c += 1) model[i + c] = Math.round(trimColour[c] * light);
+          if (cy === botY - Math.floor(cuffHeight / 2) || cy === botY - Math.floor(cuffHeight / 2) + 1) {
+            for (let c = 0; c < 3; c += 1) model[i + c] = pipingColour[c];
+          }
+        }
+      }
+    }
+  }
 }
 
 /**
