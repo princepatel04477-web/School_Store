@@ -13,6 +13,7 @@ import { useLang } from '../i18n';
 import { classLabel } from '../i18n/labels';
 import type { ParentChild } from '../api';
 import { ParentSignInSheet } from '../components/parent/ParentSignInSheet';
+import { scrollPageTo } from '../motion/SmoothScroll';
 import '../components/cart/bagCheckout.css';
 
 /**
@@ -159,7 +160,7 @@ export function CheckoutPage() {
       const order = await submitOrder(payload, () => setRetrying(true));
       setPlaced(order);
       clearCart();
-      window.scrollTo(0, 0);
+      scrollPageTo(0);
     } catch (error) {
       setOrderError(t(orderErrorMessage(error)));
     } finally {
@@ -649,7 +650,7 @@ export function CheckoutPage() {
                       className="btn btn-primary pay-now-btn"
                       onClick={() => {
                         setSentOnWhatsApp(true);
-                        window.scrollTo(0, 0);
+                        scrollPageTo(0);
                       }}
                     >
                       {t('co.wa.send', { total: formatINR(totalPaise) })}

@@ -60,7 +60,7 @@ function Guard({ children, roles }: { children: ReactNode; roles?: string[] }) {
   return <>{children}</>;
 }
 
-import { SmoothScroll } from './motion/SmoothScroll';
+import { SmoothScroll, scrollPageTo } from './motion/SmoothScroll';
 
 export default function App() {
   const [bagOpen, setBagOpen] = useState(false);
@@ -99,7 +99,7 @@ export default function App() {
               // Phones, and pages without the home search: the full-screen search sheet
               const input = document.querySelector('.hero-search-input') as HTMLInputElement | null;
               if (!input || window.matchMedia('(max-width: 639px)').matches) return setSearchOpen(true);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+              scrollPageTo(0, true);
               input.focus();
             }}
           />

@@ -7,6 +7,7 @@ import { useStoreSchools, useStoreProducts, type StoreSchool } from '../data/cat
 import type { CardProduct } from '../components/product/ProductCard';
 import { useStoreState, storeState } from '../store/storeState';
 import { resolveFlowStep } from '../store/flowStep';
+import { scrollPageTo } from '../motion/SmoothScroll';
 import { SchoolCrest } from '../components/school/SchoolCrest';
 import { ProductCard } from '../components/product/ProductCard';
 import { ProductSheet } from '../components/product/ProductSheet';
@@ -175,7 +176,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   useEffect(() => {
     if (!tabsTopRef.current) return;
     const top = tabsTopRef.current.getBoundingClientRect().top + window.scrollY - 60;
-    if (window.scrollY > top) window.scrollTo({ top });
+    if (window.scrollY > top) scrollPageTo(top);
   }, [activeTab]);
   // Kept in the address, so the header's category links and these tabs stay in step
   const selectTab = (cat: string) => {

@@ -39,7 +39,7 @@ export function SmartImage({
         ...style,
       }}
     >
-      {/* Blurred placeholder backdrop to eliminate layout shift */}
+      {/* Placeholder colour while the photo loads, so nothing shifts */}
       <div
         aria-hidden="true"
         style={{
@@ -47,8 +47,6 @@ export function SmartImage({
           inset: 0,
           backgroundColor: placeholderColor,
           opacity: loaded ? 0 : 1,
-          filter: 'blur(8px)',
-          transform: 'scale(1.06)',
           transition: 'opacity var(--duration-fast) var(--ease-standard)',
           pointerEvents: 'none',
         }}
@@ -71,8 +69,7 @@ export function SmartImage({
           objectFit: 'cover',
           display: 'block',
           opacity: loaded ? 1 : 0,
-          filter: loaded ? 'blur(0px)' : 'blur(6px)',
-          transition: 'opacity var(--duration-fast) var(--ease-standard), filter var(--duration-base) var(--ease-standard)',
+          transition: 'opacity var(--duration-fast) var(--ease-standard)',
         }}
       />
     </div>

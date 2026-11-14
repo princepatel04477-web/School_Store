@@ -13,6 +13,7 @@ import DATA from './showcase-data.json';
 import PHOTOS from './showcase-photos.json';
 import { publicLogo, showcaseCities, staffApi, staffFromSession, staffSignIn } from './showcaseRetail.js';
 import { publicMockup, uniformsApi } from './showcaseUniforms.js';
+import { chartFor, checkFit, suggest } from './showcaseSizing.js';
 
 const PHOTO_SET = new Set(PHOTOS);
 const SCHOOLS_BY_ID = Object.fromEntries(DATA.schools.map((s) => [s.id, s]));
@@ -205,11 +206,24 @@ async function api(request, env, path) {
   if (path === '/public/measure-config/' && method === 'GET') return json({ shoulder_calibration_factor: 1 });
 
   // Parent sign-in (code shown on screen)
-  // Size check: the showcase catalogue has no size charts, so there is nothing to suggest.
+  // Size check: each item's chart and, with height and weight, the suggested size.
   if (path === '/public/size-fit/' && method === 'POST') {
-    const body = await request.json().catch(() => ({}));
-    const ids = Array.isArray(body.products) ? body.products.slice(0, 60) : [];
-    return json({ fit: null, products: Object.fromEntries(ids.map((id) => [id, { chart: [], recommendation: null }])) });
+    const body = await readJson(request);
+    const ids = Array.isArray(body.products) ? [...new Set(body.products.map(String))] : [];
+    if (!ids.length || ids.length > 60) return json({ products: 'Send a list of 1 to 60 product ids.' }, 400);
+    let fit = null;
+    if (![body.height_cm, body.weight_kg].every((v) => v === undefined || v === null || v === '')) {
+      const check = checkFit(body);
+      if (check.errors) return json(check.errors, 400);
+      fit = check.fit;
+    }
+    const products = {};
+    for (const id of ids) {
+      const chart = DATA.products[id] ? chartFor(DATA.products[id]) : [];
+      products[id] = { chart, recommendation: fit ? suggest(chart, fit) : null };
+    }
+    const reply = fit && { height_cm: fit.height_cm, weight_kg: fit.weight_kg, shoulder_cm: fit.shoulder_cm, warnings: [] };
+    return json({ fit: reply, products });
   }
   if (path === '/auth/otp/send/' && method === 'POST') {
     const { phone } = await readJson(request);

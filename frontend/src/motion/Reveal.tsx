@@ -32,8 +32,8 @@ export function Reveal({ children, delay = 0, as = 'div', className = '' }: Reve
 
   return (
     <MotionComponent
-      initial={{ opacity: 0, y: 24, filter: 'blur(6px)' }}
-      whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+      initial={{ opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{
         duration: DURATION_BASE,

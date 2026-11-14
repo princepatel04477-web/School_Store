@@ -2,6 +2,7 @@ import { type ReactNode, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { EASING } from './motionConfig';
+import { scrollPageTo } from './SmoothScroll';
 
 export interface PageTransitionProps {
   children: ReactNode;
@@ -12,7 +13,7 @@ export function PageTransition({ children }: PageTransitionProps) {
   const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    scrollPageTo(0);
   }, [location.pathname]);
 
   if (shouldReduceMotion) {
