@@ -5,6 +5,7 @@ import { ListenButton } from '../ListenButton';
 import { useLang, type MessageKey } from '../../i18n';
 import {
   FIT_LIMITS,
+  GARMENT_CHEST_EASE_CM,
   checkMeasure,
   formatMeasure,
   garmentKind,
@@ -16,18 +17,23 @@ import {
   type ProductFit,
 } from '../../data/fit';
 import { DEFAULT_SHOULDER_FACTOR, MEASURE_WITH_CAMERA } from '../../measure/config';
+import type { GarmentMeasureResult, ReferenceKind } from '../../measure/flatGarment';
 import { isSaneShoulder, withMassCurve, type MeasureResult, type SideResult } from '../../measure/measureBody';
 import { InstructionDrawing, ShoulderDiagram } from './MeasureDrawings';
 import { measureDebug } from '../../utils/measureDebug';
 import './measureFlow.css';
 
-// The camera step (and MediaPipe) only downloads when the parent opens it.
+// The camera steps (and MediaPipe) only download when the parent opens them.
 const MeasureCapture = lazy(() =>
   import('../../measure/MeasureCapture').then((m) => ({ default: m.MeasureCapture }))
 );
+const GarmentCapture = lazy(() =>
+  import('../../measure/GarmentCapture').then((m) => ({ default: m.GarmentCapture }))
+);
 
 /** "side" and "sideCamera" only run in test mode (measuredebug), to collect body depth. */
-type Step = 'details' | 'instructions' | 'camera' | 'side' | 'sideCamera' | 'manual' | 'results';
+type Step = 'details' | 'instructions' | 'garmentCamera' | 'camera' | 'side' | 'sideCamera' | 'manual' | 'results';
+type CameraMode = 'garment' | 'body';
 
 export interface MeasureGarment {
   id: string;
@@ -50,6 +56,8 @@ const asText = (value?: number) => (value === undefined ? '' : String(value));
 export function MeasureFlow({ initial, garments = [], className, onSave, onClose }: MeasureFlowProps) {
   const { t } = useLang();
   const [step, setStep] = useState<Step>('details');
+  const [cameraMode, setCameraMode] = useState<CameraMode>('garment');
+  const [referenceKind, setReferenceKind] = useState<ReferenceKind>('card');
   const [height, setHeight] = useState(asText(initial?.heightCm));
   const [weight, setWeight] = useState(asText(initial?.weightKg));
   const [shoulderText, setShoulderText] = useState(initial?.source === 'MANUAL' ? asText(initial?.shoulderCm) : '');
@@ -59,16 +67,17 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
   const [draft, setDraft] = useState<Fit | null>(null);
   // The camera's raw readings, shown only for tape checks.
   const [raw, setRaw] = useState<MeasureResult | null>(null);
+  const [garmentRaw, setGarmentRaw] = useState<GarmentMeasureResult | null>(null);
   const [side, setSide] = useState<SideResult | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
-  const config = useMeasureConfig(step === 'instructions' || step === 'camera');
+  const config = useMeasureConfig((step === 'instructions' && cameraMode === 'body') || step === 'camera');
   const factor = config.data?.shoulder_calibration_factor ?? DEFAULT_SHOULDER_FACTOR;
 
   // Escape closes, except while the camera owns the screen (it has its own Cancel).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && step !== 'camera') onClose();
+      if (e.key === 'Escape' && step !== 'camera' && step !== 'garmentCamera') onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -133,7 +142,7 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
     }
   };
 
-  const cameraSteps: Step[] = ['details', 'instructions', 'camera'];
+  const cameraSteps: Step[] = ['details', 'instructions', cameraMode === 'garment' ? 'garmentCamera' : 'camera'];
   const stepNumber = cameraSteps.indexOf(step) + 1;
   const back = () => {
     setNotice(null);
@@ -142,6 +151,48 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
     else if (step === 'results') setStep(draft?.source === 'CAMERA' ? 'instructions' : 'manual');
     else onClose();
   };
+
+  if (step === 'garmentCamera') {
+    return (
+      <Suspense fallback={<div className="mflow" role="status"><p className="mflow-loading">{t('measure.loadingCamera')}</p></div>}>
+        <GarmentCapture
+          referenceKind={referenceKind}
+          onReferenceChange={setReferenceKind}
+          onResult={(result) => {
+            const shoulderOut =
+              result.shoulder_cm < FIT_LIMITS.shoulder.min || result.shoulder_cm > FIT_LIMITS.shoulder.max;
+            const chestOut =
+              result.chest_flat_cm < FIT_LIMITS.chestFlat.min || result.chest_flat_cm > FIT_LIMITS.chestFlat.max;
+            const lengthOut =
+              result.length_cm < FIT_LIMITS.length.min || result.length_cm > FIT_LIMITS.length.max;
+            if (shoulderOut || chestOut || lengthOut) {
+              setNotice('mf.retakeNeeded');
+              setStep('instructions');
+              return;
+            }
+            setGarmentRaw(result);
+            setRaw(null);
+            setSide(null);
+            setDraft({
+              ...numbers(),
+              shoulderCm: result.shoulder_cm,
+              chestFlatCm: result.chest_flat_cm,
+              chestCm: Math.max(
+                FIT_LIMITS.chest.min,
+                Math.round((result.chest_around_cm - GARMENT_CHEST_EASE_CM) * 10) / 10,
+              ),
+              lengthCm: result.length_cm,
+              shoulderConfidence: 0.99,
+              source: 'CAMERA',
+              shoulderEdited: false,
+            });
+            setStep('results');
+          }}
+          onCancel={() => setStep('instructions')}
+        />
+      </Suspense>
+    );
+  }
 
   if (step === 'camera') {
     return (
@@ -152,6 +203,7 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
           onResult={(result) => {
             const heightCm = parseMeasure(height)!;
             setRaw(result);
+            setGarmentRaw(null);
             // The check is on the camera's own reading: it catches a bad photo.
             if (!result || !isSaneShoulder(result.shoulder_cm, heightCm)) {
               setNotice('mf.retakeNeeded');
@@ -267,25 +319,84 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
         {step === 'instructions' && (
           <div className="mflow-form">
             <h3 className="mflow-title">{t('mf.ins.title')}</h3>
-            <ListenButton text={`${t('mf.ins.wall')} ${t('mf.ins.phone')} ${t('mf.ins.light')} ${t('measure.photoStays')}`} />
-            <ol className="mflow-howto">
-              <li>
-                <InstructionDrawing kind="wall" />
-                <p>{t('mf.ins.wall')}</p>
-              </li>
-              <li>
-                <InstructionDrawing kind="phone" />
-                <p>{t('mf.ins.phone')}</p>
-              </li>
-              <li>
-                <InstructionDrawing kind="light" />
-                <p>{t('mf.ins.light')}</p>
-              </li>
-            </ol>
+            <div className="mflow-modes" role="radiogroup" aria-label={t('mf.title')}>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={cameraMode === 'garment'}
+                className={`mflow-mode-btn ${cameraMode === 'garment' ? 'is-selected' : ''}`}
+                onClick={() => setCameraMode('garment')}
+              >
+                <span className="mflow-mode-dot" aria-hidden="true" />
+                <span className="mflow-mode-copy">
+                  <b>{t('mf.mode.garment')}</b>
+                  <small>{t('mf.mode.garmentSub')}</small>
+                </span>
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={cameraMode === 'body'}
+                className={`mflow-mode-btn ${cameraMode === 'body' ? 'is-selected' : ''}`}
+                onClick={() => setCameraMode('body')}
+              >
+                <span className="mflow-mode-dot" aria-hidden="true" />
+                <span className="mflow-mode-copy">
+                  <b>{t('mf.mode.body')}</b>
+                  <small>{t('mf.mode.bodySub')}</small>
+                </span>
+              </button>
+            </div>
+            {cameraMode === 'garment' ? (
+              <>
+                <ListenButton
+                  text={`${t('mf.ins.garmentFlat')} ${t('mf.ins.garmentCard')} ${t('mf.ins.garmentSnap')} ${t('measure.photoStays')}`}
+                />
+                <ol className="mflow-howto">
+                  <li>
+                    <InstructionDrawing kind="shirtFlat" />
+                    <p>{t('mf.ins.garmentFlat')}</p>
+                  </li>
+                  <li>
+                    <InstructionDrawing kind="shirtCard" />
+                    <p>{t('mf.ins.garmentCard')}</p>
+                  </li>
+                  <li>
+                    <InstructionDrawing kind="shirtSnap" />
+                    <p>{t('mf.ins.garmentSnap')}</p>
+                  </li>
+                </ol>
+              </>
+            ) : (
+              <>
+                <ListenButton text={`${t('mf.ins.wall')} ${t('mf.ins.phone')} ${t('mf.ins.light')} ${t('measure.photoStays')}`} />
+                <ol className="mflow-howto">
+                  <li>
+                    <InstructionDrawing kind="wall" />
+                    <p>{t('mf.ins.wall')}</p>
+                  </li>
+                  <li>
+                    <InstructionDrawing kind="phone" />
+                    <p>{t('mf.ins.phone')}</p>
+                  </li>
+                  <li>
+                    <InstructionDrawing kind="light" />
+                    <p>{t('mf.ins.light')}</p>
+                  </li>
+                </ol>
+              </>
+            )}
             <p className="mflow-privacy">{t('measure.photoStays')}</p>
             <div className="mflow-actions">
-              <button type="button" className="btn btn-primary" onClick={() => { setNotice(null); setStep('camera'); }}>
-                {t('mf.ins.open')}
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setNotice(null);
+                  setStep(cameraMode === 'garment' ? 'garmentCamera' : 'camera');
+                }}
+              >
+                {t(cameraMode === 'garment' ? 'mf.ins.openGarment' : 'mf.ins.open')}
               </button>
               <button type="button" className="mflow-link" onClick={() => { setNotice(null); setStep('manual'); }}>
                 {t('mf.ins.type')}
@@ -345,19 +456,37 @@ export function MeasureFlow({ initial, garments = [], className, onSave, onClose
             saving={saving}
             saveFailed={saveFailed}
             debugLine={
-              measureDebug() && draft.source === 'CAMERA' && raw
-                ? [
-                    `Build ${__BUILD__}`,
-                    raw.corner_cm !== undefined ? `Shoulder points ${raw.corner_cm} cm` : 'Shoulder points not found',
-                    raw.joint_cm !== undefined
-                      ? `Joints ${raw.joint_cm} cm, outline ${raw.edge_cm} cm, camera ${raw.shoulder_cm} cm`
-                      : `Joints only (no outline edges), camera ${raw.shoulder_cm} cm`,
-                    `with weight ${withMassCurve(raw.shoulder_cm, draft.heightCm, draft.weightKg)} cm`,
-                    side ? `side depth ${side.depth_cm} cm` : 'no side photo',
-                  ].join(', ')
+              measureDebug() && draft.source === 'CAMERA'
+                ? garmentRaw
+                  ? [
+                      `Build ${__BUILD__}`,
+                      `Flat cloth (${garmentRaw.reference.toUpperCase()})`,
+                      `shoulder ${garmentRaw.shoulder_cm} cm`,
+                      `chest flat ${garmentRaw.chest_flat_cm} cm (around ${garmentRaw.chest_around_cm} cm)`,
+                      `length ${garmentRaw.length_cm} cm`,
+                    ].join(', ')
+                  : raw
+                    ? [
+                        `Build ${__BUILD__}`,
+                        raw.corner_cm !== undefined ? `Shoulder points ${raw.corner_cm} cm` : 'Shoulder points not found',
+                        raw.joint_cm !== undefined
+                          ? `Joints ${raw.joint_cm} cm, outline ${raw.edge_cm} cm, camera ${raw.shoulder_cm} cm`
+                          : `Joints only (no outline edges), camera ${raw.shoulder_cm} cm`,
+                        `with weight ${withMassCurve(raw.shoulder_cm, draft.heightCm, draft.weightKg)} cm`,
+                        side ? `side depth ${side.depth_cm} cm` : 'no side photo',
+                      ].join(', ')
+                    : undefined
                 : undefined
             }
-            onRetake={() => setStep(draft.source === 'CAMERA' ? 'camera' : 'manual')}
+            onRetake={() =>
+              setStep(
+                draft.source === 'CAMERA'
+                  ? garmentRaw || cameraMode === 'garment'
+                    ? 'garmentCamera'
+                    : 'camera'
+                  : 'manual',
+              )
+            }
             onSave={() => void save()}
             onContinue={onClose}
           />
@@ -458,6 +587,48 @@ function Results({
             onChange(next);
           }}
         />
+        {draft.chestFlatCm !== undefined && (
+          <EditableValue
+            label={t('mf.res.chestFlat')}
+            unit="cm"
+            value={draft.chestFlatCm}
+            limit={FIT_LIMITS.chestFlat}
+            rangeKey="mf.err.chestFlatRange"
+            optional
+            note={t('mf.res.aroundNote', { v: formatMeasure(Math.round(draft.chestFlatCm * 2 * 10) / 10) })}
+            onCommit={(v) => {
+              if (v === draft.chestFlatCm) return;
+              const next: Fit = { ...draft };
+              if (v === undefined) {
+                delete next.chestFlatCm;
+                delete next.chestCm;
+              } else {
+                next.chestFlatCm = v;
+                next.chestCm = Math.max(
+                  FIT_LIMITS.chest.min,
+                  Math.round((v * 2 - GARMENT_CHEST_EASE_CM) * 10) / 10,
+                );
+              }
+              onChange(next);
+            }}
+          />
+        )}
+        {draft.lengthCm !== undefined && (
+          <EditableValue
+            label={t('mf.res.length')}
+            unit="cm"
+            value={draft.lengthCm}
+            limit={FIT_LIMITS.length}
+            rangeKey="mf.err.lengthRange"
+            optional
+            onCommit={(v) => {
+              const next: Fit = { ...draft };
+              if (v === undefined) delete next.lengthCm;
+              else next.lengthCm = v;
+              onChange(next);
+            }}
+          />
+        )}
       </dl>
       {debugLine && <p className="mflow-sub">{debugLine}</p>}
 

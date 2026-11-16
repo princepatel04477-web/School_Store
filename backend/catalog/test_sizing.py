@@ -245,6 +245,21 @@ class PublicSizeFitEndpointTests(TestCase):
         res = self.post({"products": [str(self.shirt.id)], "height_cm": 133, "weight_kg": 30, "shoulder_cm": 31.2})
         self.assertEqual(res.data["fit"]["shoulder_cm"], 31.2)
 
+    def test_chest_refines_shirt_size_on_endpoint(self):
+        # Height 133 / weight 30 points to size 30 (chest max 67), so a 69 cm chest steps up to 32 / 30.
+        res = self.post({
+            "products": [str(self.shirt.id)],
+            "height_cm": 133,
+            "weight_kg": 30,
+            "chest_cm": 69,
+        })
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual(res.data["fit"]["chest_cm"], 69.0)
+        self.assertEqual(
+            res.data["products"][str(self.shirt.id)]["recommendation"],
+            {"status": "BETWEEN", "size": "32 (Class 7-9)", "alt_size": "30 (Class 4-6)"},
+        )
+
     def test_soft_warnings_are_returned(self):
         res = self.post({"products": [str(self.shirt.id)], "height_cm": 175, "weight_kg": 40, "class": "Class 1"})
         self.assertEqual(res.status_code, 200)
@@ -312,9 +327,22 @@ class ShoulderTests(SimpleTestCase):
             self.assertEqual(suggest(SHOULDER_CHART, check), (Status.FIT, "30", ""))
         with override_settings(FIT_USE_SHOULDER=True, FIT_SHOULDER_MIN_CONFIDENCE=0.6):
             self.assertEqual(suggest(SHOULDER_CHART, check), (Status.BETWEEN, "32", "30"))
+        # Manual tape measurement (confidence None) also refines once switched on.
+        typed = validate_fit(135, 30, shoulder_cm=32.5)
+        with override_settings(FIT_USE_SHOULDER=True, FIT_SHOULDER_MIN_CONFIDENCE=0.6):
+            self.assertEqual(suggest(SHOULDER_CHART, typed), (Status.BETWEEN, "32", "30"))
         unsure = validate_fit(135, 30, shoulder_cm=32.5, shoulder_confidence=0.4)
         with override_settings(FIT_USE_SHOULDER=True, FIT_SHOULDER_MIN_CONFIDENCE=0.6):
             self.assertEqual(suggest(SHOULDER_CHART, unsure), (Status.FIT, "30", ""))
+
+    def test_calibrated_chest_refines_shirt_size(self):
+        chest_chart = [
+            ChartRow("30", D(129), D(140), chest_cm_min=D(64), chest_cm_max=D(67)),
+            ChartRow("32", D(141), D(152), chest_cm_min=D(68), chest_cm_max=D(72)),
+        ]
+        check = validate_fit(135, 30, chest_cm=70)
+        self.assertTrue(check.ok)
+        self.assertEqual(suggest(chest_chart, check), (Status.BETWEEN, "32", "30"))
 
 
 class MeasureConfigTests(TestCase):

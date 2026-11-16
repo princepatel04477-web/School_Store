@@ -40,6 +40,7 @@ export function drawOverlay(
   corners: ShoulderCorners | null,
   ready: boolean,
   colours: OverlayColours,
+  bounds: { top: number; floor: number } | null = null,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -59,6 +60,26 @@ export function drawOverlay(
   for (const [x, y] of dots) ctx.fillRect(x - dot / 2 - 1, y - dot / 2 - 1, dot + 2, dot + 2);
   ctx.fillStyle = ready ? colours.ready : colours.line;
   for (const [x, y] of dots) ctx.fillRect(x - dot / 2, y - dot / 2, dot, dot);
+
+  if (bounds) {
+    const cx = corners ? ((corners.left.x + corners.right.x) / 2) * mask.width : mask.width / 2;
+    const tick = Math.max(10, mask.width * 0.06);
+    for (const yNorm of [bounds.top, bounds.floor]) {
+      const y = yNorm * mask.height;
+      ctx.strokeStyle = colours.rim;
+      ctx.lineWidth = Math.max(3, mask.width / 180);
+      ctx.beginPath();
+      ctx.moveTo(cx - tick, y);
+      ctx.lineTo(cx + tick, y);
+      ctx.stroke();
+      ctx.strokeStyle = ready ? colours.ready : colours.line;
+      ctx.lineWidth = Math.max(1.5, mask.width / 320);
+      ctx.beginPath();
+      ctx.moveTo(cx - tick, y);
+      ctx.lineTo(cx + tick, y);
+      ctx.stroke();
+    }
+  }
 
   if (!corners) return;
   const lx = corners.left.x * mask.width;

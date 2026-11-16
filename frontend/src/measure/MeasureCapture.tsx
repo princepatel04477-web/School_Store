@@ -8,6 +8,7 @@ import {
   measureFrames,
   measureSideFrames,
   shoulderCorners,
+  verticalBounds,
   type Landmark,
   type Mask,
   type MeasureFrame,
@@ -37,6 +38,7 @@ interface MeasureCaptureProps {
 }
 
 const GUIDE_KEY: Record<Guidance, MessageKey> = {
+  levelPhone: 'measure.g.levelPhone',
   moveBack: 'measure.g.moveBack',
   moveCloser: 'measure.g.moveCloser',
   standInside: 'measure.g.standInside',
@@ -70,6 +72,7 @@ interface PoseMask {
 
 interface PoseResult {
   landmarks?: PosePoint[][];
+  worldLandmarks?: PosePoint[][];
   segmentationMasks?: PoseMask[];
 }
 
@@ -168,11 +171,23 @@ export function MeasureCapture({
     let held: ScoredFrame[] = [];
     let readySince = 0;
     let previous: Landmark[] | null = null;
+    let phoneTiltDeg: number | null = null;
+    let latestGuidance: Guidance = 'showFullBody';
     // The part of the child Capture would need; null while no child is seen at all.
     let missing: Missing | null = null;
     const colours = overlayColours(canvasRef.current?.parentElement ?? null);
 
+    const onOrientation = (e: DeviceOrientationEvent) => {
+      if (e.beta == null) return;
+      // Upright portrait phone sits near beta = 90 degrees.
+      if (Math.abs(e.gamma ?? 0) < 45 && e.beta > 35 && e.beta < 145) {
+        phoneTiltDeg = e.beta - 90;
+      }
+    };
+    window.addEventListener('deviceorientation', onOrientation);
+
     const stop = () => {
+      window.removeEventListener('deviceorientation', onOrientation);
       window.cancelAnimationFrame(timer);
       landmarker?.close();
       landmarker = null;
@@ -184,9 +199,11 @@ export function MeasureCapture({
     const finish = (frames: ScoredFrame[], minFrames = MIN_FRAMES) => {
       if (finished) return;
       if (frames.length < minFrames) {
-        // Say which part of the child the camera can't see.
+        // Say which part of the child or pose the camera still needs.
         const side = view === 'side' && missing === 'shoulders';
-        setNotice(t(missing && !side ? MISSING_KEY[missing] : 'measure.g.showFullBody'));
+        if (missing && !side) setNotice(t(MISSING_KEY[missing]));
+        else if (latestGuidance !== 'ready' && latestGuidance !== 'holdStill') setNotice(t(GUIDE_KEY[latestGuidance]));
+        else setNotice(t('measure.g.showFullBody'));
         return;
       }
       finished = true;
@@ -208,6 +225,7 @@ export function MeasureCapture({
       lastRun = now;
       const result = landmarker.detectForVideo(video, now);
       const raw = result.landmarks?.[0];
+      const rawWorld = result.worldLandmarks?.[0];
       const poseMask = result.segmentationMasks?.[0];
       const mask = poseMask ? copyMask(poseMask) : null;
       poseMask?.close?.();
@@ -215,6 +233,7 @@ export function MeasureCapture({
         if (canvasRef.current) drawOverlay(canvasRef.current, null, null, false, colours);
         missing = null;
         recent = [];
+        latestGuidance = 'showFullBody';
         setGuidance('showFullBody');
         readySince = 0;
         held = [];
@@ -227,32 +246,48 @@ export function MeasureCapture({
         z: point.z,
         visibility: point.visibility ?? point.presence,
       }));
+      const worldLandmarks = rawWorld?.map((point) => ({
+        x: point.x,
+        y: point.y,
+        z: point.z,
+        visibility: point.visibility ?? point.presence,
+      }));
       const pose =
         view === 'side'
-          ? checkSide(landmarks, video.videoWidth, video.videoHeight, previous)
-          : checkPose(landmarks, video.videoWidth, video.videoHeight, previous);
+          ? {
+              ...checkSide(landmarks, video.videoWidth, video.videoHeight, previous),
+              wholeBody: true,
+              fillsOutline: true,
+              facingFront: true,
+            }
+          : checkPose(landmarks, video.videoWidth, video.videoHeight, previous, worldLandmarks, phoneTiltDeg);
       previous = landmarks;
+      latestGuidance = pose.guidance;
       setGuidance(pose.guidance);
-      // The live outline around the person, and on the front photo the two shoulder points measured.
+      const currentFrame: MeasureFrame = {
+        landmarks,
+        worldLandmarks,
+        mask: mask ?? undefined,
+        imageWidth: video.videoWidth,
+        imageHeight: video.videoHeight,
+      };
+      // The live outline around the person, head/heel scale ticks, and on the front photo the two shoulder points.
       if (canvasRef.current) {
-        const corners =
-          view === 'front' && mask
-            ? shoulderCorners({ landmarks, mask, imageWidth: video.videoWidth, imageHeight: video.videoHeight })
-            : null;
-        drawOverlay(canvasRef.current, mask, corners, pose.ready, colours);
+        const corners = view === 'front' && mask ? shoulderCorners(currentFrame) : null;
+        const bounds = mask ? verticalBounds(currentFrame) : null;
+        drawOverlay(canvasRef.current, mask, corners, pose.ready, colours, bounds);
       }
       const inView = view === 'side' ? measurableSide(landmarks) : measurable(landmarks);
       missing = inView.missing;
-      if (inView.ok) setNotice('');
+      const usableForManual =
+        inView.ok &&
+        (view === 'side' || (pose.wholeBody && pose.fillsOutline && pose.facingFront && (phoneTiltDeg == null || Math.abs(phoneTiltDeg) <= 12)));
+      if (usableForManual) setNotice('');
 
-      // Every frame a reading can come from is kept for Capture; the strict
-      // checks only decide when the picture is taken by itself.
-      if (inView.ok) {
+      // Manual Capture still rejects turned-away, far-away, or steeply tilted frames so a rushed tap never gives a bad scale.
+      if (usableForManual) {
         const frame: ScoredFrame = {
-          landmarks,
-          mask: mask ?? undefined,
-          imageWidth: video.videoWidth,
-          imageHeight: video.videoHeight,
+          ...currentFrame,
           quality: pose.quality,
         };
         recent = [...recent.slice(-(RECENT_FRAMES - 1)), frame];

@@ -132,6 +132,67 @@
   color: var(--brand-deep);
 }
 
+/* Mode selector: stacked 1px radio cards, small round radio dot only */
+.mflow-modes {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.mflow-mode-btn {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background-color: var(--paper-raised);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
+}
+
+.mflow-mode-btn:hover {
+  border-color: var(--brand);
+}
+
+.mflow-mode-btn.is-selected {
+  border-color: var(--brand);
+  background-color: var(--brand-tint);
+}
+
+.mflow-mode-dot {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 1.75px solid var(--ink-soft);
+  border-radius: 50%;
+  box-sizing: border-box;
+  background-color: var(--paper);
+}
+
+.mflow-mode-btn.is-selected .mflow-mode-dot {
+  border-color: var(--brand);
+  border-width: 5px;
+}
+
+.mflow-mode-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.mflow-mode-copy b {
+  font-size: var(--text-sm);
+}
+
+.mflow-mode-copy small {
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
 /* How-to: one drawing per instruction */
 .mflow-howto {
   margin: 0;
@@ -357,7 +418,7 @@
 .size-measure-values {
   margin: var(--space-2) 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
   gap: var(--space-2);
 }
 

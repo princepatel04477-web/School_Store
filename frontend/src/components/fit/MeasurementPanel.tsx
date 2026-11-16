@@ -79,6 +79,12 @@ export function MeasurementPanel({
           <dt>{t('mf.res.shoulder')}</dt>
           <dd>{measurement.shoulderCm !== undefined ? t('mf.cm', { v: formatMeasure(measurement.shoulderCm) }) : '-'}</dd>
         </div>
+        {measurement.chestFlatCm !== undefined && (
+          <div>
+            <dt>{t('mf.res.chestFlat')}</dt>
+            <dd>{t('mf.cm', { v: formatMeasure(measurement.chestFlatCm) })}</dd>
+          </div>
+        )}
       </dl>
       <button type="button" className="size-measure-again" onClick={() => setOpen(true)}>
         {t('size.again')}

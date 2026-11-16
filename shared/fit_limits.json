@@ -11,5 +11,17 @@
   "shoulder_cm": {
     "min": 15,
     "max": 70
+  },
+  "chest_cm": {
+    "min": 40,
+    "max": 150
+  },
+  "chest_flat_cm": {
+    "min": 20,
+    "max": 75
+  },
+  "length_cm": {
+    "min": 25,
+    "max": 130
   }
 }

@@ -51,6 +51,8 @@ WEIGHT_MIN = Decimal(str(_LIMITS["weight_kg"]["min"]))
 WEIGHT_MAX = Decimal(str(_LIMITS["weight_kg"]["max"]))
 SHOULDER_MIN = Decimal(str(_LIMITS["shoulder_cm"]["min"]))
 SHOULDER_MAX = Decimal(str(_LIMITS["shoulder_cm"]["max"]))
+CHEST_MIN = Decimal(str(_LIMITS.get("chest_cm", {}).get("min", 40)))
+CHEST_MAX = Decimal(str(_LIMITS.get("chest_cm", {}).get("max", 150)))
 
 # Rough middle height (cm) and weight (kg) by age for Indian children, boys
 # and girls together (after the IAP 2015 charts). Only used for the soft
@@ -86,6 +88,8 @@ class FitCheck:
     # Optional, from the camera step on the phone (plan A2/A3). Only numbers.
     shoulder_cm: Decimal | None = None
     shoulder_confidence: Decimal | None = None
+    # Optional body-equivalent chest circumference from flat-garment reference measurement.
+    chest_cm: Decimal | None = None
     errors: dict = field(default_factory=dict)
     warnings: list = field(default_factory=list)
 
@@ -103,6 +107,8 @@ class ChartRow:
     weight_kg_max: Decimal | None = None
     shoulder_cm_min: Decimal | None = None
     shoulder_cm_max: Decimal | None = None
+    chest_cm_min: Decimal | None = None
+    chest_cm_max: Decimal | None = None
 
 
 class Recommendation(NamedTuple):
@@ -138,15 +144,17 @@ def validate_fit(
     class_name: str | None = None,
     shoulder_cm=None,
     shoulder_confidence=None,
+    chest_cm=None,
 ) -> FitCheck:
     """
     Hard limits (errors, from shared/fit_limits.json) reject typing mistakes.
     Soft limits (warnings) only ask the parent to check an unusual number.
-    The shoulder width is optional. One from the camera comes with the phone's
-    confidence (0 to 1); one typed by hand from a tape measure has none.
+    The shoulder and chest widths are optional. A shoulder width from the camera
+    comes with the phone's confidence (0 to 1); one typed by hand has none.
     """
     check = FitCheck()
     _check_shoulder(check, shoulder_cm, shoulder_confidence)
+    _check_chest(check, chest_cm)
     height = _to_decimal(height_cm)
     weight = _to_decimal(weight_kg)
 
@@ -165,7 +173,7 @@ def validate_fit(
         check.errors["weight_kg"] = "OUT_OF_RANGE"
 
     if check.errors:
-        check.shoulder_cm = check.shoulder_confidence = None
+        check.shoulder_cm = check.shoulder_confidence = check.chest_cm = None
         return check
 
     check.height_cm = height.quantize(ONE_DECIMAL, rounding=ROUND_HALF_UP)
@@ -208,6 +216,18 @@ def _check_shoulder(check: FitCheck, shoulder_cm, confidence) -> None:
         check.shoulder_confidence = (
             sure.quantize(Decimal("0.001"), rounding=ROUND_HALF_UP) if sure is not None else None
         )
+
+
+def _check_chest(check: FitCheck, chest_cm) -> None:
+    if chest_cm in (None, ""):
+        return
+    chest = _to_decimal(chest_cm)
+    if chest is None:
+        check.errors["chest_cm"] = "NOT_A_NUMBER"
+    elif not CHEST_MIN <= chest <= CHEST_MAX:
+        check.errors["chest_cm"] = "OUT_OF_RANGE"
+    else:
+        check.chest_cm = chest.quantize(ONE_DECIMAL, rounding=ROUND_HALF_UP)
 
 
 # --------------------------------------------------------------------------- #
@@ -275,27 +295,24 @@ def recommend_size(
     return _bigger_first(rows, closest)
 
 
-def refine_with_shoulder(
-    rows: list[ChartRow], result: Recommendation, shoulder_cm: Decimal
+def _refine_with_span(
+    rows: list[ChartRow],
+    result: Recommendation,
+    value_cm: Decimal,
+    low_attr: str,
+    high_attr: str,
 ) -> Recommendation:
-    """
-    Narrows a height + weight suggestion with the shoulder width measured on
-    the phone (plan A5):
-      - two sizes suggested and the shoulder fits exactly one of them -> that one;
-      - one size suggested and the shoulder is wider than its range -> it and
-        the next size up, bigger first.
-    Anything else (no shoulder ranges, outside the chart) is left as it was.
-    """
     if result.status not in (Status.FIT, Status.BETWEEN):
         return result
     rows = sorted(rows, key=lambda r: (r.height_cm_min, r.height_cm_max, r.size))
     by_size = {row.size: row for row in rows}
-    shoulder = Decimal(shoulder_cm)
+    value = Decimal(value_cm)
 
     def fits(row: ChartRow) -> bool | None:
-        if row.shoulder_cm_min is None or row.shoulder_cm_max is None:
+        lo, hi = getattr(row, low_attr), getattr(row, high_attr)
+        if lo is None or hi is None:
             return None
-        return row.shoulder_cm_min <= shoulder <= row.shoulder_cm_max
+        return lo <= value <= hi
 
     if result.status == Status.BETWEEN:
         bigger, smaller = by_size.get(result.size), by_size.get(result.alt_size)
@@ -309,7 +326,8 @@ def refine_with_shoulder(
         return result
 
     row = by_size.get(result.size)
-    if row is None or row.shoulder_cm_max is None or shoulder <= row.shoulder_cm_max:
+    hi = getattr(row, high_attr, None) if row is not None else None
+    if row is None or hi is None or value <= hi:
         return result
     nxt = rows.index(row) + 1
     if nxt < len(rows):
@@ -317,20 +335,44 @@ def refine_with_shoulder(
     return result
 
 
+def refine_with_shoulder(
+    rows: list[ChartRow], result: Recommendation, shoulder_cm: Decimal
+) -> Recommendation:
+    """
+    Narrows a height + weight suggestion with the shoulder width (plan A5):
+      - two sizes suggested and the shoulder fits exactly one of them -> that one;
+      - one size suggested and the shoulder is wider than its range -> it and
+        the next size up, bigger first.
+    Anything else (no shoulder ranges, outside the chart) is left as it was.
+    """
+    return _refine_with_span(rows, result, shoulder_cm, "shoulder_cm_min", "shoulder_cm_max")
+
+
+def refine_with_chest(
+    rows: list[ChartRow], result: Recommendation, chest_cm: Decimal
+) -> Recommendation:
+    """Narrows or steps up a shirt suggestion using calibrated chest circumference."""
+    return _refine_with_span(rows, result, chest_cm, "chest_cm_min", "chest_cm_max")
+
+
 def suggest(rows: list[ChartRow], check: FitCheck) -> Recommendation:
     """
-    The suggestion used by the shop and the order log. The shoulder width only
-    counts when FIT_USE_SHOULDER is on (after the A4 calibration says it helps)
-    and the phone was sure enough of the reading.
+    The suggestion used by the shop and the order log. A calibrated flat-garment
+    chest measurement refines charts that have chest ranges; shoulder width refines
+    when FIT_USE_SHOULDER is on and either typed by hand or above min confidence.
     """
     result = recommend_size(rows, check.height_cm, check.weight_kg)
+    if check.chest_cm is not None:
+        result = refine_with_chest(rows, result, check.chest_cm)
     if (
         getattr(settings, "FIT_USE_SHOULDER", False)
         and check.shoulder_cm is not None
-        and check.shoulder_confidence is not None
-        and check.shoulder_confidence >= Decimal(str(settings.FIT_SHOULDER_MIN_CONFIDENCE))
+        and (
+            check.shoulder_confidence is None
+            or check.shoulder_confidence >= Decimal(str(settings.FIT_SHOULDER_MIN_CONFIDENCE))
+        )
     ):
-        return refine_with_shoulder(rows, result, check.shoulder_cm)
+        result = refine_with_shoulder(rows, result, check.shoulder_cm)
     return result
 
 
@@ -345,6 +387,8 @@ def chart_rows_from_models(size_chart_rows) -> list[ChartRow]:
             weight_kg_max=row.weight_kg_max,
             shoulder_cm_min=row.shoulder_cm_min,
             shoulder_cm_max=row.shoulder_cm_max,
+            chest_cm_min=row.chest_cm_min,
+            chest_cm_max=row.chest_cm_max,
         )
         for row in size_chart_rows
     ]

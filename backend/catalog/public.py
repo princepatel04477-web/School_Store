@@ -447,6 +447,7 @@ class PublicSizeFitView(APIView):
                 request.data.get("class"),
                 shoulder_cm=request.data.get("shoulder_cm"),
                 shoulder_confidence=request.data.get("shoulder_confidence"),
+                chest_cm=request.data.get("chest_cm"),
             )
             if not check.ok:
                 raise ValidationError({field: [code] for field, code in check.errors.items()})
@@ -498,6 +499,7 @@ class PublicSizeFitView(APIView):
                 "height_cm": number(check.height_cm),
                 "weight_kg": number(check.weight_kg),
                 "shoulder_cm": number(check.shoulder_cm),
+                **({"chest_cm": number(check.chest_cm)} if check.chest_cm is not None else {}),
                 "warnings": check.warnings,
             }
         return Response({"fit": fit, "products": products})

@@ -20,7 +20,9 @@ function Child({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
   );
 }
 
-export function InstructionDrawing({ kind }: { kind: 'wall' | 'phone' | 'light' }) {
+export type DrawingKind = 'wall' | 'phone' | 'light' | 'shirtFlat' | 'shirtCard' | 'shirtSnap';
+
+export function InstructionDrawing({ kind }: { kind: DrawingKind }) {
   return (
     <svg className="mflow-drawing" viewBox="0 0 120 84" aria-hidden="true">
       {kind === 'wall' && (
@@ -46,6 +48,28 @@ export function InstructionDrawing({ kind }: { kind: 'wall' | 'phone' | 'light' 
           <path d="M24 6v4M24 34v4M8 22h4M36 22h4M13 11l3 3M32 30l3 3M35 11l-3 3M16 30l-3 3" {...LINE} />
           <path d="M14 76h92" {...LINE} />
           <Child x={78} y={10} />
+        </>
+      )}
+      {kind === 'shirtFlat' && (
+        <>
+          <path d="M46 12h28l18 10-8 14-10-5v41H46V31l-10 5-8-14z" {...LINE} />
+          <path d="M52 12c3 5 13 5 16 0" {...LINE} />
+        </>
+      )}
+      {kind === 'shirtCard' && (
+        <>
+          <path d="M46 12h28l18 10-8 14-10-5v41H46V31l-10 5-8-14z" {...LINE} />
+          <rect x="50" y="38" width="20" height="13" {...LINE} />
+          <path d="M53 43h8" {...LINE} />
+        </>
+      )}
+      {kind === 'shirtSnap' && (
+        <>
+          <rect x="48" y="8" width="24" height="12" {...LINE} />
+          <circle cx="60" cy="14" r="2" fill="currentColor" />
+          <path d="M54 22l-14 26M66 22l14 26" {...LINE} strokeDasharray="3 3" />
+          <path d="M36 52h48l-6 22H42z" {...LINE} />
+          <rect x="52" y="58" width="16" height="10" {...LINE} />
         </>
       )}
     </svg>

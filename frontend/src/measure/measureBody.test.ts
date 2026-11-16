@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   bestFrames,
   crownFromFace,
+  floorPixelY,
+  headPixelY,
   isSaneShoulder,
   measureFrames,
   measureSideFrames,
@@ -380,5 +382,49 @@ describe('shoulder points on the outline', () => {
     for (let y = 30; y <= 110; y += 1) for (let x = 28; x < 72; x += 1) f.mask!.data[y * width + x] = 255;
     expect(shoulderCorners(f)).toBeNull();
     expect(measureFrames([f], 170, 1)?.corner_cm).toBeUndefined();
+  });
+});
+
+describe('scale and rotation accuracy regressions', () => {
+  it('ignores faint sigmoid noise (1..127) and ceiling blobs disconnected above the head', () => {
+    const f = frame(0.4);
+    const { width, height, data } = f.mask!;
+    data.fill(0);
+    // Faint soft halo and wall shadow all the way to the top of the frame.
+    for (let y = 0; y < height; y += 1) data[y * width + 50] = 40;
+    // Disconnected ceiling fixture with high mask value near row 2.
+    for (let x = 45; x <= 55; x += 1) data[2 * width + x] = 240;
+    // Contiguous head mask from crown row 10 down past nose row 40.
+    for (let y = 10; y <= 45; y += 1) data[y * width + 50] = 220;
+    expect(headPixelY(f.mask!, f.landmarks[0], 0.35)).toBe(10);
+    expect(measureFrames([f], 170, 1)?.shoulder_cm).toBe(20);
+  });
+
+  it('uses visible heels instead of forward-projected toes or occluded foot landmarks', () => {
+    const f = frame(0.4);
+    // Big toes project lower (0.96) towards the camera, and one toe is occluded off-screen (1.08, vis 0.05).
+    f.landmarks[31] = { x: 0.45, y: 0.96, z: -0.1, visibility: 0.85 };
+    f.landmarks[32] = { x: 0.55, y: 1.08, z: -0.1, visibility: 0.05 };
+    expect(floorPixelY(f)).toBe(180);
+    expect(measureFrames([f], 170, 1)?.shoulder_cm).toBe(20);
+  });
+
+  it('de-projects slight 3D body yaw rotation using worldLandmarks', () => {
+    const yawRad = (18 * Math.PI) / 180;
+    // True shoulder width 20 px, foreshortened in 2D by cos(18 deg).
+    const halfSpan2d = (0.1 * Math.cos(yawRad));
+    const f = frame(0.5 - halfSpan2d);
+    f.landmarks[12] = { x: 0.5 + halfSpan2d, y: 0.35, z: 0, visibility: 1 };
+    const world = Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0, visibility: 1 }));
+    world[11] = { x: -0.15 * Math.cos(yawRad), y: 0.3, z: -0.15 * Math.sin(yawRad), visibility: 1 };
+    world[12] = { x: 0.15 * Math.cos(yawRad), y: 0.3, z: 0.15 * Math.sin(yawRad), visibility: 1 };
+    f.worldLandmarks = world;
+    expect(measureFrames([f], 170, 1)?.shoulder_cm).toBe(20);
+  });
+
+  it('asks to hold the phone upright when tilted steeply down', () => {
+    const p = pose();
+    expect(checkPose(p, 720, 1280, p, null, 18).guidance).toBe('levelPhone');
+    expect(checkPose(p, 720, 1280, p, null, 4).guidance).toBe('ready');
   });
 });

@@ -14,7 +14,17 @@ import limits from '../../../shared/fit_limits.json';
  * then (or straight away when a teacher or signed-in parent has the child).
  */
 
-export const FIT_LIMITS = { height: limits.height_cm, weight: limits.weight_kg, shoulder: limits.shoulder_cm };
+export const FIT_LIMITS = {
+  height: limits.height_cm,
+  weight: limits.weight_kg,
+  shoulder: limits.shoulder_cm,
+  chest: limits.chest_cm,
+  chestFlat: limits.chest_flat_cm,
+  length: limits.length_cm,
+};
+
+/** Standard wearing ease subtracted from a flat uniform shirt's circumference to match body chest charts. */
+export const GARMENT_CHEST_EASE_CM = 5;
 
 export type FitSource = 'CAMERA' | 'MANUAL';
 
@@ -23,6 +33,12 @@ export interface Fit {
   weightKg: number;
   /** From the camera (numbers only ever leave the phone) or typed from a tape measure. */
   shoulderCm?: number;
+  /** Body-equivalent chest circumference in cm, used when a product's size chart checks chest. */
+  chestCm?: number;
+  /** Exact flat pit-to-pit tape width in cm when measured on a flat garment. */
+  chestFlatCm?: number;
+  /** Exact collar-to-hem garment length in cm when measured on a flat garment. */
+  lengthCm?: number;
   /** Only for a camera reading: how sure the phone was, 0 to 1. */
   shoulderConfidence?: number;
   source?: FitSource;
@@ -49,7 +65,10 @@ export function fitPayload(fit: Fit) {
 /** Only the numbers, for the size suggestion. */
 function sizeFitNumbers(fit: Fit) {
   const { source: _source, shoulder_edited: _edited, ...numbers } = fitPayload(fit);
-  return numbers;
+  return {
+    ...numbers,
+    ...(fit.chestCm !== undefined ? { chest_cm: fit.chestCm } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -234,7 +253,7 @@ export function useSizeFit(productIds: string[], answer: FitAnswer, className?: 
     queryKey: [
       'size-fit',
       ids.join(','),
-      fit ? `${fit.heightCm}|${fit.weightKg}|${fit.shoulderCm ?? ''}|${fit.shoulderConfidence ?? ''}` : String(answer),
+      fit ? `${fit.heightCm}|${fit.weightKg}|${fit.shoulderCm ?? ''}|${fit.chestCm ?? ''}|${fit.shoulderConfidence ?? ''}` : String(answer),
       className ?? '',
     ],
     queryFn: () =>

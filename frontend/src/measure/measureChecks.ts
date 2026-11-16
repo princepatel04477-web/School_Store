@@ -1,8 +1,10 @@
 import {
   CENTRE_TOLERANCE,
+  MAX_CAMERA_TILT_DEG,
   MAX_FILL,
   MAX_SHOULDER_TILT_DEG,
   MAX_SHOULDER_Z,
+  MAX_YAW_DEG,
   MIN_FILL,
   MIN_VISIBILITY,
   SIDE_MAX_SHOULDER_GAP,
@@ -20,11 +22,13 @@ import {
   RIGHT_HEEL,
   RIGHT_HIP,
   RIGHT_SHOULDER,
+  shoulderYawCosine,
   type Landmark,
 } from './measureBody';
 
 /** One short instruction at a time, in the order the parent should fix them. */
 export type Guidance =
+  | 'levelPhone'
   | 'moveBack'
   | 'moveCloser'
   | 'standInside'
@@ -68,6 +72,8 @@ export function checkPose(
   imageWidth: number,
   imageHeight: number,
   previous: Landmark[] | null,
+  worldLandmarks?: Landmark[] | null,
+  phoneTiltDeg?: number | null,
 ): PoseCheck {
   const nose = landmarks[NOSE];
   const left = landmarks[LEFT_SHOULDER];
@@ -93,7 +99,14 @@ export function checkPose(
   }
 
   const shouldersLevel = visible(left) && visible(right) && tiltDegrees(left, right) <= MAX_SHOULDER_TILT_DEG;
-  const facingFront = visible(left) && visible(right) && Math.abs((left.z ?? 0) - (right.z ?? 0)) <= MAX_SHOULDER_Z;
+  const cosYaw = worldLandmarks ? shoulderYawCosine(worldLandmarks) : null;
+  const minCosYaw = Math.cos((MAX_YAW_DEG * Math.PI) / 180);
+  const facingFront =
+    visible(left) &&
+    visible(right) &&
+    Math.abs((left.z ?? 0) - (right.z ?? 0)) <= MAX_SHOULDER_Z &&
+    (cosYaw == null || cosYaw >= minCosYaw);
+  const phoneLevel = phoneTiltDeg == null || Math.abs(phoneTiltDeg) <= MAX_CAMERA_TILT_DEG;
 
   let still = false;
   if (previous && visible(nose) && visible(left) && visible(right)) {
@@ -106,7 +119,8 @@ export function checkPose(
   }
 
   let guidance: Guidance = 'ready';
-  if (cutOff || tooBig) guidance = 'moveBack';
+  if (!phoneLevel) guidance = 'levelPhone';
+  else if (cutOff || tooBig) guidance = 'moveBack';
   else if (!wholeBody) guidance = 'showFullBody';
   else if (!fillsOutline) guidance = 'moveCloser';
   else if (!centred) guidance = 'standInside';

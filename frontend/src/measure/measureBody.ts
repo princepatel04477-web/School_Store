@@ -9,6 +9,8 @@ import {
   CORNER_SLOPE,
   CORNER_SMOOTH,
   CORNER_TO_JOINTS,
+  MAX_YAW_DEG,
+  MIN_VISIBILITY,
 } from './config';
 
 /** BlazePose indexes used for a full-body front view. */
@@ -51,6 +53,8 @@ export interface Mask {
 
 export interface MeasureFrame {
   landmarks: Landmark[];
+  /** Metric 3D pose points in metres, used to correct slight body turn when present. */
+  worldLandmarks?: Landmark[];
   /** Missing when the model gave no outline for this frame. */
   mask?: Mask;
   imageWidth: number;
@@ -78,18 +82,28 @@ function median(values: number[]): number {
   return (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-/** Smallest mask row above the nose that contains a body pixel near the nose column. */
-export function headPixelY(mask: Mask, nose: Landmark): number | null {
+/**
+ * Smallest mask row above the nose that belongs to the head silhouette (>= MASK_BODY_MIN),
+ * searched only within an anatomically plausible head height above the nose so faint
+ * sigmoid noise (1..127) and ceiling/wall blobs higher up in the room are ignored.
+ */
+export function headPixelY(mask: Mask, nose: Landmark, shoulderLineNormY?: number): number | null {
   const noseX = Math.round(nose.x * mask.width);
   const noseY = Math.round(nose.y * mask.height);
-  const band = Math.max(2, Math.round(mask.width * 0.12));
   const limitY = Math.min(mask.height, Math.max(0, noseY));
-  for (let y = 0; y < limitY; y += 1) {
+  if (limitY <= 0) return null;
+  const band = Math.max(2, Math.round(mask.width * 0.08));
+  const reachPx =
+    shoulderLineNormY != null && shoulderLineNormY > nose.y
+      ? (shoulderLineNormY - nose.y) * mask.height
+      : mask.height * 0.16;
+  const startY = Math.max(0, Math.round(noseY - 1.15 * reachPx));
+  for (let y = startY; y < limitY; y += 1) {
     const row = y * mask.width;
     const x0 = Math.max(0, noseX - band);
     const x1 = Math.min(mask.width - 1, noseX + band);
     for (let x = x0; x <= x1; x += 1) {
-      if (mask.data[row + x] > 0) return y;
+      if (mask.data[row + x] >= MASK_BODY_MIN) return y;
     }
   }
   return null;
@@ -166,9 +180,9 @@ export function shoulderCorners(frame: MeasureFrame): ShoulderCorners | null {
   const jointRight = Math.max(left.x, right.x) * mask.width - centre;
   if (jointLeft <= 0 || jointRight <= 0) return null;
 
-  // From the chin to a little below the shoulder joints.
+  // From the chin to slightly below the shoulder joints (stops above short-sleeve hems on the bicep).
   const firstRow = Math.max(0, Math.round(noseY + 0.35 * reach));
-  const lastRow = Math.min(mask.height - 1, Math.round(lineY + 0.6 * reach));
+  const lastRow = Math.min(mask.height - 1, Math.round(lineY + 0.3 * reach));
   const outLeft: (number | null)[] = [];
   const outRight: (number | null)[] = [];
   for (let y = firstRow; y <= lastRow; y += 1) {
@@ -178,9 +192,13 @@ export function shoulderCorners(frame: MeasureFrame): ShoulderCorners | null {
   }
   const radius = Math.max(1, Math.round(reach * CORNER_SMOOTH));
   const lineIndex = Math.round(lineY) - firstRow;
+  const pixelAspect =
+    frame.imageWidth > 0 && frame.imageHeight > 0
+      ? (frame.imageWidth / mask.width) / (frame.imageHeight / mask.height)
+      : 1;
 
-  const l = findCorner(smoothProfile(outLeft, radius), radius, lineIndex, jointLeft);
-  const r = findCorner(smoothProfile(outRight, radius), radius, lineIndex, jointRight);
+  const l = findCorner(smoothProfile(outLeft, radius), radius, lineIndex, jointLeft, pixelAspect);
+  const r = findCorner(smoothProfile(outRight, radius), radius, lineIndex, jointRight, pixelAspect);
   if (!l || !r) return null;
   return {
     left: { x: (centre - l.reach) / mask.width, y: (firstRow + l.row) / mask.height },
@@ -201,6 +219,7 @@ function findCorner(
   radius: number,
   lineIndex: number,
   joint: number,
+  pixelAspect = 1,
 ): { reach: number; row: number } | null {
   // The neck: the narrowest row above the shoulder line.
   let neck = -1;
@@ -213,7 +232,7 @@ function findCorner(
   const speedAt = (i: number): number | null => {
     const before = out[i - radius];
     const after = out[i + radius];
-    return before == null || after == null ? null : (after - before) / (2 * radius);
+    return before == null || after == null ? null : ((after - before) * pixelAspect) / (2 * radius);
   };
   let onSlope = false;
   let previous: { index: number; speed: number } | null = null;
@@ -356,36 +375,80 @@ export function measureSideFrames(frames: MeasureFrame[], heightCm: number): Sid
   };
 }
 
-/** Top of the head in image pixels, from the eyes and mouth. */
+/** Top of the head in image pixels, from the eyes and mouth when clearly visible. */
 export function crownFromFace(frame: MeasureFrame): number | null {
   const points = [LEFT_EYE, RIGHT_EYE, MOUTH_LEFT, MOUTH_RIGHT].map((i) => frame.landmarks[i]);
-  if (points.some((p) => !p)) return null;
+  if (points.some((p) => !p || (p.visibility ?? 1) < MIN_VISIBILITY)) return null;
   const eyeY = ((points[0].y + points[1].y) / 2) * frame.imageHeight;
   const mouthY = ((points[2].y + points[3].y) / 2) * frame.imageHeight;
   const eyeToMouth = mouthY - eyeY;
   if (eyeToMouth <= 0) return null;
+  const nose = frame.landmarks[NOSE];
+  if (nose) {
+    const noseY = nose.y * frame.imageHeight;
+    if (noseY <= eyeY || noseY >= mouthY) return null;
+  }
   return eyeY - CROWN_ABOVE_EYES * eyeToMouth;
 }
 
 function headY(frame: MeasureFrame): number | null {
   const nose = frame.landmarks[NOSE];
+  const left = frame.landmarks[LEFT_SHOULDER];
+  const right = frame.landmarks[RIGHT_SHOULDER];
+  const shoulderY = left && right ? (left.y + right.y) / 2 : undefined;
+  const faceCrown = crownFromFace(frame);
   if (frame.mask && frame.mask.height > 1 && nose) {
-    const fromMask = headPixelY(frame.mask, nose);
-    if (fromMask != null) return fromMask * (frame.imageHeight / frame.mask.height);
+    const fromMask = headPixelY(frame.mask, nose, shoulderY);
+    if (fromMask != null) {
+      const maskPx = fromMask * (frame.imageHeight / frame.mask.height);
+      if (faceCrown != null) {
+        const nosePx = nose.y * frame.imageHeight;
+        const headSpan = Math.max(4, nosePx - faceCrown);
+        return Math.max(faceCrown - 0.35 * headSpan, Math.min(faceCrown + 0.35 * headSpan, maskPx));
+      }
+      return maskPx;
+    }
   }
-  return crownFromFace(frame);
+  return faceCrown;
 }
 
 /**
- * The floor: the lowest heel or toe point. The typed height is measured to the
- * floor, so this matches it better than the ankles, which sit a few cm higher.
+ * The floor in the child's coronal plane: visible heels come first because they sit
+ * directly beneath the head and shoulders against the wall, whereas forward-pointing
+ * toes project artificially lower when viewed from chest height.
  */
-function floorPixelY(frame: MeasureFrame): number | null {
-  const points = [LEFT_HEEL, RIGHT_HEEL, LEFT_FOOT, RIGHT_FOOT]
-    .map((index) => frame.landmarks[index])
-    .filter((point): point is Landmark => Boolean(point));
-  if (points.length === 0) return null;
-  return Math.max(...points.map((point) => point.y)) * frame.imageHeight;
+export function floorPixelY(frame: MeasureFrame): number | null {
+  const valid = (index: number) => {
+    const p = frame.landmarks[index];
+    return p && (p.visibility ?? 1) >= 0.3 && p.y > 0 && p.y <= 1 ? p : null;
+  };
+  const heels = [valid(LEFT_HEEL), valid(RIGHT_HEEL)].filter((p): p is Landmark => p !== null);
+  if (heels.length > 0) {
+    return (heels.reduce((sum, p) => sum + p.y, 0) / heels.length) * frame.imageHeight;
+  }
+  const feet = [valid(LEFT_FOOT), valid(RIGHT_FOOT)].filter((p): p is Landmark => p !== null);
+  if (feet.length === 0) return null;
+  return Math.max(...feet.map((point) => point.y)) * frame.imageHeight;
+}
+
+/** Normalized [0..1] top-of-head and heel floor lines, drawn live on the camera overlay. */
+export function verticalBounds(frame: MeasureFrame): { top: number; floor: number } | null {
+  if (frame.imageHeight <= 0) return null;
+  const top = headY(frame);
+  const floor = floorPixelY(frame);
+  if (top == null || floor == null || floor <= top) return null;
+  return { top: top / frame.imageHeight, floor: floor / frame.imageHeight };
+}
+
+/** Cosine of 3D shoulder yaw rotation in [0..1] when worldLandmarks are available. */
+export function shoulderYawCosine(worldLandmarks?: Landmark[]): number | null {
+  const left = worldLandmarks?.[LEFT_SHOULDER];
+  const right = worldLandmarks?.[RIGHT_SHOULDER];
+  if (!left || !right || left.z === undefined || right.z === undefined) return null;
+  const frontal = Math.hypot(right.x - left.x, right.y - left.y);
+  const span3d = Math.hypot(frontal, right.z - left.z);
+  if (span3d <= 1e-6) return null;
+  return frontal / span3d;
 }
 
 function frameMeasure(frame: MeasureFrame, heightCm: number, factor: number): MeasureResult | null {
@@ -415,7 +478,11 @@ function frameMeasure(frame: MeasureFrame, heightCm: number, factor: number): Me
         (corners.right.y - corners.left.y) * frame.imageHeight,
       )
     : null;
-  const shoulderPx = cornerPx ?? blendPx;
+  // De-project slight body rotation when 3D world landmarks report a small yaw angle.
+  const cosYaw = shoulderYawCosine(frame.worldLandmarks);
+  const minCos = Math.cos((MAX_YAW_DEG * Math.PI) / 180);
+  const yawCorrection = cosYaw != null && cosYaw >= minCos ? 1 / cosYaw : 1;
+  const shoulderPx = (cornerPx ?? blendPx) * yawCorrection;
   const visibility = Math.min(
     nose.visibility ?? 0,
     left.visibility ?? 0,
