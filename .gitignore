@@ -57,3 +57,10 @@ backend/.seeded
 # Cloudflare Wrangler: local secrets and local state
 .dev.vars
 .wrangler/
+
+# Android APK build outputs and logs
+dist-apk/
+apk-build.log
+npm-ci.log
+agy-apk*.log
+agy-apk*.txt
