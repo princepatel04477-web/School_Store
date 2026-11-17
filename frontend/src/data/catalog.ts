@@ -30,7 +30,15 @@ type PublicSchool = {
   city_name?: string;
   home_delivery?: boolean;
   school_pickup?: boolean;
+  /** Whether the school has uploaded a logo (served at /public/schools/{id}/logo/). */
+  has_logo?: boolean;
 };
+
+const API_BASE: string = import.meta.env.VITE_API_URL || '/api';
+
+/** Public URL of a school's logo; only meaningful when the school has one. */
+export const schoolLogoUrl = (schoolId: string) =>
+  `${API_BASE}/public/schools/${encodeURIComponent(schoolId)}/logo/`;
 
 type PublicVariant = { id: string; size: string; stock_status: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK' | null };
 type CustomisationField = { required?: boolean };
@@ -71,6 +79,7 @@ function toSchool(school: PublicSchool): StoreSchool {
     cityId: school.city || undefined,
     homeDelivery: school.home_delivery ?? true,
     schoolPickup: school.school_pickup ?? true,
+    logoUrl: school.has_logo ? schoolLogoUrl(school.id) : undefined,
   };
 }
 

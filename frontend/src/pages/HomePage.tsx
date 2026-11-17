@@ -1,4 +1,5 @@
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ArrowRight } from '../components/ui/icons';
 import { useStoreSchools } from '../data/catalog';
 import { useStoreState } from '../store/storeState';
@@ -25,6 +26,26 @@ export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps) {
   const navigate = useNavigate();
   const { selection, setSelection } = useStoreState();
   const { t } = useLang();
+  const location = useLocation();
+
+  // "Find your school" on other pages (Our story) lands here with the search ready to type in.
+  const focusSearch = (location.state as { focusSearch?: boolean } | null)?.focusSearch === true;
+  useEffect(() => {
+    if (!focusSearch) return undefined;
+    let tries = 0;
+    let frame = 0;
+    const focusWhenReady = () => {
+      const input = document.querySelector<HTMLInputElement>('.emerald-search-input');
+      if (input) {
+        input.focus({ preventScroll: false });
+        navigate(location.pathname + location.search, { replace: true, state: null });
+        return;
+      }
+      if (tries++ < 60) frame = requestAnimationFrame(focusWhenReady);
+    };
+    frame = requestAnimationFrame(focusWhenReady);
+    return () => cancelAnimationFrame(frame);
+  }, [focusSearch, navigate, location.pathname, location.search]);
 
   const categoryTiles = [
     {
