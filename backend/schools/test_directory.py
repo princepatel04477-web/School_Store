@@ -191,3 +191,63 @@ class PublicBranchPickerTests(TestCase):
             "school": str(self.kv.id), "city": str(other_city.id), "grade": str(grade.id), "gender": "boy",
         })
         self.assertEqual(res.status_code, 400)
+
+
+UDISE_ONLY = {
+    "maps_place_id": None, "source": "udise", "chain": "KV", "school": "Kendriya Vidyalaya",
+    "name": "PM SHRI Kendriya Vidyalaya Amc Lucknow", "state": "Uttar Pradesh", "city": "Lucknow",
+    "address": "Lucknow, Uttar Pradesh 226002", "pincode": "226002", "latitude": None, "longitude": None,
+    "phone": "", "website": "", "udise_code": "09270918001",
+}
+
+
+@override_settings(CACHES=LOCMEM)
+class UdiseCodeImportTests(TestCase):
+    def directory(self, *extra, aliganj_code="09270900001"):
+        data = json.loads(json.dumps(DIRECTORY))
+        data["branches"][0]["udise_code"] = aliganj_code
+        data["branches"] += list(extra)
+        return write_directory(data)
+
+    def test_udise_only_branch_has_no_location(self):
+        path = self.directory(UDISE_ONLY)
+        call_command("import_school_directory", path, verbosity=0)
+        Path(path).unlink()
+        branch = SchoolBranch.objects.get(udise_code="09270918001")
+        self.assertIsNone(branch.maps_place_id)
+        self.assertIsNone(branch.latitude)
+        self.assertEqual(branch.city.name, "Lucknow")
+
+    def test_rerun_matches_on_udise_code_when_the_place_id_changes(self):
+        path = self.directory()
+        call_command("import_school_directory", path, verbosity=0)
+        data = json.loads(Path(path).read_text(encoding="utf8"))
+        data["branches"][0]["maps_place_id"] = "0x9:0x9"
+        Path(path).write_text(json.dumps(data), encoding="utf8")
+        call_command("import_school_directory", path, verbosity=0)
+        Path(path).unlink()
+        branch = SchoolBranch.objects.get(udise_code="09270900001")
+        self.assertEqual(branch.maps_place_id, "0x9:0x9")
+        self.assertEqual(SchoolBranch.objects.filter(name="Kendriya Vidyalaya Aliganj").count(), 1)
+
+    def test_deactivate_missing_switches_off_branches_that_left_the_file(self):
+        path = self.directory()
+        call_command("import_school_directory", path, verbosity=0)
+        data = json.loads(Path(path).read_text(encoding="utf8"))
+        data["branches"] = [b for b in data["branches"] if b["maps_place_id"] != "0x1:0x2"]
+        Path(path).write_text(json.dumps(data), encoding="utf8")
+        call_command("import_school_directory", path, "--deactivate-missing", verbosity=0)
+        Path(path).unlink()
+        self.assertFalse(SchoolBranch.objects.get(maps_place_id="0x1:0x2").active)
+        self.assertTrue(SchoolBranch.objects.get(maps_place_id="0x1:0x1").active)
+
+    def test_branches_endpoint_returns_and_searches_the_code(self):
+        path = self.directory(UDISE_ONLY)
+        call_command("import_school_directory", path, verbosity=0)
+        Path(path).unlink()
+        city = City.objects.get(state="Uttar Pradesh", name="Lucknow")
+        url = f"/api/public/cities/{city.id}/branches/"
+        rows = APIClient().get(url).json()
+        self.assertIn("09270918001", [r["udise_code"] for r in rows])
+        found = APIClient().get(url, {"search": "0927091"}).json()
+        self.assertEqual([r["udise_code"] for r in found], ["09270918001"])

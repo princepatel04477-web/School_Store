@@ -35,7 +35,7 @@ try {
     # 2. import
     Push-Location (Join-Path $project 'backend')
     try {
-        $out = & python manage.py import_school_directory 2>&1
+        $out = & python manage.py import_school_directory --deactivate-missing 2>&1
         $code = $LASTEXITCODE
     } finally {
         Pop-Location

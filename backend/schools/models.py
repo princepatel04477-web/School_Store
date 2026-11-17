@@ -158,6 +158,14 @@ class SchoolBranch(UUIDModel):
         blank=True,
         help_text="Google Maps place id the branch was imported from. Re-imports update this row.",
     )
+    udise_code = models.CharField(
+        max_length=20,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="The campus's UDISE+ code from the government register (usually 11 digits). "
+        "Empty for campuses not on UDISE+, such as standalone preschools.",
+    )
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

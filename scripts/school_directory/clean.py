@@ -64,7 +64,7 @@ BAD_NAME = re.compile(
     r"tuition|tutorial|hostel|canteen|store|shop|depot|trust|stationer[sy]?|uniforms?|books?|"
     r"(?<!inter )(?<!intermediate )(?<!inter\. )(?<!girls inter )college|"
     r"degree|universit[yi]|institute of|hospital|bus stop|parking|"
-    r"alumni|admission|apartments?|housing society|smriti bhawan|education cent(er|re)|dayanand saraswati|guest house|play ?ground|stadium|bal sainik|international public school|"
+    r"alumni|admission|lab|laborator(y|ies)|library|auditorium|admin block|apartments?|housing society|smriti bhawan|education cent(er|re)|dayanand saraswati|guest house|play ?ground|stadium|bal sainik|international public school|"
     r"vidyapeeth|mahavidyalaya|polytechnic|b\.?ed)\b|"
     r"\b(main|back|entry|exit|school)\s+gate\b|\bgate\s+(no\.?|number|\d)\b|^gate\b|\bkv\s+gate\b|"
     r"\bschool\s+(road|marg|lane|path)\b|"

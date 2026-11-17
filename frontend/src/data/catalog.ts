@@ -125,6 +125,8 @@ export interface StoreBranch {
   name: string;
   address: string;
   pincode: string;
+  /** Government UDISE+ code; empty for campuses not on UDISE+ (standalone preschools). */
+  udise_code: string;
   photo: string | null;
   school: { id: string; name: string; code: string };
 }

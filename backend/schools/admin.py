@@ -46,14 +46,14 @@ class SchoolAdmin(admin.ModelAdmin):
 
 @admin.register(SchoolBranch)
 class SchoolBranchAdmin(admin.ModelAdmin):
-    list_display = ("display_name", "school", "city", "pincode", "active", "created_at")
+    list_display = ("display_name", "school", "city", "udise_code", "pincode", "active", "created_at")
     list_filter = ("active", "city__state", "school")
-    search_fields = ("name", "school__name", "school__code", "city__name", "address", "pincode")
+    search_fields = ("name", "udise_code", "school__name", "school__code", "city__name", "address", "pincode")
     readonly_fields = ("id", "maps_place_id", "created_at", "updated_at")
     list_select_related = ("school", "city")
     autocomplete_fields = ("city",)
     fieldsets = (
-        (None, {"fields": ("school", "city", "name", "active")}),
+        (None, {"fields": ("school", "city", "name", "udise_code", "active")}),
         ("Location", {"fields": ("address", "pincode", "latitude", "longitude")}),
         ("Contact", {"fields": ("phone", "website")}),
         ("Photo", {"fields": ("photo",)}),

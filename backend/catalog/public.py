@@ -268,6 +268,7 @@ class PublicCityBranchesView(APIView):
                     | Q(school__name__icontains=search)
                     | Q(address__icontains=search)
                     | Q(pincode__startswith=search)
+                    | Q(udise_code__startswith=search)
                 )
             return [
                 {
@@ -275,11 +276,12 @@ class PublicCityBranchesView(APIView):
                     "name": b.display_name,
                     "address": b.address,
                     "pincode": b.pincode,
+                    "udise_code": b.udise_code or "",
                     "photo": request.build_absolute_uri(b.photo.url) if b.photo else None,
                     "school": {"id": str(b.school_id), "name": b.school.name, "code": b.school.code},
                 }
                 for b in qs.only(
-                    "id", "name", "address", "pincode", "photo", "school_id",
+                    "id", "name", "address", "pincode", "udise_code", "photo", "school_id",
                     "school__name", "school__code",
                 )
             ]

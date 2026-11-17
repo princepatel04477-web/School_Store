@@ -210,6 +210,12 @@ button.school-select-card {
   overflow: hidden;
 }
 
+.branch-udise {
+  display: block;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
 .branch-picker-scope {
   font-size: var(--text-sm);
   color: var(--ink-soft);

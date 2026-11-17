@@ -5,6 +5,8 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.db.models import CharField, Q, Value
+from django.db.models.functions import Cast, Concat
 
 from common.cache_utils import invalidate_school_cache
 from schools.models import City, School, SchoolBranch
@@ -21,8 +23,9 @@ STATE_CODES = {
 class Command(BaseCommand):
     help = (
         "Import school chains and their branches (state, city, campus, address) from the "
-        "school directory file made by scripts/school_directory/clean.py. Safe to run again: "
-        "branches are matched on their Google Maps place id and updated."
+        "school directory file made by scripts/school_directory (clean.py, then udise.py). Safe to "
+        "run again: branches are matched on their UDISE+ code, then their Google Maps place id, "
+        "and updated."
     )
 
     def add_arguments(self, parser):
@@ -35,6 +38,11 @@ class Command(BaseCommand):
             "--inactive-fit", default="Poor",
             help="Comma separated fit ratings whose schools are created inactive (default: Poor, "
             "the chains that sell through their own shops or tenders). Pass '' to make all active.",
+        )
+        parser.add_argument(
+            "--deactivate-missing", action="store_true",
+            help="Switch off imported branches (ones with a UDISE+ code or Google place id) of the "
+            "imported schools that are no longer in the file. Nothing is deleted.",
         )
         parser.add_argument("--dry-run", action="store_true")
 
@@ -50,7 +58,15 @@ class Command(BaseCommand):
         with transaction.atomic():
             schools = self._schools(data["chains"], only, inactive_fit)
             cities = self._cities(branches)
-            created, updated = self._branches(branches, schools, cities)
+            created, updated, kept_ids = self._branches(branches, schools, cities)
+            switched_off = 0
+            if opts["deactivate_missing"]:
+                switched_off = (
+                    SchoolBranch.objects.filter(school__in=schools.values(), active=True)
+                    .filter(Q(udise_code__isnull=False) | Q(maps_place_id__isnull=False))
+                    .exclude(id__in=kept_ids)
+                    .update(active=False)
+                )
             if opts["dry_run"]:
                 transaction.set_rollback(True)
         invalidate_school_cache()
@@ -58,7 +74,7 @@ class Command(BaseCommand):
         verb = "Would import" if opts["dry_run"] else "Imported"
         self.stdout.write(self.style.SUCCESS(
             f"{verb} {len(schools)} schools, {len(cities)} cities, "
-            f"{created} new and {updated} updated branches."
+            f"{created} new and {updated} updated branches, {switched_off} switched off."
         ))
 
     def _schools(self, chains, only, inactive_fit):
@@ -97,43 +113,66 @@ class Command(BaseCommand):
         return cities
 
     def _branches(self, branches, schools, cities):
-        existing = SchoolBranch.objects.in_bulk(
-            [b["maps_place_id"] for b in branches], field_name="maps_place_id"
+        by_udise = SchoolBranch.objects.in_bulk(
+            [b["udise_code"] for b in branches if b.get("udise_code")], field_name="udise_code"
         )
-        existing_by_name = {
+        by_place = SchoolBranch.objects.in_bulk(
+            [b["maps_place_id"] for b in branches if b.get("maps_place_id")], field_name="maps_place_id"
+        )
+        holders = {
             (sb.school_id, sb.city_id, sb.name): sb
             for sb in SchoolBranch.objects.filter(
                 school_id__in=[s.id for s in schools.values()],
                 city_id__in=[c.id for c in cities.values()],
             )
         }
-        fields = ("name", "address", "pincode", "latitude", "longitude", "phone", "website", "maps_place_id")
-        new, changed = [], []
+        by_name = dict(holders)
+        fields = ("name", "address", "pincode", "latitude", "longitude", "phone", "website",
+                  "maps_place_id", "udise_code")
+        new, changed, seen = [], [], set()
         for b in branches:
             values = {
                 "school": schools[b["chain"]],
                 "city": cities[(b["state"], b["city"])],
                 "name": b["name"][:200],
                 "address": b["address"],
-                "pincode": b["pincode"][:6],
-                "latitude": Decimal(str(b["latitude"])),
-                "longitude": Decimal(str(b["longitude"])),
-                "phone": b["phone"][:20],
-                "website": b["website"][:300],
+                "pincode": (b["pincode"] or "")[:6],
+                "latitude": Decimal(str(b["latitude"])) if b.get("latitude") is not None else None,
+                "longitude": Decimal(str(b["longitude"])) if b.get("longitude") is not None else None,
+                "phone": (b.get("phone") or "")[:20],
+                "website": (b.get("website") or "")[:300],
+                "maps_place_id": b.get("maps_place_id") or None,
+                "udise_code": b.get("udise_code") or None,
             }
-            row = existing.get(b["maps_place_id"])
+            row = (
+                (values["udise_code"] and by_udise.get(values["udise_code"]))
+                or (values["maps_place_id"] and by_place.get(values["maps_place_id"]))
+                or by_name.get((values["school"].id, values["city"].id, values["name"]))
+            )
+            if row is not None and row.pk in seen:
+                row = None  # already used by an earlier line of the file
             if row is None:
-                row = existing_by_name.get((values["school"].id, values["city"].id, values["name"]))
-            if row is None:
-                sb = SchoolBranch(maps_place_id=b["maps_place_id"], **values)
-                new.append(sb)
-                existing_by_name[(values["school"].id, values["city"].id, values["name"])] = sb
+                row = SchoolBranch(**values)
+                new.append(row)
             else:
-                row.maps_place_id = b["maps_place_id"]
-                # The shop owner may have moved or renamed a branch: keep school, city and active.
-                for f in ("name", "address", "pincode", "latitude", "longitude", "phone", "website"):
+                # The shop owner may have moved a branch or switched it off: keep school, city, active.
+                for f in fields:
                     setattr(row, f, values[f])
                 changed.append(row)
-        SchoolBranch.objects.bulk_create(new, batch_size=500)
+            seen.add(row.pk)
+            by_name[(values["school"].id, values["city"].id, values["name"])] = row
+        # A row the file no longer uses (a duplicate listing) may hold a name a line wants:
+        # it keeps its name with "(old ...)" added.
+        wanted = {(r.school_id, r.city_id, r.name) for r in changed + new}
+        blockers = [sb for key, sb in holders.items() if sb.pk not in seen and key in wanted]
+        for sb in blockers:
+            sb.name = f"{sb.name[:180]} (old {str(sb.pk)[:8]})"
+        SchoolBranch.objects.bulk_update(blockers, ["name"], batch_size=500)
+        # Park the changing rows on temporary names and free their unique codes, so names
+        # and codes can move between rows, then write the final values.
+        SchoolBranch.objects.filter(pk__in=[r.pk for r in changed]).update(
+            name=Concat(Value("~"), Cast("id", CharField())), maps_place_id=None, udise_code=None
+        )
         SchoolBranch.objects.bulk_update(changed, fields, batch_size=500)
-        return len(new), len(changed)
+        SchoolBranch.objects.bulk_create(new, batch_size=500)
+        return len(new), len(changed), seen

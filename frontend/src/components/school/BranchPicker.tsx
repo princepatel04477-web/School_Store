@@ -96,7 +96,7 @@ export function BranchPicker({
   const shownCities = q ? cities.filter((c) => c.name.toLowerCase().includes(q)) : cities;
   const shownBranches = q
     ? branches.filter((b) =>
-        [b.name, b.school.name, b.address, b.pincode].some((v) => v.toLowerCase().includes(q))
+        [b.name, b.school.name, b.address, b.pincode, b.udise_code].some((v) => v.toLowerCase().includes(q))
       )
     : branches;
 
@@ -233,6 +233,9 @@ export function BranchPicker({
               <div className="school-select-details">
                 <h3 className="school-select-name">{b.name}</h3>
                 <span className="school-select-meta branch-address">{b.address || b.school.name}</span>
+                {b.udise_code && (
+                  <span className="school-select-meta branch-udise">{t('flow.s1.udise', { code: b.udise_code })}</span>
+                )}
               </div>
               <ArrowRight className="school-select-arrow" width={18} height={18} />
             </button>
