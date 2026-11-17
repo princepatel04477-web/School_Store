@@ -17,6 +17,12 @@
   box-sizing: border-box;
 }
 
+@media (max-width: 767.98px) {
+  .is-native-shell .emerald-hero {
+    height: calc(100dvh - var(--native-tab-height) - var(--sab, 0px));
+  }
+}
+
 .is-native-shell .category-tabs-sticky {
   top: calc(var(--native-top-height) + var(--sat, 0px));
 }

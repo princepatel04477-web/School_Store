@@ -498,7 +498,6 @@
   .about-hero-art { width: auto; height: 340px; margin: 0 0 -84px; justify-self: end; }
   .about-hero-art picture { display: block; height: 100%; }
   .about-kids { width: auto; height: 100%; }
-  .about-problem { max-width: 960px; width: 100%; align-self: center; }
   .about-problem-grid { gap: 20px; }
   .about-fix {
     display: grid;

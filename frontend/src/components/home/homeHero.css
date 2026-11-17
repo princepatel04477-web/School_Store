@@ -1142,3 +1142,72 @@
     transform: none !important;
   }
 }
+
+/* ==========================================================================
+   Fixes after checking real screenshots at 360–1920 px
+   ========================================================================== */
+
+/* Phones: the circles bleed to the screen edges instead of being cut into a box
+   by the padded content column. The hero itself still clips at the screen. */
+@media (max-width: 767.98px) {
+  .emerald-hero-content {
+    overflow: visible;
+  }
+
+  .emerald-circles-bg {
+    left: 50%;
+    right: auto;
+    width: 100vw;
+    transform: translateX(-50%);
+  }
+}
+
+/* Narrow phones: logo and language pill no longer collide. */
+@media (max-width: 419.98px) {
+  .emerald-header-left {
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .emerald-logo-square {
+    width: 34px;
+    height: 34px;
+  }
+
+  .emerald-logo-letter {
+    font-size: 23px;
+  }
+
+  .emerald-logo-text {
+    font-size: 21px;
+  }
+
+  .emerald-header-right {
+    gap: 4px;
+  }
+
+  .emerald-lang-pill {
+    padding: 0 10px;
+    gap: 4px;
+  }
+}
+
+/* Laptops and desktops: the headline block and the stage sit in the middle of the
+   first screen, not at its top with an empty band below. */
+@media (min-width: 1024px) {
+  /* The stage is as tall as its content needs (capped), so big monitors show the next
+     section instead of a tall empty band. */
+  .emerald-hero {
+    min-height: 0;
+  }
+
+  .emerald-main-container {
+    justify-content: center;
+    min-height: clamp(540px, calc(100dvh - 72px), 720px);
+  }
+
+  .emerald-hero-content {
+    margin-top: clamp(16px, 3vh, 40px);
+    margin-bottom: clamp(16px, 3vh, 40px);
+  }
+}
