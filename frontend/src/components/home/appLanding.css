@@ -1,0 +1,320 @@
+/* The app's first screen. Baloo 2 is self-hosted, licensed under the SIL Open Font
+   License (see /fonts/baloo-2-OFL.txt). Gujarati text falls back to Noto Sans Gujarati. */
+@font-face {
+  font-family: 'Baloo 2';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/baloo-2-latin-700.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Baloo 2';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('/fonts/baloo-2-latin-800.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Baloo 2';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/baloo-2-devanagari-700.woff2') format('woff2');
+  unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+20F0, U+25CC, U+A830-A839, U+A8E0-A8FF;
+}
+@font-face {
+  font-family: 'Baloo 2';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('/fonts/baloo-2-devanagari-800.woff2') format('woff2');
+  unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+20F0, U+25CC, U+A830-A839, U+A8E0-A8FF;
+}
+
+/* The landing screen brings its own header, so the compact app bar is hidden here. */
+.app-landing-active .native-top-bar {
+  display: none;
+}
+
+.app-landing {
+  --landing-bg: #0E5E3E;
+  --landing-ring-1: #11704B;
+  --landing-ring-2: #14825A;
+  --landing-mint: #CDEBDC;
+  --landing-saffron: #FFB766;
+  --landing-ink: #12352A;
+  --landing-display: 'Baloo 2', 'Noto Sans Gujarati', 'Noto Sans Devanagari', 'Nirmala UI', sans-serif;
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--native-tab-height, 56px) - var(--sab, 0px));
+  padding-top: var(--sat, 0px);
+  background: var(--landing-bg);
+  color: #FFFFFF;
+  font-family: var(--landing-display);
+}
+
+.app-landing-ring {
+  position: absolute;
+  left: 50%;
+  border-radius: 50%;
+  z-index: -1;
+  pointer-events: none;
+}
+.app-landing-ring-outer {
+  width: 164vw;
+  height: 164vw;
+  bottom: -66vw;
+  margin-left: -82vw;
+  background: var(--landing-ring-1);
+}
+.app-landing-ring-inner {
+  width: 120vw;
+  height: 120vw;
+  bottom: -46vw;
+  margin-left: -60vw;
+  background: var(--landing-ring-2);
+}
+
+/* Header */
+.app-landing-header {
+  height: 68px;
+  padding: 0 16px 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.app-landing-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.app-landing-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: #FFFFFF;
+  color: var(--landing-bg);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 23px;
+  line-height: 1;
+}
+.app-landing-name {
+  font-weight: 800;
+  font-size: 25px;
+  letter-spacing: -0.4px;
+}
+.app-landing-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.app-landing-lang {
+  height: 36px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #FFFFFF;
+  font: 700 14px/1 var(--landing-display);
+  cursor: pointer;
+}
+.app-landing-bag {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  color: #FFFFFF;
+  cursor: pointer;
+}
+.app-landing-bag-count {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--landing-saffron);
+  color: var(--landing-ink);
+  font: 800 11px/18px var(--landing-display);
+  text-align: center;
+}
+
+/* Headline */
+.app-landing-title {
+  margin: 0;
+  color: #FFFFFF;
+  font-family: var(--landing-display);
+  font-size: inherit;
+  letter-spacing: normal;
+  padding: 34px 20px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.app-landing-first {
+  color: var(--landing-mint);
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--landing-mint);
+}
+.app-landing-india {
+  margin-top: 2px;
+  padding-left: 4px;
+  font-weight: 800;
+  font-size: clamp(76px, 23.5vw, 96px);
+  line-height: 0.86;
+  letter-spacing: -1px;
+}
+.app-landing-tricolour {
+  display: flex;
+  width: 214px;
+  height: 10px;
+  margin-top: 6px;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+.app-landing-tricolour span {
+  flex: 1;
+}
+.app-landing-tricolour span:nth-child(1) {
+  background: #FF9933;
+  border-radius: 999px 0 0 999px;
+}
+.app-landing-tricolour span:nth-child(2) {
+  background: #FFFFFF;
+}
+.app-landing-tricolour span:nth-child(3) {
+  background: #138808;
+  border-radius: 0 999px 999px 0;
+}
+.app-landing-sub {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-weight: 800;
+  font-size: clamp(26px, 7.7vw, 30px);
+  line-height: 1.08;
+  letter-spacing: -0.4px;
+}
+.app-landing-accent {
+  color: var(--landing-saffron);
+}
+
+/* Characters */
+.app-landing-stage {
+  position: relative;
+  flex: 1;
+  min-height: 250px;
+}
+.app-landing-kids {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  height: min(330px, calc(100% - 20px));
+  width: auto;
+  transform: translateX(-50%);
+  object-fit: contain;
+  animation: app-landing-float 5s ease-in-out infinite;
+}
+.app-landing-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  width: 250px;
+  height: 22px;
+  margin-left: -125px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.22);
+}
+.app-landing-sparkle {
+  position: absolute;
+  animation: app-landing-twinkle 3s ease-in-out infinite;
+}
+
+/* Search */
+.app-landing-search {
+  display: flex;
+  gap: 10px;
+  padding: 14px 20px 24px;
+}
+.app-landing-search-field {
+  flex: 1;
+  min-width: 0;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 18px;
+  background: #FFFFFF;
+  color: #4A5B54;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25);
+  font: 700 18px/1 var(--landing-display);
+  text-align: left;
+  cursor: pointer;
+}
+.app-landing-search-field svg {
+  flex: none;
+  color: var(--landing-bg);
+}
+.app-landing-search-field span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.app-landing-search-go {
+  width: 60px;
+  height: 60px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 18px;
+  background: var(--landing-saffron);
+  color: var(--landing-ink);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+.app-landing-search-field:active,
+.app-landing-search-go:active {
+  transform: scale(0.98);
+}
+.app-landing button:focus-visible {
+  outline: 3px solid var(--landing-saffron);
+  outline-offset: 2px;
+}
+
+@keyframes app-landing-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -6px; }
+}
+@keyframes app-landing-twinkle {
+  0%, 100% { opacity: 0.35; scale: 0.8; }
+  50% { opacity: 1; scale: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-landing-kids,
+  .app-landing-sparkle {
+    animation: none;
+  }
+}

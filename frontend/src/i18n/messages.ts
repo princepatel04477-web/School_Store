@@ -62,6 +62,19 @@ export const messages = {
   'nav.help': { en: 'Help', gu: 'મદદ', hi: 'मदद' },
   'nav.needHelp': { en: 'Need help? Call', gu: 'મદદ જોઈએ? ફોન કરો', hi: 'मदद चाहिए? फ़ोन करें' },
 
+  // ---------- app landing (first screen of the Android/iOS app) ----------
+  // "INDIA" stays in English in every language: it is the tricolour headline.
+  'landing.firstTime': { en: 'First time in', gu: 'પહેલી વાર', hi: 'पहली बार' },
+  'landing.line1': { en: 'All school', gu: 'બધો સ્કૂલ યુનિફોર્મ', hi: 'सारी स्कूल यूनिफ़ॉर्म' },
+  'landing.line2': { en: 'uniform & accessories,', gu: 'અને એક્સેસરીઝ,', hi: 'और एक्सेसरीज़,' },
+  'landing.line3': { en: 'at your doorstep.', gu: 'તમારા ઘર સુધી.', hi: 'आपके घर तक।' },
+  'landing.search': { en: 'Find your school', gu: 'તમારી શાળા શોધો', hi: 'अपना स्कूल खोजें' },
+  'landing.imageAlt': {
+    en: 'A smiling girl and boy in school uniform',
+    gu: 'સ્કૂલ યુનિફોર્મમાં હસતી છોકરી અને છોકરો',
+    hi: 'स्कूल यूनिफ़ॉर्म में मुस्कुराती लड़की और लड़का',
+  },
+
   // ---------- home ----------
   'home.heroLine1': { en: 'Everything your school asks for.', gu: 'શાળાએ કહેલી બધી વસ્તુ.', hi: 'स्कूल की बताई हर चीज़।' },
   'home.heroLine2': { en: 'One order.', gu: 'એક જ ઓર્ડરમાં.', hi: 'एक ही ऑर्डर में।' },
