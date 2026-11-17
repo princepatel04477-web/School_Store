@@ -141,6 +141,33 @@ describe('HomeHero (P1 Emerald Stage)', () => {
     expect(fontSize).toBeGreaterThanOrEqual(16);
   });
 
+  it('renders clean picture element with avif, webp sources and clean png img', () => {
+    const { container } = renderHomeHero();
+    const img = container.querySelector('img.emerald-kids-img') as HTMLImageElement;
+    expect(img).toBeTruthy();
+    expect(img.getAttribute('src')).toBe('/brand/kids-uniform.clean.png');
+    expect(img.getAttribute('alt')).toBe('Two smiling children in school uniform');
+    expect(img.getAttribute('decoding')).toBe('async');
+
+    const sources = container.querySelectorAll('picture source');
+    expect(sources.length).toBe(2);
+    expect(sources[0].getAttribute('type')).toBe('image/avif');
+    expect(sources[0].getAttribute('srcset')).toBe('/brand/kids-uniform.clean.avif');
+    expect(sources[1].getAttribute('type')).toBe('image/webp');
+    expect(sources[1].getAttribute('srcset')).toBe('/brand/kids-uniform.clean.webp');
+  });
+
+  it('renders stage with concentric circles, tricolour pill, and 4 sparkles', () => {
+    const { container } = renderHomeHero();
+    expect(container.querySelector('.emerald-circle-outer')).toBeTruthy();
+    expect(container.querySelector('.emerald-circle-inner')).toBeTruthy();
+    expect(container.querySelector('.emerald-tricolour-pill')).toBeTruthy();
+    expect(container.querySelector('.emerald-ground-shadow')).toBeTruthy();
+
+    const sparkles = container.querySelectorAll('.emerald-sparkle');
+    expect(sparkles.length).toBe(4);
+  });
+
   it('with reduced motion on, looping animations are not rendered', () => {
     reducedMotionValue = true;
     const { container } = renderHomeHero();

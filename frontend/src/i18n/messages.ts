@@ -89,9 +89,9 @@ export const messages = {
     hi: 'अपना स्कूल खोजें',
   },
   'home.emerald.kidsAlt': {
-    en: 'School students in uniform',
-    gu: 'યુનિફોર્મમાં સ્કૂલના બાળકો',
-    hi: 'यूनिफॉर्म में स्कूल के बच्चे',
+    en: 'Two smiling children in school uniform',
+    gu: 'સ્કૂલ યુનિફોર્મમાં બે હસતા બાળકો',
+    hi: 'स्कूल यूनिफॉर्म में दो मुस्कुराते बच्चे',
   },
   'home.emerald.searchLabel': {
     en: 'Search your school',
