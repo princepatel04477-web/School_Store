@@ -110,6 +110,9 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
             <Link to="/help" className="utility-link">
               {t('nav.help')}
             </Link>
+            <Link to="/about" className="utility-link">
+              {t('foot.company')}
+            </Link>
             {siteConfig.supportPhone && (
               <span className="utility-phone">
                 {t('nav.needHelp')}{' '}
@@ -270,6 +273,9 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
               </Link>
               <Link to="/help" className="sheet-secondary-item" onClick={closeMenu}>
                 {t('nav.help')}
+              </Link>
+              <Link to="/about" className="sheet-secondary-item" onClick={closeMenu}>
+                {t('foot.company')}
               </Link>
               {user ? (
                 <Link to="/parent" className="sheet-secondary-item" onClick={closeMenu}>

@@ -57,6 +57,12 @@ class PublicCatalogTests(TestCase):
         self.assertEqual(dps["home_delivery"], self.dps.home_delivery_enabled)
         self.assertEqual(dps["school_pickup"], self.dps.school_pickup_enabled)
 
+    def test_public_schools_say_whether_a_logo_exists(self):
+        School.objects.filter(pk=self.dps.pk).update(logo="school-logos/2026/11/dps.png")
+        schools = {s["code"]: s for s in APIClient().get("/api/public/schools/").json()}
+        self.assertIs(schools["DPS-SUR"]["has_logo"], True)
+        self.assertTrue(all(s["has_logo"] is False for code, s in schools.items() if code != "DPS-SUR"))
+
     def test_public_step_school_cities(self):
         res = APIClient().get(f"/api/public/schools/{self.dps.id}/cities/")
         self.assertEqual(res.status_code, 200)

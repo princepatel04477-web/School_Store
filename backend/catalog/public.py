@@ -72,9 +72,11 @@ class PublicSchoolListView(APIView):
                 "city_name": s.city.name if s.city_id else "",
                 "home_delivery": s.home_delivery_enabled,
                 "school_pickup": s.school_pickup_enabled,
+                # The logo itself is served by /public/schools/<id>/logo/.
+                "has_logo": bool(s.logo),
             }
             for s in qs.only(
-                "id", "name", "code", "home_delivery_enabled", "school_pickup_enabled", "city__id", "city__name"
+                "id", "name", "code", "logo", "home_delivery_enabled", "school_pickup_enabled", "city__id", "city__name"
             )
         ]
 

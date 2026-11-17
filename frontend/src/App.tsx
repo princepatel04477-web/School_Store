@@ -25,6 +25,9 @@ const HomePage = lazy(() =>
 const SelectionFlowPage = lazy(() =>
   import('./pages/SelectionFlowPage').then((m) => ({ default: m.SelectionFlowPage }))
 );
+const AboutPage = lazy(() =>
+  import('./pages/AboutPage').then((m) => ({ default: m.AboutPage }))
+);
 const CheckoutPage = lazy(() =>
   import('./pages/CheckoutPage').then((m) => ({ default: m.CheckoutPage }))
 );
@@ -131,7 +134,7 @@ export default function App() {
               <Route path="/checkout" element={<CheckoutPage />} />
 
               {/* Informational pages */}
-              <Route path="/about" element={<ComingSoonPage title="About SchoolStore" />} />
+              <Route path="/about" element={<AboutPage />} />
               <Route path="/for-schools" element={<ComingSoonPage title="For Partner Schools" />} />
               <Route path="/contact" element={<ComingSoonPage title="Contact Us" />} />
               <Route path="/help" element={<ComingSoonPage title="Help & FAQs" />} />
