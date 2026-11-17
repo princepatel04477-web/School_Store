@@ -5,6 +5,7 @@ import { api, type Order } from '../../api';
 import { useAuth } from '../../auth';
 import { Truck } from '../../components/ui/icons';
 import { Timeline } from '../../components/Store';
+import { FitFeedbackPrompt } from '../../components/orders/FitFeedbackPrompt';
 import { ParentSignInSheet } from '../../components/parent/ParentSignInSheet';
 import { PullToRefresh } from '../../components/native/PullToRefresh';
 import { shareOrderDetails } from '../../native/share';
@@ -111,6 +112,15 @@ export function OrdersTab() {
                 <div className="native-timeline-wrapper">
                   <Timeline order={o} />
                 </div>
+                <FitFeedbackPrompt
+                  orderId={o.id}
+                  orderStatus={o.status}
+                  orderCreatedAt={o.created_at}
+                  items={(o as any).items}
+                  onFeedbackSubmitted={() =>
+                    queryClient.invalidateQueries({ queryKey: ['native-orders'] })
+                  }
+                />
               </article>
             ))}
           </div>

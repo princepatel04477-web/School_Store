@@ -254,6 +254,103 @@ def fetch_training_data() -> tuple[list[TrainingSample], int, int]:
         )
         n_real += 1
 
+    # 1c. "Fits well" feedback lines from OrderItem (Prompt 9: weak sample, weight 0.5)
+    from orders.models import OrderItem
+    fits_well_items = OrderItem.objects.filter(
+        fit_feedback="FITS_WELL",
+        fit_height_cm__isnull=False,
+        fit_weight_kg__isnull=False,
+    ).select_related("variant__product", "order")
+
+    for oi in fits_well_items:
+        h = float(oi.fit_height_cm)
+        w = float(oi.fit_weight_kg)
+        if not (float(HEIGHT_MIN) <= h <= float(HEIGHT_MAX)):
+            continue
+        if not (float(WEIGHT_MIN) <= w <= float(WEIGHT_MAX)):
+            continue
+
+        chart_row = SizeChartRow.objects.filter(
+            variant=oi.variant,
+            shoulder_cm_min__isnull=False,
+            shoulder_cm_max__isnull=False,
+        ).first()
+
+        if chart_row:
+            s = (float(chart_row.shoulder_cm_min) + float(chart_row.shoulder_cm_max)) / 2.0
+            if float(SHOULDER_MIN) <= s <= float(SHOULDER_MAX):
+                bmi = w / ((h / 100.0) ** 2)
+                prod = getattr(oi.variant, "product", None)
+                prod_gender = getattr(prod, "gender", "") if prod else ""
+                fem = is_female_gender(prod_gender)
+                gender_key = "girl" if fem == 1.0 else ("boy" if fem == 0.0 else "unisex")
+                c_idx = get_class_index(getattr(oi.order, "student_class", ""))
+
+                samples.append(
+                    TrainingSample(
+                        height_cm=h,
+                        weight_kg=w,
+                        shoulder_cm=s,
+                        bmi=bmi,
+                        is_female=fem,
+                        class_index=c_idx,
+                        weight=0.5,
+                        is_real=True,
+                        gender_key=gender_key,
+                    )
+                )
+                n_real += 1
+
+    # 1d. "Fits well" feedback lines from anonymised SizingSample (weight 0.5)
+    sizing_fits_well = SizingSample.objects.filter(
+        fit_feedback="FITS_WELL",
+        height_cm__isnull=False,
+        weight_kg__isnull=False,
+    ).select_related("product")
+
+    for ss in sizing_fits_well:
+        h = float(ss.height_cm)
+        w = float(ss.weight_kg)
+        if not (float(HEIGHT_MIN) <= h <= float(HEIGHT_MAX)):
+            continue
+        if not (float(WEIGHT_MIN) <= w <= float(WEIGHT_MAX)):
+            continue
+
+        target_size = ss.final_size or ss.chosen_size
+        if not target_size or not ss.product:
+            continue
+
+        chart_row = SizeChartRow.objects.filter(
+            variant__product=ss.product,
+            variant__size=target_size,
+            shoulder_cm_min__isnull=False,
+            shoulder_cm_max__isnull=False,
+        ).first()
+
+        if chart_row:
+            s = (float(chart_row.shoulder_cm_min) + float(chart_row.shoulder_cm_max)) / 2.0
+            if float(SHOULDER_MIN) <= s <= float(SHOULDER_MAX):
+                bmi = w / ((h / 100.0) ** 2)
+                prod_gender = getattr(ss.product, "gender", "") if ss.product else ""
+                fem = is_female_gender(prod_gender)
+                gender_key = "girl" if fem == 1.0 else ("boy" if fem == 0.0 else "unisex")
+                c_idx = get_class_index(ss.student_class)
+
+                samples.append(
+                    TrainingSample(
+                        height_cm=h,
+                        weight_kg=w,
+                        shoulder_cm=s,
+                        bmi=bmi,
+                        is_female=fem,
+                        class_index=c_idx,
+                        weight=0.5,
+                        is_real=True,
+                        gender_key=gender_key,
+                    )
+                )
+                n_real += 1
+
     # Compute median BMI of real data if available, else standard 16.5
     real_bmis = [s.bmi for s in samples if s.is_real]
     median_bmi = 16.5
@@ -772,3 +869,208 @@ def recommend_size_from_estimate(
         "reason": reason,
         "model_version": version,
     }
+
+
+def check_size_chart_biases() -> list[dict]:
+    """
+    Check if > 15% of answers for a school/class/gender chart say "TOO_TIGHT" (Prompt 9).
+    Flags that chart ("Customers find this chart runs small") in the admin panel for human review.
+    Does not change charts automatically.
+    """
+    from collections import defaultdict
+    from orders.models import OrderItem
+    from catalog.models import SizingSample
+
+    chart_stats: dict[tuple, dict] = defaultdict(
+        lambda: {"too_tight": 0, "fits_well": 0, "too_loose": 0, "total": 0}
+    )
+
+    # 1. OrderItems with feedback
+    items = OrderItem.objects.filter(
+        fit_feedback__in=["TOO_TIGHT", "FITS_WELL", "TOO_LOOSE"]
+    ).select_related("order__school", "variant__product")
+
+    for oi in items:
+        school_name = oi.order.school.name if oi.order and oi.order.school else "General"
+        student_class = oi.order.student_class if oi.order else ""
+        prod = oi.variant.product if oi.variant else None
+        prod_gender = prod.gender if prod else "unisex"
+        prod_name = prod.name if prod else "Uniform"
+
+        key = (school_name, student_class, prod_gender, prod_name)
+        fb = oi.fit_feedback
+        if fb == "TOO_TIGHT":
+            chart_stats[key]["too_tight"] += 1
+        elif fb == "FITS_WELL":
+            chart_stats[key]["fits_well"] += 1
+        elif fb == "TOO_LOOSE":
+            chart_stats[key]["too_loose"] += 1
+        chart_stats[key]["total"] += 1
+
+    # 2. SizingSamples with feedback
+    samples = SizingSample.objects.filter(
+        fit_feedback__in=["TOO_TIGHT", "FITS_WELL", "TOO_LOOSE"]
+    ).select_related("product__school")
+
+    for ss in samples:
+        school_name = ss.product.school.name if ss.product and ss.product.school else "General"
+        student_class = ss.student_class or ""
+        prod = ss.product
+        prod_gender = prod.gender if prod else "unisex"
+        prod_name = prod.name if prod else "Uniform"
+
+        key = (school_name, student_class, prod_gender, prod_name)
+        fb = ss.fit_feedback
+        if fb == "TOO_TIGHT":
+            chart_stats[key]["too_tight"] += 1
+        elif fb == "FITS_WELL":
+            chart_stats[key]["fits_well"] += 1
+        elif fb == "TOO_LOOSE":
+            chart_stats[key]["too_loose"] += 1
+        chart_stats[key]["total"] += 1
+
+    flagged = []
+    for (school_name, student_class, prod_gender, prod_name), counts in sorted(chart_stats.items()):
+        total = counts["total"]
+        if total == 0:
+            continue
+        too_tight_pct = (counts["too_tight"] / total) * 100.0
+        if too_tight_pct > 15.0:
+            cls_part = f" - Class {student_class}" if student_class else ""
+            chart_label = f"{school_name}{cls_part} - {prod_gender.title()} ({prod_name})"
+            flagged.append({
+                "school_name": school_name,
+                "student_class": student_class,
+                "gender": prod_gender,
+                "product_name": prod_name,
+                "chart_key": chart_label,
+                "total_answers": total,
+                "too_tight_count": counts["too_tight"],
+                "too_tight_pct": round(too_tight_pct, 1),
+                "flag": "Customers find this chart runs small",
+            })
+
+    return flagged
+
+
+def get_size_advice_accuracy_report() -> dict:
+    """
+    Metrics for the Boss/Admin "Size advice accuracy" card (Prompt 9):
+    - answers_this_season
+    - fits_well_total, fits_well_pct
+    - by_source: {estimate: {total, fits_well, fits_well_pct}, camera: ..., tape: ...}
+    - by_confidence: {high: {total, fits_well, fits_well_pct}, medium: ..., low: ...}
+    - flagged_charts: list of flagged charts
+    """
+    from orders.models import OrderItem
+    from catalog.models import SizingSample
+
+    items = list(
+        OrderItem.objects.filter(
+            fit_feedback__in=["TOO_TIGHT", "FITS_WELL", "TOO_LOOSE"]
+        ).select_related("order__school", "variant__product")
+    )
+    samples = list(
+        SizingSample.objects.filter(
+            fit_feedback__in=["TOO_TIGHT", "FITS_WELL", "TOO_LOOSE"]
+        ).select_related("product__school")
+    )
+
+    total_answers = len(items) + len(samples)
+    fits_well_total = (
+        sum(1 for i in items if i.fit_feedback == "FITS_WELL")
+        + sum(1 for s in samples if s.fit_feedback == "FITS_WELL")
+    )
+    fits_well_pct = round((fits_well_total / total_answers) * 100.0, 1) if total_answers > 0 else 0.0
+
+    def resolve_source(record) -> str:
+        src = getattr(record, "fit_source", "") or ""
+        src = src.upper()
+        if src == "ESTIMATE":
+            return "estimate"
+        if src == "CAMERA":
+            return "camera"
+        if src in ("MANUAL", "TAPE"):
+            return "tape"
+
+        conf = getattr(record, "fit_shoulder_confidence", None) or getattr(record, "shoulder_confidence", None)
+        shoulder = getattr(record, "fit_shoulder_cm", None) or getattr(record, "shoulder_cm", None)
+        if conf is not None:
+            return "camera"
+        if shoulder is not None:
+            return "tape"
+        return "estimate"
+
+    def resolve_confidence(record) -> str:
+        conf = getattr(record, "fit_shoulder_confidence", None) or getattr(record, "shoulder_confidence", None)
+        status = getattr(record, "recommendation_status", "")
+        if conf is not None:
+            c = float(conf)
+            if c >= 0.70:
+                return "high"
+            if c >= 0.50:
+                return "medium"
+            return "low"
+        if status:
+            s = status.upper()
+            if "HIGH" in s or s == "FIT":
+                return "high"
+            if "MEDIUM" in s or s == "BETWEEN":
+                return "medium"
+            if "LOW" in s or "CHART" in s:
+                return "low"
+        return "medium"
+
+    source_buckets = {
+        "estimate": {"total": 0, "fits_well": 0},
+        "camera": {"total": 0, "fits_well": 0},
+        "tape": {"total": 0, "fits_well": 0},
+    }
+    confidence_buckets = {
+        "high": {"total": 0, "fits_well": 0},
+        "medium": {"total": 0, "fits_well": 0},
+        "low": {"total": 0, "fits_well": 0},
+    }
+
+    for record in items + samples:
+        src = resolve_source(record)
+        conf = resolve_confidence(record)
+        is_ok = (record.fit_feedback == "FITS_WELL")
+
+        if src in source_buckets:
+            source_buckets[src]["total"] += 1
+            if is_ok:
+                source_buckets[src]["fits_well"] += 1
+
+        if conf in confidence_buckets:
+            confidence_buckets[conf]["total"] += 1
+            if is_ok:
+                confidence_buckets[conf]["fits_well"] += 1
+
+    by_source = {
+        k: {
+            "total": v["total"],
+            "fits_well": v["fits_well"],
+            "fits_well_pct": round((v["fits_well"] / v["total"]) * 100.0, 1) if v["total"] > 0 else 0.0,
+        }
+        for k, v in source_buckets.items()
+    }
+
+    by_confidence = {
+        k: {
+            "total": v["total"],
+            "fits_well": v["fits_well"],
+            "fits_well_pct": round((v["fits_well"] / v["total"]) * 100.0, 1) if v["total"] > 0 else 0.0,
+        }
+        for k, v in confidence_buckets.items()
+    }
+
+    return {
+        "answers_this_season": total_answers,
+        "fits_well_total": fits_well_total,
+        "fits_well_pct": fits_well_pct,
+        "by_source": by_source,
+        "by_confidence": by_confidence,
+        "flagged_charts": check_size_chart_biases(),
+    }
+

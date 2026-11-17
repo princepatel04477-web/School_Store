@@ -176,3 +176,77 @@ def send_order_push(order_id: str, status_or_event: str) -> dict:
     except Exception as exc:
         logger.error("Error sending FCM notification for order %s: %s", order.id, exc)
         return {"status": "error", "error": str(exc)}
+
+
+def send_fit_feedback_push(order: Order, size: str) -> dict:
+    """
+    Send a push notification 5 days after delivery asking:
+    'How did size {size} fit?' (Prompt 9).
+    Respects user opt-out and contains NO child body measurements.
+    """
+    recipient = order.parent or order.placed_by or order.payer
+    if not recipient:
+        return {"status": "no_recipient"}
+
+    if not getattr(recipient, "notify_order_updates", True):
+        logger.info("Push notification skipped: User %s opted out of order updates.", recipient.id)
+        return {"status": "opted_out", "user_id": str(recipient.id)}
+
+    tokens = list(
+        DeviceToken.objects.filter(user=recipient).values_list("token", flat=True)
+    )
+    if not tokens:
+        return {"status": "no_tokens", "user_id": str(recipient.id)}
+
+    title = "How did the size fit?"
+    body = f"How did size {size} fit for order {order.order_number}? Let us know with one tap."
+    data = {
+        "order_id": str(order.id),
+        "order_number": str(order.order_number),
+        "type": "fit_feedback",
+        "url": f"/orders/{order.id}",
+        "click_action": "FLUTTER_NOTIFICATION_CLICK",
+    }
+
+    app = get_firebase_app()
+    if app is None:
+        logger.info(
+            "FCM credentials not configured. Simulating fit feedback push for order %s to %d devices: %s",
+            order.order_number,
+            len(tokens),
+            body,
+        )
+        return {
+            "status": "simulated",
+            "title": title,
+            "body": body,
+            "device_count": len(tokens),
+            "tokens": tokens,
+        }
+
+    try:
+        from firebase_admin import messaging
+
+        message = messaging.MulticastMessage(
+            notification=messaging.Notification(title=title, body=body),
+            data=data,
+            tokens=tokens,
+            android=messaging.AndroidConfig(
+                priority="normal",
+                notification=messaging.AndroidNotification(
+                    icon="ic_stat_notify",
+                    color="#2F5D50",
+                    click_action="OPEN_ORDER_DETAIL",
+                ),
+            ),
+        )
+        response = messaging.send_each_for_multicast(message, app=app)
+        return {
+            "status": "sent",
+            "success_count": response.success_count,
+            "failure_count": response.failure_count,
+        }
+    except Exception as exc:
+        logger.exception("Failed to send fit feedback push for order %s: %s", order.id, exc)
+        return {"status": "error", "error": str(exc)}
+

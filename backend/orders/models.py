@@ -232,6 +232,20 @@ class OrderItem(UUIDModel):
     recommendation_status = models.CharField(max_length=20, blank=True, default="")
     chosen_size = models.CharField(max_length=50, blank=True, default="")
 
+    class FitFeedback(models.TextChoices):
+        TOO_TIGHT = "TOO_TIGHT", "Too tight"
+        FITS_WELL = "FITS_WELL", "Fits well"
+        TOO_LOOSE = "TOO_LOOSE", "Too loose"
+
+    fit_feedback = models.CharField(
+        max_length=12,
+        choices=FitFeedback.choices,
+        blank=True,
+        default="",
+        help_text="Parent fit feedback: TOO_TIGHT, FITS_WELL, TOO_LOOSE.",
+    )
+    fit_feedback_answered_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         indexes = [
             models.Index(fields=["order"], name="idx_orderitem_order"),
@@ -317,6 +331,21 @@ class OrderItemExchange(UUIDModel):
 
     def __str__(self) -> str:
         return f"{self.order_item} {self.from_size} -> {self.to_size} ({self.reason})"
+
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding
+        super().save(*args, **kwargs)
+        if is_new and self.order_item_id:
+            item = self.order_item
+            if self.reason == self.Reason.TOO_SMALL:
+                item.fit_feedback = OrderItem.FitFeedback.TOO_TIGHT
+                item.fit_feedback_answered_at = self.created_at or timezone.now()
+                item.save(update_fields=["fit_feedback", "fit_feedback_answered_at"])
+            elif self.reason == self.Reason.TOO_BIG:
+                item.fit_feedback = OrderItem.FitFeedback.TOO_LOOSE
+                item.fit_feedback_answered_at = self.created_at or timezone.now()
+                item.save(update_fields=["fit_feedback", "fit_feedback_answered_at"])
+
 
 
 class OrderStatusEvent(UUIDModel):

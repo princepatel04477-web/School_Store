@@ -104,3 +104,44 @@ def send_order_status_push(order_id, status_or_event):
 
     return send_order_push(str(order_id), status_or_event)
 
+
+@shared_task(name="orders.send_post_delivery_fit_prompts")
+def send_post_delivery_fit_prompts():
+    """
+    Daily task (Prompt 9):
+    5 days after an order with a fitted item is delivered (or picked up),
+    send one push notification asking 'How did size {size} fit?'.
+    Respects opt-out via send_fit_feedback_push.
+    """
+    from datetime import timedelta
+    from .fcm import send_fit_feedback_push
+
+    now = timezone.now()
+    window_start = now - timedelta(days=6)
+    window_end = now - timedelta(days=5)
+
+    delivered_events = OrderStatusEvent.objects.filter(
+        status=Order.Status.DELIVERED,
+        created_at__gte=window_start,
+        created_at__lte=window_end,
+    ).select_related("order", "order__parent")
+
+    count = 0
+    for event in delivered_events:
+        order = event.order
+        fitted_items = order.items.filter(
+            fit_feedback="",
+        ).exclude(recommended_size="").exclude(chosen_size="")
+
+        if not fitted_items.exists():
+            continue
+
+        item = fitted_items.first()
+        size = item.chosen_size or item.recommended_size or (item.variant.size if item.variant else "")
+        res = send_fit_feedback_push(order, size)
+        if res.get("status") in ("sent", "simulated"):
+            count += 1
+
+    return count
+
+

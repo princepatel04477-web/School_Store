@@ -338,6 +338,12 @@ class SizingSample(UUIDModel):
         default="",
         help_text="TOO_SMALL / TOO_BIG from the last size exchange, NOT_SIZE, or blank.",
     )
+    fit_feedback = models.CharField(
+        max_length=12,
+        blank=True,
+        default="",
+        help_text="TOO_TIGHT, FITS_WELL, TOO_LOOSE copied on anonymisation.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

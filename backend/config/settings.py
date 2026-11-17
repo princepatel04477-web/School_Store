@@ -287,6 +287,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "catalog.retrain_shoulder_model",
         "schedule": crontab(hour=3, minute=0, day_of_week=0),  # Sunday 03:00 IST
     },
+    "send-post-delivery-fit-prompts": {
+        "task": "orders.send_post_delivery_fit_prompts",
+        "schedule": crontab(hour=10, minute=30),  # Daily 10:30 IST
+    },
 }
 
 # Django REST Framework & JWT Authentication
