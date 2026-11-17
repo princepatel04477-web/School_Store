@@ -33,7 +33,26 @@ window.setTimeout(() => {
   }
 }, 15000);
 
+import { initNetworkMonitoring } from './native/network';
+import { persistOfflineCatalogue, restoreOfflineCatalogue } from './native/offlineCache';
+
 const client = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: 1 } } });
+
+// Restore cached catalogue queries from device storage
+restoreOfflineCatalogue(client);
+
+// Network monitoring: invalidate queries to refetch fresh data on reconnect
+initNetworkMonitoring(() => {
+  client.invalidateQueries();
+});
+
+// Auto-persist allow-listed catalogue queries when queries successfully resolve
+client.getQueryCache().subscribe((event) => {
+  if (event?.type === 'updated' && event.action?.type === 'success') {
+    persistOfflineCatalogue(client);
+  }
+});
+
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={client}>

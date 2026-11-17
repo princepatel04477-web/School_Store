@@ -56,6 +56,9 @@ import { useStoreState } from './store/storeState';
 import { checkAppVersion } from './native/appVersion';
 import { UpdatePrompt } from './components/native/UpdatePrompt';
 import { initPushNotifications } from './native/push';
+import { OfflineBanner } from './components/native/OfflineBanner';
+import { OfflineScreen } from './components/native/OfflineScreen';
+import { useNetworkStatus } from './native/network';
 
 export const homeFor = (role?: string) =>
   role === 'BOSS'
@@ -97,6 +100,21 @@ export default function App() {
   useSchoolTheme(!isPortal);
 
   const [updateRequired, setUpdateRequired] = useState<{ url: string; version: string } | null>(null);
+  const network = useNetworkStatus();
+  const [offlineEmpty, setOfflineEmpty] = useState(false);
+
+  useEffect(() => {
+    if (!network.connected) {
+      const hasSelection = Boolean(localStorage.getItem('schoolstore_active_selection'));
+      const hasCart = Boolean(localStorage.getItem('schoolstore_cart'));
+      const hasCatalogueCache = Boolean(localStorage.getItem('schoolstore_offline_query_cache_v1'));
+      if (!hasSelection && !hasCart && !hasCatalogueCache) {
+        setOfflineEmpty(true);
+      }
+    } else {
+      setOfflineEmpty(false);
+    }
+  }, [network.connected]);
 
   useEffect(() => {
     hideSplashScreen();
@@ -148,10 +166,15 @@ export default function App() {
   const isNative = isNativeApp();
   const { totalCount } = useStoreState();
 
+  if (offlineEmpty) {
+    return <OfflineScreen onRetry={() => window.location.reload()} />;
+  }
+
   return (
     <ErrorBoundary>
       <SmoothScroll>
         <div className={`store-application-root ${isNative ? 'is-native-shell' : ''}`}>
+        <OfflineBanner />
         {/* Render Native Navigation (Top Bar and Bottom Tab Bar) when in native app */}
         {isNative && (
           <NativeNavigation

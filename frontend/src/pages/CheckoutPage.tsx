@@ -16,6 +16,8 @@ import { ParentSignInSheet } from '../components/parent/ParentSignInSheet';
 import { scrollPageTo } from '../motion/SmoothScroll';
 import { isNativeApp } from '../native/nativePlatform';
 import { requestPushPermissionAfterOrder } from '../native/push';
+import { useNetworkStatus } from '../native/network';
+import { revalidateCart } from '../native/cartRevalidate';
 import '../components/cart/bagCheckout.css';
 
 /**
@@ -29,6 +31,8 @@ export function CheckoutPage() {
   const navigate = useNavigate();
   const { cart, subtotalPaise, clearCart, selection } = useStoreState();
   const { t } = useLang();
+  const network = useNetworkStatus();
+  const isOnline = network.connected;
 
   const [activeStep, setActiveStep] = useState<number>(1);
   const [mode, setMode] = useState<'account' | 'whatsapp'>('account');
@@ -133,9 +137,30 @@ export function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     if (!child || placing) return;
+    if (!isOnline) {
+      setOrderError('Connect to the internet to place your order.');
+      return;
+    }
     setOrderError('');
     setPlacing(true);
     setRetrying(false);
+
+    // Re-check prices and stock with server before completing checkout
+    const diff = await revalidateCart(cart);
+    if (diff.hasChanges) {
+      if (diff.priceChanges.length > 0) {
+        const itemNames = diff.priceChanges.map((p) => p.item.name).join(', ');
+        setOrderError(`Prices have changed for: ${itemNames}. Please review your bag before placing.`);
+        setPlacing(false);
+        return;
+      }
+      if (diff.stockChanges.length > 0) {
+        const itemNames = diff.stockChanges.map((s) => s.item.name).join(', ');
+        setOrderError(`The following items are currently out of stock: ${itemNames}. Please update your bag.`);
+        setPlacing(false);
+        return;
+      }
+    }
     const contact = { recipient_name: parentName.trim(), phone: parentMobile };
     const payload = prepareOrder({
       student: child.id,
@@ -627,10 +652,12 @@ export function CheckoutPage() {
                       type="button"
                       className="btn btn-primary pay-now-btn"
                       onClick={handlePlaceOrder}
-                      disabled={placing}
+                      disabled={placing || !isOnline}
                       aria-busy={placing}
                     >
-                      {placing
+                      {!isOnline
+                        ? 'Connect to the internet to place your order'
+                        : placing
                         ? retrying
                           ? t('co.retrying')
                           : t('co.placing')
