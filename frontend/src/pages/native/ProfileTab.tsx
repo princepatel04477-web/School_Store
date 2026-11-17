@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, deleteChildPhotos } from '../../api';
 import { useAuth } from '../../auth';
 import { useLang, LANGUAGES } from '../../i18n';
-import { User, ShieldCheck, SignOut, ChevronRight } from '../../components/ui/icons';
+import { User, ShieldCheck, SignOut, ChevronRight, RefreshCw } from '../../components/ui/icons';
 import { ParentSignInSheet } from '../../components/parent/ParentSignInSheet';
+import { isBiometricsEnabled, enableBiometrics, clearBiometrics } from '../../native/biometrics';
+import { checkAppVersion, INSTALLED_APP_VERSION, type VersionCheckResult } from '../../native/appVersion';
+import { openExternalUrl } from '../../native/externalLinks';
+import { haptic } from '../../native/haptics';
 import './nativePages.css';
 
 export function ProfileTab() {
@@ -14,6 +18,42 @@ export function ProfileTab() {
   const navigate = useNavigate();
   const [showSignIn, setShowSignIn] = useState(false);
   const [photoDeleteStatus, setPhotoDeleteStatus] = useState<'idle' | 'working' | 'done' | 'error'>('idle');
+  const [biometricsActive, setBiometricsActive] = useState(false);
+  const [versionChecking, setVersionChecking] = useState(false);
+  const [versionResult, setVersionResult] = useState<VersionCheckResult | null>(null);
+
+  useEffect(() => {
+    isBiometricsEnabled().then((enabled) => setBiometricsActive(enabled));
+  }, []);
+
+  const handleToggleBiometrics = async () => {
+    haptic.impactLight();
+    if (biometricsActive) {
+      await clearBiometrics();
+      setBiometricsActive(false);
+    } else {
+      // In real session, enable with existing refresh token
+      await enableBiometrics('biometric_enabled');
+      setBiometricsActive(true);
+      haptic.success();
+    }
+  };
+
+  const handleCheckUpdate = async () => {
+    haptic.impactLight();
+    setVersionChecking(true);
+    try {
+      const res = await checkAppVersion();
+      setVersionResult(res);
+      if (res.isOutdated) {
+        haptic.warning();
+      } else {
+        haptic.success();
+      }
+    } finally {
+      setVersionChecking(false);
+    }
+  };
 
   const { data: studentsData } = useQuery({
     queryKey: ['profile-students', user?.id],
@@ -107,6 +147,26 @@ export function ProfileTab() {
         </div>
       )}
 
+      {/* Biometric Unlock Option for Signed-In Users */}
+      {user && (
+        <div className="native-card">
+          <div className="native-card-title-row">
+            <ShieldCheck width={20} height={20} />
+            <h3>Security & Fast Unlock</h3>
+          </div>
+          <p className="native-hint">
+            Unlock your orders, saved sizes, and children profiles using fingerprint or face unlock.
+          </p>
+          <button
+            type="button"
+            className={`native-lang-chip ${biometricsActive ? 'active' : ''}`}
+            onClick={handleToggleBiometrics}
+          >
+            {biometricsActive ? '✓ Fingerprint Unlock Enabled' : 'Enable Fingerprint Unlock Next Time'}
+          </button>
+        </div>
+      )}
+
       {/* Language Preferences */}
       <div className="native-card">
         <h3>Language / ભાષા / भाषा</h3>
@@ -168,6 +228,43 @@ export function ProfileTab() {
         </Link>
       </div>
 
+      {/* App Version & Update Check */}
+      <div className="native-card version-card">
+        <div className="version-info-row">
+          <div>
+            <strong>School Store Native App</strong>
+            <div className="native-hint">Installed version: v{INSTALLED_APP_VERSION} (Build 1)</div>
+          </div>
+          <button
+            type="button"
+            className="native-secondary-btn"
+            disabled={versionChecking}
+            onClick={handleCheckUpdate}
+          >
+            {versionChecking ? 'Checking…' : 'Check for update'}
+          </button>
+        </div>
+
+        {versionResult && (
+          <div className={`version-status-banner ${versionResult.isOutdated ? 'update-avail' : 'up-to-date'}`}>
+            {versionResult.isOutdated ? (
+              <div>
+                <p>New version v{versionResult.latestVersion} available!</p>
+                <button
+                  type="button"
+                  className="native-primary-btn"
+                  onClick={() => openExternalUrl(versionResult.updateUrl)}
+                >
+                  Update Now
+                </button>
+              </div>
+            ) : (
+              <p>✓ Your app is up to date.</p>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Sign Out */}
       {user && (
         <button
@@ -175,6 +272,7 @@ export function ProfileTab() {
           className="native-signout-btn"
           onClick={() => {
             if (window.confirm('Are you sure you want to sign out?')) {
+              clearBiometrics();
               signOut();
               navigate('/');
             }
@@ -184,10 +282,6 @@ export function ProfileTab() {
           <span>Sign Out</span>
         </button>
       )}
-
-      <div className="native-app-version">
-        School Store Native App · v1.0.0 (Build 1)
-      </div>
 
       <ParentSignInSheet
         open={showSignIn}

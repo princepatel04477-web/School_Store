@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .public import (
+    PublicAppVersionView,
     PublicGradeListView,
     PublicMeasureConfigView,
     PublicProductList,
@@ -32,6 +33,7 @@ urlpatterns = [
     path("public/products/", PublicProductList.as_view(), name="public-products"),
     path("public/size-fit/", PublicSizeFitView.as_view(), name="public-size-fit"),
     path("public/measure-config/", PublicMeasureConfigView.as_view(), name="public-measure-config"),
+    path("public/app-version/", PublicAppVersionView.as_view(), name="public-app-version"),
     path("cart/validate/", CartValidateView.as_view(), name="cart-validate"),
     path("cart/add/", CartValidateView.as_view(), name="cart-add"),
     path("catalog/cart/validate/", CartValidateView.as_view(), name="catalog-cart-validate"),

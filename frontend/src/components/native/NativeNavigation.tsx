@@ -5,6 +5,7 @@ import { isNativeApp } from '../../native/nativePlatform';
 import { setupNativeBackButton, handleNativeBack } from '../../native/backButton';
 import { setupNativeKeyboard } from '../../native/keyboard';
 import { setupNativeStatusBar } from '../../native/statusBar';
+import { haptic } from '../../native/haptics';
 import {
   ShoppingBag,
   Truck,
@@ -270,6 +271,7 @@ export function NativeNavigation({ onOpenBag, bagCount = 0 }: NativeNavigationPr
                 type="button"
                 className={`native-tab-item ${isActive ? 'active' : ''}`}
                 onClick={() => {
+                  haptic.impactLight();
                   if (location.pathname !== tab.path) {
                     navigate(tab.path);
                   }

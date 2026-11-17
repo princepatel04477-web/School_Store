@@ -53,6 +53,8 @@ import { hideSplashScreen } from './native/splash';
 import { openExternalUrl } from './native/externalLinks';
 import { NativeNavigation } from './components/native/NativeNavigation';
 import { useStoreState } from './store/storeState';
+import { checkAppVersion } from './native/appVersion';
+import { UpdatePrompt } from './components/native/UpdatePrompt';
 
 export const homeFor = (role?: string) =>
   role === 'BOSS'
@@ -92,8 +94,17 @@ export default function App() {
 
   useSchoolTheme(!isPortal);
 
+  const [updateRequired, setUpdateRequired] = useState<{ url: string; version: string } | null>(null);
+
   useEffect(() => {
     hideSplashScreen();
+    if (isNativeApp()) {
+      checkAppVersion().then((res) => {
+        if (res.forceUpdate) {
+          setUpdateRequired({ url: res.updateUrl, version: res.latestVersion });
+        }
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -220,6 +231,14 @@ export default function App() {
         <Suspense fallback={null}>
           <BagDrawer isOpen={bagOpen} onClose={() => setBagOpen(false)} />
         </Suspense>
+
+        {/* Blocking Update Prompt for Native App */}
+        {updateRequired && (
+          <UpdatePrompt
+            updateUrl={updateRequired.url}
+            latestVersion={updateRequired.version}
+          />
+        )}
       </div>
       </SmoothScroll>
     </ErrorBoundary>

@@ -424,3 +424,16 @@ SMS_PROVIDER = os.environ.get("SMS_PROVIDER", "")  # "msg91", or "console" to on
 MSG91_AUTH_KEY = os.environ.get("MSG91_AUTH_KEY", "")
 MSG91_OTP_TEMPLATE_ID = os.environ.get("MSG91_OTP_TEMPLATE_ID", "")
 MSG91_ORDER_TEMPLATE_ID = os.environ.get("MSG91_ORDER_TEMPLATE_ID", "")
+
+# --------------------------------------------------------------------------- #
+# App versioning for native mobile updates
+# --------------------------------------------------------------------------- #
+APP_LATEST_VERSION = os.environ.get("APP_LATEST_VERSION", "1.0.0")
+APP_LATEST_VERSION_CODE = int(os.environ.get("APP_LATEST_VERSION_CODE", "1"))
+APP_MIN_SUPPORTED_VERSION = os.environ.get("APP_MIN_SUPPORTED_VERSION", "1.0.0")
+APP_MIN_SUPPORTED_CODE = int(os.environ.get("APP_MIN_SUPPORTED_CODE", "1"))
+PLAY_STORE_URL = os.environ.get(
+    "PLAY_STORE_URL",
+    "https://play.google.com/store/apps/details?id=com.colorbenz.schoolstore",
+)
+

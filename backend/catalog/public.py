@@ -3,6 +3,7 @@
 import json
 from uuid import UUID
 
+from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Prefetch, Q
 from rest_framework.exceptions import NotFound, ValidationError
@@ -501,3 +502,28 @@ class PublicSizeFitView(APIView):
                 "warnings": check.warnings,
             }
         return Response({"fit": fit, "products": products})
+
+
+class PublicAppVersionView(APIView):
+    """
+    Public endpoint returning latest and minimum supported app versions.
+    Used by native Android/iOS apps to determine whether a soft or force update is needed.
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [PublicCatalogThrottle]
+
+    def get(self, request):
+        return Response({
+            "latest_version": getattr(settings, "APP_LATEST_VERSION", "1.0.0"),
+            "latest_version_code": getattr(settings, "APP_LATEST_VERSION_CODE", 1),
+            "min_supported_version": getattr(settings, "APP_MIN_SUPPORTED_VERSION", "1.0.0"),
+            "min_supported_code": getattr(settings, "APP_MIN_SUPPORTED_CODE", 1),
+            "play_store_url": getattr(
+                settings,
+                "PLAY_STORE_URL",
+                "https://play.google.com/store/apps/details?id=com.colorbenz.schoolstore",
+            ),
+            "release_notes": "Native navigation, performance updates, and sizing accuracy improvements.",
+        })
+

@@ -121,6 +121,30 @@
   margin-top: 24px;
 }
 
+.version-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.version-status-banner {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md, 4px);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.version-status-banner.up-to-date {
+  background: #E6F4EA;
+  color: #137333;
+}
+
+.version-status-banner.update-avail {
+  background: #FFF7E6;
+  color: #D46B08;
+}
+
 .native-empty-state {
   text-align: center;
   padding: 48px 24px;
@@ -190,6 +214,23 @@
 .native-order-date {
   font-size: 12px;
   color: var(--ink-faint, #8C939C);
+}
+
+.native-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.native-share-btn {
+  background: transparent;
+  border: 1px solid var(--line, #DCE0E5);
+  border-radius: var(--radius-full, 999px);
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand, #2F5D50);
+  cursor: pointer;
 }
 
 .native-status-badge {
