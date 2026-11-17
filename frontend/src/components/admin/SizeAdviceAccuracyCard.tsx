@@ -130,7 +130,7 @@ export function SizeAdviceAccuracyCard() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                 <XAxis dataKey="source" tick={{ fontSize: 12, fill: '#4b5563' }} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#4b5563' }} />
-                <Tooltip formatter={(value: any) => [`${value}%`, 'Fits Well']} />
+                <Tooltip formatter={(value: unknown) => [`${value ?? 0}%`, 'Fits Well']} />
                 <Bar dataKey="Fits Well %" fill="#2e8b57" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -145,7 +145,7 @@ export function SizeAdviceAccuracyCard() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                 <XAxis dataKey="confidence" tick={{ fontSize: 12, fill: '#4b5563' }} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#4b5563' }} />
-                <Tooltip formatter={(value: any) => [`${value}%`, 'Fits Well']} />
+                <Tooltip formatter={(value: unknown) => [`${value ?? 0}%`, 'Fits Well']} />
                 <Bar dataKey="Fits Well %" fill="#2563eb" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

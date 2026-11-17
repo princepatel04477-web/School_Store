@@ -401,7 +401,6 @@ function Orders() {
               orderId={o.id}
               orderStatus={o.status}
               orderCreatedAt={o.created_at}
-              items={(o as any).items}
               onFeedbackSubmitted={() => queryClient.invalidateQueries({ queryKey: ['orders'] })}
             />
           </article>

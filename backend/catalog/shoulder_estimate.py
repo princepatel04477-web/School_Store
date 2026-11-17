@@ -688,13 +688,13 @@ def calculate_overlap_fraction(s_low: float, s_high: float, r_min: float, r_max:
 
 
 def recommend_size_from_estimate(
-    school_id: Any | None = None,
-    class_id: Any | None = None,
+    school_id: str | int | None = None,
+    class_id: str | int | None = None,
     class_name: str | None = None,
     gender: str | None = None,
-    height_cm: Any = None,
-    weight_kg: Any = None,
-    product_id: Any | None = None,
+    height_cm: float | int | str | None = None,
+    weight_kg: float | int | str | None = None,
+    product_id: str | int | None = None,
 ) -> dict[str, Any]:
     """
     Public entry point for size estimation from height and weight (Prompt 7 / 8).

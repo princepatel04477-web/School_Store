@@ -19,6 +19,17 @@ export interface CartValidationResult {
   stockChanges: StockChange[];
 }
 
+interface ProductVariantItem {
+  id: string;
+  selling_price?: string;
+  in_stock?: boolean;
+}
+
+interface ProductCatalogueItem {
+  selling_price?: string;
+  variants?: ProductVariantItem[];
+}
+
 /**
  * Re-validates cart items against fresh server data before payment.
  * Returns any price changes or stock shortages detected.
@@ -36,8 +47,8 @@ export async function revalidateCart(cart: CartItem[]): Promise<CartValidationRe
 
   try {
     // Fetch fresh product variants or products from public catalogue
-    const res = await api<{ results?: any[]; items?: any[] }>('/public/products/').catch(() => null);
-    const products = res?.results || res?.items || (Array.isArray(res) ? res : []);
+    const res = await api<{ results?: ProductCatalogueItem[]; items?: ProductCatalogueItem[] }>('/public/products/').catch(() => null);
+    const products: ProductCatalogueItem[] = res?.results || res?.items || (Array.isArray(res) ? (res as ProductCatalogueItem[]) : []);
 
     const variantMap = new Map<string, { pricePaise: number; inStock: boolean }>();
 

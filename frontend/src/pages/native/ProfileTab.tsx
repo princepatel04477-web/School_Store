@@ -13,6 +13,19 @@ import { haptic } from '../../native/haptics';
 import { updateOrderNotificationPreference } from '../../native/push';
 import './nativePages.css';
 
+interface UserWithNotifications {
+  notify_order_updates?: boolean;
+}
+
+interface StudentRecord {
+  id: string;
+  name?: string;
+  school_name?: string;
+  grade_name?: string;
+  class_name?: string;
+  gr_number?: string;
+}
+
 export function ProfileTab() {
   const { user, signOut } = useAuth();
   const { lang, setLang } = useLang();
@@ -23,12 +36,12 @@ export function ProfileTab() {
   const [versionChecking, setVersionChecking] = useState(false);
   const [versionResult, setVersionResult] = useState<VersionCheckResult | null>(null);
   const [orderUpdatesActive, setOrderUpdatesActive] = useState<boolean>(
-    Boolean((user as any)?.notify_order_updates ?? true)
+    Boolean((user as unknown as UserWithNotifications)?.notify_order_updates ?? true)
   );
 
   useEffect(() => {
     if (user && 'notify_order_updates' in user) {
-      setOrderUpdatesActive(Boolean((user as any).notify_order_updates));
+      setOrderUpdatesActive(Boolean((user as unknown as UserWithNotifications).notify_order_updates));
     }
   }, [user]);
 
@@ -80,7 +93,7 @@ export function ProfileTab() {
 
   const { data: studentsData } = useQuery({
     queryKey: ['profile-students', user?.id],
-    queryFn: () => api<{ results: any[] }>('/students/').catch(() => null),
+    queryFn: () => api<{ results: StudentRecord[] }>('/students/').catch(() => null),
     enabled: Boolean(user && user.role === 'PARENT'),
   });
 
@@ -152,7 +165,7 @@ export function ProfileTab() {
           </div>
           {students.length > 0 ? (
             <div className="native-children-list">
-              {students.map((child: any) => (
+              {students.map((child: StudentRecord) => (
                 <div className="native-child-row" key={child.id}>
                   <div>
                     <strong>{child.name}</strong>

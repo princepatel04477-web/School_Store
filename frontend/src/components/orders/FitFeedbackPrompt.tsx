@@ -89,8 +89,9 @@ export function FitFeedbackPrompt({
       if (onFeedbackSubmitted) {
         onFeedbackSubmitted(itemId, feedback);
       }
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Could not submit feedback.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : (typeof err === 'object' && err && 'message' in err ? String((err as { message: unknown }).message) : 'Could not submit feedback.');
+      setErrorMsg(msg);
     } finally {
       setSubmittingId(null);
     }

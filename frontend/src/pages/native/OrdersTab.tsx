@@ -116,7 +116,6 @@ export function OrdersTab() {
                   orderId={o.id}
                   orderStatus={o.status}
                   orderCreatedAt={o.created_at}
-                  items={(o as any).items}
                   onFeedbackSubmitted={() =>
                     queryClient.invalidateQueries({ queryKey: ['native-orders'] })
                   }
