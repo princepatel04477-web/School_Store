@@ -69,3 +69,7 @@ apk-build.log
 npm-ci.log
 agy-apk*.log
 agy-apk*.txt
+keystore.properties
+*.jks
+*.keystore
+google-services.json
