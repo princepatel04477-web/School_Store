@@ -131,8 +131,8 @@ function BossFilterBar({
   }, [filterOpts, cityId]);
 
   return (
-    <div className="card" style={{ marginBottom: '20px' }}>
-      <div className="filters" style={{ borderBottom: 0 }}>
+    <div className="card">
+      <div className="filters">
         <label>
           <span>City:</span>
           <select value={cityId} onChange={(e) => { setCityId(e.target.value); setSchoolId(''); }}>
@@ -237,7 +237,7 @@ function BossOverviewView() {
       <BossFilterBar state={filterState} />
 
       {/* KPI Cards (Requirement 1, 4, 7) */}
-      <div className="stat-grid four" style={{ marginBottom: '16px' }}>
+      <div className="stat-grid four">
         <div className="stat accent">
           <span>GROSS REVENUE</span>
           <strong>{money(kpis?.revenue)}</strong>
@@ -260,7 +260,7 @@ function BossOverviewView() {
         </div>
       </div>
 
-      <div className="stat-grid three" style={{ marginBottom: '24px' }}>
+      <div className="stat-grid three">
         <div className="stat">
           <span>ORDERS PLACED</span>
           <strong>{num(kpis?.orders)}</strong>
@@ -343,7 +343,7 @@ function BossOverviewView() {
       </div>
 
       {/* Sales by City Bar Chart */}
-      <div className="card" style={{ marginTop: '20px' }}>
+      <div className="card">
         <div className="card-head">
           <h2>Sales by City</h2>
           <span className="badge s-processing">Regional Breakdown</span>
@@ -456,7 +456,7 @@ function BossAnalyticsChartsView() {
       </div>
 
       {/* Stock Level by Category Bar Chart (Requirement 2) */}
-      <div className="card" style={{ marginTop: '20px' }}>
+      <div className="card">
         <div className="card-head">
           <h2>Stock Level &amp; Valuation by Category</h2>
           <span className="badge s-delivered">On-hand Inventory</span>
