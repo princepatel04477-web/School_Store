@@ -219,6 +219,15 @@ export function ProductSheet({
                   measurement={measurement ?? null}
                   garments={garments}
                   className={className}
+                  productId={product.id}
+                  gender={product.gender}
+                  onSelectSize={(sizeLabel) => {
+                    const matched = product.sizes.find((s) => s.size === sizeLabel && s.inStock);
+                    if (matched) {
+                      setSelectedSizeId(matched.id);
+                      setSizeError(undefined);
+                    }
+                  }}
                   onSave={onSaveMeasurement!}
                 />
               )}
