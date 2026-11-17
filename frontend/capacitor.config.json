@@ -1,0 +1,17 @@
+{
+  "appId": "com.schoolstore.app",
+  "appName": "SchoolStore",
+  "webDir": "dist",
+  "backgroundColor": "#0E5E3E",
+  "plugins": {
+    "StatusBar": {
+      "backgroundColor": "#0E5E3E",
+      "style": "LIGHT"
+    },
+    "SplashScreen": {
+      "backgroundColor": "#0E5E3E",
+      "splashFullScreen": true,
+      "splashImmersive": true
+    }
+  }
+}

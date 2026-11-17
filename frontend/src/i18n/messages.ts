@@ -63,6 +63,56 @@ export const messages = {
   'nav.needHelp': { en: 'Need help? Call', gu: 'મદદ જોઈએ? ફોન કરો', hi: 'मदद चाहिए? फ़ोन करें' },
 
   // ---------- home ----------
+  'home.emerald.firstTimeIn': {
+    en: 'First time in',
+    gu: 'ભારતમાં પ્રથમ વખત',
+    hi: 'पहली बार भारत में',
+  },
+  'home.emerald.india': {
+    en: 'INDIA',
+    gu: 'INDIA',
+    hi: 'INDIA',
+  },
+  'home.emerald.taglineWhite': {
+    en: 'All school uniform & accessories,',
+    gu: 'બધા સ્કૂલ યુનિફોર્મ અને એસેસરીઝ,',
+    hi: 'सभी स्कूल यूनिफॉर्म और एक्सेसरीज़,',
+  },
+  'home.emerald.taglineAccent': {
+    en: 'at your doorstep.',
+    gu: 'તમારા દરવાજે.',
+    hi: 'आपके दरवाज़े पर।',
+  },
+  'home.emerald.searchPlaceholder': {
+    en: 'Find your school',
+    gu: 'તમારી સ્કૂલ શોધો',
+    hi: 'अपना स्कूल खोजें',
+  },
+  'home.emerald.kidsAlt': {
+    en: 'School students in uniform',
+    gu: 'યુનિફોર્મમાં સ્કૂલના બાળકો',
+    hi: 'यूनिफॉर्म में स्कूल के बच्चे',
+  },
+  'home.emerald.searchLabel': {
+    en: 'Search your school',
+    gu: 'તમારી સ્કૂલ શોધો',
+    hi: 'अपना स्कूल खोजें',
+  },
+  'home.emerald.submitLabel': {
+    en: 'Search school',
+    gu: 'સ્કૂલ શોધો',
+    hi: 'स्कूल खोजें',
+  },
+  'home.emerald.langLabel': {
+    en: 'Switch language',
+    gu: 'ભાષા બદલો',
+    hi: 'भाषा बदलें',
+  },
+  'home.emerald.bagLabel': {
+    en: 'Shopping bag',
+    gu: 'શોપિંગ બેગ',
+    hi: 'शॉपिंग बैग',
+  },
   'home.heroLine1': { en: 'Everything your school asks for.', gu: 'શાળાએ કહેલી બધી વસ્તુ.', hi: 'स्कूल की बताई हर चीज़।' },
   'home.heroLine2': { en: 'One order.', gu: 'એક જ ઓર્ડરમાં.', hi: 'एक ही ऑर्डर में।' },
   'home.heroSub': {

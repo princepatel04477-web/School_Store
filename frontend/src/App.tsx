@@ -75,6 +75,8 @@ export default function App() {
     location.pathname.startsWith('/retailer') ||
     location.pathname.startsWith('/login');
 
+  const isHome = location.pathname === '/';
+
   useSchoolTheme(!isPortal);
 
   // The store starts in English. Parents switch from the language link in the
@@ -90,14 +92,14 @@ export default function App() {
     <ErrorBoundary>
       <SmoothScroll>
         <div className="store-application-root">
-        {/* Render global Header for storefront */}
-        {!isPortal && (
+        {/* Render global Header for storefront (home has its own emerald stage header) */}
+        {!isPortal && !isHome && (
           <Header
             onOpenBag={() => setBagOpen(true)}
             onOpenLanguage={() => setLangOpen(true)}
             onOpenSearch={() => {
               // Phones, and pages without the home search: the full-screen search sheet
-              const input = document.querySelector('.hero-search-input') as HTMLInputElement | null;
+              const input = document.querySelector('.emerald-search-input, .hero-search-input') as HTMLInputElement | null;
               if (!input || window.matchMedia('(max-width: 639px)').matches) return setSearchOpen(true);
               scrollPageTo(0, true);
               input.focus();
@@ -109,7 +111,15 @@ export default function App() {
           <Suspense fallback={<div className="splash">Loading…</div>}>
             <Routes>
               {/* Public Storefront Routes */}
-              <Route path="/" element={<HomePage />} />
+              <Route
+                path="/"
+                element={
+                  <HomePage
+                    onOpenBag={() => setBagOpen(true)}
+                    onOpenLanguage={() => setLangOpen(true)}
+                  />
+                }
+              />
               <Route
                 path="/shop"
                 element={<SelectionFlowPage onOpenBag={() => setBagOpen(true)} />}

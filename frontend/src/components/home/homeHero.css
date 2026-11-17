@@ -1,0 +1,797 @@
+/* ==========================================================================
+   P1 Emerald Stage (HomeHero)
+   Mobile-First, 100dvh, Baloo 2 & Nunito Typography, Accessible & Performant
+   ========================================================================== */
+
+.emerald-hero {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
+  background-color: var(--emerald-bg, #0E5E3E);
+  color: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  font-family: var(--font-body, 'Nunito', sans-serif);
+}
+
+/* 1. Header (68px + safe area inset top) */
+.emerald-header {
+  height: calc(68px + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: clamp(16px, 4.5vw, 24px);
+  padding-right: clamp(16px, 4.5vw, 24px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
+  z-index: 20;
+  flex-shrink: 0;
+}
+
+.emerald-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.emerald-logo-square {
+  width: 38px;
+  height: 38px;
+  background-color: #FFFFFF;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+}
+
+.emerald-logo-letter {
+  font-family: var(--font-heading, 'Baloo 2', sans-serif);
+  font-weight: 800;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--emerald-bg, #0E5E3E);
+}
+
+.emerald-logo-text {
+  font-family: var(--font-heading, 'Baloo 2', sans-serif);
+  font-weight: 800;
+  font-size: 25px;
+  line-height: 1;
+  color: #FFFFFF;
+  letter-spacing: -0.01em;
+}
+
+.emerald-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Language Switcher Pill (min 44px tap target) */
+.emerald-lang-pill {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #FFFFFF;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: var(--font-body, 'Nunito', sans-serif);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.emerald-lang-pill:hover,
+.emerald-lang-pill:focus-visible {
+  background-color: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.45);
+  outline: 2px solid var(--emerald-saffron, #FFB766);
+  outline-offset: 2px;
+}
+
+.emerald-lang-pill:active {
+  transform: scale(0.96);
+}
+
+.emerald-globe-icon {
+  stroke: #FFFFFF;
+  flex-shrink: 0;
+}
+
+.emerald-lang-name {
+  color: #FFFFFF;
+  letter-spacing: 0.02em;
+}
+
+/* Bag Button (44 x 44) */
+.emerald-bag-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: transparent;
+  border: none;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.18s ease, transform 0.18s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.emerald-bag-btn:hover,
+.emerald-bag-btn:focus-visible {
+  background-color: rgba(255, 255, 255, 0.12);
+  outline: 2px solid var(--emerald-saffron, #FFB766);
+  outline-offset: 2px;
+}
+
+.emerald-bag-btn:active {
+  transform: scale(0.94);
+}
+
+.emerald-bag-icon {
+  stroke: #FFFFFF;
+}
+
+.emerald-bag-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background-color: var(--emerald-saffron, #FFB766);
+  color: var(--emerald-dark, #12352A);
+  font-size: 11px;
+  font-weight: 800;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* ==========================================================================
+   Mobile Layout & Main Content Flow
+   ========================================================================== */
+
+.emerald-hero-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 4px 16px 0 16px;
+}
+
+/* 2. Hero Text (centred) */
+.emerald-left-col {
+  width: 100%;
+  text-align: center;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.emerald-headline {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.emerald-eyebrow {
+  font-family: var(--font-heading, 'Baloo 2', sans-serif);
+  font-weight: 700;
+  font-size: clamp(20px, 6.4vw, 26px);
+  line-height: 1.15;
+  color: var(--emerald-soft-green, #CDEBDC);
+  margin-bottom: 2px;
+}
+
+.emerald-country {
+  font-family: var(--font-heading, 'Baloo 2', sans-serif);
+  font-weight: 800;
+  font-size: clamp(56px, 22vw, 92px);
+  line-height: 0.86;
+  color: #FFFFFF;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* Tricolour Bar (214px wide, 10px tall) */
+.emerald-tricolour-pill {
+  display: flex;
+  width: clamp(170px, 52vw, 214px);
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 8px 0 12px 0;
+  background-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  flex-shrink: 0;
+}
+
+.emerald-flag-saffron {
+  flex: 1;
+  background-color: var(--tricolour-saffron, #FF9933);
+}
+
+.emerald-flag-white {
+  flex: 1;
+  background-color: var(--tricolour-white, #FFFFFF);
+}
+
+.emerald-flag-green {
+  flex: 1;
+  background-color: var(--tricolour-green, #138808);
+}
+
+/* Tagline */
+.emerald-tagline {
+  font-family: var(--font-heading, 'Baloo 2', sans-serif);
+  font-weight: 800;
+  font-size: clamp(20px, 6.8vw, 30px);
+  line-height: 1.12;
+  text-align: center;
+  max-width: clamp(280px, 86vw, 380px);
+  margin: 0 auto;
+}
+
+.emerald-tagline-white {
+  color: #FFFFFF;
+  display: inline;
+}
+
+.emerald-tagline-saffron {
+  color: var(--emerald-saffron, #FFB766);
+  display: inline;
+}
+
+/* ==========================================================================
+   3. Middle Stage Area (Kids + Circles + Sparkles)
+   ========================================================================== */
+
+.emerald-right-col {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+  min-height: 220px;
+  z-index: 5;
+}
+
+.emerald-stage-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* Layered green circles:
+   #11704B (640px, centred, bottom -260px)
+   #14825A (470px, centred, bottom -180px) */
+.emerald-circles-bg {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 1;
+}
+
+.emerald-circle-outer {
+  position: absolute;
+  width: 640px;
+  height: 640px;
+  background-color: var(--emerald-circle-outer, #11704B);
+  border-radius: 50%;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -260px;
+}
+
+.emerald-circle-inner {
+  position: absolute;
+  width: 470px;
+  height: 470px;
+  background-color: var(--emerald-circle-inner, #14825A);
+  border-radius: 50%;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -180px;
+}
+
+/* 4 Twinkling Sparkles */
+.emerald-sparkles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+}
+
+.emerald-sparkle {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Kids Image Wrapper & Float */
+.emerald-stage-img-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  z-index: 6;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: bottom center;
+}
+
+.emerald-float-wrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.emerald-kids-img {
+  width: clamp(190px, 58vw, 224px);
+  height: auto;
+  aspect-ratio: 224 / 330;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.12));
+}
+
+/* Soft Elliptical Ground Shadow */
+.emerald-ground-shadow {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: clamp(160px, 48vw, 200px);
+  height: 16px;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.15) 55%, transparent 75%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(1.5px);
+}
+
+/* ==========================================================================
+   4. Search Bottom Section
+   ========================================================================== */
+
+.emerald-search-wrapper {
+  width: 100%;
+  padding-bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+  position: relative;
+  z-index: 25;
+  flex-shrink: 0;
+}
+
+.emerald-search-form {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.emerald-search-bar {
+  display: flex;
+  align-items: center;
+  height: 60px;
+  background-color: #FFFFFF;
+  border-radius: 18px;
+  padding: 0 0 0 18px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+  position: relative;
+  box-sizing: border-box;
+  transition: box-shadow 0.2s ease;
+}
+
+.emerald-search-bar:focus-within {
+  box-shadow: 0 0 0 3px var(--emerald-saffron, #FFB766), 0 8px 24px rgba(0, 0, 0, 0.24);
+}
+
+.emerald-search-icon {
+  stroke: #545C66;
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+.emerald-search-input {
+  flex: 1;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--emerald-dark, #12352A);
+  font-family: var(--font-body, 'Nunito', sans-serif);
+  font-size: 16px; /* Prevents auto-zoom on iOS */
+  font-weight: 700;
+  outline: none;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.emerald-search-input::placeholder {
+  color: #8C939C;
+  font-weight: 600;
+}
+
+/* Saffron 60 x 60 Submit Button */
+.emerald-submit-btn {
+  width: 60px;
+  height: 60px;
+  min-width: 60px;
+  min-height: 60px;
+  background-color: var(--emerald-saffron, #FFB766);
+  border: none;
+  border-top-right-radius: 18px;
+  border-bottom-right-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--emerald-dark, #12352A);
+  transition: background-color 0.18s ease, transform 0.14s ease;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.emerald-submit-btn:hover,
+.emerald-submit-btn:focus-visible {
+  background-color: #FFA740;
+  outline: 2px solid #FFFFFF;
+  outline-offset: -2px;
+}
+
+.emerald-submit-btn:active {
+  transform: scale(0.96);
+}
+
+.emerald-arrow-icon {
+  stroke: var(--emerald-dark, #12352A);
+}
+
+/* Suggestions Dropdown Panel */
+.emerald-suggestions-panel {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  max-height: clamp(200px, 45dvh, 320px);
+  background-color: #FFFFFF;
+  border-radius: 16px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+  overflow-y: auto;
+  z-index: 50;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  transform-origin: bottom center;
+}
+
+.emerald-results-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+}
+
+.emerald-school-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.emerald-school-row:hover,
+.emerald-school-row.is-active {
+  background-color: rgba(14, 94, 62, 0.08);
+}
+
+.emerald-school-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.emerald-school-name {
+  font-family: var(--font-body, 'Nunito', sans-serif);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--emerald-dark, #12352A);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.emerald-school-city {
+  font-size: 13px;
+  color: #545C66;
+  font-weight: 600;
+}
+
+.emerald-mark {
+  background-color: rgba(255, 183, 102, 0.45);
+  color: inherit;
+  font-weight: 800;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.emerald-empty-results {
+  padding: 20px 16px;
+  text-align: center;
+  color: #545C66;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   5. Short or Keyboard-Open Screens (< 640px or visualViewport keyboard)
+   ========================================================================== */
+
+@media (max-height: 640px) {
+  .emerald-hero .emerald-right-col {
+    min-height: 120px;
+  }
+
+  .emerald-hero .emerald-kids-img {
+    width: clamp(110px, 32vw, 134px);
+  }
+
+  .emerald-hero .emerald-ground-shadow {
+    width: 140px;
+    height: 10px;
+  }
+
+  .emerald-hero .emerald-sparkles {
+    display: none !important;
+  }
+
+  .emerald-hero .emerald-search-wrapper {
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .emerald-hero .emerald-country {
+    font-size: clamp(34px, 10vw, 48px);
+  }
+
+  .emerald-hero .emerald-tricolour-pill {
+    height: 8px;
+    margin: 4px 0 8px 0;
+  }
+
+  .emerald-hero .emerald-tagline {
+    font-size: clamp(15px, 4.5vw, 20px);
+  }
+}
+
+.emerald-hero.is-compact .emerald-right-col {
+  min-height: 120px;
+}
+
+.emerald-hero.is-compact .emerald-kids-img {
+  width: clamp(110px, 32vw, 134px);
+}
+
+.emerald-hero.is-compact .emerald-ground-shadow {
+  width: 140px;
+  height: 10px;
+}
+
+.emerald-hero.is-compact .emerald-sparkles {
+  display: none !important;
+}
+
+.emerald-hero.is-compact .emerald-country {
+  font-size: clamp(34px, 10vw, 48px);
+}
+
+.emerald-hero.is-compact .emerald-tricolour-pill {
+  height: 8px;
+  margin: 4px 0 8px 0;
+}
+
+.emerald-hero.is-compact .emerald-tagline {
+  font-size: clamp(15px, 4.5vw, 20px);
+}
+
+.emerald-hero.is-compact .emerald-search-wrapper {
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Ultra small width safeguard (<= 320px) */
+@media (max-width: 330px) {
+  .emerald-country {
+    font-size: 46px;
+  }
+  .emerald-tagline {
+    font-size: 18px;
+    line-height: 1.15;
+  }
+  .emerald-tricolour-pill {
+    width: 150px;
+    height: 8px;
+  }
+  .emerald-logo-text {
+    font-size: 21px;
+  }
+}
+
+/* ==========================================================================
+   6. DESKTOP LAYOUT (md and up, 768px+)
+   Two columns inside a max-width 1200px container
+   ========================================================================== */
+
+@media (min-width: 768px) {
+  .emerald-hero {
+    height: 100dvh;
+    min-height: 700px;
+  }
+
+  .emerald-header {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-top: 24px;
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+
+  .emerald-hero-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    gap: clamp(24px, 3.5vw, 48px);
+    padding: 24px 32px 48px 32px;
+    overflow: visible;
+  }
+
+  .emerald-left-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    order: 1;
+    z-index: 15;
+  }
+
+  .emerald-headline {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .emerald-eyebrow {
+    font-size: clamp(20px, 2.4vw, 26px);
+  }
+
+  .emerald-country {
+    font-size: clamp(64px, 7.5vw, 92px);
+    text-align: left;
+  }
+
+  .emerald-tricolour-pill {
+    width: clamp(170px, 20vw, 214px);
+    height: 10px;
+    margin: 12px 0 16px 0;
+  }
+
+  .emerald-tagline {
+    font-size: clamp(22px, 2.6vw, 30px);
+    text-align: left;
+    max-width: 500px;
+    margin: 0;
+  }
+
+  .emerald-right-col {
+    order: 2;
+    height: 100%;
+    min-height: 440px;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .emerald-kids-img {
+    width: min(420px, 100%);
+    max-height: 560px;
+    aspect-ratio: auto;
+    object-fit: contain;
+  }
+
+  .emerald-ground-shadow {
+    width: min(360px, 90%);
+    height: 22px;
+  }
+
+  .emerald-circles-bg {
+    bottom: -60px;
+  }
+
+  .emerald-circle-outer {
+    width: 640px;
+    height: 640px;
+    bottom: -160px;
+  }
+
+  .emerald-circle-inner {
+    width: 470px;
+    height: 470px;
+    bottom: -80px;
+  }
+
+  /* Desktop search bar lives in left column below tagline */
+  .emerald-search-wrapper {
+    order: 3;
+    grid-column: 1 / 2;
+    margin-top: 32px;
+    padding-bottom: 0;
+  }
+
+  .emerald-search-form {
+    max-width: 520px;
+    margin: 0;
+  }
+
+  /* Desktop dropdown opens downwards */
+  .emerald-suggestions-panel {
+    bottom: auto;
+    top: calc(100% + 10px);
+    transform-origin: top center;
+  }
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .emerald-float-wrap,
+  .emerald-sparkle,
+  .emerald-kids-img,
+  .emerald-submit-btn,
+  .emerald-lang-pill {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+
+  .emerald-sparkle {
+    opacity: 0.85 !important;
+    transform: none !important;
+  }
+}

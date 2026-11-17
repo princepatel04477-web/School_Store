@@ -47,6 +47,7 @@ frontend/dist-local/
 
 # Local tooling & brag
 .agents/
+.claude/
 brag-output*/
 skills-lock.json
 
