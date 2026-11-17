@@ -31,16 +31,35 @@ class SchoolAdmin(admin.ModelAdmin):
         "name",
         "code",
         "city",
+        "show_logo_public",
         "commission_rate",
         "home_delivery_enabled",
         "school_pickup_enabled",
         "active",
         "created_at",
     )
-    list_filter = ("active", "city", "home_delivery_enabled", "school_pickup_enabled")
+    list_filter = ("active", "show_logo_public", "city", "home_delivery_enabled", "school_pickup_enabled")
     search_fields = ("name", "code")
     readonly_fields = ("id", "created_at", "updated_at")
     list_select_related = ("city",)
+    fields = (
+        "name",
+        "code",
+        "city",
+        "logo",
+        "logo_url",
+        "show_logo_public",
+        "active",
+        "commission_rate",
+        "home_delivery_enabled",
+        "school_pickup_enabled",
+        "address",
+        "contact_email",
+        "contact_phone",
+        "board",
+        "pincode",
+        "udise_code",
+    )
     inlines = [SchoolBranchInline]
 
 

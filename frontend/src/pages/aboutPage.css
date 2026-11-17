@@ -1,0 +1,896 @@
+/* ==========================================================================
+   Our Story Page (/about) Styles
+   Theme tokens:
+     Emerald base: #0E5E3E, #11704B, #14825A
+     Text / accents: #FFFFFF, #CDEBDC, #FFB766, #FFD964, #12352A
+     Mint surface: #EEF7F2, border #CDE9D9
+     Problem tint: #FFEFEA, border #FAD3C7, accent #A8412B, head #5E1F12, body #6B3326
+     Badge tint: #FFF3E3, border #FFD9A8
+   ========================================================================== */
+
+.about-page-root {
+  min-height: 100dvh;
+  background-color: #0E5E3E;
+  color: #FFFFFF;
+  font-family: 'Nunito', sans-serif;
+  overflow-x: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --------------------------------------------------------------------------
+   1. Emerald Top Bar / Navigation
+   -------------------------------------------------------------------------- */
+.about-top-bar,
+nav.about-top-bar,
+header.about-top-bar {
+  background: transparent !important;
+  border-bottom: none !important;
+  height: auto !important;
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-inline: clamp(20px, 5vw, 48px);
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  padding-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.about-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.about-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: transform 0.16s ease, background-color 0.16s ease;
+  touch-action: manipulation;
+}
+
+.about-back-btn:hover {
+  background: rgba(255, 255, 255, 0.20);
+  transform: translateX(-2px);
+}
+
+.about-back-btn:focus-visible {
+  outline: 2px solid #FFB766;
+  outline-offset: 2px;
+}
+
+.about-brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: #FFFFFF;
+}
+
+.about-logo-sq {
+  width: 38px;
+  height: 38px;
+  background: #FFFFFF;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+}
+
+.about-logo-letter {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  color: #0E5E3E;
+  margin-top: -1px;
+}
+
+.about-brand-text {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: #FFFFFF;
+}
+
+.about-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.about-lang-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 9999px;
+  color: #FFFFFF;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+  touch-action: manipulation;
+}
+
+.about-lang-pill:hover {
+  background: rgba(255, 255, 255, 0.20);
+}
+
+.about-lang-pill:focus-visible {
+  outline: 2px solid #FFB766;
+  outline-offset: 2px;
+}
+
+.about-bag-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: transform 0.16s ease, background-color 0.16s ease;
+  touch-action: manipulation;
+}
+
+.about-bag-btn:hover {
+  background: rgba(255, 255, 255, 0.20);
+  transform: scale(1.04);
+}
+
+.about-bag-btn:focus-visible {
+  outline: 2px solid #FFB766;
+  outline-offset: 2px;
+}
+
+.about-bag-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 4px;
+  border-radius: 9999px;
+  background: #FFB766;
+  color: #12352A;
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 19px;
+  text-align: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* --------------------------------------------------------------------------
+   2. Hero Band (Emerald #0E5E3E with concentric circles)
+   -------------------------------------------------------------------------- */
+.about-hero-band {
+  position: relative;
+  width: 100%;
+  background: #0E5E3E;
+  overflow: hidden;
+  padding-bottom: 56px; /* space for the white sheet overlap */
+}
+
+/* Concentric decorative circles top-right */
+.about-circle-outer {
+  position: absolute;
+  top: -120px;
+  right: -100px;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  background: #11704B;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.about-circle-inner {
+  position: absolute;
+  top: -50px;
+  right: -30px;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: #14825A;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.about-hero-container {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-inline: clamp(20px, 5vw, 48px);
+  padding-top: clamp(16px, 3vw, 36px);
+  padding-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.about-hero-copy {
+  flex: 1;
+  max-width: 620px;
+}
+
+.about-hero-eyebrow {
+  display: inline-block;
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #CDEBDC;
+  margin-bottom: 10px;
+}
+
+.about-hero-title {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: clamp(44px, 5.5vw, 72px);
+  font-weight: 800;
+  line-height: 0.96;
+  color: #FFFFFF;
+  margin: 0 0 14px 0;
+}
+
+.about-hero-title-accent {
+  color: #FFB766;
+}
+
+.about-hero-subline {
+  font-family: 'Nunito', sans-serif;
+  font-size: clamp(15px, 1.8vw, 19px);
+  font-weight: 600;
+  line-height: 1.4;
+  color: #CDEBDC;
+  margin: 0;
+  max-width: 480px;
+}
+
+.about-hero-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.about-hero-kids {
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.22));
+}
+
+.about-hero-shadow {
+  width: 80%;
+  height: 14px;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.32) 0%, rgba(0, 0, 0, 0) 72%);
+  border-radius: 50%;
+  margin-top: -6px;
+}
+
+/* Mobile hero layout */
+@media (max-width: 1023px) {
+  .about-hero-container {
+    padding-top: 12px;
+    padding-bottom: 16px;
+    gap: 12px;
+  }
+  .about-hero-copy {
+    flex: 1 1 auto;
+  }
+  .about-hero-kids {
+    width: clamp(120px, 32vw, 150px);
+    height: auto;
+    max-height: 215px;
+  }
+}
+
+/* Desktop hero layout */
+@media (min-width: 1024px) {
+  .about-hero-band {
+    min-height: 380px;
+    padding-bottom: 64px;
+  }
+  .about-hero-container {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    column-gap: clamp(32px, 4vw, 64px);
+    align-items: center;
+    padding-top: 28px;
+  }
+  .about-hero-kids {
+    max-height: 340px;
+    width: auto;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   3. White Content Sheet
+   -------------------------------------------------------------------------- */
+.about-sheet {
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  background: #FFFFFF;
+  border-top-left-radius: 28px;
+  border-top-right-radius: 28px;
+  margin-top: -28px;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.18);
+  flex: 1 0 auto;
+}
+
+.about-sheet-container {
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-inline: clamp(20px, 5vw, 48px);
+  padding-top: clamp(32px, 5vw, 64px);
+  padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: clamp(28px, 4.5vw, 56px);
+}
+
+/* Common Section Heading Styles */
+.about-section-head {
+  margin-bottom: clamp(16px, 2.5vw, 24px);
+}
+
+.about-section-eyebrow {
+  display: block;
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.about-section-title {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: clamp(28px, 3.2vw, 40px);
+  font-weight: 800;
+  line-height: 1.1;
+  color: #12352A;
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   3a. The Problem Section
+   -------------------------------------------------------------------------- */
+.about-problem-eyebrow {
+  color: #A8412B;
+}
+
+.about-problem-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(16px, 2.5vw, 24px);
+}
+
+@media (min-width: 480px) {
+  .about-problem-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.about-problem-card {
+  background: #FFEFEA;
+  border: 1.5px solid #FAD3C7;
+  border-radius: 22px;
+  padding: clamp(20px, 3vw, 28px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.about-problem-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(168, 65, 43, 0.08);
+}
+
+.about-icon-tile-problem {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  min-height: 52px;
+  background: #FFFFFF;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #A8412B;
+  box-shadow: 0 4px 12px rgba(168, 65, 43, 0.08);
+}
+
+.about-problem-card-title {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: clamp(18px, 2vw, 22px);
+  font-weight: 700;
+  line-height: 1.2;
+  color: #5E1F12;
+  margin: 0;
+}
+
+.about-problem-card-desc {
+  font-family: 'Nunito', sans-serif;
+  font-size: clamp(14px, 1.6vw, 16px);
+  font-weight: 600;
+  line-height: 1.45;
+  color: #6B3326;
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   3b. Pivot Section
+   -------------------------------------------------------------------------- */
+.about-pivot-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  padding-block: 4px;
+}
+
+.about-pivot-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #0E5E3E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFB766;
+  box-shadow: 0 6px 16px rgba(14, 94, 62, 0.24);
+}
+
+.about-pivot-line {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: clamp(17px, 2.2vw, 22px);
+  font-weight: 800;
+  color: #3F6B56;
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   3c. The Fix Section
+   -------------------------------------------------------------------------- */
+.about-fix-card {
+  background: #0E5E3E;
+  border-radius: 24px;
+  padding: clamp(24px, 4vw, 36px);
+  color: #FFFFFF;
+  box-shadow: 0 12px 36px rgba(14, 94, 62, 0.22);
+}
+
+.about-fix-eyebrow {
+  color: #FFD964;
+}
+
+.about-fix-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (min-width: 1024px) {
+  .about-fix-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    column-gap: 40px;
+    align-items: center;
+  }
+}
+
+.about-fix-headline {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: clamp(24px, 2.8vw, 38px);
+  font-weight: 800;
+  line-height: 1.15;
+  color: #FFFFFF;
+  margin: 0;
+}
+
+.about-fix-bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.about-fix-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 14px 18px;
+  font-family: 'Nunito', sans-serif;
+  font-size: clamp(14px, 1.6vw, 16px);
+  font-weight: 700;
+  line-height: 1.35;
+  color: #FFFFFF;
+}
+
+.about-fix-check-icon {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  border-radius: 50%;
+  background: #FFB766;
+  color: #0E5E3E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   3d. First in India Badge Callout
+   -------------------------------------------------------------------------- */
+.about-badge-callout {
+  background: #FFF3E3;
+  border: 1.5px solid #FFD9A8;
+  border-radius: 20px;
+  padding: clamp(16px, 2.5vw, 24px);
+  display: flex;
+  align-items: center;
+  gap: clamp(14px, 2vw, 20px);
+}
+
+.about-badge-icon-tile {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  background: #FFFFFF;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FF9933;
+  box-shadow: 0 4px 12px rgba(255, 183, 102, 0.25);
+  flex-shrink: 0;
+}
+
+.about-badge-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.about-badge-title {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: clamp(16px, 2vw, 19px);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #964B00;
+  margin: 0;
+}
+
+.about-badge-subtitle {
+  font-family: 'Nunito', sans-serif;
+  font-size: clamp(14px, 1.6vw, 16px);
+  font-weight: 700;
+  line-height: 1.35;
+  color: #6B4112;
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   3e. Schools We Deliver To Section & Slider
+   -------------------------------------------------------------------------- */
+.about-network-section {
+  position: relative;
+  width: 100%;
+}
+
+.about-network-head-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: clamp(18px, 2.5vw, 26px);
+}
+
+.about-network-eyebrow {
+  color: #3F6B56;
+}
+
+.about-swipe-hint {
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #3F6B56;
+  white-space: nowrap;
+}
+
+@media (min-width: 1024px) {
+  .about-swipe-hint {
+    display: none;
+  }
+}
+
+.about-slider-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.about-slider-track {
+  display: flex;
+  gap: clamp(16px, 2.5vw, 24px);
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 4px 16px 4px;
+  scrollbar-width: none; /* Hide scrollbar Firefox */
+}
+
+.about-slider-track::-webkit-scrollbar {
+  display: none; /* Hide scrollbar Chrome/Safari */
+}
+
+/* Mobile swipe scroll-snap */
+@media (max-width: 1023px) {
+  .about-slider-track {
+    scroll-snap-type: x mandatory;
+  }
+  .about-school-card {
+    scroll-snap-align: center;
+  }
+}
+
+@media (min-width: 1024px) {
+  .about-slider-track {
+    overflow: hidden;
+  }
+}
+
+.about-school-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  text-align: center;
+  text-decoration: none;
+}
+
+.about-school-tile {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 2px solid #CDE9D9;
+  box-shadow: 0 4px 12px rgba(14, 94, 62, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+@media (min-width: 1024px) {
+  .about-school-tile {
+    width: 96px;
+    height: 96px;
+  }
+}
+
+.about-school-card:hover .about-school-tile {
+  transform: translateY(-3px);
+  border-color: #14825A;
+  box-shadow: 0 8px 20px rgba(14, 94, 62, 0.14);
+}
+
+.about-school-logo {
+  max-width: 56px;
+  max-height: 56px;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.about-school-name {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #12352A;
+  max-width: 96px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+/* Skeleton Loading Circles */
+.about-school-skeleton-tile {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: #E2EFE7;
+  animation: aboutPulse 1.4s ease-in-out infinite;
+}
+
+@media (min-width: 1024px) {
+  .about-school-skeleton-tile {
+    width: 96px;
+    height: 96px;
+  }
+}
+
+.about-school-skeleton-text {
+  width: 72px;
+  height: 14px;
+  border-radius: 6px;
+  background: #E2EFE7;
+  animation: aboutPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes aboutPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* Desktop Slider Navigation Buttons */
+.about-slider-nav-btn {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .about-slider-nav-btn {
+    display: flex;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #0E5E3E;
+    color: #FFFFFF;
+    border: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(14, 94, 62, 0.28);
+    transition: background-color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
+    z-index: 4;
+  }
+
+  .about-slider-nav-btn:hover:not(:disabled) {
+    background: #11704B;
+    transform: translateY(-50%) scale(1.06);
+  }
+
+  .about-slider-nav-btn:disabled {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .about-slider-nav-btn.is-prev {
+    left: -20px;
+  }
+
+  .about-slider-nav-btn.is-next {
+    right: -20px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   3f. Call to Action (CTA) Section
+   -------------------------------------------------------------------------- */
+.about-cta-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding-top: 8px;
+}
+
+.about-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 56px;
+  padding: 0 32px;
+  background: #0E5E3E;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 18px;
+  font-family: 'Baloo 2', sans-serif;
+  font-size: clamp(18px, 2vw, 21px);
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(14, 94, 62, 0.25);
+  transition: background-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+  touch-action: manipulation;
+  text-decoration: none;
+}
+
+.about-cta-btn:hover {
+  background: #11704B;
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(14, 94, 62, 0.32);
+}
+
+.about-cta-btn:active {
+  transform: translateY(0);
+}
+
+.about-cta-btn:focus-visible {
+  outline: 3px solid #FFB766;
+  outline-offset: 3px;
+}
+
+.about-cta-arrow-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #FFB766;
+  color: #0E5E3E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Accessibility: Prefers-Reduced-Motion
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .about-hero-stage,
+  .about-pivot-circle,
+  .about-back-btn,
+  .about-cta-btn,
+  .about-school-skeleton-tile,
+  .about-school-skeleton-text {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

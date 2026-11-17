@@ -10,6 +10,7 @@ from .public import (
     PublicProductList,
     PublicSchoolCitiesView,
     PublicSchoolListView,
+    PublicDeliveredSchoolListView,
     PublicSizeFitView,
 )
 from .size_chart_views import SizeChartImportViewSet, SizeChartViewSet
@@ -30,6 +31,8 @@ router.register("size-charts", SizeChartViewSet, basename="size-chart")
 
 urlpatterns = [
     path("public/schools/", PublicSchoolListView.as_view(), name="public-schools"),
+    path("public/schools/delivered/", PublicDeliveredSchoolListView.as_view(), name="public-schools-delivered"),
+    path("public/schools/logos/", PublicDeliveredSchoolListView.as_view(), name="public-schools-logos"),
     path("public/schools/<uuid:school_id>/cities/", PublicSchoolCitiesView.as_view(), name="public-school-cities"),
     path("public/states/", PublicStateListView.as_view(), name="public-states"),
     path("public/cities/", PublicStateCitiesView.as_view(), name="public-state-cities"),

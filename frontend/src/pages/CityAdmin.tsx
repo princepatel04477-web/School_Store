@@ -1237,6 +1237,8 @@ function AddSchoolModal({
   const [contactPhone, setContactPhone] = useState<string>('');
   const [homeDelivery, setHomeDelivery] = useState<boolean>(true);
   const [schoolPickup, setSchoolPickup] = useState<boolean>(true);
+  const [logoUrl, setLogoUrl] = useState<string>('');
+  const [showLogoPublic, setShowLogoPublic] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const mutation = useMutation({
@@ -1249,9 +1251,11 @@ function AddSchoolModal({
         contact_phone: contactPhone,
         home_delivery_enabled: homeDelivery,
         school_pickup_enabled: schoolPickup,
+        logo_url: logoUrl.trim() || null,
+        show_logo_public: showLogoPublic,
       }),
     onSuccess: () => onSuccess(),
-    onError: (err: any) => setErrorMsg(err.message || 'Failed to add school.'),
+    onError: (err: unknown) => setErrorMsg(err instanceof Error ? err.message : 'Failed to add school.'),
   });
 
   return (
@@ -1296,6 +1300,16 @@ function AddSchoolModal({
               <input type="text" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
             </label>
           </div>
+
+          <label>
+            <span>School Logo URL:</span>
+            <input type="text" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="e.g. /brand/schools/dps.svg or https://..." />
+          </label>
+
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '8px 0', fontSize: '13px' }}>
+            <input type="checkbox" checked={showLogoPublic} onChange={(e) => setShowLogoPublic(e.target.checked)} style={{ marginTop: '2px' }} />
+            <span>Show logo on About page (the school has given written permission)</span>
+          </label>
 
           <div style={{ display: 'flex', gap: '16px', margin: '8px 0' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

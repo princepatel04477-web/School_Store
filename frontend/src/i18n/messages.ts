@@ -61,6 +61,154 @@ export const messages = {
   'nav.sizeGuide': { en: 'Size guide', gu: 'સાઈઝ કેવી રીતે પસંદ કરવી', hi: 'साइज़ कैसे चुनें' },
   'nav.help': { en: 'Help', gu: 'મદદ', hi: 'मदद' },
   'nav.needHelp': { en: 'Need help? Call', gu: 'મદદ જોઈએ? ફોન કરો', hi: 'मदद चाहिए? फ़ोन करें' },
+  'nav.aboutUs': { en: 'About us', gu: 'અમારા વિશે', hi: 'हमारे बारे में' },
+
+  // ---------- about / our story ----------
+  'about.metaTitle': {
+    en: 'Our story | SchoolStore by Colorbenz',
+    gu: 'અમારી વાર્તા | SchoolStore by Colorbenz',
+    hi: 'हमारी कहानी | SchoolStore by Colorbenz',
+  },
+  'about.metaDescription': {
+    en: 'Learn how SchoolStore by Colorbenz fixed what frustrated every parent with doorstep delivery of verified school uniforms and accessories.',
+    gu: 'જાણો કેવી રીતે SchoolStore by Colorbenz એ સ્કૂલ યુનિફોર્મ અને એસેસરીઝની હોમ ડિલિવરી સાથે માતા-પિતાની સમસ્યા ઉકેલી.',
+    hi: 'जानिए कैसे SchoolStore by Colorbenz ने स्कूल यूनिफ़ॉर्म और एक्सेसरीज़ की होम डिलीवरी के साथ माता-पिता की समस्या दूर की।',
+  },
+  'about.hero.eyebrow': {
+    en: 'BY COLORBENZ',
+    gu: 'COLORBENZ દ્વારા',
+    hi: 'COLORBENZ द्वारा',
+  },
+  'about.hero.titlePrefix': {
+    en: 'Our ',
+    gu: 'અમારી ',
+    hi: 'हमारी ',
+  },
+  'about.hero.titleAccent': {
+    en: 'story',
+    gu: 'વાર્તા',
+    hi: 'कहानी',
+  },
+  'about.hero.subline': {
+    en: 'We fixed what frustrated every parent.',
+    gu: 'દરેક માતા-પિતાને પરેશાન કરતી સમસ્યા અમે ઉકેલી લીધી.',
+    hi: 'हर माता-पिता को परेशान करने वाली समस्या हमने हल कर दी।',
+  },
+  'about.hero.imageAlt': {
+    en: 'SchoolStore school children in uniform',
+    gu: 'સ્કૂલ યુનિફોર્મમાં સ્કૂલસ્ટોરના બાળકો',
+    hi: 'स्कूल यूनिफ़ॉर्म में स्कूलस्टोर के बच्चे',
+  },
+  'about.problem.eyebrow': {
+    en: 'THE PROBLEM',
+    gu: 'સમસ્યા',
+    hi: 'समस्या',
+  },
+  'about.problem.title': {
+    en: 'School shopping is a struggle',
+    gu: 'સ્કૂલ શોપિંગ એક મોટો સંઘર્ષ છે',
+    hi: 'स्कूल की खरीदारी एक बड़ा संघर्ष है',
+  },
+  'about.problem.card1.title': {
+    en: 'Parents waste time',
+    gu: 'સમયનો બગાડ',
+    hi: 'समय की बर्बादी',
+  },
+  'about.problem.card1.desc': {
+    en: 'Hours go into travelling from shop to shop for one school list.',
+    gu: 'એક સ્કૂલ લિસ્ટ માટે દુકાને-દુકાને ભટકવામાં કલાકો વેડફાય છે.',
+    hi: 'एक स्कूल लिस्ट के लिए दुकान-दुकान भटकने में घंटों लग जाते हैं।',
+  },
+  'about.problem.card2.title': {
+    en: 'Stock unavailable',
+    gu: 'સ્ટોક મળતો નથી',
+    hi: 'स्टॉक उपलब्ध नहीं',
+  },
+  'about.problem.card2.desc': {
+    en: 'After all that running, the size or item you need is not there.',
+    gu: 'આટલી દોડધામ પછી પણ જોઈતી સાઇઝ કે સામાન મળતો નથી.',
+    hi: 'इतनी भागदौड़ के बाद भी सही साइज़ या सामान नहीं मिलता।',
+  },
+  'about.pivot.line': {
+    en: 'So Colorbenz built SchoolStore',
+    gu: 'એટલે Colorbenz દ્વારા SchoolStore બનાવવામાં આવ્યું',
+    hi: 'इसलिए Colorbenz ने SchoolStore बनाया',
+  },
+  'about.fix.eyebrow': {
+    en: 'THE FIX',
+    gu: 'ઉકેલ',
+    hi: 'समाधान',
+  },
+  'about.fix.headline': {
+    en: "Your school's uniform, delivered to your door.",
+    gu: 'તમારી સ્કૂલનો યુનિફોર્મ, સીધો તમારા ઘરઆંગણે.',
+    hi: 'आपके स्कूल का यूनिफ़ॉर्म, सीधे आपके घर तक।',
+  },
+  'about.fix.bullet1': {
+    en: 'Order from home. No more shop-to-shop trips.',
+    gu: 'ઘરે બેઠા ઓર્ડર કરો. દુકાને-દુકાને જવાની જરૂર નથી.',
+    hi: 'घर बैठे ऑर्डर करें। दुकान-दुकान घूमने का झंझट खत्म।',
+  },
+  'about.fix.bullet2': {
+    en: "Everything on your school's list, in one place.",
+    gu: 'તમારી સ્કૂલના લિસ્ટની દરેક વસ્તુ, એક જ જગ્યાએ.',
+    hi: 'आपके स्कूल की लिस्ट की हर चीज़, एक ही जगह पर।',
+  },
+  'about.badge.title': {
+    en: 'FIRST TIME IN INDIA',
+    gu: 'ભારતમાં પ્રથમ વખત',
+    hi: 'पहली बार भारत में',
+  },
+  'about.badge.subtitle': {
+    en: 'School uniform and accessories, delivered.',
+    gu: 'સ્કૂલ યુનિફોર્મ અને એસેસરીઝ, સીધા તમારા ઘર સુધી.',
+    hi: 'स्कूल यूनिफ़ॉर्म और एक्सेसरीज़, सीधे आपके घर तक।',
+  },
+  'about.network.eyebrow': {
+    en: 'DELIVERY NETWORK',
+    gu: 'ડિલિવરી નેટવર્ક',
+    hi: 'डिलीवरी नेटवर्क',
+  },
+  'about.network.title': {
+    en: 'Schools we deliver to',
+    gu: 'અમે જે શાળાઓમાં ડિલિવર કરીએ છીએ',
+    hi: 'जिन स्कूलों में हम डिलीवरी करते हैं',
+  },
+  'about.network.swipeHint': {
+    en: 'Swipe →',
+    gu: 'સ્વાઇપ કરો →',
+    hi: 'स्वाइप करें →',
+  },
+  'about.network.prevSchools': {
+    en: 'Previous schools',
+    gu: 'અગાઉની શાળાઓ',
+    hi: 'पिछली स्कूलें',
+  },
+  'about.network.nextSchools': {
+    en: 'Next schools',
+    gu: 'આગળની શાળાઓ',
+    hi: 'अगली स्कूलें',
+  },
+  'about.network.listRegion': {
+    en: 'Schools list',
+    gu: 'શાળાઓની યાદી',
+    hi: 'स्कूलों की सूची',
+  },
+  'about.network.logoAlt': {
+    en: '{name} logo',
+    gu: '{name} લોગો',
+    hi: '{name} लोगो',
+  },
+  'about.cta.button': {
+    en: 'Find your school',
+    gu: 'તમારી સ્કૂલ શોધો',
+    hi: 'अपना स्कूल खोजें',
+  },
+  'about.header.back': {
+    en: 'Back',
+    gu: 'પાછા જાઓ',
+    hi: 'वापस जाएँ',
+  },
 
   // ---------- home ----------
   'home.emerald.firstTimeIn': {

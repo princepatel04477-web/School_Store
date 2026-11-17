@@ -97,6 +97,15 @@ class School(UUIDModel):
     board = models.CharField(max_length=10, choices=Board.choices, blank=True, default="")
     pincode = models.CharField(max_length=6, blank=True, default="")
     logo = models.ImageField(upload_to="school-logos/%Y/%m/", blank=True, default="")
+    logo_url = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Direct public URL for the school logo",
+    )
+    show_logo_public = models.BooleanField(
+        default=False,
+        help_text="Show logo on About page (the school has given written permission)",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -113,6 +122,11 @@ class School(UUIDModel):
         ]
 
     def save(self, *args, **kwargs):
+        if self.logo and not self.logo_url:
+            try:
+                self.logo_url = self.logo.url
+            except Exception:
+                pass
         super().save(*args, **kwargs)
         invalidate_school_cache()
 

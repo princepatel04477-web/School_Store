@@ -281,6 +281,8 @@ export type CitySchool={
   address:string;
   contact_email:string;
   contact_phone:string;
+  logo_url?:string|null;
+  show_logo_public?:boolean;
   created_at:string;
 };
 

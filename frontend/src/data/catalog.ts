@@ -105,6 +105,20 @@ export function useStoreSchools() {
   });
 }
 
+export interface StoreDeliveredSchool {
+  id: string;
+  name: string;
+  logo_url: string;
+}
+
+export function useStoreDeliveredSchools() {
+  return useQuery({
+    queryKey: ['store', 'schools', 'delivered'],
+    queryFn: () => api<StoreDeliveredSchool[]>('/public/schools/delivered/'),
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
 // ---------- State, then city, then branch ----------
 
 export interface StoreState {

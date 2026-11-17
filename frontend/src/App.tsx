@@ -28,6 +28,9 @@ const SelectionFlowPage = lazy(() =>
 const CheckoutPage = lazy(() =>
   import('./pages/CheckoutPage').then((m) => ({ default: m.CheckoutPage }))
 );
+const AboutPage = lazy(() =>
+  import('./pages/AboutPage').then((m) => ({ default: m.AboutPage }))
+);
 const Login = lazy(() => import('./pages/Login'));
 const Parent = lazy(() => import('./pages/Parent'));
 const Teacher = lazy(() => import('./pages/Teacher'));
@@ -76,6 +79,7 @@ export default function App() {
     location.pathname.startsWith('/login');
 
   const isHome = location.pathname === '/';
+  const isAbout = location.pathname === '/about';
 
   useSchoolTheme(!isPortal);
 
@@ -92,8 +96,8 @@ export default function App() {
     <ErrorBoundary>
       <SmoothScroll>
         <div className="store-application-root">
-        {/* Render global Header for storefront (home has its own emerald stage header) */}
-        {!isPortal && !isHome && (
+        {/* Render global Header for storefront (home and about have their own emerald headers) */}
+        {!isPortal && !isHome && !isAbout && (
           <Header
             onOpenBag={() => setBagOpen(true)}
             onOpenLanguage={() => setLangOpen(true)}
@@ -131,7 +135,15 @@ export default function App() {
               <Route path="/checkout" element={<CheckoutPage />} />
 
               {/* Informational pages */}
-              <Route path="/about" element={<ComingSoonPage title="About SchoolStore" />} />
+              <Route
+                path="/about"
+                element={
+                  <AboutPage
+                    onOpenBag={() => setBagOpen(true)}
+                    onOpenLanguage={() => setLangOpen(true)}
+                  />
+                }
+              />
               <Route path="/for-schools" element={<ComingSoonPage title="For Partner Schools" />} />
               <Route path="/contact" element={<ComingSoonPage title="Contact Us" />} />
               <Route path="/help" element={<ComingSoonPage title="Help & FAQs" />} />

@@ -7,6 +7,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { useStoreSchools, type StoreSchool } from '../../data/catalog';
 import { useSelectSchool } from '../school/useSelectSchool';
@@ -79,9 +80,17 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
   const [activeIndex, setActiveIndex] = useState(-1);
   const [isCompact, setIsCompact] = useState(false);
 
+  const location = useLocation();
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if ((location.state as { focusSearch?: boolean } | null)?.focusSearch) {
+      inputRef.current?.focus();
+      inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [location.state]);
 
   // Debounce search query
   useEffect(() => {

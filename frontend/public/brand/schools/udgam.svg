@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <circle cx="50" cy="50" r="46" fill="#0D2E5C" stroke="#E67E22" stroke-width="4"/>
+  <circle cx="50" cy="50" r="39" fill="none" stroke="#FFFFFF" stroke-width="1.5"/>
+  <path d="M50 22 L66 40 H34 Z" fill="#E67E22"/>
+  <path d="M50 44 L66 62 H34 Z" fill="#FFFFFF"/>
+  <text x="50" y="80" text-anchor="middle" font-family="'Baloo 2', sans-serif" font-weight="800" font-size="12" fill="#FFFFFF" letter-spacing="1">UDGAM</text>
+</svg>

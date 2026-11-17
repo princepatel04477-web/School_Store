@@ -49,6 +49,45 @@ class PublicCatalogTests(TestCase):
         names = [s["name"] for s in schools]
         self.assertEqual(names, sorted(names))
 
+    def test_public_delivered_schools_returns_only_consented_with_logos(self):
+        # Setup: self.dps has logo and consent, fountainhead has no logo, another has logo but no consent
+        self.dps.logo_url = "https://example.com/dps-logo.png"
+        self.dps.show_logo_public = True
+        self.dps.save()
+
+        # School with logo but NO consent
+        no_consent = School.objects.create(
+            name="No Consent Academy",
+            code="NCA-TEST",
+            city=self.surat,
+            logo_url="https://example.com/nca-logo.png",
+            show_logo_public=False,
+            active=True,
+        )
+
+        # School with consent but NO logo
+        no_logo = School.objects.create(
+            name="No Logo High",
+            code="NLH-TEST",
+            city=self.surat,
+            logo_url="",
+            show_logo_public=True,
+            active=True,
+        )
+
+        res = APIClient().get("/api/public/schools/delivered/")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        ids = [s["id"] for s in data]
+        self.assertIn(str(self.dps.id), ids)
+        self.assertNotIn(str(no_consent.id), ids)
+        self.assertNotIn(str(no_logo.id), ids)
+
+        # Check fields: id, name, logo_url
+        dps_entry = next(s for s in data if s["id"] == str(self.dps.id))
+        self.assertEqual(set(dps_entry.keys()), {"id", "name", "logo_url"})
+        self.assertEqual(dps_entry["logo_url"], "https://example.com/dps-logo.png")
+
     def test_public_schools_carry_city_and_delivery_options(self):
         schools = {s["code"]: s for s in APIClient().get("/api/public/schools/").json()}
         dps = schools["DPS-SUR"]

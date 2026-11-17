@@ -104,6 +104,9 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
                 </Link>
               </div>
             )}
+            <Link to="/about" className="utility-link">
+              {t('nav.aboutUs')}
+            </Link>
             <Link to="/size-guide" className="utility-link">
               {t('nav.sizeGuide')}
             </Link>
@@ -265,6 +268,9 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
             </nav>
 
             <div className="sheet-secondary">
+              <Link to="/about" className="sheet-secondary-item" onClick={closeMenu}>
+                {t('nav.aboutUs')}
+              </Link>
               <Link to="/size-guide" className="sheet-secondary-item" onClick={closeMenu}>
                 {t('nav.sizeGuide')}
               </Link>

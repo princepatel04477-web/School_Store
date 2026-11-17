@@ -36,6 +36,8 @@ class SchoolSerializer(serializers.ModelSerializer):
             "address",
             "contact_email",
             "contact_phone",
+            "logo_url",
+            "show_logo_public",
             "created_at",
         )
         read_only_fields = ("id", "city_name", "created_at")

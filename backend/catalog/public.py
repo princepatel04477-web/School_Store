@@ -87,6 +87,54 @@ class PublicSchoolListView(APIView):
         return Response(data)
 
 
+class PublicDeliveredSchoolListView(APIView):
+    """
+    Public endpoint for About page logo slider:
+    return only schools where show_logo_public = true AND logo_url IS NOT NULL;
+    fields id, name, logo_url; sorted by name; cached like the existing public endpoints.
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [PublicCatalogThrottle]
+
+    def get(self, request):
+        cache_key = None
+        try:
+            cache_key = versioned_cache_key(
+                "catalog:public:schools:delivered",
+                "all",
+                SCHOOL_LIST_CACHE_VERSION_KEY,
+            )
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return Response(cached)
+        except Exception:
+            pass
+
+        qs = (
+            School.objects.filter(active=True, show_logo_public=True)
+            .exclude(Q(logo_url__isnull=True) | Q(logo_url=""))
+            .order_by("name")
+        )
+
+        data = [
+            {
+                "id": str(s.id),
+                "name": s.name,
+                "logo_url": s.logo_url,
+            }
+            for s in qs.only("id", "name", "logo_url")
+        ]
+
+        if cache_key:
+            try:
+                cache.set(cache_key, data, timeout=600)
+            except Exception:
+                pass
+
+        return Response(data)
+
+
 class PublicSchoolCitiesView(APIView):
     """
     Step 2: Show only the cities where the selected school has a branch (or main school city),
