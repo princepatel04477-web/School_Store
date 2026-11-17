@@ -85,6 +85,8 @@ JAWAHAR NAVODAYA JNV SENIOR SR SECONDARY SEC HIGHER HIGH JUNIOR JR PRIMARY PRE N
 NO NUMBER THE AND OF CBSE ENGLISH MEDIUM CO ED PRESCHOOL PLAY WING SECTION BRANCH CAMPUS SECTOR
 """.split())
 
+KV_FULL = re.compile(r"\bk[ae]nd[a-z]*\s*vid[hy]*[a-z]*lay", re.I)
+
 # Chains whose every school is registered on UDISE+.
 COMPLETE_ON_UDISE = {"KV", "JNV", "SAINIK"}
 
@@ -126,6 +128,9 @@ def load_ads():
                 pin_district[row["pincode"]][(code[:2], row["igod_district_name"])] += 1
             chain = chain_of(row["school_name"])
             if not chain:
+                continue
+            # UDISE+ spells every KV out in full; "K V M Public School" is someone else.
+            if chain == "KV" and not KV_FULL.search(row["school_name"]):
                 continue
             row["chain"] = chain
             row["name_place"] = place_words(row["school_name"])
