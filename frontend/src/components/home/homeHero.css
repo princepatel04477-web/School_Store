@@ -1195,15 +1195,8 @@
 /* Laptops and desktops: the headline block and the stage sit in the middle of the
    first screen, not at its top with an empty band below. */
 @media (min-width: 1024px) {
-  /* The stage is as tall as its content needs (capped), so big monitors show the next
-     section instead of a tall empty band. */
-  .emerald-hero {
-    min-height: 0;
-  }
-
   .emerald-main-container {
     justify-content: center;
-    min-height: clamp(540px, calc(100dvh - 72px), 720px);
   }
 
   .emerald-hero-content {
