@@ -1,5 +1,9 @@
-import { defineConfig } from 'vite'; import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+
 // Stop a build whose API address is a file path. Git Bash on Windows silently rewrites
 // VITE_API_URL=/api into "C:/Program Files/Git/api" for native programs, which produced a
 // site that could not reach the server.
@@ -22,8 +26,21 @@ function buildLabel(): string {
   return commit.slice(0, 7);
 }
 
-export default defineConfig({
-  plugins: [react()],
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    react(),
+    {
+      name: 'exclude-mediapipe-from-app-bundle',
+      closeBundle() {
+        if (mode === 'app') {
+          const mediapipeOut = path.resolve(__dirname, 'dist-app/mediapipe');
+          if (fs.existsSync(mediapipeOut)) {
+            fs.rmSync(mediapipeOut, { recursive: true, force: true });
+          }
+        }
+      },
+    },
+  ],
   define: { __BUILD__: JSON.stringify(buildLabel()) },
   server: {
     host: '0.0.0.0',
@@ -51,4 +68,4 @@ export default defineConfig({
     target: 'es2020',
     sourcemap: false,
   },
-});
+}));

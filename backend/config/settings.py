@@ -51,9 +51,14 @@ if os.environ.get("RENDER_EXTERNAL_HOSTNAME") and ALLOWED_HOSTS != ["*"]:
     ALLOWED_HOSTS.append(os.environ["RENDER_EXTERNAL_HOSTNAME"])
 
 # Production: set CORS_ALLOWED_ORIGINS to the frontend origin(s), comma separated.
-# Unset (local dev) keeps the old allow-all behaviour.
-CORS_ALLOWED_ORIGINS = _env_list("CORS_ALLOWED_ORIGINS")
-CORS_ALLOW_ALL_ORIGINS = not CORS_ALLOWED_ORIGINS
+# Unset (local dev) keeps the old allow-all behaviour. Always allows https://localhost for the Android app.
+_cors_env = _env_list("CORS_ALLOWED_ORIGINS")
+CORS_ALLOWED_ORIGINS = list(dict.fromkeys([
+    "https://localhost",
+    "capacitor://localhost",
+    *_cors_env,
+])) if _cors_env else []
+CORS_ALLOW_ALL_ORIGINS = not _cors_env
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     "https://*.e2b.app",
@@ -61,6 +66,8 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:8000",
+    "https://localhost",
+    "capacitor://localhost",
     *CORS_ALLOWED_ORIGINS,
     *_env_list("DJANGO_CSRF_TRUSTED_ORIGINS"),
 ]

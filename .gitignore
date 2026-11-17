@@ -44,6 +44,11 @@ deploy/backup.env
 deploy/*-log.txt
 deploy/*-result.txt
 frontend/dist-local/
+frontend/dist-app/
+dist-app/
+dist-apk/
+*.apk
+*.aab
 
 # Local tooling & brag
 .agents/

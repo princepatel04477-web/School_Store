@@ -38,6 +38,9 @@ const Retailer = lazy(() => import('./pages/Retailer'));
 
 import { ComingSoonPage, NotFoundPage } from './pages/InfoPages';
 import { PrivacyPage, TermsPage, RefundPage } from './pages/LegalPages';
+import { isNativeApp } from './native/nativePlatform';
+import { hideSplashScreen } from './native/splash';
+import { openExternalUrl } from './native/externalLinks';
 
 export const homeFor = (role?: string) =>
   role === 'BOSS'
@@ -76,6 +79,34 @@ export default function App() {
     location.pathname.startsWith('/login');
 
   useSchoolTheme(!isPortal);
+
+  useEffect(() => {
+    hideSplashScreen();
+  }, []);
+
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    const handleClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement).closest('a');
+      if (!target) return;
+      const href = target.getAttribute('href');
+      if (!href) return;
+      const isExternal =
+        target.target === '_blank' ||
+        href.startsWith('http://') ||
+        href.startsWith('https://') ||
+        href.startsWith('tel:') ||
+        href.startsWith('mailto:') ||
+        href.startsWith('whatsapp:');
+      if (isExternal) {
+        if (href.startsWith(window.location.origin) && !target.target) return;
+        e.preventDefault();
+        openExternalUrl(href);
+      }
+    };
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
 
   // The store starts in English. Parents switch from the language link in the
   // top bar or the menu; the chooser only opens when they ask for it.

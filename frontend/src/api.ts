@@ -1,3 +1,6 @@
+import { Preferences } from '@capacitor/preferences';
+import { isNativeApp } from './native/nativePlatform';
+
 export type Role='PARENT'|'TEACHER'|'SCHOOL_ADMIN'|'ADMIN'|'BOSS'|'RETAILER';
 export type User={id:string;username:string;role:Role;city?:string|null;city_name?:string|null;school?:{name:string}|string|null;school_name?:string|null;school_code?:string|null;phone?:string;email?:string;first_name?:string;last_name?:string;is_active?:boolean;created_at?:string};
 export type CustomisationField = {
@@ -31,18 +34,143 @@ export type Product={
 };
 export type Order={id:string;order_number:string;student_name:string;status:string;payment_status:string;total:number;created_at:string;status_events?:{status:string;timestamp:string}[]};
 const API=import.meta.env.VITE_API_URL||'/api';
-let refreshing:Promise<string>|null=null;
-async function refresh(){const token=localStorage.getItem('refresh'); const r=await fetch(`${API}/auth/token/refresh/`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh:token})}); if(!r.ok) throw Error('session expired'); const d=await r.json(); localStorage.setItem('access',d.access); return d.access;}
+
 /** Turns an API path into a full URL. Paths may be "/panel/..." or "/api/panel/...". */
-function toUrl(path:string){return path.startsWith('/api/')?`${API}${path.slice(4)}`:`${API}${path}`;}
+export function toUrl(path:string):string{
+  const cleanPath=path.startsWith('/')?path:`/${path}`;
+  const base=API.replace(/\/+$/,'');
+  if(cleanPath.startsWith('/api/')){
+    return `${base}${cleanPath.slice(4)}`;
+  }
+  return `${base}${cleanPath}`;
+}
+
+let cachedAccess:string|null=null;
+let cachedRefresh:string|null=null;
+let prefInitPromise:Promise<void>|null=null;
+
+async function ensurePrefLoaded():Promise<void>{
+  if(!isNativeApp()) return;
+  if(!prefInitPromise){
+    prefInitPromise=(async()=>{
+      const [acc,ref]=await Promise.all([
+        Preferences.get({key:'access'}),
+        Preferences.get({key:'refresh'}),
+      ]);
+      cachedAccess=acc.value;
+      cachedRefresh=ref.value;
+    })();
+  }
+  return prefInitPromise;
+}
+
+export async function getStoredToken(key:'access'|'refresh'):Promise<string|null>{
+  if(isNativeApp()){
+    await ensurePrefLoaded();
+    return key==='access'?cachedAccess:cachedRefresh;
+  }
+  return localStorage.getItem(key);
+}
+
+export async function setStoredTokens(tokens:{access:string;refresh?:string}):Promise<void>{
+  if(isNativeApp()){
+    cachedAccess=tokens.access;
+    await Preferences.set({key:'access',value:tokens.access});
+    if(tokens.refresh!==undefined){
+      cachedRefresh=tokens.refresh;
+      await Preferences.set({key:'refresh',value:tokens.refresh});
+    }
+  }else{
+    localStorage.setItem('access',tokens.access);
+    if(tokens.refresh!==undefined){
+      localStorage.setItem('refresh',tokens.refresh);
+    }
+  }
+}
+
+export async function clearStoredTokens():Promise<void>{
+  if(isNativeApp()){
+    cachedAccess=null;
+    cachedRefresh=null;
+    await Promise.all([
+      Preferences.remove({key:'access'}),
+      Preferences.remove({key:'refresh'}),
+    ]);
+  }else{
+    localStorage.removeItem('access');
+    localStorage.removeItem('refresh');
+  }
+}
+
+let refreshing:Promise<string>|null=null;
+async function refresh():Promise<string>{
+  const token=await getStoredToken('refresh');
+  const r=await fetch(toUrl('/auth/token/refresh/'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh:token})});
+  if(!r.ok) throw Error('session expired');
+  const d=await r.json();
+  await setStoredTokens({access:d.access});
+  return d.access;
+}
+
 /** A request the server answered with an error; keeps the status and body so callers can tell a refusal from an outage. */
 export class ApiError extends Error{constructor(message:string,public status:number,public data:Record<string,unknown>={}){super(message);this.name='ApiError';}}
-export async function api<T>(path:string, init:RequestInit={},{retry=true}={}):Promise<T>{const headers=new Headers(init.headers); headers.set('Content-Type','application/json'); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); let res=await fetch(toUrl(path),{...init,headers}); if(res.status===401&&retry&&localStorage.getItem('refresh')){refreshing??=(refresh().finally(()=>{refreshing=null})); try{const token=await refreshing; return api<T>(path,{...init,headers:new Headers({...Object.fromEntries(headers),Authorization:`Bearer ${token}`})},{retry:false})}catch{logout();}} if(!res.ok){const data=await res.json().catch(()=>({})); throw new ApiError(data.detail||'Something went wrong',res.status,data);} return res.status===204?undefined as T:res.json();}
+export async function api<T>(path:string, init:RequestInit={},{retry=true}={}):Promise<T>{
+  const headers=new Headers(init.headers);
+  headers.set('Content-Type','application/json');
+  const access=await getStoredToken('access');
+  if(access) headers.set('Authorization',`Bearer ${access}`);
+  let res=await fetch(toUrl(path),{...init,headers});
+  if(res.status===401&&retry&&(await getStoredToken('refresh'))){
+    refreshing??=(refresh().finally(()=>{refreshing=null;}));
+    try{
+      const token=await refreshing;
+      return api<T>(path,{...init,headers:new Headers({...Object.fromEntries(headers),Authorization:`Bearer ${token}`})},{retry:false});
+    }catch{
+      await logout();
+    }
+  }
+  if(!res.ok){
+    const data=await res.json().catch(()=>({}));
+    throw new ApiError(data.detail||'Something went wrong',res.status,data);
+  }
+  return res.status===204?undefined as T:res.json();
+}
+
 /** Multipart upload: never sets Content-Type so the browser can add the boundary. */
-export async function upload<T>(path:string, form:FormData):Promise<T>{const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{method:'POST',headers,body:form}); if(!res.ok){const data=await res.json().catch(()=>({})); throw new ApiError(data.detail||'Upload failed',res.status,data);} return res.json();}
+export async function upload<T>(path:string, form:FormData):Promise<T>{
+  const headers=new Headers();
+  const access=await getStoredToken('access');
+  if(access) headers.set('Authorization',`Bearer ${access}`);
+  const res=await fetch(toUrl(path),{method:'POST',headers,body:form});
+  if(!res.ok){
+    const data=await res.json().catch(()=>({}));
+    throw new ApiError(data.detail||'Upload failed',res.status,data);
+  }
+  return res.json();
+}
+
 /** Stream a protected file with the bearer token attached (no token in the URL). */
-export async function download(path:string, filename:string){const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{headers}); if(!res.ok) throw new Error((await res.json().catch(()=>({}))).detail||'Download failed'); const blob=await res.blob(); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);}
-export function logout(){localStorage.removeItem('access');localStorage.removeItem('refresh'); window.location.href='/login';}
+export async function download(path:string, filename:string):Promise<void>{
+  const headers=new Headers();
+  const access=await getStoredToken('access');
+  if(access) headers.set('Authorization',`Bearer ${access}`);
+  const res=await fetch(toUrl(path),{headers});
+  if(!res.ok) throw new Error((await res.json().catch(()=>({}))).detail||'Download failed');
+  const blob=await res.blob();
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export async function logout():Promise<void>{
+  await clearStoredTokens();
+  window.location.href='/login';
+}
 export const auth={login:(username:string,password:string)=>api<{access:string;refresh:string;user:User}>('/auth/token/',{method:'POST',body:JSON.stringify({username,password})}),register:(body:unknown)=>api<{access:string;refresh:string;user:User}>('/auth/register/',{method:'POST',body:JSON.stringify(body)}),me:()=>api<User>('/auth/me/'),
   /** Parent sign-in by mobile number: send the code, then verify it. */
   sendOtp:(phone:string)=>api<{detail:string;phone:string;otp_debug?:string}>('/auth/otp/send/',{method:'POST',body:JSON.stringify({phone})}),
@@ -537,7 +665,7 @@ export const mockupUrl=(path:string)=>toUrl(path);
 export const schoolLogoUrl=(schoolId:string)=>toUrl(`/public/schools/${schoolId}/logo/`);
 
 /** A signed-in file (e.g. a pending request's logo) as an object URL an <img> can show. */
-export async function fetchBlobUrl(path:string):Promise<string>{const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{headers}); if(!res.ok) throw new ApiError('Could not load the picture',res.status); return URL.createObjectURL(await res.blob());}
+export async function fetchBlobUrl(path:string):Promise<string>{const headers=new Headers(); const access=await getStoredToken('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{headers}); if(!res.ok) throw new ApiError('Could not load the picture',res.status); return URL.createObjectURL(await res.blob());}
 
 /** Field errors from a 400 response, joined per field, for showing under each input. */
 export function fieldErrors(err:unknown):Record<string,string>{

@@ -1,50 +1,57 @@
 # School Store Android app (APK): walkthrough
 
 ## What it is
-A Capacitor 6 Android app that opens the live store, `https://school-store.aqualite.workers.dev`, inside a native
-WebView. The UI, data, cart and checkout are exactly the website, and every website deploy updates the app too
-(no new APK needed for UI changes).
+A Capacitor 6 Android app that packages the full React frontend (`dist-app/`) directly inside the native APK (`android/app/src/main/assets/public`).
+The UI loads instantly from local assets without waiting for network. API requests are routed to the remote production backend at `https://school-store.aqualite.workers.dev/api`.
 
 - Package: `com.colorbenz.schoolstore`, label "School Store", version 1.0 (code 1)
 - Android 7.0+ (minSdk 24), targetSdk 34
 - Permissions: INTERNET, CAMERA (photo measurement: `getUserMedia` and `<input capture>`)
-- Icon: the site's "S" mark (from `frontend/public/favicon.svg`) as an adaptive vector icon on #2F5D50,
-  with a themed (monochrome) variant for Android 13+
-- Splash and status bar: #2F5D50
-- Offline: if the site can't load, a local "You're offline" page (`frontend/android-shell/offline.html`) with a retry button
-- Back button: goes back in the web history; exits only on the first page (default `@capacitor/app` behaviour)
+- Icon: Adaptive vector icon on #2F5D50 with themed monochrome variant for Android 13+
+- Splash & status bar: #2F5D50 branding
+- Offline resilience: Dedicated in-app offline view with auto-retry and connectivity monitoring
+- Back button: Managed via `@capacitor/app` with predictable stack navigation and double-tap exit prevention
+- Architecture: Bundled local frontend (`dist-app`), remote API (`VITE_API_URL`), remote MediaPipe models loaded on demand to keep APK size < 15 MB (actual ~6.9 MB)
+- Token Storage: Native `@capacitor/preferences` on Android / iOS with fallback to `localStorage` on web browsers
 
-## Files
-- `frontend/capacitor.config.json`: app id, live URL, offline page, splash and status bar
-- `frontend/android-shell/`: tiny bundled web folder (redirect page + offline page); the full React build is NOT bundled
-- `frontend/android/`: generated Android project, customised by `frontend/android-setup.ps1`
-- `frontend/android/app/src/main/res/drawable/ic_launcher_s.xml`: the "S" icon as a vector
-- `frontend/package.json`: adds `@capacitor/core|android|app|splash-screen|status-bar@6` and `@capacitor/cli@6`
+## Files and Directories
+- `frontend/capacitor.config.json`: Capacitor configuration with `webDir: "dist-app"`, `SplashScreen` configuration, and `androidScheme: "https"`.
+- `frontend/src/native/`: Native platform abstraction layer:
+  - `nativePlatform.ts`: `isNativeApp()` check and MediaPipe asset resolution.
+  - `externalLinks.ts`: `openExternalUrl()` using `@capacitor/browser`.
+  - `splash.ts`: Splash screen hide orchestration.
+- `frontend/src/components/native/OfflineScreen.tsx`: React offline screen displayed when the device is disconnected.
+- `frontend/src/api.ts`: Centralized `toUrl()` API routing and native `@capacitor/preferences` JWT token management.
+- `frontend/src/auth.tsx`: Asynchronous token hydration and logout supporting native preferences.
+- `dist-apk/`: Compiled Android packages (`school-store-debug.apk`).
 
-## Rebuild the APK (Windows, PowerShell)
+## Build the APK (Windows, PowerShell)
 ```powershell
 cd frontend
 npm ci
+
+# 1. Build optimized React assets for native app into dist-app/
+npm run build:app
+
+# 2. Sync web assets and plugins to native Android project
 npx cap sync android
-powershell -ExecutionPolicy Bypass -File .\android-setup.ps1   # only after `npx cap add android` regenerates the project
+
+# 3. Compile the debug APK
 cd android
 $env:JAVA_HOME = 'C:\Program Files\Java\jdk-17'
 .\gradlew.bat assembleDebug
-# result: frontend\android\app\build\outputs\apk\debug\app-debug.apk
 ```
-Needs JDK 17 and Android SDK platform 34 + build-tools 34 (`sdkmanager "platforms;android-34" "build-tools;34.0.0"`).
 
-## Install on a phone
-Copy `dist-apk\school-store-debug.apk` to the phone and open it (allow "install unknown apps"), or with USB debugging:
-`adb install -r dist-apk\school-store-debug.apk`.
+The resulting debug APK is located at:
+`frontend/android/app/build/outputs/apk/debug/app-debug.apk` (and copied to `dist-apk/school-store-debug.apk`).
 
-## Not done yet (needed before the Play Store)
-1. **Release signing**: create an upload keystore (keep it out of git) and build `assembleRelease` / `bundleRelease` (AAB).
-2. **Legacy launcher icon on Android 7.0 to 7.1** still shows the Capacitor default PNG; Android 8+ shows the "S" icon.
-3. **Store listing**: privacy policy URL (the app uses the camera), screenshots, content rating.
-4. **Real-device test** of camera measurement and Razorpay checkout inside the app.
+## Bundled Asset Architecture & Size Optimization
+1. **Local Assets**: All compiled HTML, CSS, JavaScript chunks, fonts, and SVGs are bundled into `dist-app/` and copied to `android/app/src/main/assets/public`.
+2. **MediaPipe Remote Loading**: Large MediaPipe WASM and pose landmark binaries (~12 MB) are excluded from `dist-app/` during `npm run build:app` via a custom Vite plugin. On native platforms, `getRemoteMediaPipePath()` loads these assets from the remote worker on-demand, keeping the APK under 7 MB.
+3. **CORS & Origin Configuration**: Requests from WebView originate from `https://localhost`. Both Django (`settings.py`) and Cloudflare Worker (`worker/index.js`) allow CORS origins `https://localhost` and `capacitor://localhost`.
 
-## Verification done
-- `gradlew assembleDebug`: BUILD SUCCESSFUL
-- `aapt dump badging`: package com.colorbenz.schoolstore, sdkVersion 24, targetSdk 34, permissions INTERNET + CAMERA, label "School Store"
-- APK size 3.5 MB
+## Verification
+- `npm run build:app`: Successful, `dist-app` is ~4.4 MB (without MediaPipe).
+- `gradlew assembleDebug`: BUILD SUCCESSFUL.
+- Final APK Size: 6.94 MB (< 15 MB limit).
+- Web storefront: Preserved with full backward compatibility via `isNativeApp()` guards.

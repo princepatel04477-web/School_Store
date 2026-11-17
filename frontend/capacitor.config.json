@@ -1,12 +1,10 @@
 {
   "appId": "com.colorbenz.schoolstore",
   "appName": "School Store",
-  "webDir": "android-shell",
+  "webDir": "dist-app",
   "server": {
-    "url": "https://school-store.aqualite.workers.dev",
     "androidScheme": "https",
-    "cleartext": false,
-    "errorPath": "offline.html"
+    "cleartext": false
   },
   "android": {
     "allowMixedContent": false,
@@ -15,8 +13,7 @@
   },
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 600,
-      "launchAutoHide": true,
+      "launchAutoHide": false,
       "backgroundColor": "#2F5D50",
       "showSpinner": false
     },
