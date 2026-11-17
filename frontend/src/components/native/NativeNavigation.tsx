@@ -4,7 +4,12 @@ import { useAuth } from '../../auth';
 import { isNativeApp } from '../../native/nativePlatform';
 import { setupNativeBackButton, handleNativeBack } from '../../native/backButton';
 import { setupNativeKeyboard } from '../../native/keyboard';
-import { setupNativeStatusBar } from '../../native/statusBar';
+import {
+  setupNativeStatusBar,
+  setNativeStatusBarColor,
+  STATUS_BAR_DEFAULT,
+  STATUS_BAR_HOME,
+} from '../../native/statusBar';
 import { haptic } from '../../native/haptics';
 import {
   ShoppingBag,
@@ -46,6 +51,12 @@ export function NativeNavigation({ onOpenBag, bagCount = 0, hideTopBar = false }
     if (!isNativeApp()) return;
     setupNativeStatusBar();
   }, []);
+
+  // Home's emerald stage runs up to the status bar; other screens sit under the green top bar.
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    setNativeStatusBarColor(hideTopBar ? STATUS_BAR_HOME : STATUS_BAR_DEFAULT);
+  }, [hideTopBar]);
 
   // Keyboard listener
   useEffect(() => {
