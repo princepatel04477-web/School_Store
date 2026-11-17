@@ -9,6 +9,14 @@
   padding-bottom: calc(var(--native-tab-height) + var(--sab, 0px));
 }
 
+/* Home in the app: the emerald stage fills the screen above the bottom tabs, so the
+   school search is never hidden behind them; its header clears the status bar. */
+.is-native-shell .emerald-hero {
+  min-height: calc(100dvh - var(--native-tab-height) - var(--sab, 0px));
+  padding-top: var(--sat, 0px);
+  box-sizing: border-box;
+}
+
 .is-native-shell .category-tabs-sticky {
   top: calc(var(--native-top-height) + var(--sat, 0px));
 }

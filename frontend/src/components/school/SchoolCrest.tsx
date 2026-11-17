@@ -20,9 +20,10 @@ export function SchoolCrest({
   size = 48,
   className = '',
 }: SchoolCrestProps) {
-  // Codes like "DPS-SUR" keep only the school part so the badge stays legible
+  // Codes like "DPS-SUR" keep only the school part so the badge stays legible;
+  // imported chains are coded "CHAIN-KV", so the prefix is dropped first.
   const monogram = (
-    (code ? code.split(/[-\s/]/)[0].slice(0, 3) : '') ||
+    (code ? code.replace(/^CHAIN-/i, '').split(/[-\s/]/)[0].slice(0, 3) : '') ||
     name
       .split(/\s+/)
       .map((w) => w[0])

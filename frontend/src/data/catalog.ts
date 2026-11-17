@@ -105,14 +105,85 @@ export function useStoreSchools() {
   });
 }
 
-/** Every approved item for one school, class and boy/girl, across all pages. */
-export function useStoreProducts(schoolId?: string, className?: string, gender?: 'boy' | 'girl' | null) {
+// ---------- State, then city, then branch ----------
+
+export interface StoreState {
+  name: string;
+  cityCount: number;
+}
+
+export interface StoreCity {
+  id: string;
+  name: string;
+  state: string;
+  branchCount: number;
+}
+
+/** One campus. Its school owns the uniform list; its city decides stock. */
+export interface StoreBranch {
+  id: string;
+  name: string;
+  address: string;
+  pincode: string;
+  /** Government UDISE+ code; empty for campuses not on UDISE+ (standalone preschools). */
+  udise_code: string;
+  photo: string | null;
+  school: { id: string; name: string; code: string };
+}
+
+const withSchool = (path: string, schoolId?: string) =>
+  schoolId ? `${path}${path.includes('?') ? '&' : '?'}school=${encodeURIComponent(schoolId)}` : path;
+
+/** States with at least one open branch (of one school, when given). */
+export function useStoreStates(schoolId?: string) {
   return useQuery({
-    queryKey: ['store', 'products', schoolId, className, gender],
+    queryKey: ['store', 'states', schoolId ?? ''],
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () =>
+      (await api<{ name: string; city_count: number }[]>(withSchool('/public/states/', schoolId))).map(
+        (s): StoreState => ({ name: s.name, cityCount: s.city_count })
+      ),
+  });
+}
+
+export function useStoreCities(state?: string, schoolId?: string) {
+  return useQuery({
+    queryKey: ['store', 'cities', state, schoolId ?? ''],
+    enabled: Boolean(state),
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () =>
+      (
+        await api<{ id: string; name: string; state: string; branch_count: number }[]>(
+          withSchool(`/public/cities/?state=${encodeURIComponent(state!)}`, schoolId)
+        )
+      ).map((c): StoreCity => ({ id: c.id, name: c.name, state: c.state, branchCount: c.branch_count })),
+  });
+}
+
+export function useStoreBranches(cityId?: string, schoolId?: string) {
+  return useQuery({
+    queryKey: ['store', 'branches', cityId, schoolId ?? ''],
+    enabled: Boolean(cityId),
+    staleTime: 10 * 60 * 1000,
+    queryFn: () => api<StoreBranch[]>(withSchool(`/public/cities/${cityId}/branches/`, schoolId)),
+  });
+}
+
+/** Every approved item for one school, class and boy/girl, across all pages. */
+export function useStoreProducts(
+  schoolId?: string,
+  className?: string,
+  gender?: 'boy' | 'girl' | null,
+  /** The branch's city, for stock. Without it the server uses the school's own city. */
+  cityId?: string
+) {
+  return useQuery({
+    queryKey: ['store', 'products', schoolId, className, gender, cityId ?? ''],
     enabled: Boolean(schoolId && className && gender),
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const params = new URLSearchParams({ school: schoolId!, class: className!, gender: gender! });
+      if (cityId) params.set('city', cityId);
       const products: PublicProduct[] = [];
       let path: string | null = `/public/products/?${params}`;
       // The list is paged; a school's class list is small, so a few pages at most.

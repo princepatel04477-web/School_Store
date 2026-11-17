@@ -14,11 +14,11 @@
   "plugins": {
     "SplashScreen": {
       "launchAutoHide": false,
-      "backgroundColor": "#2F5D50",
+      "backgroundColor": "#0E5E3E",
       "showSpinner": false
     },
     "StatusBar": {
-      "backgroundColor": "#2F5D50",
+      "backgroundColor": "#0E5E3E",
       "style": "DARK",
       "overlaysWebView": false
     },

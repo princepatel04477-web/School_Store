@@ -1,29 +1,27 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowRight } from '../components/ui/icons';
-import { motion, AnimatePresence } from 'motion/react';
 import { useStoreSchools } from '../data/catalog';
 import { useStoreState } from '../store/storeState';
 import { SchoolCrest } from '../components/school/SchoolCrest';
-import { SchoolSearch } from '../components/school/SchoolSearch';
 import { useSelectSchool } from '../components/school/useSelectSchool';
-import { Button } from '../components/ui/Button';
 import { KitIllustration, type KitKind } from '../components/home/KitIllustration';
 import { CategoryPhoto } from '../components/CategoryPhoto';
-import { EASING } from '../motion/motionConfig';
 import { prefetchFlowPage, prefetchSchoolData } from '../utils/prefetch';
 import {
   Reveal,
   Stagger,
-  Thread,
-  TextReveal,
   Hairline,
 } from '../motion';
-import { siteConfig } from '../siteConfig';
 import { useLang } from '../i18n';
-import { classLabel, genderLabel } from '../i18n/labels';
+import { HomeHero } from '../components/home/HomeHero';
 import './home.css';
 
-export function HomePage() {
+export interface HomePageProps {
+  onOpenBag?: () => void;
+  onOpenLanguage?: () => void;
+}
+
+export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps) {
   const navigate = useNavigate();
   const { selection, setSelection } = useStoreState();
   const { t } = useLang();
@@ -67,107 +65,8 @@ export function HomePage() {
 
   return (
     <div className="home-page" id="main">
-      <div className="house-stripe" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-        <span />
-      </div>
-
-      {/* 1. HERO SECTION: the headline across the page, the line and the school search
-          under it, then a strip of real product photos running edge to edge */}
-      <section className="hero-section">
-        <div className="container">
-          <TextReveal
-            lines={[t('home.heroLine1'), t('home.heroLine2')]}
-            className="hero-heading"
-            underlineLast
-          />
-
-          <div className="hero-row">
-            <Reveal delay={0.15} className="hero-sub-wrap">
-              <p className="hero-subtext">
-                {t('home.heroSub')}
-              </p>
-            </Reveal>
-
-            <div className="hero-action">
-              {/* Hero Selection State vs School Search Box */}
-              <Reveal delay={0.25}>
-                <AnimatePresence mode="wait">
-                  {selection ? (
-                    <motion.div
-                      key="selected"
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                      transition={{ duration: 0.25, ease: EASING }}
-                      className="hero-selected-state"
-                    >
-                      <div className="hero-selected-badge">
-                        <SchoolCrest id={selection.schoolId} name={selection.schoolName} code={selection.schoolCode} size={42} />
-                        <div className="hero-selected-text">
-                          <span className="hero-selected-label">{t('home.currentSchool')}</span>
-                          <h2 className="hero-selected-school">{t('home.shoppingFor', { school: selection.schoolName })}</h2>
-                          <span className="hero-selected-grade">
-                            {selection.cityName ? `${selection.cityName} ` : ''}
-                            {selection.gradeName ? `· ${classLabel(selection.gradeName, t)}` : ''}
-                            {selection.gender ? ` · ${genderLabel(selection.gender, t)}` : ''}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="hero-selected-actions">
-                          <Button
-                            className="hero-continue-btn"
-                            arrow
-                            onMouseEnter={prefetchFlowPage}
-                            onClick={() => {
-                              const nextStep = selection.gradeId
-                                ? selection.gender
-                                  ? '4'
-                                  : '3'
-                                : '2';
-                              navigate(
-                                `/flow?school=${encodeURIComponent(selection.schoolId)}&step=${nextStep}`
-                              );
-                            }}
-                          >
-                            {t('home.continue')}
-                          </Button>
-                        <button
-                          type="button"
-                          className="hero-change-school-link"
-                          onClick={() => {
-                            setSelection(null);
-                            setTimeout(() => {
-                              const input = document.querySelector('.hero-search-input') as HTMLInputElement;
-                              if (input) input.focus();
-                            }, 50);
-                          }}
-                        >
-                          {t('home.changeSchool')}
-                        </button>
-                      </div>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="search"
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                      transition={{ duration: 0.25, ease: EASING }}
-                    >
-                      <SchoolSearch schools={schools} onSelect={handleSelectSchool} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </Reveal>
-            </div>
-          </div>
-        </div>
-
-      </section>
+      {/* 1. EMERALD STAGE HERO (P1) */}
+      <HomeHero onOpenBag={onOpenBag} onOpenLanguage={onOpenLanguage} />
 
       {/* 3. SHOP BY CATEGORY (Editorial Grid), on the one full-width highlight band */}
       <div className="highlight-band">

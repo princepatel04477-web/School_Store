@@ -97,7 +97,7 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
               >
                 <SchoolCrest id={selection.schoolId} name={selection.schoolName} code={selection.schoolCode} size={20} />
                 <span className="pill-school-info">
-                  {selection.schoolName} {selection.gradeName ? `· ${classLabel(selection.gradeName, t)}` : ''}
+                  {selection.branchName || selection.schoolName} {selection.gradeName ? `· ${classLabel(selection.gradeName, t)}` : ''}
                 </span>
                 <Link to="/flow?step=1" className="pill-change-link" aria-label={t('nav.changeSchool')}>
                   {t('nav.change')}

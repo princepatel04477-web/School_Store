@@ -29,9 +29,11 @@ export interface TabItem {
 interface NativeNavigationProps {
   onOpenBag: () => void;
   bagCount?: number;
+  /** Home has its own emerald header (logo, language, bag), so the compact top bar steps aside there. */
+  hideTopBar?: boolean;
 }
 
-export function NativeNavigation({ onOpenBag, bagCount = 0 }: NativeNavigationProps) {
+export function NativeNavigation({ onOpenBag, bagCount = 0, hideTopBar = false }: NativeNavigationProps) {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -222,6 +224,7 @@ export function NativeNavigation({ onOpenBag, bagCount = 0 }: NativeNavigationPr
   return (
     <>
       {/* Native Compact Top Bar */}
+      {!hideTopBar && (
       <header className="native-top-bar">
         <div className="native-top-left">
           {!isTabRoot ? (
@@ -252,6 +255,7 @@ export function NativeNavigation({ onOpenBag, bagCount = 0 }: NativeNavigationPr
           )}
         </div>
       </header>
+      )}
 
       {/* Exit Toast Notification */}
       {exitToast && (

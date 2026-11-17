@@ -5,7 +5,8 @@ from uuid import UUID
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db.models import Prefetch, Q
+from django.db.models import Count, Prefetch, Q, Value
+from django.db.models.functions import Coalesce, NullIf
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
@@ -141,6 +142,154 @@ class PublicSchoolCitiesView(APIView):
                 pass
 
         return Response(data)
+
+
+def _cached(namespace: str, key: str, build):
+    """Serve `build()` from the school-list cache, which School/City/Branch saves bump."""
+    cache_key = None
+    try:
+        cache_key = versioned_cache_key(namespace, key, SCHOOL_LIST_CACHE_VERSION_KEY)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+    except Exception:
+        cache_key = None
+    data = build()
+    if cache_key:
+        try:
+            cache.set(cache_key, data, timeout=600)
+        except Exception:
+            pass
+    return data
+
+
+def _open_branches(request):
+    """Open branches, limited to one school when the shop passes ?school=<uuid>."""
+    qs = SchoolBranch.objects.filter(active=True, school__active=True, city__active=True)
+    school = (request.query_params.get("school") or "").strip()
+    if school:
+        try:
+            qs = qs.filter(school_id=UUID(school))
+        except ValueError as exc:
+            raise ValidationError({"school": "Provide a valid school UUID."}) from exc
+    return qs, school
+
+
+class PublicStateListView(APIView):
+    """
+    Shop step 1: states that have at least one open branch, A to Z.
+    GET /api/public/states/[?school=<uuid>] -> [{"name": "Haryana", "city_count": 22}]
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [PublicCatalogThrottle]
+
+    def get(self, request):
+        branches, school = _open_branches(request)
+
+        def build():
+            rows = (
+                branches
+                .exclude(city__state="")
+                .values("city__state")
+                .annotate(city_count=Count("city_id", distinct=True))
+                .order_by("city__state")
+            )
+            return [{"name": r["city__state"], "city_count": r["city_count"]} for r in rows]
+
+        return Response(_cached("catalog:public:states", school or "all", build))
+
+
+class PublicStateCitiesView(APIView):
+    """
+    Shop step 2: cities in a state with at least one open branch, A to Z.
+    GET /api/public/cities/?state=Haryana[&school=<uuid>] -> [{"id", "name", "code", "state", "branch_count"}]
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [PublicCatalogThrottle]
+
+    def get(self, request):
+        state = (request.query_params.get("state") or "").strip()
+        if not state:
+            raise ValidationError({"state": "State parameter is required."})
+        branches, school = _open_branches(request)
+
+        def build():
+            rows = (
+                branches
+                .filter(city__state__iexact=state)
+                .values("city_id", "city__name", "city__code", "city__state")
+                .annotate(branch_count=Count("id"))
+                .order_by("city__name")
+            )
+            return [
+                {
+                    "id": str(r["city_id"]),
+                    "name": r["city__name"],
+                    "code": r["city__code"],
+                    "state": r["city__state"],
+                    "branch_count": r["branch_count"],
+                }
+                for r in rows
+            ]
+
+        return Response(_cached("catalog:public:state_cities", f"{state.lower()}:{school}", build))
+
+
+class PublicCityBranchesView(APIView):
+    """
+    Shop step 3: open school branches in a city, A to Z by campus name.
+    GET /api/public/cities/<city_id>/branches/[?search=][&school=<uuid>]
+
+    Each row carries the school (which owns the catalogue) so the shop can go
+    straight on to class and gender.
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [PublicCatalogThrottle]
+
+    def get(self, request, city_id):
+        if not City.objects.filter(pk=city_id, active=True).exists():
+            raise NotFound("City not found.")
+        search = (request.query_params.get("search") or "").strip()
+        branches, school = _open_branches(request)
+
+        def build():
+            qs = (
+                branches
+                .filter(city_id=city_id)
+                .select_related("school")
+                .annotate(sort_name=Coalesce(NullIf("name", Value("")), "school__name"))
+                .order_by("sort_name", "id")
+            )
+            if search:
+                qs = qs.filter(
+                    Q(name__icontains=search)
+                    | Q(school__name__icontains=search)
+                    | Q(address__icontains=search)
+                    | Q(pincode__startswith=search)
+                    | Q(udise_code__startswith=search)
+                )
+            return [
+                {
+                    "id": str(b.id),
+                    "name": b.display_name,
+                    "address": b.address,
+                    "pincode": b.pincode,
+                    "udise_code": b.udise_code or "",
+                    "photo": request.build_absolute_uri(b.photo.url) if b.photo else None,
+                    "school": {"id": str(b.school_id), "name": b.school.name, "code": b.school.code},
+                }
+                for b in qs.only(
+                    "id", "name", "address", "pincode", "udise_code", "photo", "school_id",
+                    "school__name", "school__code",
+                )
+            ]
+
+        if search:
+            return Response(build())
+        return Response(_cached("catalog:public:city_branches", f"{city_id}:{school}", build))
 
 
 class PublicGradeListView(APIView):

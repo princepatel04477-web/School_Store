@@ -8,7 +8,8 @@ from common.cache_utils import invalidate_school_cache
 
 
 class City(UUIDModel):
-    name = models.CharField(max_length=120, unique=True)
+    # Unique within a state only: Hamirpur and Pratapgarh are each in two states.
+    name = models.CharField(max_length=120)
     code = models.CharField(max_length=20, unique=True)
     state = models.CharField(max_length=100, blank=True, default="Gujarat")
     active = models.BooleanField(default=True)
@@ -18,6 +19,9 @@ class City(UUIDModel):
     class Meta:
         verbose_name_plural = "Cities"
         ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(fields=["state", "name"], name="uniq_city_state_name"),
+        ]
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
@@ -122,8 +126,12 @@ class School(UUIDModel):
 
 class SchoolBranch(UUIDModel):
     """
-    Branch linking a school to a city:
-    School unique (school, city) and indexed on (city).
+    One campus of a school in a city. The school owns the uniform and the
+    catalogue; a chain with one uniform (Kendriya Vidyalaya) is one school with
+    a branch for every campus, so a city can hold several branches of it.
+
+    Parents pick state, then city, then branch. `name` is the campus name
+    ("Kendriya Vidyalaya Aliganj"); empty means the school's own name.
     """
     school = models.ForeignKey(
         School,
@@ -135,25 +143,61 @@ class SchoolBranch(UUIDModel):
         on_delete=models.PROTECT,
         related_name="school_branches",
     )
+    name = models.CharField(max_length=200, blank=True, default="")
+    address = models.TextField(blank=True, default="")
+    pincode = models.CharField(max_length=6, blank=True, default="")
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    phone = models.CharField(max_length=20, blank=True, default="")
+    website = models.URLField(max_length=300, blank=True, default="")
+    photo = models.ImageField(upload_to="branch-photos/%Y/%m/", blank=True, default="")
+    maps_place_id = models.CharField(
+        max_length=80,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="Google Maps place id the branch was imported from. Re-imports update this row.",
+    )
+    udise_code = models.CharField(
+        max_length=20,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="The campus's UDISE+ code from the government register (usually 11 digits). "
+        "Empty for campuses not on UDISE+, such as standalone preschools.",
+    )
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name_plural = "School Branches"
-        ordering = ["school", "city"]
+        ordering = ["school", "city", "name"]
         constraints = [
             models.UniqueConstraint(
-                fields=["school", "city"],
-                name="uniq_schoolbranch_school_city",
+                fields=["school", "city", "name"],
+                name="uniq_schoolbranch_school_city_name",
             ),
         ]
         indexes = [
             models.Index(fields=["city"], name="idx_schoolbranch_city"),
+            models.Index(fields=["city", "active", "name"], name="idx_branch_city_active_name"),
         ]
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        invalidate_school_cache()
+
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        invalidate_school_cache()
+
+    @property
+    def display_name(self) -> str:
+        return self.name or self.school.name
+
     def __str__(self) -> str:
-        return f"{self.school.name} - {self.city.name}"
+        return f"{self.display_name} - {self.city.name}"
 
 
 class Student(UUIDModel):
