@@ -168,6 +168,10 @@ export async function download(path:string, filename:string):Promise<void>{
 }
 
 export async function logout():Promise<void>{
+  try {
+    const { unregisterDeviceToken } = await import('./native/push');
+    await unregisterDeviceToken();
+  } catch {}
   await clearStoredTokens();
   window.location.href='/login';
 }

@@ -395,3 +395,27 @@ class PhotoConsent(UUIDModel):
     def __str__(self) -> str:
         state = "withdrawn" if self.withdrawn_at else "live"
         return f"{self.purpose} {state} for {self.student_id}"
+
+
+class DeviceToken(UUIDModel):
+    """FCM device token for mobile push notifications."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="device_tokens",
+    )
+    token = models.CharField(max_length=255, unique=True, db_index=True)
+    platform = models.CharField(max_length=20, default="android")
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-last_seen_at"]
+        indexes = [
+            models.Index(fields=["user", "platform"], name="idx_device_user_platform"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user} ({self.platform}): {self.token[:12]}..."
+

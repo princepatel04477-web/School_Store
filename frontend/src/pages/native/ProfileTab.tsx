@@ -4,12 +4,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, deleteChildPhotos } from '../../api';
 import { useAuth } from '../../auth';
 import { useLang, LANGUAGES } from '../../i18n';
-import { User, ShieldCheck, SignOut, ChevronRight, RefreshCw } from '../../components/ui/icons';
+import { User, ShieldCheck, SignOut, ChevronRight, RefreshCw, Bell } from '../../components/ui/icons';
 import { ParentSignInSheet } from '../../components/parent/ParentSignInSheet';
 import { isBiometricsEnabled, enableBiometrics, clearBiometrics } from '../../native/biometrics';
 import { checkAppVersion, INSTALLED_APP_VERSION, type VersionCheckResult } from '../../native/appVersion';
 import { openExternalUrl } from '../../native/externalLinks';
 import { haptic } from '../../native/haptics';
+import { updateOrderNotificationPreference } from '../../native/push';
 import './nativePages.css';
 
 export function ProfileTab() {
@@ -21,6 +22,28 @@ export function ProfileTab() {
   const [biometricsActive, setBiometricsActive] = useState(false);
   const [versionChecking, setVersionChecking] = useState(false);
   const [versionResult, setVersionResult] = useState<VersionCheckResult | null>(null);
+  const [orderUpdatesActive, setOrderUpdatesActive] = useState<boolean>(
+    Boolean((user as any)?.notify_order_updates ?? true)
+  );
+
+  useEffect(() => {
+    if (user && 'notify_order_updates' in user) {
+      setOrderUpdatesActive(Boolean((user as any).notify_order_updates));
+    }
+  }, [user]);
+
+  const handleToggleOrderUpdates = async () => {
+    haptic.impactLight();
+    const nextVal = !orderUpdatesActive;
+    setOrderUpdatesActive(nextVal);
+    const success = await updateOrderNotificationPreference(nextVal);
+    if (success) {
+      haptic.success();
+    } else {
+      setOrderUpdatesActive(!nextVal);
+      haptic.warning();
+    }
+  };
 
   useEffect(() => {
     isBiometricsEnabled().then((enabled) => setBiometricsActive(enabled));
@@ -163,6 +186,26 @@ export function ProfileTab() {
             onClick={handleToggleBiometrics}
           >
             {biometricsActive ? '✓ Fingerprint Unlock Enabled' : 'Enable Fingerprint Unlock Next Time'}
+          </button>
+        </div>
+      )}
+
+      {/* Push Notifications for Order Status Updates */}
+      {user && (
+        <div className="native-card">
+          <div className="native-card-title-row">
+            <Bell width={20} height={20} />
+            <h3>Order Status Notifications</h3>
+          </div>
+          <p className="native-hint">
+            Get instant phone updates when uniform orders are confirmed, dispatched, ready for pickup, or delivered.
+          </p>
+          <button
+            type="button"
+            className={`native-lang-chip ${orderUpdatesActive ? 'active' : ''}`}
+            onClick={handleToggleOrderUpdates}
+          >
+            {orderUpdatesActive ? '✓ Order notifications enabled' : 'Turn on order notifications'}
           </button>
         </div>
       )}

@@ -437,3 +437,9 @@ PLAY_STORE_URL = os.environ.get(
     "https://play.google.com/store/apps/details?id=com.colorbenz.schoolstore",
 )
 
+# --------------------------------------------------------------------------- #
+# Firebase Cloud Messaging (FCM HTTP v1) for mobile push notifications
+# --------------------------------------------------------------------------- #
+FCM_CREDENTIALS_FILE = os.environ.get("FCM_CREDENTIALS_FILE", "")
+
+

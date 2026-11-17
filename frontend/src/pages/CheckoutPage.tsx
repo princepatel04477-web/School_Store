@@ -14,6 +14,8 @@ import { classLabel } from '../i18n/labels';
 import type { ParentChild } from '../api';
 import { ParentSignInSheet } from '../components/parent/ParentSignInSheet';
 import { scrollPageTo } from '../motion/SmoothScroll';
+import { isNativeApp } from '../native/nativePlatform';
+import { requestPushPermissionAfterOrder } from '../native/push';
 import '../components/cart/bagCheckout.css';
 
 /**
@@ -161,6 +163,9 @@ export function CheckoutPage() {
       setPlaced(order);
       clearCart();
       scrollPageTo(0);
+      if (isNativeApp()) {
+        requestPushPermissionAfterOrder().catch(() => {});
+      }
     } catch (error) {
       setOrderError(t(orderErrorMessage(error)));
     } finally {

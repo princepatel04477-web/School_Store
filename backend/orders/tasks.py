@@ -85,6 +85,7 @@ def release_expired_reservation(order_id):
             status=order.status,
             note="Payment reservation expired.",
         )
+        transaction.on_commit(lambda o=str(order.id): send_order_status_push.delay(o, Order.Status.CANCELLED))
         return True
 
 
@@ -94,3 +95,12 @@ def clear_old_fit_data():
     from .fit_retention import clear_fit_data
 
     return clear_fit_data()
+
+
+@shared_task(name="orders.send_order_status_push")
+def send_order_status_push(order_id, status_or_event):
+    """Sends FCM push notification to parent devices. Runs after commit."""
+    from .fcm import send_order_push
+
+    return send_order_push(str(order_id), status_or_event)
+

@@ -21,6 +21,9 @@
       "backgroundColor": "#2F5D50",
       "style": "DARK",
       "overlaysWebView": false
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
     }
   }
 }

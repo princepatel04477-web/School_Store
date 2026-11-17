@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
-import { Navigate, Route, Routes, Link, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './auth';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -55,6 +55,7 @@ import { NativeNavigation } from './components/native/NativeNavigation';
 import { useStoreState } from './store/storeState';
 import { checkAppVersion } from './native/appVersion';
 import { UpdatePrompt } from './components/native/UpdatePrompt';
+import { initPushNotifications } from './native/push';
 
 export const homeFor = (role?: string) =>
   role === 'BOSS'
@@ -83,6 +84,7 @@ export default function App() {
   const [bagOpen, setBagOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isPortal =
     location.pathname.startsWith('/boss') ||
@@ -99,13 +101,16 @@ export default function App() {
   useEffect(() => {
     hideSplashScreen();
     if (isNativeApp()) {
+      initPushNotifications((orderId) => {
+        navigate(`/parent?order=${orderId}`);
+      });
       checkAppVersion().then((res) => {
         if (res.forceUpdate) {
           setUpdateRequired({ url: res.updateUrl, version: res.latestVersion });
         }
       });
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (!isNativeApp()) return;

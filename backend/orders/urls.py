@@ -1,6 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from .consent_views import PhotoConsentCreateView, PhotoConsentDeleteView
+from .device_views import DeviceTokenDetailView, DeviceTokenView
 from .upload_views import (
     PresignedUploadUrlView,
     local_storage_download_view,
@@ -19,5 +20,7 @@ urlpatterns = [
     path("storage/local-upload/", local_storage_upload_view, name="local-storage-upload"),
     path("storage/local-download/", local_storage_download_view, name="local-storage-download"),
     path("", include(router.urls)),
+    path("devices/", DeviceTokenView.as_view(), name="device-token-create"),
+    path("devices/<path:token>/", DeviceTokenDetailView.as_view(), name="device-token-detail"),
     path("payments/razorpay/webhook/", razorpay_webhook, name="razorpay-webhook"),
 ]
