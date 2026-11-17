@@ -36,11 +36,23 @@ const CityAdmin = lazy(() => import('./pages/CityAdmin'));
 const BossPanel = lazy(() => import('./pages/BossPanel'));
 const Retailer = lazy(() => import('./pages/Retailer'));
 
+const OrdersTab = lazy(() =>
+  import('./pages/native/OrdersTab').then((m) => ({ default: m.OrdersTab }))
+);
+const MeasureTab = lazy(() =>
+  import('./pages/native/MeasureTab').then((m) => ({ default: m.MeasureTab }))
+);
+const ProfileTab = lazy(() =>
+  import('./pages/native/ProfileTab').then((m) => ({ default: m.ProfileTab }))
+);
+
 import { ComingSoonPage, NotFoundPage } from './pages/InfoPages';
 import { PrivacyPage, TermsPage, RefundPage } from './pages/LegalPages';
 import { isNativeApp } from './native/nativePlatform';
 import { hideSplashScreen } from './native/splash';
 import { openExternalUrl } from './native/externalLinks';
+import { NativeNavigation } from './components/native/NativeNavigation';
+import { useStoreState } from './store/storeState';
 
 export const homeFor = (role?: string) =>
   role === 'BOSS'
@@ -117,12 +129,23 @@ export default function App() {
   }, [setLang]);
   const closeLanguage = () => setLangOpen(false);
 
+  const isNative = isNativeApp();
+  const { totalCount } = useStoreState();
+
   return (
     <ErrorBoundary>
       <SmoothScroll>
-        <div className="store-application-root">
-        {/* Render global Header for storefront */}
-        {!isPortal && (
+        <div className={`store-application-root ${isNative ? 'is-native-shell' : ''}`}>
+        {/* Render Native Navigation (Top Bar and Bottom Tab Bar) when in native app */}
+        {isNative && (
+          <NativeNavigation
+            onOpenBag={() => setBagOpen(true)}
+            bagCount={totalCount}
+          />
+        )}
+
+        {/* Render global Header for storefront when NOT native app */}
+        {!isPortal && !isNative && (
           <Header
             onOpenBag={() => setBagOpen(true)}
             onOpenLanguage={() => setLangOpen(true)}
@@ -151,6 +174,11 @@ export default function App() {
               />
               <Route path="/checkout" element={<CheckoutPage />} />
 
+              {/* Native App Main Tabs & Quick Navigation */}
+              <Route path="/orders" element={<OrdersTab />} />
+              <Route path="/measure" element={<MeasureTab />} />
+              <Route path="/profile" element={<ProfileTab />} />
+
               {/* Informational pages */}
               <Route path="/about" element={<ComingSoonPage title="About SchoolStore" />} />
               <Route path="/for-schools" element={<ComingSoonPage title="For Partner Schools" />} />
@@ -176,8 +204,8 @@ export default function App() {
           </Suspense>
         </PageTransition>
 
-        {/* Global Footer for storefront */}
-        {!isPortal && <Footer />}
+        {/* Global Footer for storefront when NOT native app */}
+        {!isPortal && !isNative && <Footer />}
 
         {!isPortal && <LanguageChooser open={langOpen} onClose={closeLanguage} />}
         {!isPortal && <WelcomePopup blocked={langOpen || !hasChosen} />}
@@ -201,30 +229,36 @@ export default function App() {
 export function Shell({ children, title }: { children: ReactNode; title: string }) {
   const { user, signOut } = useAuth();
   const home = homeFor(user?.role);
+  const isNative = isNativeApp();
+
   return (
     <div className="app">
-      <header>
-        <Link to={home} className="brand">
-          <span className="brand-mark">S</span>
-          <span>School<span className="ink">Store</span></span>
-        </Link>
-        <div className="header-right">
-          <span className="avatar">{user?.username?.slice(0, 1).toUpperCase()}</span>
-          <button className="icon-btn" onClick={signOut} aria-label="Sign out">↗</button>
-        </div>
-      </header>
+      {!isNative && (
+        <header>
+          <Link to={home} className="brand">
+            <span className="brand-mark">S</span>
+            <span>School<span className="ink">Store</span></span>
+          </Link>
+          <div className="header-right">
+            <span className="avatar">{user?.username?.slice(0, 1).toUpperCase()}</span>
+            <button className="icon-btn" onClick={signOut} aria-label="Sign out">↗</button>
+          </div>
+        </header>
+      )}
       <main>
         <div className="eyebrow">{user?.role === 'PARENT' ? 'PARENT SPACE' : 'SCHOOL STAFF'}</div>
         <h1>{title}</h1>
         {children}
       </main>
-      <nav className="bottom-nav">
-        <Link to={home}>⌂<small>Home</small></Link>
-        <Link to={user?.role === 'PARENT' ? '/parent/orders' : '/teacher/students'}>
-          ▣<small>{user?.role === 'PARENT' ? 'Orders' : 'Students'}</small>
-        </Link>
-        <Link to="#" onClick={(e) => { e.preventDefault(); signOut(); }}>↗<small>Sign out</small></Link>
-      </nav>
+      {!isNative && (
+        <nav className="bottom-nav">
+          <Link to={home}>⌂<small>Home</small></Link>
+          <Link to={user?.role === 'PARENT' ? '/parent/orders' : '/teacher/students'}>
+            ▣<small>{user?.role === 'PARENT' ? 'Orders' : 'Students'}</small>
+          </Link>
+          <Link to="#" onClick={(e) => { e.preventDefault(); signOut(); }}>↗<small>Sign out</small></Link>
+        </nav>
+      )}
     </div>
   );
 }
