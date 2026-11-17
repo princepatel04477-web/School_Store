@@ -283,6 +283,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "orders.purge_delivered_child_photos",
         "schedule": crontab(hour=2, minute=15),
     },
+    "retrain-shoulder-model": {
+        "task": "catalog.retrain_shoulder_model",
+        "schedule": crontab(hour=3, minute=0, day_of_week=0),  # Sunday 03:00 IST
+    },
 }
 
 # Django REST Framework & JWT Authentication

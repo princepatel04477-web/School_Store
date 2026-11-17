@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Category, Product, ProductVariant, SizeChartRow, SizingSample
+from .models import Category, Product, ProductVariant, ShoulderEstimateModel, SizeChartRow, SizingSample
 
 
 @admin.register(Category)
@@ -104,3 +104,11 @@ class SizingSampleAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+
+@admin.register(ShoulderEstimateModel)
+class ShoulderEstimateModelAdmin(admin.ModelAdmin):
+    list_display = ("version", "gender", "active", "sigma_cm", "rmse_cm", "n_real", "n_chart", "trained_at")
+    list_filter = ("active", "gender")
+    readonly_fields = ("version", "trained_at", "gender", "coefficients", "sigma_cm", "n_real", "n_chart", "rmse_cm", "active")
+
