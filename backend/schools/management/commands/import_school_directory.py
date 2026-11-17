@@ -58,15 +58,10 @@ class Command(BaseCommand):
         with transaction.atomic():
             schools = self._schools(data["chains"], only, inactive_fit)
             cities = self._cities(branches)
-            created, updated, kept_ids = self._branches(branches, schools, cities)
+            created, updated, missing = self._branches(branches, schools, cities)
             switched_off = 0
             if opts["deactivate_missing"]:
-                switched_off = (
-                    SchoolBranch.objects.filter(school__in=schools.values(), active=True)
-                    .filter(Q(udise_code__isnull=False) | Q(maps_place_id__isnull=False))
-                    .exclude(id__in=kept_ids)
-                    .update(active=False)
-                )
+                switched_off = SchoolBranch.objects.filter(pk__in=missing, active=True).update(active=False)
             if opts["dry_run"]:
                 transaction.set_rollback(True)
         invalidate_school_cache()
@@ -168,6 +163,19 @@ class Command(BaseCommand):
         for sb in blockers:
             sb.name = f"{sb.name[:180]} (old {str(sb.pk)[:8]})"
         SchoolBranch.objects.bulk_update(blockers, ["name"], batch_size=500)
+        # Imported rows the file no longer lists, found before any code moves.
+        missing = set(
+            SchoolBranch.objects.filter(school__in=schools.values())
+            .filter(Q(udise_code__isnull=False) | Q(maps_place_id__isnull=False))
+            .exclude(pk__in=seen)
+            .values_list("pk", flat=True)
+        )
+        # A duplicate row may hold a code or place id that a line now gives another row
+        # (one row matched by UDISE+ code, its Google twin by place id): free them all.
+        codes = {r.udise_code for r in changed + new if r.udise_code}
+        places = {r.maps_place_id for r in changed + new if r.maps_place_id}
+        SchoolBranch.objects.filter(udise_code__in=codes).exclude(pk__in=seen).update(udise_code=None)
+        SchoolBranch.objects.filter(maps_place_id__in=places).exclude(pk__in=seen).update(maps_place_id=None)
         # Park the changing rows on temporary names and free their unique codes, so names
         # and codes can move between rows, then write the final values.
         SchoolBranch.objects.filter(pk__in=[r.pk for r in changed]).update(
@@ -175,4 +183,4 @@ class Command(BaseCommand):
         )
         SchoolBranch.objects.bulk_update(changed, fields, batch_size=500)
         SchoolBranch.objects.bulk_create(new, batch_size=500)
-        return len(new), len(changed), seen
+        return len(new), len(changed), missing
