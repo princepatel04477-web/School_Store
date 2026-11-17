@@ -1,6 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from .accuracy_views import SizeAdviceAccuracyView
 from .boss_views import (
     BossCategorySalesView,
     BossCitySalesView,
@@ -39,6 +40,7 @@ urlpatterns = [
     path("schools/", PanelSchoolsView.as_view(), name="panel-schools"),
     path("filters/", PanelFilterOptionsView.as_view(), name="panel-filters"),
     path("city-daily-sales/", CityDailySalesView.as_view(), name="panel-city-daily-sales"),
+    path("size-accuracy/", SizeAdviceAccuracyView.as_view(), name="panel-size-accuracy"),
     # Boss panel executive endpoints (Requirements 1, 2, 6, 7)
     path("boss/kpis/", BossKpisView.as_view(), name="boss-kpis"),
     path("boss/charts/revenue-profit/", BossRevenueProfitTimeView.as_view(), name="boss-chart-revenue-profit"),

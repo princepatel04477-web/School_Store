@@ -78,7 +78,7 @@ def record_payment(queryset, *, payment_id, signature="", changed_by=None, note=
     from common.audit import log_audit_event
     from common.models import AuditLog
 
-    from .tasks import refresh_order_summary
+    from .tasks import refresh_order_summary, send_order_status_push
 
     with transaction.atomic():
         order = queryset.select_for_update().first()
@@ -111,6 +111,7 @@ def record_payment(queryset, *, payment_id, signature="", changed_by=None, note=
             note=note,
         )
         transaction.on_commit(lambda: refresh_order_summary.delay(str(order.id)))
+        transaction.on_commit(lambda o=str(order.id), s=order.status: send_order_status_push.delay(o, s))
     return True
 
 
@@ -123,7 +124,7 @@ def change_order_status(queryset, new_status, user, note="") -> list:
     from common.audit import log_audit_event
     from common.models import AuditLog
 
-    from .tasks import refresh_order_summary
+    from .tasks import refresh_order_summary, send_order_status_push
 
     with transaction.atomic():
         changed = list(
@@ -161,4 +162,5 @@ def change_order_status(queryset, new_status, user, note="") -> list:
             )
         for order_id in ids:
             transaction.on_commit(lambda o=order_id: refresh_order_summary.delay(str(o)))
+            transaction.on_commit(lambda o=str(order_id), s=new_status: send_order_status_push.delay(o, s))
     return ids

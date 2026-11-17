@@ -1,0 +1,200 @@
+/* Native Top Bar and Bottom Tab Bar Styling */
+
+:root {
+  --native-top-height: 48px;
+  --native-tab-height: 56px;
+}
+
+.is-native-shell {
+  padding-bottom: calc(var(--native-tab-height) + var(--sab, 0px));
+}
+
+.is-native-shell .category-tabs-sticky {
+  top: calc(var(--native-top-height) + var(--sat, 0px));
+}
+
+/* Compact Top Bar */
+.native-top-bar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--native-top-height) + var(--sat, 0px));
+  padding-top: var(--sat, 0px);
+  background: var(--brand, #2F5D50);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 12px;
+  padding-right: 12px;
+  z-index: 1000;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.native-top-left {
+  display: flex;
+  align-items: center;
+  width: 44px;
+}
+
+.native-back-button {
+  background: transparent;
+  border: none;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+}
+
+.native-back-button:active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.native-brand-badge {
+  width: 28px;
+  height: 28px;
+  background: #FFFFFF;
+  color: var(--brand, #2F5D50);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.native-top-title {
+  font-family: var(--font-display, inherit);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  color: #FFFFFF;
+  text-align: center;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 8px;
+}
+
+.native-top-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 44px;
+}
+
+.native-top-bag-btn {
+  background: transparent;
+  border: none;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+}
+
+.native-bag-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: #D7263D;
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+/* Bottom Tab Bar */
+.native-bottom-tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--native-tab-height) + var(--sab, 0px));
+  padding-bottom: var(--sab, 0px);
+  background: var(--paper-raised, #FFFFFF);
+  border-top: 1px solid var(--line, #DCE0E5);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 1000;
+}
+
+.native-tab-item {
+  flex: 1;
+  height: var(--native-tab-height);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--ink-soft, #545C66);
+  cursor: pointer;
+  padding: 4px 0;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.native-tab-item:active {
+  background: var(--paper-sunk, #F1F3F5);
+}
+
+.native-tab-item.active {
+  color: #2E8B57; /* Active tab in #2E8B57 */
+}
+
+.native-tab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+.native-tab-label {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Exit Toast */
+.native-exit-toast {
+  position: fixed;
+  bottom: calc(var(--native-tab-height) + var(--sab, 0px) + 16px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20, 33, 61, 0.92);
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: var(--radius-full, 999px);
+  z-index: 2000;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  animation: fadeInOut 2s ease forwards;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translate(-50%, 8px); }
+  15% { opacity: 1; transform: translate(-50%, 0); }
+  85% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, 8px); }
+}

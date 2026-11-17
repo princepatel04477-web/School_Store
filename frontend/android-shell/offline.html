@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#2F5D50" />
+    <title>SchoolStore: you're offline</title>
+    <style>
+      html, body { margin: 0; height: 100%; }
+      body {
+        background: #F1F3F5;
+        color: #1F2A27;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom);
+        box-sizing: border-box;
+        text-align: center;
+      }
+      .card { max-width: 340px; }
+      .logo {
+        width: 64px; height: 64px; margin: 0 auto 20px; border-radius: 20px;
+        background: #2F5D50; color: #fff; display: flex; align-items: center; justify-content: center;
+        font: italic 700 40px Georgia, "Times New Roman", serif;
+      }
+      h1 { font-size: 22px; margin: 0 0 8px; }
+      p { font-size: 16px; line-height: 1.5; margin: 0 0 24px; color: #4A5853; }
+      button {
+        min-height: 48px; min-width: 160px; padding: 0 24px; border: 0; border-radius: 999px;
+        background: #2E8B57; color: #fff; font-size: 16px; font-weight: 600;
+      }
+      button:active { opacity: 0.85; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="logo" aria-hidden="true">S</div>
+      <h1>You're offline</h1>
+      <p>SchoolStore needs an internet connection. Check your Wi-Fi or mobile data and try again.</p>
+      <button type="button" onclick="location.href='https://school-store.aqualite.workers.dev/'">Try again</button>
+    </main>
+  </body>
+</html>

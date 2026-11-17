@@ -50,6 +50,10 @@ class User(AbstractUser):
         default=False,
         help_text="Set for staff accounts created by another staff member; cleared after first-login password change.",
     )
+    notify_order_updates = models.BooleanField(
+        default=True,
+        help_text="True if the user has enabled push notifications for order updates.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -77,3 +77,22 @@ def commit_size_chart_import(self, job_id: str) -> dict:
         raise
 
     return {"job_id": job_id, "status": job.status, **(job.result or {})}
+
+
+@shared_task(name="catalog.retrain_shoulder_model")
+def retrain_shoulder_model() -> dict:
+    """Scheduled task to retrain shoulder model from accumulated measurements."""
+    from .shoulder_estimate import train_model
+
+    logger.info("Starting scheduled shoulder model retraining...")
+    report = train_model(activate_if_better=True)
+    logger.info(
+        "Shoulder model retraining completed: version=%s, n_real=%s, n_chart=%s, sigma=%s, activated=%s",
+        report.get("version"),
+        report.get("n_real"),
+        report.get("n_chart"),
+        report.get("sigma_cm"),
+        report.get("activated"),
+    )
+    return report
+

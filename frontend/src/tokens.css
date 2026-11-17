@@ -13,6 +13,12 @@
 }
 
 :root {
+  /* Safe areas for native devices */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+
   /* Surfaces: cool grey frame, white cards */
   --paper: #F1F3F5;
   --paper-raised: #FFFFFF;
