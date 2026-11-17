@@ -108,7 +108,7 @@ export function HomePage() {
                         <SchoolCrest id={selection.schoolId} name={selection.schoolName} code={selection.schoolCode} size={42} />
                         <div className="hero-selected-text">
                           <span className="hero-selected-label">{t('home.currentSchool')}</span>
-                          <h2 className="hero-selected-school">{t('home.shoppingFor', { school: selection.schoolName })}</h2>
+                          <h2 className="hero-selected-school">{t('home.shoppingFor', { school: selection.branchName || selection.schoolName })}</h2>
                           <span className="hero-selected-grade">
                             {selection.cityName ? `${selection.cityName} ` : ''}
                             {selection.gradeName ? `· ${classLabel(selection.gradeName, t)}` : ''}

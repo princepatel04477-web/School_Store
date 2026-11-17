@@ -187,6 +187,35 @@
   transition: all var(--duration-ui) var(--ease-spring);
 }
 
+button.school-select-card {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.branch-photo {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+}
+
+.branch-address {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.branch-picker-scope {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  margin: 0 0 var(--space-4);
+}
+
 .school-select-card:hover {
   border-color: var(--brand);
 }

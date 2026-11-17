@@ -21,7 +21,8 @@ class GradeAdmin(admin.ModelAdmin):
 class SchoolBranchInline(admin.TabularInline):
     model = SchoolBranch
     extra = 1
-    fields = ("city", "active")
+    fields = ("name", "city", "pincode", "phone", "active")
+    show_change_link = True
 
 
 @admin.register(School)
@@ -45,11 +46,19 @@ class SchoolAdmin(admin.ModelAdmin):
 
 @admin.register(SchoolBranch)
 class SchoolBranchAdmin(admin.ModelAdmin):
-    list_display = ("school", "city", "active", "created_at")
-    list_filter = ("active", "city", "school")
-    search_fields = ("school__name", "school__code", "city__name")
-    readonly_fields = ("id", "created_at", "updated_at")
+    list_display = ("display_name", "school", "city", "pincode", "active", "created_at")
+    list_filter = ("active", "city__state", "school")
+    search_fields = ("name", "school__name", "school__code", "city__name", "address", "pincode")
+    readonly_fields = ("id", "maps_place_id", "created_at", "updated_at")
     list_select_related = ("school", "city")
+    autocomplete_fields = ("city",)
+    fieldsets = (
+        (None, {"fields": ("school", "city", "name", "active")}),
+        ("Location", {"fields": ("address", "pincode", "latitude", "longitude")}),
+        ("Contact", {"fields": ("phone", "website")}),
+        ("Photo", {"fields": ("photo",)}),
+        ("Source", {"fields": ("id", "maps_place_id", "created_at", "updated_at")}),
+    )
 
 
 @admin.register(Student)

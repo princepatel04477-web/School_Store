@@ -2,7 +2,10 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .public import (
+    PublicCityBranchesView,
     PublicGradeListView,
+    PublicStateCitiesView,
+    PublicStateListView,
     PublicMeasureConfigView,
     PublicProductList,
     PublicSchoolCitiesView,
@@ -28,7 +31,10 @@ router.register("size-charts", SizeChartViewSet, basename="size-chart")
 urlpatterns = [
     path("public/schools/", PublicSchoolListView.as_view(), name="public-schools"),
     path("public/schools/<uuid:school_id>/cities/", PublicSchoolCitiesView.as_view(), name="public-school-cities"),
-    path("public/grades/", PublicGradeListView.as_view(), name="public-grades"),
+    path("public/states/", PublicStateListView.as_view(), name="public-states"),
+    path("public/cities/", PublicStateCitiesView.as_view(), name="public-state-cities"),
+    path("public/cities/<uuid:city_id>/branches/", PublicCityBranchesView.as_view(), name="public-city-branches"),
+    path("public/grades/",PublicGradeListView.as_view(), name="public-grades"),
     path("public/products/", PublicProductList.as_view(), name="public-products"),
     path("public/size-fit/", PublicSizeFitView.as_view(), name="public-size-fit"),
     path("public/measure-config/", PublicMeasureConfigView.as_view(), name="public-measure-config"),

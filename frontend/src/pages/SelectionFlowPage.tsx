@@ -1,14 +1,14 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { Search, Check, ArrowRight, ArrowLeft } from '../components/ui/icons';
+import { Check, ArrowLeft } from '../components/ui/icons';
 import { motion } from 'motion/react';
 import { seedClasses, type SeedClass } from '../data/seedData';
-import { useStoreSchools, useStoreProducts, type StoreSchool } from '../data/catalog';
+import { useStoreSchools, useStoreProducts } from '../data/catalog';
+import { BranchPicker, type PickedBranch } from '../components/school/BranchPicker';
 import type { CardProduct } from '../components/product/ProductCard';
 import { useStoreState, storeState } from '../store/storeState';
 import { resolveFlowStep } from '../store/flowStep';
 import { scrollPageTo } from '../motion/SmoothScroll';
-import { SchoolCrest } from '../components/school/SchoolCrest';
 import { ProductCard } from '../components/product/ProductCard';
 import { ProductSheet } from '../components/product/ProductSheet';
 import { IdCardPreview } from '../components/idcard/IdCardPreview';
@@ -56,9 +56,6 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
 
   const [stepDirection, setStepDirection] = useState<'forward' | 'backward'>('forward');
 
-  // School Search query
-  const [schoolQuery, setSchoolQuery] = useState('');
-
   // Selected School, Class, and Gender State
   // Read URL params or fallback to active stored selection. A link to another school
   // does not inherit the class and boy/girl chosen for the saved school.
@@ -81,13 +78,24 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   );
   // A saved school that has left the store counts as no school; a linked one gets its own message.
   const savedSchoolGone = schoolsQuery.isSuccess && !activeSchool && !linkedSchoolId;
+  // The campus the parent picked (state, then city, then branch), kept with the saved choice.
+  const activeBranch = selection?.schoolId === activeSchoolId && selection?.branchId ? selection : null;
+  // A chain (one uniform, many campuses) has no city of its own, so the parent must pick the branch.
+  const needsBranch = Boolean(activeSchool && !activeSchool.cityId && !activeBranch);
+  const schoolLabel = activeBranch?.branchName || activeSchool?.name || '';
+  const cityLabel = activeBranch?.cityName || activeSchool?.city || '';
   const stepParam = resolveFlowStep(searchParams.get('step'), {
-    school: Boolean(activeSchoolId) && !savedSchoolGone,
+    school: Boolean(activeSchoolId) && !savedSchoolGone && !needsBranch,
     grade: Boolean(activeClass),
     gender: Boolean(activeGender),
   });
   const [currentStep, setCurrentStep] = useState<number>(stepParam);
-  const productsQuery = useStoreProducts(activeSchool?.id, activeClass?.name, activeGender);
+  const productsQuery = useStoreProducts(
+    activeSchool?.id,
+    activeClass?.name,
+    activeGender,
+    activeBranch?.cityId || activeSchool?.cityId
+  );
   const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
 
   // The child's measurement (Prompt 21): measured once on any shirt or
@@ -139,6 +147,18 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     [products]
   );
 
+  // The school part of the saved choice: the school, and its branch if one was picked.
+  const schoolAnswer = () => ({
+    schoolId: activeSchool!.id,
+    schoolName: activeSchool!.name,
+    schoolCode: activeSchool!.code,
+    cityId: activeBranch?.cityId || activeSchool!.cityId,
+    cityName: cityLabel,
+    stateName: activeBranch?.stateName,
+    branchId: activeBranch?.branchId,
+    branchName: activeBranch?.branchName,
+  });
+
   // A link from the school (?school=…&class=…) counts as the parent's choice, so the
   // bag and checkout know which school and class the order is for.
   useEffect(() => {
@@ -151,10 +171,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       return;
     }
     setSelection({
-      schoolId: activeSchool.id,
-      schoolName: activeSchool.name,
-      schoolCode: activeSchool.code,
-      cityName: activeSchool.city,
+      ...schoolAnswer(),
       gradeId: activeClass?.id,
       gradeName: activeClass?.name,
       gender: activeGender,
@@ -286,19 +303,23 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     }
   };
 
-  const handleSelectSchool = (school: StoreSchool) => {
+  const handleSelectBranch = ({ branch, city, state }: PickedBranch) => {
     setSelection({
-      schoolId: school.id,
-      schoolName: school.name,
-      schoolCode: school.code,
-      cityName: school.city,
+      schoolId: branch.school.id,
+      schoolName: branch.school.name,
+      schoolCode: branch.school.code,
+      cityId: city.id,
+      cityName: city.name,
+      stateName: state,
+      branchId: branch.id,
+      branchName: branch.name,
       gradeId: undefined,
       gradeName: undefined,
       gender: null,
     });
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      next.set('school', school.id);
+      next.set('school', branch.school.id);
       next.delete('class');
       next.delete('gender');
       next.set('step', '2');
@@ -306,13 +327,23 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     });
   };
 
+  // "Show all schools" on a picker opened for one school (from the home page search).
+  const clearLinkedSchool = () => {
+    setSelection(null);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('school');
+      next.delete('class');
+      next.delete('gender');
+      next.set('step', '1');
+      return next;
+    });
+  };
+
   const handleSelectClass = (cls: SeedClass) => {
     if (activeSchool) {
       setSelection({
-        schoolId: activeSchool.id,
-        schoolName: activeSchool.name,
-        schoolCode: activeSchool.code,
-        cityName: activeSchool.city,
+        ...schoolAnswer(),
         gradeId: cls.id,
         gradeName: cls.name,
         gender: null,
@@ -330,10 +361,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const handleSelectGender = (gender: 'boy' | 'girl') => {
     if (activeSchool && activeClass) {
       setSelection({
-        schoolId: activeSchool.id,
-        schoolName: activeSchool.name,
-        schoolCode: activeSchool.code,
-        cityName: activeSchool.city,
+        ...schoolAnswer(),
         gradeId: activeClass.id,
         gradeName: activeClass.name,
         gender,
@@ -346,15 +374,6 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       return next;
     });
   };
-
-  // Filtered Schools for Step 1
-  const filteredSchools = useMemo(() => {
-    const q = schoolQuery.trim().toLowerCase();
-    if (!q) return schools;
-    return schools.filter(
-      (s) => s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q)
-    );
-  }, [schoolQuery, schools]);
 
   // Grouped Classes for Step 2
   const groupedClasses = useMemo(() => {
@@ -485,67 +504,16 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       <StepTransition stepKey={currentStep} direction={stepDirection}>
         {/* ================= STEP 1: SCHOOL ================= */}
         {currentStep === 1 && (
-          <div className="step-panel step-school-panel">
-            <div className="step-title-row">
-              <h1 className="step-heading">{t('flow.s1.title')}</h1>
-              <p className="step-subtitle">{t('flow.s1.sub')}</p>
-              <ListenButton text={`${t('flow.s1.title')}. ${t('flow.s1.sub')}`} />
-            </div>
-
-            <div className="school-filter-search">
-              <Search className="search-filter-icon" width={20} height={20} />
-              <input
-                type="text"
-                placeholder={t('flow.s1.search')}
-                aria-label={t('flow.s1.search')}
-                className="school-search-field"
-                value={schoolQuery}
-                onChange={(e) => setSchoolQuery(e.target.value)}
-              />
-            </div>
-
-            {schoolsQuery.isLoading ? (
-              <div className="flow-empty-state" role="status">
-                <p>{t('flow.loadingSchools')}</p>
-              </div>
-            ) : schoolsQuery.isError ? (
-              <div className="flow-empty-state" role="alert">
-                <h3>{t('flow.schoolsError')}</h3>
-                <p>{t('common.checkInternet')}</p>
-                <button type="button" className="btn btn-primary" onClick={() => schoolsQuery.refetch()}>
-                  {t('common.tryAgain')}
-                </button>
-              </div>
-            ) : filteredSchools.length > 0 ? (
-              <Stagger className="schools-select-grid">
-                {filteredSchools.map((s) => {
-                  const isSelected = activeSchool?.id === s.id;
-                  return (
-                    <div
-                      key={s.id}
-                      className={`school-select-card ${isSelected ? 'is-selected' : ''}`}
-                      onClick={() => handleSelectSchool(s)}
-                    >
-                      <SchoolCrest id={s.id} color={s.color} name={s.name} code={s.code} size={52} />
-                      <div className="school-select-details">
-                        <h3 className="school-select-name">{s.name}</h3>
-                        <span className="school-select-meta">{[s.city, s.board].filter(Boolean).join(' · ')}</span>
-                      </div>
-                      <ArrowRight className="school-select-arrow" width={18} height={18} />
-                    </div>
-                  );
-                })}
-              </Stagger>
-            ) : (
-              <div className="flow-empty-state">
-                <h3>{t('flow.noSchool')}</h3>
-                <p>{t('flow.noSchoolSub')}</p>
-                <Link to="/contact?reason=request-school" className="plain-link">
-                  {t('home.requestSchool')} →
-                </Link>
-              </div>
-            )}
-          </div>
+          <BranchPicker
+            // Opened from a link or the home page search for one school: only its branches.
+            schoolId={linkedSchoolId && !activeBranch ? linkedSchoolId : undefined}
+            schoolName={linkedSchoolId && !activeBranch ? activeSchool?.name : undefined}
+            onClearSchool={clearLinkedSchool}
+            selectedBranchId={activeBranch?.branchId}
+            initialState={activeBranch?.stateName}
+            initialCityId={activeBranch?.cityId}
+            onSelect={handleSelectBranch}
+          />
         )}
 
         {/* ================= STEP 2: CLASS ================= */}
@@ -584,7 +552,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
             </button>
 
             <div className="step-title-row">
-              <span className="label">{activeSchool.name}</span>
+              <span className="label">{schoolLabel}</span>
               <h1 className="step-heading">{t('flow.s2.title')}</h1>
               <ListenButton text={t('flow.s2.title')} />
             </div>
@@ -626,7 +594,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
             </button>
 
             <div className="step-title-row">
-              <span className="label">{activeSchool.name} · {classLabel(activeClass.name, t)}</span>
+              <span className="label">{schoolLabel} · {classLabel(activeClass.name, t)}</span>
               <h1 className="step-heading">{t('flow.s3.title')}</h1>
               <ListenButton text={t('flow.s3.title')} />
             </div>
@@ -710,10 +678,10 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
             >
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
-                  {activeSchool.name}
+                  {schoolLabel}
                 </span>
                 <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
-                  {activeSchool.city}
+                  {cityLabel}
                 </span>
                 {activeClass && (
                   <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
@@ -744,7 +712,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
               <div className="items-main-col">
                 <div className="step-title-row">
                   <span className="label">
-                    {activeSchool.name} · {classLabel(activeClass?.name, t)} · {genderLabel(activeGender, t)}
+                    {schoolLabel} · {classLabel(activeClass?.name, t)} · {genderLabel(activeGender, t)}
                   </span>
                   <h1 className="step-heading">{t('flow.s4.title')}</h1>
                   <ListenButton text={`${t('flow.s4.title')}. ${t('flow.s4.listen')}`} />
@@ -755,7 +723,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   <div className="fullset-banner">
                     <div>
                       <strong>{t('set.bannerTitle')}</strong>
-                      <span>{t('set.bannerSub', { count: fullSetProducts.length, school: activeSchool.name })}</span>
+                      <span>{t('set.bannerSub', { count: fullSetProducts.length, school: schoolLabel })}</span>
                     </div>
                     <button type="button" className="btn btn-primary" onClick={() => setFullSetOpen(true)}>
                       {t('set.open')}

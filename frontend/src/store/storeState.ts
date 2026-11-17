@@ -24,6 +24,10 @@ export interface StoredSelection {
   schoolCode?: string;
   cityId?: string;
   cityName?: string;
+  stateName?: string;
+  /** The campus picked in the shop (state, then city, then branch). */
+  branchId?: string;
+  branchName?: string;
   gradeId?: string;
   gradeName?: string;
   gender?: 'boy' | 'girl' | null;
