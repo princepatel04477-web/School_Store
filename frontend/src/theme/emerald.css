@@ -1,0 +1,544 @@
+/*
+ * Emerald theme for the whole store.
+ * The home page's emerald stage (P1) set the look: deep emerald, saffron accent,
+ * mint surfaces, Baloo 2 headings in sentence case, soft rounded cards.
+ * Loaded after every other stylesheet, so pages inherit it through the tokens and
+ * only the few spots with their own colours are restyled here.
+ * A picked school still re-tints --brand at runtime (theme/schoolTheme.ts).
+ */
+
+:root {
+  /* Surfaces: mint frame, white cards */
+  --paper: #f2f7f4;
+  --paper-raised: #ffffff;
+  --paper-sunk: #e4efe9;
+
+  /* Inks: emerald-black text */
+  --ink: #12352a;
+  --ink-soft: #3d5c50;
+  --ink-faint: #56705f;
+
+  --line: #d3e5db;
+
+  /* The store anchor (header, footer, logo) is now emerald instead of navy */
+  --navy: #0e5e3e;
+
+  --brand: #0e5e3e;
+  --on-brand: #ffffff;
+
+  /* House colours become the emerald family plus saffron */
+  --house-red: #0e5e3e;
+  --house-blue: #14825a;
+  --house-green: #2f6f55;
+  --house-yellow: #ffb766;
+  --on-house-yellow: #12352a;
+
+  --highlight: #14825a;
+  --highlight-ink: #0e5e3e;
+  --highlight-soft: rgba(14, 94, 62, 0.1);
+  --highlight-glow: rgba(14, 94, 62, 0.3);
+
+  /* Saffron accent for calls to action and small highlights */
+  --saffron: #ffb766;
+  --saffron-ink: #a85300; /* saffron for text on white (5:1) */
+
+  /* Friendly, rounded shapes */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+
+  /* Soft emerald shadows instead of flat borders only */
+  --shadow-sm: 0 2px 10px rgba(14, 94, 62, 0.08);
+  --shadow-md: 0 14px 30px rgba(14, 94, 62, 0.14);
+}
+
+/* ---------- Type: Baloo 2 headings in sentence case ---------- */
+
+/* Plain element selectors (no :root) so headings with their own colour, like the
+   white hero headline, keep it. */
+h1,
+h2,
+h3,
+h4,
+.display-font {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* The old condensed sports-day capitals become the emerald stage's rounded headings */
+:root .display-condensed {
+  font-stretch: normal;
+  text-transform: none;
+  letter-spacing: -0.015em;
+  line-height: 1.02;
+  font-weight: 800;
+}
+
+:root .eyebrow {
+  color: var(--highlight-ink);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+:root .label {
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+
+/* ---------- Buttons ---------- */
+
+:root .btn,
+:root .primary,
+:root .secondary {
+  border-radius: var(--radius-md);
+}
+
+:root .btn-primary,
+:root .primary {
+  border-radius: var(--radius-md);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  box-shadow: 0 10px 22px rgba(14, 94, 62, 0.22);
+}
+
+:root .btn-primary:focus-visible,
+:root .primary:focus-visible,
+:root .btn:focus-visible {
+  outline: 3px solid var(--emerald-sparkle, #ffd964);
+  outline-offset: 2px;
+}
+
+/* ---------- Cards and inputs pick up the rounded, soft look ---------- */
+
+:root .card,
+:root .cart-card,
+:root .form-card,
+:root .order-card,
+:root .product,
+:root .featured-school-card,
+:root .modal {
+  border-radius: var(--radius-lg);
+}
+
+:root input[type='text'],
+:root input[type='search'],
+:root input[type='tel'],
+:root input[type='email'],
+:root input[type='password'],
+:root input[type='number'],
+:root select,
+:root textarea {
+  border-radius: var(--radius-md);
+}
+
+/* ---------- Header and footer ---------- */
+
+:root .site-header {
+  box-shadow: 0 6px 18px rgba(14, 94, 62, 0.18);
+}
+
+:root .site-header .site-brand .brand-mark,
+:root .footer-brand .brand-mark {
+  border-radius: 10px;
+}
+
+:root .footer-brand .brand-mark {
+  color: var(--emerald-bg, #0e5e3e);
+}
+
+/* ---------- Home sections below Our story ---------- */
+
+:root .cat-tile {
+  border-radius: var(--radius-lg);
+}
+
+:root .cat-tile-media {
+  border-radius: 14px;
+}
+
+:root .cat-tile.house-4 {
+  --tile: #12352a;
+}
+
+:root .featured-school-card {
+  box-shadow: var(--shadow-sm);
+}
+
+:root .featured-school-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+:root .for-schools-band {
+  background-color: var(--emerald-bg, #0e5e3e);
+}
+
+:root .for-schools-btn {
+  border-radius: var(--radius-md);
+  background-color: var(--saffron);
+  color: var(--ink);
+  font-family: var(--font-heading);
+  font-weight: 800;
+}
+
+:root .for-schools-btn:hover {
+  background-color: #ffc887;
+  color: var(--ink);
+}
+
+/* ---------- Big headings: rounded Baloo in sentence case, not condensed capitals ---------- */
+
+:root .home-page .section-head-split h2,
+:root .home-page .section-head h2,
+:root .for-schools-title,
+:root .cat-tile .cat-title,
+:root .cat-tab,
+:root .gender-card-title,
+:root .sheet-nav-label,
+:root .hero-heading {
+  font-stretch: normal;
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+
+:root .footer-wordmark text {
+  font-stretch: normal;
+  text-transform: none;
+  letter-spacing: -0.02em;
+  fill: color-mix(in oklab, #ffffff 12%, var(--navy));
+}
+
+/* ---------- Shop flow (state, city, school, class, items) ---------- */
+
+:root .mobile-stepper-title {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  :root .mobile-stepper-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: var(--emerald-bg, #0e5e3e);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 13px;
+  }
+}
+
+:root .step-node-bubble {
+  border-width: 2px;
+  font-family: var(--font-heading);
+  font-weight: 800;
+}
+
+:root .step-node.is-active .step-node-bubble {
+  box-shadow: 0 6px 14px rgba(14, 94, 62, 0.3);
+}
+
+:root .step-node.is-complete .step-node-bubble {
+  background-color: var(--saffron);
+  border-color: var(--saffron);
+  color: var(--ink);
+}
+
+:root .step-heading {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.015em;
+}
+
+:root .school-select-card,
+:root .class-tile,
+:root .gender-card,
+:root .school-filter-search,
+:root .school-search-field {
+  border-radius: var(--radius-lg);
+}
+
+:root .school-select-card,
+:root .class-tile,
+:root .gender-card {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--line);
+}
+
+:root .school-select-card:hover,
+:root .class-tile:hover,
+:root .gender-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--highlight);
+}
+
+:root .school-select-card.is-selected,
+:root .class-tile.is-selected {
+  background-color: var(--emerald-bg, #0e5e3e);
+  border-color: var(--emerald-bg, #0e5e3e);
+  color: #ffffff;
+}
+
+:root .school-select-card.is-selected .school-select-name,
+:root .school-select-card.is-selected .school-select-meta,
+:root .class-tile.is-selected .class-tile-name {
+  color: #ffffff;
+}
+
+:root .school-select-name,
+:root .class-tile-name {
+  font-family: var(--font-heading);
+  font-weight: 800;
+}
+
+/* The row arrow becomes the store's round emerald arrow button */
+:root .school-select-arrow {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--emerald-bg, #0e5e3e);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+:root .school-select-card.is-selected .school-select-arrow {
+  background: var(--saffron);
+  color: var(--ink);
+}
+
+:root .cat-tab {
+  border-radius: var(--radius-md);
+}
+
+:root .cat-tab.is-active {
+  background-color: var(--emerald-bg, #0e5e3e);
+  color: #ffffff;
+}
+
+:root .flow-empty-state {
+  border-radius: var(--radius-lg);
+}
+
+/* ---------- Bag and checkout ---------- */
+
+:root .order-num-label,
+:root .bag-child-head {
+  letter-spacing: 0.08em;
+}
+
+/* ---------- Mobile menu sheet ---------- */
+
+:root .mobile-menu-sheet {
+  background-color: var(--paper);
+}
+
+:root .sheet-nav-label {
+  font-family: var(--font-heading);
+  font-weight: 800;
+}
+
+/* ---------- Login ---------- */
+
+:root .login-art {
+  background-color: var(--emerald-bg, #0e5e3e);
+  background-image: radial-gradient(circle at 92% -10%, #14825a 0 28%, transparent 28.2%),
+    radial-gradient(circle at 92% -10%, #11704b 0 42%, transparent 42.2%);
+}
+
+:root .login-art strong {
+  color: var(--saffron);
+  font-style: normal;
+}
+
+/* ---------- Staff panels keep their layout, with the emerald palette only ---------- */
+
+/* ---------- Emerald page top (info pages, legal pages, 404) ---------- */
+
+.em-page {
+  background: var(--emerald-bg, #0e5e3e);
+  overflow-x: clip;
+}
+
+.em-band {
+  position: relative;
+  overflow: hidden;
+  color: #ffffff;
+  padding: clamp(28px, 6vw, 64px) 0 clamp(48px, 8vw, 88px);
+}
+
+.em-band-circle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.em-band-circle--outer {
+  width: clamp(320px, 50vw, 640px);
+  height: clamp(320px, 50vw, 640px);
+  right: clamp(-200px, -12vw, -120px);
+  top: clamp(-320px, -22vw, -140px);
+  background: var(--emerald-circle-outer, #11704b);
+}
+
+.em-band-circle--inner {
+  width: clamp(210px, 33vw, 420px);
+  height: clamp(210px, 33vw, 420px);
+  right: clamp(-90px, -5vw, -60px);
+  top: clamp(-200px, -14vw, -80px);
+  background: var(--emerald-circle-inner, #14825a);
+}
+
+.em-band-inner {
+  position: relative;
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-inline: clamp(20px, 5vw, 48px);
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.em-band-eyebrow {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--emerald-soft-green, #cdebdc);
+}
+
+.em-band-title {
+  margin: 6px 0 0;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: clamp(36px, 9vw, 64px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.em-band-sub {
+  margin: 10px 0 0;
+  max-width: 34ch;
+  font-size: clamp(15px, 1.4vw, 18px);
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--emerald-soft-green, #cdebdc);
+}
+
+.em-band-art {
+  display: block;
+  width: clamp(110px, 28vw, 220px);
+  margin-bottom: clamp(-88px, -8vw, -48px);
+}
+
+.em-band-art img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.25));
+}
+
+.em-sheet {
+  position: relative;
+  z-index: 1;
+  background: #ffffff;
+  border-radius: 28px 28px 0 0;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.16);
+  padding: clamp(28px, 5vw, 56px) 0 calc(clamp(40px, 6vw, 72px) + env(safe-area-inset-bottom));
+}
+
+.em-sheet-inner {
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-inline: clamp(20px, 5vw, 48px);
+  box-sizing: border-box;
+}
+
+.em-note {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.em-note p {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+:root .legal {
+  padding-block: 0;
+  max-width: 72ch;
+}
+
+
+:root .school-select-arrow svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Partner band: the small label reads on emerald */
+:root .for-schools-label {
+  color: var(--emerald-soft-green, #cdebdc);
+}
+
+/* Selection summary and small pills: mint chips with emerald text */
+:root .selection-summary-bar {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+:root .selection-summary-bar .pill {
+  background: var(--paper-sunk);
+  color: var(--highlight-ink);
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+/* ---------- Products ---------- */
+
+:root .product-card {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+:root .product-card-title {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+:root .product-card-price {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  color: var(--highlight-ink);
+}
+
+:root .product-card-action .btn,
+:root .product-card-action button {
+  border-radius: var(--radius-md);
+  border-color: var(--highlight);
+  color: var(--highlight-ink);
+  font-weight: 800;
+}
+
+/* No coloured left-border callouts: mint card with an emerald icon instead */
+:root .size-guide-notice,
+:root .fit-rec-note {
+  border-left: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--paper-sunk);
+}

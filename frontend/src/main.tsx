@@ -10,6 +10,7 @@ import './base.css';
 import './styles.css';
 import './components/ui/ui.css';
 import './motion/interactions.css';
+import './theme/emerald.css';
 
 // A new release replaces the page's code files. A page opened before it can then fail to load a
 // screen; reload once to pick up the new release instead of showing an error.

@@ -102,7 +102,9 @@ export default function App() {
 
   const isHome = location.pathname === '/';
 
-  useSchoolTheme(!isPortal);
+  // The whole store wears the emerald theme; a school's own colour stays on its crest
+  // instead of re-tinting every page. Pass !isPortal here to bring school tints back.
+  useSchoolTheme(false);
 
   const [updateRequired, setUpdateRequired] = useState<{ url: string; version: string } | null>(null);
   const network = useNetworkStatus();
