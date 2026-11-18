@@ -151,8 +151,8 @@ export function SchoolSearch({ schools, onSelect, variant = 'hero', autoFocus = 
       setPanelMax(Math.max(160, Math.min(420, visibleBottom - bar.bottom - 16)));
     };
     fit();
-    vv.addEventListener('resize', fit);
-    vv.addEventListener('scroll', fit);
+    vv.addEventListener('resize', fit, { passive: true });
+    vv.addEventListener('scroll', fit, { passive: true });
     return () => {
       vv.removeEventListener('resize', fit);
       vv.removeEventListener('scroll', fit);

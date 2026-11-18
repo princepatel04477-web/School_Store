@@ -836,77 +836,6 @@ h4,
   }
 }
 
-/* ---------- Home hero: one button into the shop ---------- */
-:root .emerald-cta-wrap {
-  display: flex;
-  margin-top: 28px;
-}
-@media (max-width: 1023.98px) {
-  :root .emerald-cta-wrap {
-    justify-content: center;
-  }
-}
-/* Phones: headline, then the children, then the button where the search used to sit */
-@media (max-width: 767.98px) {
-  :root .emerald-cta-wrap {
-    order: 3;
-    position: relative;
-    z-index: 25;
-    width: 100%;
-    margin-top: 12px;
-    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-  }
-  :root .emerald-cta {
-    width: 100%;
-    max-width: 420px;
-    justify-content: center;
-  }
-  :root .emerald-hero.is-compact .emerald-cta-wrap {
-    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-  }
-}
-
-:root .emerald-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 56px;
-  padding: 0 26px 0 28px;
-  border-radius: 999px;
-  background-color: var(--emerald-saffron, #ffb766);
-  color: var(--emerald-dark, #12352a);
-  font-family: var(--font-heading);
-  font-weight: 800;
-  font-size: 1.125rem;
-  text-decoration: none;
-  box-shadow: 0 12px 28px rgba(5, 40, 26, 0.28);
-  transition:
-    translate 0.35s var(--em-ease),
-    box-shadow 0.35s var(--em-ease),
-    scale 0.15s var(--em-ease);
-  -webkit-tap-highlight-color: transparent;
-}
-:root .emerald-cta svg {
-  transition: translate 0.35s var(--em-ease);
-}
-@media (hover: hover) and (pointer: fine) {
-  :root .emerald-cta:hover {
-    translate: 0 -2px;
-    box-shadow: 0 16px 34px rgba(5, 40, 26, 0.34);
-  }
-  :root .emerald-cta:hover svg {
-    translate: 4px 0;
-  }
-}
-:root .emerald-cta:active {
-  scale: 0.97;
-  transition-duration: 0.1s;
-}
-:root .emerald-cta:focus-visible {
-  outline: 3px solid #fff;
-  outline-offset: 3px;
-}
-
 /* ---------- Welcome note: a small tricolour mark above the title ---------- */
 :root .popup--welcome {
   padding-top: 34px;
@@ -1141,9 +1070,8 @@ h4,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root :is(.state-tile, .pick-row, .emerald-cta):is(:hover, :active),
+  :root :is(.state-tile, .pick-row):is(:hover, :active),
   :root .state-tile:hover .state-tile-mark,
-  :root .emerald-cta:hover svg,
   :root .pick-row:hover .pick-row-arrow {
     translate: none;
     scale: none;
@@ -1155,8 +1083,10 @@ h4,
   display: none;
   flex: 0 0 auto;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.28);

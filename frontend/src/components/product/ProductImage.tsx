@@ -41,8 +41,9 @@ export function ProductImage({
           src={imageUrl}
           alt={name}
           loading={priority ? 'eager' : 'lazy'}
+          decoding="async"
           width={400}
-          height={500}
+          height={400}
           style={{
             width: '100%',
             height: '100%',

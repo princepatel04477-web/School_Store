@@ -238,6 +238,7 @@
   font-weight: 600;
   cursor: pointer;
   margin-bottom: var(--space-2);
+  min-height: 44px;
 }
 
 .checkout-title {

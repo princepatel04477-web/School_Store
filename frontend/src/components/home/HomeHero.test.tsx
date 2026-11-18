@@ -110,12 +110,12 @@ describe('HomeHero (P1 Emerald Stage)', () => {
   });
 
   it('has no school search; its one button opens the shop', () => {
-    renderHomeHero();
+    const { container } = renderHomeHero();
     expect(screen.queryByRole('combobox')).toBeNull();
     expect(screen.queryByRole('search')).toBeNull();
 
-    const cta = screen.getByRole('link', { name: /Shop school uniform/i });
-    expect(cta.getAttribute('href')).toBe('/shop');
+    expect(container.querySelector('.emerald-cta')).toBeNull();
+    expect(screen.queryByRole('link', { name: /Shop school uniform/i })).toBeNull();
   });
 
   it('renders clean picture element with avif, webp sources and clean png img', () => {

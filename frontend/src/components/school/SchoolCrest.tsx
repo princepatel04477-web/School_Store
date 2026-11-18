@@ -43,6 +43,8 @@ export function SchoolCrest({
         alt={`${name} crest`}
         width={size}
         height={size}
+        loading="lazy"
+        decoding="async"
         className={`school-crest-img ${className}`.trim()}
         style={{
           width: `${size}px`,
