@@ -1,0 +1,14 @@
+/* Word masks for SplitReveal. The padding keeps descenders (g, y, p) inside the mask. */
+.split-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  padding-bottom: 0.12em;
+  margin-bottom: -0.12em;
+}
+
+.split-word {
+  display: inline-block;
+  transform-origin: 0% 100%;
+  will-change: transform;
+}

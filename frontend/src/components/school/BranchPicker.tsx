@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Search } from '../ui/icons';
 import { SchoolPickerSkeleton } from '../ui/Skeleton';
-import { Stagger } from '../../motion';
+import { SplitReveal, Stagger } from '../../motion';
 import { ListenButton } from '../ListenButton';
 import { SchoolCrest } from './SchoolCrest';
 import { useLang } from '../../i18n';
@@ -136,7 +136,7 @@ export function BranchPicker({
 
       <div className="step-title-row">
         {schoolName && <span className="label">{schoolName}</span>}
-        <h1 className="step-heading">{title}</h1>
+        <SplitReveal as="h1" immediate className="step-heading">{title}</SplitReveal>
         <p className="step-subtitle">{sub}</p>
         <ListenButton text={`${title}. ${sub}`} />
       </div>

@@ -24,6 +24,12 @@ const TAB_ROOT_PATHS = new Set([
   '/city',
 ]);
 
+/**
+ * Moving between pages.
+ * - Website: a saffron bar sweeps across the top, the old page fades out fast,
+ *   and the new one rises in. Each page's heading then reveals word by word.
+ * - App: tabs cross-fade like a native tab bar; inner screens slide in from the right.
+ */
 export function PageTransition({ children }: PageTransitionProps) {
   const location = useLocation();
   const shouldReduceMotion = useReducedMotion();
@@ -39,41 +45,48 @@ export function PageTransition({ children }: PageTransitionProps) {
   }
 
   const isNative = isNativeApp();
-  const isCurrentTabRoot = TAB_ROOT_PATHS.has(location.pathname);
-  const isPrevTabRoot = TAB_ROOT_PATHS.has(prevPathRef.current);
 
-  // Native app transitions: fade between tabs, slide on inner screens
-  const isTabSwitch = isNative && isCurrentTabRoot && isPrevTabRoot;
-  const isInnerSlide = isNative && !isTabSwitch;
+  if (isNative) {
+    const isTabSwitch = TAB_ROOT_PATHS.has(location.pathname) && TAB_ROOT_PATHS.has(prevPathRef.current);
+    const variants = isTabSwitch
+      ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
+      : { initial: { opacity: 0, x: 28 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -16 } };
 
-  const duration = isNative ? 0.22 : 0.3;
-
-  const variants = isInnerSlide
-    ? {
-        initial: { opacity: 0, x: 24 },
-        animate: { opacity: 1, x: 0 },
-        exit: { opacity: 0, x: -16 },
-      }
-    : {
-        initial: { opacity: 0 },
-        animate: { opacity: 1 },
-        exit: { opacity: 0 },
-      };
+    return (
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={location.pathname}
+          initial={variants.initial}
+          animate={variants.animate}
+          exit={variants.exit}
+          transition={{ duration: 0.24, ease: EASING }}
+        >
+          {children}
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={location.pathname}
-        initial={variants.initial}
-        animate={variants.animate}
-        exit={variants.exit}
-        transition={{
-          duration,
-          ease: EASING,
-        }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
+    <>
+      <motion.span
+        key={`bar-${location.pathname}`}
+        className="route-sweep"
+        aria-hidden="true"
+        initial={{ scaleX: 0, opacity: 1 }}
+        animate={{ scaleX: 1, opacity: [1, 1, 0] }}
+        transition={{ scaleX: { duration: 0.55, ease: EASING }, opacity: { duration: 0.8, times: [0, 0.7, 1] } }}
+      />
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0, transition: { duration: 0.45, ease: EASING } }}
+          exit={{ opacity: 0, transition: { duration: 0.14, ease: [0.4, 0, 1, 1] } }}
+        >
+          {children}
+        </motion.div>
+      </AnimatePresence>
+    </>
   );
 }

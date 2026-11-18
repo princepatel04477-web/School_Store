@@ -21,19 +21,17 @@ export function StepTransition({
     return <div className={className}>{children}</div>;
   }
 
-  const offset = direction === 'forward' ? 12 : -12;
+  // The next step slides in from the side you're heading; the old one leaves quickly
+  // so the wait between steps stays short.
+  const offset = direction === 'forward' ? 36 : -36;
 
   return (
     <AnimatePresence mode="wait">
       <motion.div
         key={stepKey}
         initial={{ opacity: 0, x: offset }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -offset }}
-        transition={{
-          duration: motionConfig.duration.ui,
-          ease: motionConfig.ease,
-        }}
+        animate={{ opacity: 1, x: 0, transition: { duration: 0.42, ease: motionConfig.ease } }}
+        exit={{ opacity: 0, x: -offset * 0.5, transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } }}
         className={className}
       >
         {children}

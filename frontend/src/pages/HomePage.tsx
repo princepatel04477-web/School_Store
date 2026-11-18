@@ -8,11 +8,8 @@ import { useSelectSchool } from '../components/school/useSelectSchool';
 import { KitIllustration, type KitKind } from '../components/home/KitIllustration';
 import { CategoryPhoto } from '../components/CategoryPhoto';
 import { prefetchFlowPage, prefetchSchoolData } from '../utils/prefetch';
-import {
-  Reveal,
-  Stagger,
-  Hairline,
-} from '../motion';
+import { motion } from 'motion/react';
+import { Reveal, Stagger, SplitReveal, curtainVariants } from '../motion';
 import { useLang } from '../i18n';
 import { HomeHero } from '../components/home/HomeHero';
 import { OurStorySection } from '../components/home/OurStorySection';
@@ -106,15 +103,11 @@ export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps) {
       {/* 3. SHOP BY CATEGORY (Editorial Grid), on the one full-width highlight band */}
       <div className="highlight-band">
       <section className="section-wrap container">
-        <Reveal>
-          <div className="section-head">
-            <span className="label">{t('home.catEyebrow')}</span>
-            <h2>{t('home.shopByCategory')}</h2>
-            <Hairline />
-          </div>
-        </Reveal>
+        <div className="section-head">
+          <SplitReveal className="home-h2">{t('home.shopByCategory')}</SplitReveal>
+        </div>
 
-        <Stagger className="editorial-category-grid">
+        <Stagger className="editorial-category-grid" staggerDelay={0.09}>
           {categoryTiles.map((cat, idx) => (
             <Link
               key={cat.title}
@@ -122,14 +115,14 @@ export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps) {
               className={`cat-tile house-${idx % 5}`}
               onMouseEnter={prefetchFlowPage}
             >
-              <div className="cat-tile-media">
+              <motion.div className="cat-tile-media" variants={curtainVariants}>
                 <CategoryPhoto
                   category={cat.category}
                   size={400}
                   lazy
                   fallback={<KitIllustration kind={cat.kind} color="var(--tile)" />}
                 />
-              </div>
+              </motion.div>
               <div className="cat-tile-body">
                 <h3 className="cat-title">{cat.title}</h3>
                 <span className="cat-arrow" aria-hidden="true">
@@ -144,76 +137,65 @@ export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps) {
 
       {/* 4. FEATURED SCHOOLS */}
       <section className="section-wrap container">
-        <Reveal>
-          <div className="section-head-split">
-            <div>
-              <span className="label">{t('home.schoolsEyebrow')}</span>
-              <h2>{t('home.schools')}</h2>
-            </div>
-            <Link
-              to="/flow?step=1"
-              className="plain-link"
-              onMouseEnter={prefetchFlowPage}
-            >
-              {t('home.viewAll')} <ArrowRight width={16} height={16} />
-            </Link>
-          </div>
-        </Reveal>
+        <div className="section-head-split">
+          <SplitReveal className="home-h2">{t('home.schools')}</SplitReveal>
+          <Link
+            to="/flow?step=1"
+            className="plain-link"
+            onMouseEnter={prefetchFlowPage}
+          >
+            {t('home.viewAll')} <ArrowRight width={16} height={16} />
+          </Link>
+        </div>
 
-        <Stagger className="schools-grid">
+        {/* A ruled list, not a wall of identical cards */}
+        <Stagger className="school-rows" staggerDelay={0.045}>
           {schools.slice(0, 8).map((school) => (
-            <div
+            <button
+              type="button"
               key={school.id}
-              className="featured-school-card"
+              className="school-row"
               onMouseEnter={() => {
                 prefetchFlowPage();
                 prefetchSchoolData(school.id);
               }}
               onClick={() => handleSelectSchool(school)}
             >
-              <SchoolCrest id={school.id} color={school.color} name={school.name} code={school.code} size={52} />
-              <div className="featured-school-info">
-                <h3 className="featured-school-name">{school.name}</h3>
-                <span className="featured-school-meta">
-                  {[school.city, school.board].filter(Boolean).join(' · ')}
-                </span>
-              </div>
-            </div>
+              <SchoolCrest id={school.id} color={school.color} name={school.name} code={school.code} size={44} />
+              <span className="school-row-text">
+                <span className="school-row-name">{school.name}</span>
+                {(school.city || school.board) && (
+                  <span className="school-row-meta">{[school.city, school.board].filter(Boolean).join(' · ')}</span>
+                )}
+              </span>
+              <ArrowRight className="school-row-arrow" width={18} height={18} aria-hidden="true" />
+            </button>
           ))}
         </Stagger>
       </section>
 
-      {/* 5. REASSURANCE: one plain sentence, not a row of feature cards */}
-      <section className="section-wrap container">
-        <Reveal>
-          <p className="reassurance-line">
-            {t('home.reassure')}
-          </p>
-        </Reveal>
+      {/* 5. THE PROMISE: one sentence set big, word by word */}
+      <section className="section-wrap container promise">
+        <SplitReveal as="p" className="promise-line">
+          {t('home.reassure')}
+        </SplitReveal>
       </section>
 
-      {/* 6. FOR SCHOOLS: a full-width house-blue band, big heading left, the line and button right */}
+      {/* 6. FOR SCHOOLS: emerald band, big heading left, the line and button right */}
       <section className="for-schools-band">
-        <div className="house-stripe" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
-        <Reveal className="container for-schools-inner">
+        <div className="container for-schools-inner">
           <div className="for-schools-text">
-            <span className="label for-schools-label">Institutional Partnership</span>
-            <h3 className="for-schools-title">Partner your school with SchoolStore</h3>
+            <SplitReveal as="h3" className="for-schools-title">Partner your school with SchoolStore</SplitReveal>
           </div>
-          <div className="for-schools-side">
+          <Reveal className="for-schools-side" delay={0.25}>
             <p className="for-schools-sub">
-              Simplify uniform and shoe distribution for your student body with dedicated logistics.
+              We stock your school&rsquo;s uniform list, take orders from parents, and deliver to their homes or your school counter.
             </p>
             <Link to="/for-schools" className="btn btn-lg for-schools-btn">
               Talk to us
             </Link>
-          </div>
-        </Reveal>
+          </Reveal>
+        </div>
       </section>
     </div>
   );

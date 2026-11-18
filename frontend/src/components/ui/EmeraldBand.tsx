@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { SplitReveal } from '../../motion';
 
 interface EmeraldBandProps {
   eyebrow?: string;
@@ -22,7 +23,9 @@ export function EmeraldBand({ eyebrow, title, sub, withKids = false, children }:
         <div className="em-band-inner">
           <div className="em-band-copy">
             {eyebrow && <p className="em-band-eyebrow">{eyebrow}</p>}
-            <h1 className="em-band-title">{title}</h1>
+            <SplitReveal as="h1" immediate delay={0.2} className="em-band-title">
+              {title}
+            </SplitReveal>
             {sub && <p className="em-band-sub">{sub}</p>}
           </div>
           {withKids && (

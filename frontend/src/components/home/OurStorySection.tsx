@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { useStoreSchools, type StoreSchool } from '../../data/catalog';
 import { SchoolCrest } from '../school/SchoolCrest';
-import { Reveal } from '../../motion';
+import { Reveal, SplitReveal, Stagger } from '../../motion';
 import { useAboutText, type AboutKey } from '../../i18n/aboutMessages';
 import '../../pages/about.css';
 
@@ -163,20 +163,20 @@ export function OurStorySection({ onFindSchool, showTitle = false, showSchools =
           {showTitle && (
             <div className="about-section-title">
               <p className="about-eyebrow about-eyebrow--brand">{t('about.eyebrow')}</p>
-              <h2 className="about-h2 about-h2--title">
+              <SplitReveal className="about-h2 about-h2--title">
                 {t('about.titleLead')} <span className="about-accent-dark">{t('about.titleAccent')}</span>
-              </h2>
+              </SplitReveal>
             </div>
           )}
 
-          <Reveal as="section" className="about-problem">
+          <section className="about-problem">
             <p className="about-eyebrow about-eyebrow--problem">{t('about.problemEyebrow')}</p>
-            <h2 className="about-h2">{t('about.problemTitle')}</h2>
-            <div className="about-problem-grid">
+            <SplitReveal className="about-h2">{t('about.problemTitle')}</SplitReveal>
+            <Stagger className="about-problem-grid" staggerDelay={0.12}>
               <ProblemCard icon="clock" title={t('about.timeTitle')} body={t('about.timeBody')} />
               <ProblemCard icon="box" title={t('about.stockTitle')} body={t('about.stockBody')} />
-            </div>
-          </Reveal>
+            </Stagger>
+          </section>
 
           <div className="about-pivot">
             <span className="about-pivot-arrow" aria-hidden="true">
@@ -188,7 +188,9 @@ export function OurStorySection({ onFindSchool, showTitle = false, showSchools =
           <Reveal as="section" className="about-fix">
             <div className="about-fix-head">
               <p className="about-eyebrow about-eyebrow--fix">{t('about.fixEyebrow')}</p>
-              <h2 className="about-fix-title">{t('about.fixTitle')}</h2>
+              <SplitReveal className="about-fix-title" delay={0.15}>
+                {t('about.fixTitle')}
+              </SplitReveal>
             </div>
             <ul className="about-fix-list">
               <li className="about-fix-item">
