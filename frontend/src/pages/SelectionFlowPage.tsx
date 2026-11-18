@@ -37,6 +37,7 @@ import {
   type Fit,
 } from '../data/fit';
 import { CATEGORY_PHOTOS } from '../data/categoryPhotos';
+import { LIVE_CATEGORIES, isCategoryLive } from '../data/liveCategories';
 import { CategoryPhoto } from '../components/CategoryPhoto';
 import './flow.css';
 
@@ -186,7 +187,8 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   // Active Category Tab on Step 4
   // A home page category tile links here with ?cat=…, so open on that category.
   const catParam = searchParams.get('cat');
-  const activeTab = catParam && CATEGORY_PHOTOS[catParam] ? catParam : 'Uniform';
+  // A paused category (notebooks, ID cards) opens on Uniform instead, even from an old link.
+  const activeTab = catParam && CATEGORY_PHOTOS[catParam] && isCategoryLive(catParam) ? catParam : 'Uniform';
 
   // Changing category while scrolled down jumps back to the start of that category's list
   const tabsTopRef = useRef<HTMLDivElement>(null);
@@ -242,7 +244,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       setAdded({ product, match: product.category === 'Uniform' ? matchFor(product) : null });
       return;
     }
-    if (product.category === 'Uniform Accessories') {
+    if (product.category === 'Uniform Accessories' && isCategoryLive('Stationery')) {
       let asked = false;
       try {
         asked = sessionStorage.getItem(STATIONERY_ASKED) === '1';
@@ -399,7 +401,10 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
 
   // "Order full set": the items made for this school that can be ordered here.
   const fullSetProducts = useMemo(
-    () => products.filter((p) => p.official && !p.needsDetails && p.sizes.some((size) => size.inStock)),
+    () =>
+      products.filter(
+        (p) => isCategoryLive(p.category) && p.official && !p.needsDetails && p.sizes.some((size) => size.inStock)
+      ),
     [products]
   );
 
@@ -734,7 +739,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                 {/* Sticky Category Tabs */}
                 <div ref={tabsTopRef} aria-hidden="true" />
                 <div className="category-tabs-sticky" role="tablist" aria-label={t('home.shopByCategory')}>
-                  {(['Uniform', 'School Shoes', 'Uniform Accessories', 'Stationery', 'ID Cards'] as const).map(
+                  {LIVE_CATEGORIES.map(
                     (cat) => {
                       const count = productsQuery.isSuccess ? products.filter((p) => p.category === cat).length : null;
                       return (

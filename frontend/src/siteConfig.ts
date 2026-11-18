@@ -1,3 +1,5 @@
+import { isCategoryLive } from './data/liveCategories';
+
 // Real contact details. Leave a field empty until it is real: empty ones are hidden
 // everywhere, and online ordering stays closed until WHATSAPP_NUMBER is set
 // (a made-up number would send parents' calls and orders to a stranger).
@@ -26,5 +28,5 @@ export const siteConfig = {
     { label: 'Accessories', slug: 'Uniform Accessories' },
     { label: 'Stationery', slug: 'Stationery' },
     { label: 'ID Cards', slug: 'ID Cards' },
-  ],
+  ].filter((category) => isCategoryLive(category.slug)),
 };
