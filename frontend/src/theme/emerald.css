@@ -802,3 +802,350 @@ h4,
     scale: none;
   }
 }
+
+/* =====================================================================
+   18 Nov, round 2: fixed top bar on home, hero button, welcome note,
+   the state picker with landmarks, and ruled city/school lists.
+   ===================================================================== */
+
+/* ---------- Home: the top bar stays on screen all the time ---------- */
+:root .emerald-header-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 900;
+  background-color: var(--emerald-bg, #0e5e3e);
+  /* Paint the bar edge to edge while the logo and buttons keep the page width */
+  box-shadow: 0 0 0 100vmax var(--emerald-bg, #0e5e3e);
+  clip-path: inset(0 -100vmax);
+}
+
+/* The hero makes room for the bar it no longer holds in its flow */
+:root .emerald-hero {
+  padding-top: calc(64px + env(safe-area-inset-top, 0px));
+}
+@media (min-width: 768px) {
+  :root .emerald-hero {
+    padding-top: 68px;
+  }
+}
+@media (min-width: 1024px) {
+  :root .emerald-hero {
+    padding-top: 72px;
+  }
+}
+
+/* ---------- Home hero: one button into the shop ---------- */
+:root .emerald-cta-wrap {
+  display: flex;
+  margin-top: 28px;
+}
+@media (max-width: 1023.98px) {
+  :root .emerald-cta-wrap {
+    justify-content: center;
+  }
+}
+/* Phones: headline, then the children, then the button where the search used to sit */
+@media (max-width: 767.98px) {
+  :root .emerald-cta-wrap {
+    order: 3;
+    position: relative;
+    z-index: 25;
+    width: 100%;
+    margin-top: 12px;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+  :root .emerald-cta {
+    width: 100%;
+    max-width: 420px;
+    justify-content: center;
+  }
+  :root .emerald-hero.is-compact .emerald-cta-wrap {
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+:root .emerald-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 0 26px 0 28px;
+  border-radius: 999px;
+  background-color: var(--emerald-saffron, #ffb766);
+  color: var(--emerald-dark, #12352a);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.125rem;
+  text-decoration: none;
+  box-shadow: 0 12px 28px rgba(5, 40, 26, 0.28);
+  transition:
+    translate 0.35s var(--em-ease),
+    box-shadow 0.35s var(--em-ease),
+    scale 0.15s var(--em-ease);
+  -webkit-tap-highlight-color: transparent;
+}
+:root .emerald-cta svg {
+  transition: translate 0.35s var(--em-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  :root .emerald-cta:hover {
+    translate: 0 -2px;
+    box-shadow: 0 16px 34px rgba(5, 40, 26, 0.34);
+  }
+  :root .emerald-cta:hover svg {
+    translate: 4px 0;
+  }
+}
+:root .emerald-cta:active {
+  scale: 0.97;
+  transition-duration: 0.1s;
+}
+:root .emerald-cta:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+/* ---------- Welcome note: a small tricolour mark above the title ---------- */
+:root .popup--welcome {
+  padding-top: 34px;
+}
+:root .popup--welcome::before {
+  content: '';
+  display: block;
+  width: 72px;
+  height: 8px;
+  margin: 0 auto 18px;
+  border-radius: 999px;
+  border: 1px solid #e6e6e6;
+  background: linear-gradient(
+    to right,
+    var(--tricolour-saffron, #ff9933) 0 33.33%,
+    #fff 33.33% 66.66%,
+    var(--tricolour-green, #138808) 66.66% 100%
+  );
+}
+:root .popup--welcome .popup-title {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  color: var(--ink);
+}
+:root .popup--welcome .popup-message {
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+/* ---------- Shop step 1: bigger words ---------- */
+:root .step-school-panel .step-subtitle {
+  font-size: 1.0625rem;
+}
+
+/* ---------- States: landmark medallions with big names ---------- */
+:root .state-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px 12px;
+  margin-top: 12px;
+}
+@media (min-width: 640px) {
+  :root .state-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  :root .state-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 28px 20px;
+  }
+}
+
+:root .state-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 8px 4px 10px;
+  border: 0;
+  border-radius: 18px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: scale 0.2s var(--em-ease);
+}
+
+:root .state-tile-mark {
+  display: grid;
+  place-items: center;
+  width: 92px;
+  height: 92px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  background-color: #e1eee7;
+  color: var(--brand);
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    translate 0.4s var(--em-ease);
+}
+
+:root .state-emblem--initials {
+  display: grid;
+  place-items: center;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+}
+
+:root .state-tile-name {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.1875rem;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+:root .state-tile-meta {
+  font-size: 0.9375rem;
+  color: var(--ink-soft);
+}
+
+@media (min-width: 1024px) {
+  :root .state-tile-name {
+    font-size: 1.3125rem;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root .state-tile:hover .state-tile-mark {
+    background-color: var(--brand);
+    color: var(--saffron);
+    translate: 0 -4px;
+  }
+}
+
+:root .state-tile.is-selected .state-tile-mark {
+  background-color: var(--brand);
+  color: var(--saffron);
+}
+
+:root .state-tile:active {
+  scale: 0.96;
+  transition-duration: 0.1s;
+}
+
+:root .state-tile:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* ---------- Cities and schools: ruled lists ---------- */
+:root .pick-rows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+}
+@media (min-width: 900px) {
+  :root .pick-rows {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 48px;
+  }
+}
+
+:root .pick-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 78px;
+  padding: 14px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: scale 0.2s var(--em-ease);
+}
+
+:root .pick-row > img,
+:root .pick-row > :first-child:not(.pick-row-text) {
+  flex: 0 0 auto;
+}
+
+:root .pick-row .branch-photo {
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+:root .pick-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+:root .pick-row-name {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  transition: color 0.2s ease;
+}
+
+:root .pick-row-meta {
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+:root .pick-row-arrow {
+  flex: 0 0 auto;
+  color: var(--brand);
+  transition: translate 0.35s var(--em-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root .pick-row:hover .pick-row-name {
+    color: var(--brand);
+  }
+  :root .pick-row:hover .pick-row-arrow {
+    translate: 5px 0;
+  }
+}
+
+:root .pick-row.is-selected .pick-row-name {
+  color: var(--brand);
+}
+
+:root .pick-row:active {
+  scale: 0.985;
+  transition-duration: 0.1s;
+}
+
+:root .pick-row:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root :is(.state-tile, .pick-row, .emerald-cta):is(:hover, :active),
+  :root .state-tile:hover .state-tile-mark,
+  :root .emerald-cta:hover svg,
+  :root .pick-row:hover .pick-row-arrow {
+    translate: none;
+    scale: none;
+  }
+}

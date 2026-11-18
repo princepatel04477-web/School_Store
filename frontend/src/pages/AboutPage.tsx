@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OurStorySection } from '../components/home/OurStorySection';
 import { useAboutText } from '../i18n/aboutMessages';
+import { SHOP_LINK } from '../siteConfig';
 import './about.css';
 
 export { MIN_SLIDER_SCHOOLS } from '../components/home/OurStorySection';
@@ -77,7 +78,7 @@ export function AboutPage() {
         </div>
       </section>
 
-      <OurStorySection onFindSchool={() => navigate('/', { state: { focusSearch: true } })} />
+      <OurStorySection onFindSchool={() => navigate(SHOP_LINK)} />
     </div>
   );
 }

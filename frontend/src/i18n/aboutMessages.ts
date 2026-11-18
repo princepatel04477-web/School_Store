@@ -62,9 +62,9 @@ export const aboutMessages = {
     hi: 'आपके स्कूल की यूनिफॉर्म, आपके दरवाज़े तक।',
   },
   'about.fixHome': {
-    en: 'Order from home. No more shop-to-shop trips.',
-    gu: 'ઘરેથી ઓર્ડર કરો. દુકાને-દુકાને ફરવાનું બંધ.',
-    hi: 'घर से ऑर्डर करें। दुकान-दुकान घूमना बंद।',
+    en: 'Order in a few taps, right from home.',
+    gu: 'ઘરે બેઠા, થોડા જ ટેપમાં ઓર્ડર કરો.',
+    hi: 'घर बैठे, बस कुछ टैप में ऑर्डर करें।',
   },
   'about.fixList': {
     en: "Everything on your school's list, in one place.",

@@ -1,5 +1,12 @@
 import { isCategoryLive } from './data/liveCategories';
 
+/**
+ * The one way into the shop. Every "Shop", "Find your school" and category link
+ * (Uniform, Shoes, Tie, belt & socks) goes here, so nobody lands mid-flow on a
+ * different page; the parent picks their state, city and school first.
+ */
+export const SHOP_LINK = '/shop';
+
 // Real contact details. Leave a field empty until it is real: empty ones are hidden
 // everywhere, and online ordering stays closed until WHATSAPP_NUMBER is set
 // (a made-up number would send parents' calls and orders to a stranger).

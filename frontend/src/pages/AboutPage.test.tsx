@@ -92,10 +92,10 @@ describe('AboutPage', () => {
     expect(prev.disabled).toBe(true);
   });
 
-  it('sends the parent home with the school search ready', () => {
+  it('"Find your school" opens the shop', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: /Find your school/ }));
     expect(mockNavigate).toHaveBeenCalledTimes(1);
-    expect(mockNavigate).toHaveBeenCalledWith('/', { state: { focusSearch: true } });
+    expect(mockNavigate).toHaveBeenCalledWith('/shop');
   });
 });
