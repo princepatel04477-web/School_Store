@@ -109,36 +109,13 @@ describe('HomeHero (P1 Emerald Stage)', () => {
     hiView.unmount();
   });
 
-  it('submitting the form with a school calls the existing navigation once', () => {
+  it('has no school search; its one button opens the shop', () => {
     renderHomeHero();
-    const input = screen.getByRole('combobox');
-    
-    // Type school name
-    fireEvent.change(input, { target: { value: 'Delhi' } });
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.queryByRole('search')).toBeNull();
 
-    // Submit form
-    const form = screen.getByRole('search');
-    fireEvent.submit(form);
-
-    expect(mockNavigate).toHaveBeenCalledTimes(1);
-    expect(mockNavigate).toHaveBeenCalledWith('/flow?school=sch-dps&step=2');
-  });
-
-  it('the input is labelled and its font size is at least 16 px', () => {
-    renderHomeHero();
-    const input = screen.getByRole('combobox') as HTMLInputElement;
-
-    // Check label
-    expect(input.getAttribute('aria-label')).toBeTruthy();
-    expect(input.getAttribute('aria-label')?.length).toBeGreaterThan(0);
-    expect(input.placeholder).toBe('Find your school');
-
-    // Check class and style / computed font-size
-    expect(input.classList.contains('emerald-search-input')).toBe(true);
-    // In CSS .emerald-search-input font-size is 16px (to prevent iOS auto-zoom)
-    const style = window.getComputedStyle(input);
-    const fontSize = parseFloat(style.fontSize) || 16;
-    expect(fontSize).toBeGreaterThanOrEqual(16);
+    const cta = screen.getByRole('link', { name: /Shop school uniform/i });
+    expect(cta.getAttribute('href')).toBe('/shop');
   });
 
   it('renders clean picture element with avif, webp sources and clean png img', () => {

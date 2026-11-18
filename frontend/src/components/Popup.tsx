@@ -13,6 +13,8 @@ export interface PopupProps {
   onCancel?: () => void;
   /** Escape and a tap outside. Defaults to onCancel, then onClose. */
   onDismiss?: () => void;
+  /** Extra class on the box, for a variant such as the welcome note. */
+  className?: string;
   children?: ReactNode;
 }
 
@@ -34,6 +36,7 @@ export function Popup({
   onConfirm,
   onCancel,
   onDismiss,
+  className = '',
   children,
 }: PopupProps) {
   const boxRef = useRef<HTMLDivElement | null>(null);
@@ -84,7 +87,7 @@ export function Popup({
     <div className="popup-backdrop" onClick={dismiss}>
       <div
         ref={boxRef}
-        className="popup"
+        className={`popup ${className}`.trim()}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : messageId}

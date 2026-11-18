@@ -118,7 +118,7 @@ describe('AboutPage', () => {
     // 4. The Fix
     expect(screen.getByText('THE FIX')).toBeDefined();
     expect(screen.getByRole('heading', { level: 2, name: /Your school's uniform, delivered to your door\./i })).toBeDefined();
-    expect(screen.getByText(/Order from home/i)).toBeDefined();
+    expect(screen.getByText(/Order in a few taps/i)).toBeDefined();
     expect(screen.getByText(/Everything on your school's list/i)).toBeDefined();
 
     // 5. Badge
@@ -186,13 +186,13 @@ describe('AboutPage', () => {
     expect(screen.queryByText('Schools we deliver to')).toBeNull();
   });
 
-  it('triggers CTA navigation to home with focusSearch state', () => {
+  it('"Find your school" opens the shop', () => {
     renderAboutPage();
 
     const ctaButton = screen.getByRole('button', { name: /Find your school/i });
     fireEvent.click(ctaButton);
 
-    expect(mockNavigate).toHaveBeenCalledWith('/', { state: { focusSearch: true } });
+    expect(mockNavigate).toHaveBeenCalledWith('/shop');
   });
 
   it('handles back button clicking', () => {

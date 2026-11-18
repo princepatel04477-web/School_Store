@@ -39,8 +39,10 @@ export function WelcomePopup({ blocked }: { blocked: boolean }) {
     <Popup
       isOpen={open}
       onClose={() => setOpen(false)}
-      message={t('welcome.message')}
-      confirmLabel={t('common.close')}
+      className="popup--welcome"
+      title={t('welcome.title')}
+      message={t('welcome.body')}
+      confirmLabel={t('welcome.start')}
       cancelLabel={null}
     />
   );

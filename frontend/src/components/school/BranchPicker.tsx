@@ -5,6 +5,7 @@ import { SchoolPickerSkeleton } from '../ui/Skeleton';
 import { SplitReveal, Stagger } from '../../motion';
 import { ListenButton } from '../ListenButton';
 import { SchoolCrest } from './SchoolCrest';
+import { StateEmblem } from './StateEmblem';
 import { useLang } from '../../i18n';
 import {
   useStoreBranches,
@@ -59,8 +60,15 @@ export function BranchPicker({
   const statesQuery = useStoreStates(schoolId);
   const citiesQuery = useStoreCities(state, schoolId);
   const branchesQuery = useStoreBranches(cityId, schoolId);
-  const states = useMemo(() => statesQuery.data ?? [], [statesQuery.data]);
-  const cities = useMemo(() => citiesQuery.data ?? [], [citiesQuery.data]);
+  // States and cities always A to Z, whatever order the server sends.
+  const states = useMemo(
+    () => [...(statesQuery.data ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'en')),
+    [statesQuery.data]
+  );
+  const cities = useMemo(
+    () => [...(citiesQuery.data ?? [])].sort((a, b) => a.name.localeCompare(b.name, 'en')),
+    [citiesQuery.data]
+  );
   const branches = useMemo(() => branchesQuery.data ?? [], [branchesQuery.data]);
   const city = cities.find((c) => c.id === cityId);
 
@@ -183,46 +191,48 @@ export function BranchPicker({
           </Link>
         </div>
       ) : stage === 'state' ? (
-        <Stagger className="schools-select-grid">
+        /* States: a grid of landmarks with big names, A to Z */
+        <Stagger className="state-grid" staggerDelay={0.04}>
           {shownStates.map((s) => (
             <button
               type="button"
               key={s.name}
-              className={`school-select-card ${s.name === state ? 'is-selected' : ''}`}
+              className={`state-tile ${s.name === state ? 'is-selected' : ''}`}
               onClick={() => setState(s.name)}
             >
-              <div className="school-select-details">
-                <h3 className="school-select-name">{s.name}</h3>
-                <span className="school-select-meta">{s.cityCount === 1 ? t('flow.s1.oneCity') : t('flow.s1.cityCount', { n: s.cityCount })}</span>
-              </div>
-              <ArrowRight className="school-select-arrow" width={18} height={18} />
+              <span className="state-tile-mark">
+                <StateEmblem name={s.name} size={54} />
+              </span>
+              <span className="state-tile-name">{s.name}</span>
+              <span className="state-tile-meta">{s.cityCount === 1 ? t('flow.s1.oneCity') : t('flow.s1.cityCount', { n: s.cityCount })}</span>
             </button>
           ))}
         </Stagger>
       ) : stage === 'city' ? (
-        <Stagger className="schools-select-grid">
+        /* Cities and schools: ruled lists, not a stack of boxes */
+        <Stagger className="pick-rows" staggerDelay={0.03}>
           {shownCities.map((c) => (
             <button
               type="button"
               key={c.id}
-              className={`school-select-card ${c.id === cityId ? 'is-selected' : ''}`}
+              className={`pick-row ${c.id === cityId ? 'is-selected' : ''}`}
               onClick={() => setCityId(c.id)}
             >
-              <div className="school-select-details">
-                <h3 className="school-select-name">{c.name}</h3>
-                <span className="school-select-meta">{c.branchCount === 1 ? t('flow.s1.oneBranch') : t('flow.s1.branchCount', { n: c.branchCount })}</span>
-              </div>
-              <ArrowRight className="school-select-arrow" width={18} height={18} />
+              <span className="pick-row-text">
+                <span className="pick-row-name">{c.name}</span>
+                <span className="pick-row-meta">{c.branchCount === 1 ? t('flow.s1.oneBranch') : t('flow.s1.branchCount', { n: c.branchCount })}</span>
+              </span>
+              <ArrowRight className="pick-row-arrow" width={22} height={22} />
             </button>
           ))}
         </Stagger>
       ) : (
-        <Stagger className="schools-select-grid">
+        <Stagger className="pick-rows" staggerDelay={0.03}>
           {shownBranches.map((b) => (
             <button
               type="button"
               key={b.id}
-              className={`school-select-card ${b.id === selectedBranchId ? 'is-selected' : ''}`}
+              className={`pick-row ${b.id === selectedBranchId ? 'is-selected' : ''}`}
               onClick={() => city && state && onSelect({ branch: b, city, state })}
             >
               {b.photo ? (
@@ -230,14 +240,14 @@ export function BranchPicker({
               ) : (
                 <SchoolCrest id={b.school.id} name={b.school.name} code={b.school.code} size={52} />
               )}
-              <div className="school-select-details">
-                <h3 className="school-select-name">{b.name}</h3>
-                <span className="school-select-meta branch-address">{b.address || b.school.name}</span>
+              <span className="pick-row-text">
+                <span className="pick-row-name">{b.name}</span>
+                <span className="pick-row-meta branch-address">{b.address || b.school.name}</span>
                 {b.udise_code && (
-                  <span className="school-select-meta branch-udise">{t('flow.s1.udise', { code: b.udise_code })}</span>
+                  <span className="pick-row-meta branch-udise">{t('flow.s1.udise', { code: b.udise_code })}</span>
                 )}
-              </div>
-              <ArrowRight className="school-select-arrow" width={18} height={18} />
+              </span>
+              <ArrowRight className="pick-row-arrow" width={22} height={22} />
             </button>
           ))}
         </Stagger>

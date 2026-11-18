@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Search, ShoppingBag, Menu, X, ArrowRight, User } from './ui/icons';
 import { motion, AnimatePresence, useAnimate, useReducedMotion } from 'motion/react';
 import { useAuth } from '../auth';
-import { siteConfig } from '../siteConfig';
+import { siteConfig, SHOP_LINK } from '../siteConfig';
 import { useStoreState } from '../store/storeState';
 import { SchoolCrest } from './school/SchoolCrest';
 import { EASING, DURATION_FAST } from '../motion/motionConfig';
@@ -152,7 +152,7 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
                 return (
                   <Link
                     key={cat.slug}
-                    to={`/shop?cat=${encodeURIComponent(cat.slug)}`}
+                    to={SHOP_LINK}
                     className={`nav-link ${isActive ? 'is-active' : ''}`}
                     aria-current={isActive ? 'page' : undefined}
                     onMouseEnter={prefetchFlowPage}
@@ -254,7 +254,7 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
               {siteConfig.categories.map((cat, i) => (
                 <Link
                   key={cat.slug}
-                  to={`/shop?cat=${encodeURIComponent(cat.slug)}`}
+                  to={SHOP_LINK}
                   className="sheet-nav-item"
                   onClick={closeMenu}
                 >

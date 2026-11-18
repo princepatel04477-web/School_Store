@@ -18,6 +18,17 @@ export const messages = {
     gu: 'SchoolStore માં આપનું સ્વાગત છે',
     hi: 'SchoolStore में आपका स्वागत है',
   },
+  'welcome.title': {
+    en: 'Proudly Indian. Made for our schools.',
+    gu: 'ગર્વથી ભારતીય. આપણી શાળાઓ માટે બનાવેલું.',
+    hi: 'गर्व से भारतीय। हमारे स्कूलों के लिए बना।',
+  },
+  'welcome.body': {
+    en: 'Welcome to SchoolStore. Your child’s school uniform, ordered from home and brought to your door.',
+    gu: 'SchoolStore માં આપનું સ્વાગત છે. તમારા બાળકનો શાળાનો યુનિફોર્મ, ઘરેથી ઓર્ડર કરો અને ઘરઆંગણે મેળવો.',
+    hi: 'SchoolStore में आपका स्वागत है। आपके बच्चे की स्कूल यूनिफ़ॉर्म, घर बैठे ऑर्डर करें और घर पर पाएँ।',
+  },
+  'welcome.start': { en: 'Let’s begin', gu: 'ચાલો શરૂ કરીએ', hi: 'चलिए शुरू करें' },
   'common.tryAgain': { en: 'Try again', gu: 'ફરી પ્રયત્ન કરો', hi: 'फिर से कोशिश करें' },
   'common.checkInternet': {
     en: 'Check your internet and try again.',
@@ -145,9 +156,9 @@ export const messages = {
     hi: 'आपके स्कूल का यूनिफ़ॉर्म, सीधे आपके घर तक।',
   },
   'about.fix.bullet1': {
-    en: 'Order from home. No more shop-to-shop trips.',
-    gu: 'ઘરે બેઠા ઓર્ડર કરો. દુકાને-દુકાને જવાની જરૂર નથી.',
-    hi: 'घर बैठे ऑर्डर करें। दुकान-दुकान घूमने का झंझट खत्म।',
+    en: 'Order in a few taps, right from home.',
+    gu: 'ઘરે બેઠા, થોડા જ ટેપમાં ઓર્ડર કરો.',
+    hi: 'घर बैठे, बस कुछ टैप में ऑर्डर करें।',
   },
   'about.fix.bullet2': {
     en: "Everything on your school's list, in one place.",
@@ -235,6 +246,11 @@ export const messages = {
     en: 'Find your school',
     gu: 'તમારી સ્કૂલ શોધો',
     hi: 'अपना स्कूल खोजें',
+  },
+  'home.emerald.cta': {
+    en: 'Shop school uniform',
+    gu: 'સ્કૂલ યુનિફોર્મ ખરીદો',
+    hi: 'स्कूल यूनिफ़ॉर्म ख़रीदें',
   },
   'home.emerald.kidsAlt': {
     en: 'Two smiling children in school uniform',

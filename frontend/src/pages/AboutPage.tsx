@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 import { useLang } from '../i18n';
 import { useStoreState } from '../store/storeState';
+import { SHOP_LINK } from '../siteConfig';
 import { useStoreDeliveredSchools, type StoreDeliveredSchool } from '../data/catalog';
 import './aboutPage.css';
 
@@ -87,7 +88,7 @@ export function AboutPage({ onOpenBag, onOpenLanguage }: AboutPageProps) {
   };
 
   const handleCtaClick = () => {
-    navigate('/', { state: { focusSearch: true } });
+    navigate(SHOP_LINK);
   };
 
   const langLabel = lang === 'gu' ? 'ગુજરાતી' : lang === 'hi' ? 'हिन्दी' : 'EN';

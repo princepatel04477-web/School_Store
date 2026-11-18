@@ -12,8 +12,8 @@ import { Reveal, Stagger, SplitReveal, curtainVariants } from '../motion';
 import { useLang } from '../i18n';
 import { HomeHero } from '../components/home/HomeHero';
 import { OurStorySection } from '../components/home/OurStorySection';
-import { scrollPageTo } from '../motion/SmoothScroll';
 import { isCategoryLive } from '../data/liveCategories';
+import { SHOP_LINK } from '../siteConfig';
 import './home.css';
 
 export interface HomePageProps {
@@ -26,44 +26,39 @@ export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps) {
   const { selection, setSelection } = useStoreState();
   const { t } = useLang();
 
-  // Our story's "Find your school": back up to the hero with the search ready to type in.
-  const jumpToSearch = () => {
-    scrollPageTo(0, true);
-    window.setTimeout(() => {
-      document.querySelector<HTMLInputElement>('.emerald-search-input')?.focus({ preventScroll: true });
-    }, 450);
-  };
+  // Our story's "Find your school" opens the shop, like every other shop link.
+  const openShop = () => navigate(SHOP_LINK);
 
   const categoryTiles = [
     {
       title: t('cat.uniform'),
       category: 'Uniform',
       kind: 'uniform' as KitKind,
-      href: '/shop?cat=Uniform',
+      href: SHOP_LINK,
     },
     {
       title: t('cat.shoes'),
       category: 'School Shoes',
       kind: 'shoes' as KitKind,
-      href: '/shop?cat=School%20Shoes',
+      href: SHOP_LINK,
     },
     {
       title: t('cat.accessories'),
       category: 'Uniform Accessories',
       kind: 'accessories' as KitKind,
-      href: '/shop?cat=Uniform%20Accessories',
+      href: SHOP_LINK,
     },
     {
       title: t('cat.stationery'),
       category: 'Stationery',
       kind: 'stationery' as KitKind,
-      href: '/shop?cat=Stationery',
+      href: SHOP_LINK,
     },
     {
       title: t('cat.idcard'),
       category: 'ID Cards',
       kind: 'idcard' as KitKind,
-      href: '/shop?cat=ID%20Cards',
+      href: SHOP_LINK,
     },
   ].filter((tile) => isCategoryLive(tile.category));
 
@@ -77,7 +72,7 @@ export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps) {
       <HomeHero onOpenBag={onOpenBag} onOpenLanguage={onOpenLanguage} />
 
       {/* 2. OUR STORY: the second screen, right under the hero */}
-      <OurStorySection showTitle showSchools={false} onFindSchool={jumpToSearch} />
+      <OurStorySection showTitle showSchools={false} onFindSchool={openShop} />
 
       {/* 3. SHOP BY CATEGORY (Editorial Grid), on the one full-width highlight band */}
       <div className="highlight-band">
