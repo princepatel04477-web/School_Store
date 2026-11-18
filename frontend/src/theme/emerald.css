@@ -165,9 +165,11 @@ h4,
    ID cards are paused, 5 when they come back). Phones: two across, and an odd last
    tile runs the full width with its photo on the left. */
 @media (max-width: 639px) {
-  /* Each tile sits in a display:contents wrapper, so the tile itself is the grid item. */
-  :root .editorial-category-grid > :last-child:nth-child(odd) .cat-tile {
+  /* Each tile sits in a .stagger-item wrapper, which is the grid item. */
+  :root .editorial-category-grid > :last-child:nth-child(odd) {
     grid-column: 1 / -1;
+  }
+  :root .editorial-category-grid > :last-child:nth-child(odd) .cat-tile {
     flex-direction: row;
     align-items: center;
     gap: var(--space-4);
@@ -574,4 +576,229 @@ h4,
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--paper-sunk);
+}
+
+/* =====================================================================
+   Motion layer and the less-generic home sections (18 Nov)
+   - Cards arrive one after another (Stagger), photos wipe up inside them.
+   - Cards answer the pointer: lift on hover, press in on tap.
+   - Headlines reveal word by word (SplitReveal).
+   - Everything here stands still with reduced motion.
+   ===================================================================== */
+
+:root {
+  --em-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Stagger's wrapper box: the card inside fills it, so grids lay out as before */
+.stagger-item {
+  display: grid;
+  min-width: 0;
+}
+.stagger-item > * {
+  min-width: 0;
+}
+
+/* Route change: the saffron sweep across the very top */
+.route-sweep {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--saffron);
+  transform-origin: 0 50%;
+  z-index: 2000;
+  pointer-events: none;
+}
+
+/* ---------- Cards: hover and press ---------- */
+:root :is(.cat-tile, .school-select-card, .class-tile, .gender-card, .product-card, .about-problem-card) {
+  transition:
+    translate 0.45s var(--em-ease),
+    box-shadow 0.45s var(--em-ease),
+    scale 0.2s var(--em-ease),
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+:root .cat-tile-media img {
+  transition: scale 0.9s var(--em-ease);
+}
+
+:root .cat-tile .cat-arrow,
+:root .school-row-arrow {
+  transition: translate 0.35s var(--em-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root :is(.cat-tile, .school-select-card, .gender-card, .product-card):hover {
+    translate: 0 -6px;
+    box-shadow: var(--shadow-md);
+  }
+  :root .class-tile:hover {
+    translate: 0 -3px;
+  }
+  :root .cat-tile:hover .cat-tile-media img {
+    scale: 1.07;
+  }
+  :root .cat-tile:hover .cat-arrow,
+  :root .school-row:hover .school-row-arrow {
+    translate: 5px 0;
+  }
+}
+
+:root :is(.cat-tile, .school-select-card, .class-tile, .gender-card, .product-card, .school-row):active {
+  scale: 0.98;
+  transition-duration: 0.1s;
+}
+
+/* ---------- Flow lists that are not staggered: class tiles, boy/girl cards ---------- */
+@keyframes em-rise {
+  from {
+    opacity: 0;
+    translate: 0 22px;
+  }
+}
+
+/* "backwards" so the hover lift still works once the entrance is done */
+:root :is(.class-tile, .gender-card) {
+  animation: em-rise 0.55s var(--em-ease) backwards;
+}
+:root .classes-tiles-grid > :nth-child(2) { animation-delay: 40ms; }
+:root .classes-tiles-grid > :nth-child(3) { animation-delay: 80ms; }
+:root .classes-tiles-grid > :nth-child(4) { animation-delay: 120ms; }
+:root .classes-tiles-grid > :nth-child(5) { animation-delay: 160ms; }
+:root .classes-tiles-grid > :nth-child(n + 6) { animation-delay: 200ms; }
+:root .class-group-block:nth-child(2) .class-tile { animation-delay: 120ms; }
+:root .class-group-block:nth-child(3) .class-tile { animation-delay: 200ms; }
+:root .class-group-block:nth-child(4) .class-tile { animation-delay: 260ms; }
+:root .gender-cards-grid > :nth-child(2) { animation-delay: 90ms; }
+
+/* ---------- Home: headings without the label-and-rule stack ---------- */
+:root .home-page .section-head {
+  margin-bottom: var(--space-8);
+}
+
+/* ---------- Home: schools as a ruled list ---------- */
+:root .school-rows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border-top: 1px solid var(--line);
+}
+
+@media (min-width: 768px) {
+  :root .school-rows {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 56px;
+  }
+}
+
+:root .school-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 72px;
+  padding: 12px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: scale 0.2s var(--em-ease);
+}
+
+:root .school-row .school-crest,
+:root .school-row > :first-child {
+  flex: 0 0 auto;
+}
+
+:root .school-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+:root .school-row-name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.0625rem;
+  line-height: 1.25;
+  transition: color 0.2s ease;
+}
+
+:root .school-row-meta {
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+
+:root .school-row-arrow {
+  flex: 0 0 auto;
+  color: var(--brand);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root .school-row:hover .school-row-name {
+    color: var(--brand);
+  }
+}
+
+:root .school-row:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---------- Home: the promise, set big ---------- */
+:root .promise {
+  padding-block: var(--space-12) var(--space-16);
+}
+
+:root .promise-line {
+  margin: 0;
+  max-width: 24ch;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: clamp(1.625rem, 1.1rem + 2.4vw, 3rem);
+  line-height: 1.14;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+/* ---------- Home: partner band without the stripe and label ---------- */
+:root .for-schools-band {
+  padding-block: var(--space-16);
+}
+
+/* ---------- Our story: icons stand on their own, no white tile behind them ---------- */
+:root .about-problem-icon {
+  width: auto;
+  height: auto;
+  border: 0;
+  background: none;
+  border-radius: 0;
+  justify-content: start;
+  margin-bottom: 4px;
+}
+:root .about-problem-icon svg {
+  width: 36px;
+  height: 36px;
+}
+
+/* ---------- Reduced motion: nothing moves ---------- */
+@media (prefers-reduced-motion: reduce) {
+  :root :is(.class-tile, .gender-card) {
+    animation: none;
+  }
+  :root :is(.cat-tile, .school-select-card, .class-tile, .gender-card, .product-card, .school-row):is(:hover, :active) {
+    translate: none;
+    scale: none;
+  }
+  :root .cat-tile:hover .cat-tile-media img {
+    scale: none;
+  }
 }

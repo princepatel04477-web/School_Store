@@ -14,7 +14,7 @@ import { ProductSheet } from '../components/product/ProductSheet';
 import { IdCardPreview } from '../components/idcard/IdCardPreview';
 import { StepTransition } from '../motion/StepTransition';
 import { Thread } from '../motion/Thread';
-import { Stagger, Reveal, Hairline } from '../motion';
+import { Stagger, Reveal, Hairline, SplitReveal } from '../motion';
 import { EASING } from '../motion/motionConfig';
 import { useLang, type MessageKey } from '../i18n';
 import { categoryLabel, classLabel, genderLabel } from '../i18n/labels';
@@ -558,7 +558,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
 
             <div className="step-title-row">
               <span className="label">{schoolLabel}</span>
-              <h1 className="step-heading">{t('flow.s2.title')}</h1>
+              <SplitReveal as="h1" immediate className="step-heading">{t('flow.s2.title')}</SplitReveal>
               <ListenButton text={t('flow.s2.title')} />
             </div>
 
@@ -600,7 +600,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
 
             <div className="step-title-row">
               <span className="label">{schoolLabel} · {classLabel(activeClass.name, t)}</span>
-              <h1 className="step-heading">{t('flow.s3.title')}</h1>
+              <SplitReveal as="h1" immediate className="step-heading">{t('flow.s3.title')}</SplitReveal>
               <ListenButton text={t('flow.s3.title')} />
             </div>
 
@@ -719,7 +719,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   <span className="label">
                     {schoolLabel} · {classLabel(activeClass?.name, t)} · {genderLabel(activeGender, t)}
                   </span>
-                  <h1 className="step-heading">{t('flow.s4.title')}</h1>
+                  <SplitReveal as="h1" immediate className="step-heading">{t('flow.s4.title')}</SplitReveal>
                   <ListenButton text={`${t('flow.s4.title')}. ${t('flow.s4.listen')}`} />
                 </div>
 
