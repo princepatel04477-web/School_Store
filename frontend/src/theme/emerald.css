@@ -1149,3 +1149,48 @@ h4,
     scale: none;
   }
 }
+
+/* ---------- Phones: round back button in the top bar ---------- */
+:root .round-back-btn {
+  display: none;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background-color: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 0.2s ease,
+    scale 0.15s var(--em-ease);
+}
+
+:root .round-back-btn:active {
+  scale: 0.9;
+  background-color: rgba(255, 255, 255, 0.24);
+}
+
+:root .round-back-btn:focus-visible {
+  outline: 2px solid var(--saffron);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767.98px) {
+  :root .header-back-btn {
+    display: inline-grid;
+  }
+  /* The back button now leads the bar, so the menu button keeps its own spacing */
+  :root .header-back-btn + .mobile-menu-trigger {
+    margin-left: -4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root .round-back-btn:active {
+    scale: none;
+  }
+}

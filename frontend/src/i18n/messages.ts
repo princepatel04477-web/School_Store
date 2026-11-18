@@ -59,6 +59,7 @@ export const messages = {
 
   // ---------- header & menu ----------
   'nav.skip': { en: 'Skip to content', gu: 'મુખ્ય ભાગ પર જાઓ', hi: 'मुख्य भाग पर जाएँ' },
+  'nav.back': { en: 'Go back', gu: 'પાછા જાઓ', hi: 'वापस जाएँ' },
   'nav.openMenu': { en: 'Open menu', gu: 'મેનુ ખોલો', hi: 'मेन्यू खोलें' },
   'nav.closeMenu': { en: 'Close menu', gu: 'મેનુ બંધ કરો', hi: 'मेन्यू बंद करें' },
   'nav.menu': { en: 'Menu', gu: 'મેનુ', hi: 'मेन्यू' },
