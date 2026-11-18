@@ -1,0 +1,559 @@
+/* "Our story" page (/about). Mobile first; the store's emerald stage palette. */
+
+.about-page {
+  --ab-emerald: #0e5e3e;
+  --ab-circle-1: #11704b;
+  --ab-circle-2: #14825a;
+  --ab-soft: #cdebdc;
+  --ab-saffron: #ffb766;
+  --ab-yellow: #ffd964;
+  --ab-dark: #12352a;
+  --ab-muted: #3f6b56;
+  --ab-mint: #eef7f2;
+  --ab-mint-line: #cde9d9;
+  --ab-coral: #ffefea;
+  --ab-coral-line: #fad3c7;
+  --ab-coral-ink: #a8412b;
+  --ab-coral-head: #5e1f12;
+  --ab-coral-body: #6b3326;
+  --ab-badge: #fff3e3;
+  --ab-badge-line: #ffd9a8;
+  --ab-heading: 'Baloo 2', var(--font-heading, system-ui), sans-serif;
+  --ab-body: 'Nunito', var(--font-body, system-ui), sans-serif;
+
+  background: var(--ab-emerald);
+  color: var(--ab-dark);
+  font-family: var(--ab-body);
+  overflow-x: clip;
+}
+
+.about-container {
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-inline: clamp(20px, 5vw, 48px);
+  box-sizing: border-box;
+}
+
+/* ---------- hero band ---------- */
+
+.about-hero {
+  position: relative;
+  color: #fff;
+  overflow: hidden;
+  padding: 18px 0 46px;
+}
+
+.about-hero-circles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.about-circle {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.about-circle--outer {
+  width: 360px;
+  height: 360px;
+  right: -150px;
+  top: -140px;
+  background: var(--ab-circle-1);
+}
+
+.about-circle--inner {
+  width: 240px;
+  height: 240px;
+  right: -90px;
+  top: -80px;
+  background: var(--ab-circle-2);
+}
+
+.about-hero-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.about-eyebrow {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.about-eyebrow--light { color: var(--ab-soft); }
+.about-eyebrow--problem { color: var(--ab-coral-ink); }
+.about-eyebrow--fix { color: var(--ab-yellow); }
+
+.about-h1 {
+  margin: 6px 0 0;
+  font-family: var(--ab-heading);
+  font-weight: 800;
+  font-size: clamp(44px, 12vw, 72px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.about-accent { color: var(--ab-saffron); }
+
+.about-hero-sub {
+  margin: 10px 0 0;
+  max-width: 24ch;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--ab-soft);
+}
+
+.about-hero-art {
+  position: relative;
+  width: clamp(118px, 34vw, 150px);
+  margin-bottom: -46px;
+}
+
+.about-kids {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.25));
+  animation: about-float 5s ease-in-out infinite;
+}
+
+.about-sparkle {
+  position: absolute;
+  fill: var(--ab-yellow);
+  animation: about-twinkle 3s ease-in-out infinite;
+}
+
+.about-sparkle--a { left: -18px; top: 12%; width: 14px; height: 14px; }
+.about-sparkle--b { right: -4px; top: 46%; width: 11px; height: 11px; fill: #fff; animation-delay: 1.2s; }
+
+/* ---------- white sheet ---------- */
+
+.about-sheet {
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  border-radius: 28px 28px 0 0;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.18);
+  padding: 30px 0 calc(32px + env(safe-area-inset-bottom));
+}
+
+.about-stack {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(22px, 4vw, 48px);
+}
+
+.about-h2 {
+  margin: 4px 0 0;
+  font-family: var(--ab-heading);
+  font-weight: 800;
+  font-size: clamp(26px, 7vw, 40px);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: var(--ab-dark);
+}
+
+.about-h2--small {
+  font-size: clamp(20px, 5.4vw, 26px);
+  margin: 0;
+}
+
+/* problem */
+
+.about-problem-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.about-problem-card {
+  padding: 16px 14px 18px;
+  border-radius: 22px;
+  background: var(--ab-coral);
+  border: 1px solid var(--ab-coral-line);
+}
+
+.about-problem-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid var(--ab-coral-line);
+  color: var(--ab-coral-ink);
+  display: grid;
+  place-items: center;
+}
+
+.about-problem-title {
+  margin: 12px 0 0;
+  font-family: var(--ab-heading);
+  font-weight: 800;
+  font-size: 20px;
+  line-height: 1.12;
+  color: var(--ab-coral-head);
+}
+
+.about-problem-body {
+  margin: 6px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--ab-coral-body);
+}
+
+/* pivot */
+
+.about-pivot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.about-pivot-arrow {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--ab-emerald);
+  color: var(--ab-saffron);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 8px 18px rgba(14, 94, 62, 0.3);
+  animation: about-nudge 2.4s ease-in-out infinite;
+}
+
+.about-pivot-text {
+  margin: 0;
+  font-family: var(--ab-heading);
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--ab-muted);
+}
+
+/* fix */
+
+.about-fix {
+  padding: 20px 16px 16px;
+  border-radius: 24px;
+  background: var(--ab-emerald);
+  box-shadow: 0 14px 28px rgba(14, 94, 62, 0.28);
+  color: #fff;
+}
+
+.about-fix-title {
+  margin: 4px 0 0;
+  font-family: var(--ab-heading);
+  font-weight: 800;
+  font-size: clamp(24px, 6.4vw, 38px);
+  line-height: 1.1;
+  color: #fff;
+}
+
+.about-fix-list {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.about-fix-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.about-check {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ab-saffron);
+  color: var(--ab-dark);
+  display: grid;
+  place-items: center;
+}
+
+/* badge */
+
+.about-badge {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 22px;
+  background: var(--ab-badge);
+  border: 1px solid var(--ab-badge-line);
+}
+
+.about-badge-icon {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--ab-saffron);
+  color: var(--ab-dark);
+  display: grid;
+  place-items: center;
+}
+
+.about-badge-copy { display: flex; flex-direction: column; gap: 3px; }
+
+.about-badge-title {
+  font-family: var(--ab-heading);
+  font-weight: 800;
+  font-size: 20px;
+  line-height: 1.1;
+  color: var(--ab-dark);
+}
+
+.about-badge-body {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #5a4326;
+}
+
+/* schools slider */
+
+.about-schools-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.about-schools-head .about-h2 { flex: 1; min-width: 0; }
+
+.about-swipe-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ab-muted);
+}
+
+.about-swipe-hint svg { width: 16px; height: 16px; }
+
+.about-schools-nav { display: none; gap: 8px; }
+
+.about-nav-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--ab-emerald);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.about-nav-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.about-nav-btn:disabled { opacity: 0.35; cursor: default; }
+
+.about-schools-rail {
+  margin-inline: calc(-1 * clamp(20px, 5vw, 48px));
+  padding: 4px clamp(20px, 5vw, 48px) 8px;
+  scroll-padding-inline: clamp(20px, 5vw, 48px);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.about-schools-rail::-webkit-scrollbar { display: none; }
+
+.about-schools-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  gap: 14px;
+  width: max-content;
+}
+
+.about-school {
+  width: 92px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.about-school-badge {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--ab-mint-line);
+  box-shadow: 0 6px 14px rgba(14, 94, 62, 0.1);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.about-school-badge .about-school-crest { border-radius: 50% !important; }
+.about-school-badge img.about-school-crest { border-radius: 8px !important; }
+
+.about-school-name {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ab-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* CTA */
+
+.about-cta-wrap { display: flex; justify-content: center; }
+
+.about-cta {
+  width: 100%;
+  min-height: 60px;
+  padding: 0 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--ab-emerald);
+  color: #fff;
+  font-family: var(--ab-heading);
+  font-weight: 800;
+  font-size: 21px;
+  cursor: pointer;
+  box-shadow: 0 14px 28px rgba(14, 94, 62, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.about-cta svg { color: var(--ab-saffron); }
+.about-cta:hover { transform: translateY(-1px); }
+
+/* focus */
+
+.about-page :is(button, a, [tabindex='0']):focus-visible {
+  outline: 3px solid var(--ab-emerald);
+  outline-offset: 3px;
+}
+
+.about-fix :focus-visible,
+.about-hero :focus-visible { outline-color: var(--ab-yellow); }
+
+/* ---------- larger screens ---------- */
+
+@media (min-width: 360px) {
+  .about-problem-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 768px) {
+  .about-hero { padding: 40px 0 72px; }
+  .about-hero-sub { font-size: 18px; }
+  .about-hero-art { width: 210px; margin-bottom: -72px; }
+  .about-sheet { padding-top: 48px; }
+  .about-problem-card { padding: 24px 22px 26px; }
+  .about-problem-title { font-size: 24px; }
+  .about-problem-body { font-size: 16px; }
+  .about-fix { padding: 32px; }
+  .about-badge { align-self: center; width: 100%; max-width: 720px; box-sizing: border-box; }
+  .about-school { width: 112px; }
+  .about-school-badge { width: 104px; height: 104px; }
+  .about-school-name { font-size: 14px; }
+  .about-cta { width: auto; min-width: 420px; }
+}
+
+@media (min-width: 1024px) {
+  .about-circle--outer { width: 640px; height: 640px; right: -180px; top: -300px; }
+  .about-circle--inner { width: 420px; height: 420px; right: -70px; top: -190px; }
+  .about-hero { padding: 56px 0 84px; }
+  .about-hero-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr); align-items: center; gap: 48px; min-height: 300px; }
+  .about-hero-art { width: auto; height: 340px; margin: 0 0 -84px; justify-self: end; }
+  .about-hero-art picture { display: block; height: 100%; }
+  .about-kids { width: auto; height: 100%; }
+  .about-problem-grid { gap: 20px; }
+  .about-fix {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 40px;
+    align-items: center;
+    padding: 40px;
+  }
+  .about-fix-list { margin: 0; }
+  .about-schools-nav { display: flex; }
+  .about-swipe-hint { display: none; }
+}
+
+/* ---------- motion ---------- */
+
+@keyframes about-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes about-twinkle {
+  0%, 100% { opacity: 0.35; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes about-nudge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-kids,
+  .about-sparkle,
+  .about-pivot-arrow { animation: none; }
+}
+
+/* ---------- Our story as the second screen of home ---------- */
+
+.about-page--section .about-sheet {
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.14);
+}
+
+.about-section-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.about-eyebrow--brand { color: var(--ab-emerald); }
+
+.about-h2--title {
+  margin: 0;
+  font-size: clamp(36px, 10vw, 56px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* Saffron is too light on white for text, so the accent word uses a deeper amber (5:1). */
+.about-accent-dark { color: #a85300; }
