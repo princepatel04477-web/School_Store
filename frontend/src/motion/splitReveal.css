@@ -10,5 +10,4 @@
 .split-word {
   display: inline-block;
   transform-origin: 0% 100%;
-  will-change: transform;
 }

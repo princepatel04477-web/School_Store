@@ -171,7 +171,7 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
                   >
                     <div className="bag-line-img">
                       {line.image ? (
-                        <img src={line.image} alt={line.name} width={64} height={80} />
+                        <img src={line.image} alt={line.name} width={64} height={80} loading="lazy" decoding="async" />
                       ) : (
                         <CategoryOutlineIllustration category={line.category} />
                       )}

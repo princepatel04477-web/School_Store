@@ -179,7 +179,7 @@ export function AboutPage({ onOpenBag, onOpenLanguage }: AboutPageProps) {
               width={224}
               height={330}
               decoding="async"
-              fetchPriority="high"
+              {...{ fetchpriority: 'high' }}
             />
             <div className="about-hero-shadow" aria-hidden="true" />
           </motion.div>
@@ -379,6 +379,8 @@ export function AboutPage({ onOpenBag, onOpenLanguage }: AboutPageProps) {
                             src={school.logo_url}
                             alt={t('about.network.logoAlt', { name: school.name })}
                             className="about-school-logo"
+                            width={56}
+                            height={56}
                             loading="lazy"
                             decoding="async"
                           />

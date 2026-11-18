@@ -1,11 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { useStoreState } from '../../store/storeState';
 import { useLang } from '../../i18n';
 import { EASING } from '../../motion/motionConfig';
-import { prefetchFlowPage } from '../../utils/prefetch';
-import { SHOP_LINK } from '../../siteConfig';
 import './homeHero.css';
 
 export interface HomeHeroProps {
@@ -26,26 +23,47 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
   const { totalCount } = useStoreState();
   const shouldReduceMotion = useReducedMotion();
   const [isCompact, setIsCompact] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isHeroVisible, setIsHeroVisible] = useState(true);
+  const heroRef = useRef<HTMLElement>(null);
 
   // Short screens get the compact hero
   useEffect(() => {
     const handleViewport = () => {
       const vv = window.visualViewport;
       const height = vv ? vv.height : window.innerHeight;
+      const width = vv ? vv.width : window.innerWidth;
       setIsCompact(height < 640);
+      setIsMobile(width < 768);
     };
 
     handleViewport();
 
     const vv = window.visualViewport;
-    if (vv) vv.addEventListener('resize', handleViewport);
-    window.addEventListener('resize', handleViewport);
+    if (vv) vv.addEventListener('resize', handleViewport, { passive: true });
+    window.addEventListener('resize', handleViewport, { passive: true });
 
     return () => {
       if (vv) vv.removeEventListener('resize', handleViewport);
       window.removeEventListener('resize', handleViewport);
     };
   }, []);
+
+  // Pause continuous looping animations when the hero is off-screen
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsHeroVisible(entry.isIntersecting);
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const canAnimateLoop = !shouldReduceMotion && isHeroVisible && !isMobile;
 
   const langPillLabel = lang === 'gu' ? 'ગુજ' : lang === 'hi' ? 'हिं' : 'EN';
 
@@ -85,21 +103,8 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
     },
   };
 
-  const ctaEntrance = {
-    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 18 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: shouldReduceMotion ? 0 : 0.44,
-        ease: EASING,
-        delay: shouldReduceMotion ? 0 : 0.24,
-      },
-    },
-  };
-
   return (
-    <header className={`emerald-hero ${isCompact ? 'is-compact' : ''}`}>
+    <header ref={heroRef} className={`emerald-hero ${isCompact ? 'is-compact' : ''}`}>
       {/* 1. Top bar: fixed to the top of the screen, so it stays while the page scrolls */}
       <div className="emerald-container emerald-header-container">
         <nav className="emerald-header" aria-label="Emerald Top Navigation">
@@ -215,27 +220,6 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
                 <span className="emerald-tagline-saffron">{t('home.emerald.taglineAccent')}</span>
               </motion.span>
             </h1>
-
-            {/* The one way in: the shop, which starts with the parent's state */}
-            <motion.div className="emerald-cta-wrap" initial="hidden" animate="visible" variants={ctaEntrance}>
-              <Link to={SHOP_LINK} className="emerald-cta" onMouseEnter={prefetchFlowPage} onFocus={prefetchFlowPage}>
-                {t('home.emerald.cta')}
-                <svg
-                  viewBox="0 0 24 24"
-                  width="22"
-                  height="22"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                  <polyline points="12 5 19 12 12 19" />
-                </svg>
-              </Link>
-            </motion.div>
           </div>
 
           {/* Right column: Stage with concentric circles, sparkles and kids */}
@@ -266,22 +250,22 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
                       height: sp.size,
                     }}
                     animate={
-                      shouldReduceMotion
-                        ? { opacity: 0.85, scale: 1 }
-                        : {
+                      canAnimateLoop
+                        ? {
                             opacity: [0.35, 1, 0.35],
                             scale: [0.75, 1.15, 0.75],
                           }
+                        : { opacity: 0.85, scale: 1 }
                     }
                     transition={
-                      shouldReduceMotion
-                        ? { duration: 0 }
-                        : {
+                      canAnimateLoop
+                        ? {
                             duration: 3,
                             repeat: Infinity,
                             ease: 'easeInOut',
                             delay: sp.delay,
                           }
+                        : { duration: 0 }
                     }
                   >
                     <svg
@@ -304,15 +288,15 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
               <div className="emerald-stage-img-wrap">
                 <motion.div
                   className="emerald-float-wrap"
-                  animate={shouldReduceMotion ? { y: 0 } : { y: [0, -6, 0] }}
+                  animate={canAnimateLoop ? { y: [0, -6, 0] } : { y: 0 }}
                   transition={
-                    shouldReduceMotion
-                      ? { duration: 0 }
-                      : {
+                    canAnimateLoop
+                      ? {
                           duration: 5,
                           repeat: Infinity,
                           ease: 'easeInOut',
                         }
+                      : { duration: 0 }
                   }
                 >
                   <picture>

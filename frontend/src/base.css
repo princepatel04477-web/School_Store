@@ -222,7 +222,15 @@ button, input, select, textarea {
 }
 
 /* Phones: iOS zooms the whole page into any field under 16px when it is tapped.
-   !important because many forms set their own smaller field size. */
+   !important because many forms set their own smaller field size.
+   scroll-margin keeps fields visible when the virtual keyboard pops up or sticky bars are present. */
+input,
+select,
+textarea {
+  scroll-margin-top: 80px;
+  scroll-margin-bottom: 120px;
+}
+
 @media (max-width: 767px) {
   input:not([type=checkbox]):not([type=radio]):not([type=range]),
   select,

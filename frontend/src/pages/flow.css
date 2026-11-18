@@ -128,6 +128,7 @@
   cursor: pointer;
   margin-bottom: var(--space-4);
   padding: 0;
+  min-height: 44px;
 }
 
 /* Step 1: School Search & Grid */
@@ -152,6 +153,8 @@
   border: none;
   background: transparent;
   width: 100%;
+  height: 100%;
+  min-height: 44px;
   font-size: var(--text-base);
   color: var(--ink);
   outline: none;

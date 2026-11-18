@@ -193,6 +193,15 @@
   cursor: pointer;
 }
 
+@media (max-width: 767px) {
+  .stepper-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 .stepper-btn:hover:not(:disabled) {
   background-color: var(--paper-sunk);
 }

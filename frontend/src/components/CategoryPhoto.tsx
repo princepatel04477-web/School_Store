@@ -30,6 +30,7 @@ export function CategoryPhoto({
       width={size}
       height={size}
       loading={lazy ? 'lazy' : undefined}
+      decoding="async"
       onError={() => setAttempt((n) => n + 1)}
     />
   );

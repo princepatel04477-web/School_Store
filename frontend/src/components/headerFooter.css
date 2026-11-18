@@ -555,7 +555,12 @@
     display: none;
   }
   .utility-inner {
-    min-height: 32px;
+    min-height: 44px;
+  }
+  .utility-lang {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
   }
   /* Sign in and My Account live in the menu on phones. Search stays:
      it opens the full-screen school search. */
@@ -575,6 +580,12 @@
   }
   .bag-btn {
     margin-right: -12px;
+  }
+  .footer-legal-links a,
+  .plain-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
   }
 }
 
@@ -716,7 +727,9 @@
     gap: 0;
   }
   .footer-list a {
-    display: block;
+    display: flex;
+    align-items: center;
+    min-height: 44px;
     padding: 10px 0;
   }
 }

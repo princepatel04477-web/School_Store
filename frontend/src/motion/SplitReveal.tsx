@@ -1,4 +1,4 @@
-import { Children, isValidElement, type ElementType, type ReactElement, type ReactNode } from 'react';
+import { Children, isValidElement, useState, useEffect, type ElementType, type ReactElement, type ReactNode } from 'react';
 import { motion, useReducedMotion, type Variants } from 'motion/react';
 import { EASING } from './motionConfig';
 import './splitReveal.css';
@@ -33,6 +33,16 @@ const staggerFor = (words: number) => Math.min(0.05, 0.6 / Math.max(words, 1));
 const word: Variants = {
   hidden: { y: '108%', rotate: 3 },
   visible: { y: '0%', rotate: 0, transition: { duration: 0.7, ease: EASING } },
+};
+
+/** Touch/small screens animate the whole heading as one element (opacity + translateY only, no rotate). */
+const mobileHeading: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: (delay = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.45, ease: EASING, delay },
+  }),
 };
 
 const motionByTag = new Map<ElementType, typeof motion.div>();
@@ -95,6 +105,19 @@ function splitWords(children: ReactNode): ReactNode[] {
  */
 export function SplitReveal({ children, as = 'h2', className = '', id, delay = 0, immediate = false }: SplitRevealProps) {
   const reduce = useReducedMotion();
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 767.98px)').matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 767.98px)');
+    const update = () => setIsMobile(mq.matches);
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
   const Tag = as;
 
   if (reduce) {
@@ -106,6 +129,24 @@ export function SplitReveal({ children, as = 'h2', className = '', id, delay = 0
   }
 
   const MotionTag = motionFor(as);
+
+  // On touch/small screens animate the whole heading as ONE element (opacity + translateY only, no rotate)
+  if (isMobile) {
+    const play = immediate ? { animate: 'visible' } : { whileInView: 'visible', viewport: { once: true, amount: 0.3 } };
+    return (
+      <MotionTag
+        id={id}
+        className={`split-reveal ${className}`.trim()}
+        initial="hidden"
+        custom={delay}
+        variants={mobileHeading}
+        {...play}
+      >
+        {children}
+      </MotionTag>
+    );
+  }
+
   const words = splitWords(children);
   const timing: Timing = { delay, stagger: staggerFor(words.filter((w) => w !== ' ').length) };
   const play = immediate ? { animate: 'visible' } : { whileInView: 'visible', viewport: { once: true, amount: 0.5 } };
