@@ -26,8 +26,14 @@ export function useBackHandler(handler: () => void, enabled: boolean) {
   }, [enabled]);
 }
 
+/** Asks the current page to go back inside itself. True when the page did. */
+export function requestPageBack(): boolean {
+  const event = new Event(BACK_EVENT, { cancelable: true });
+  return !window.dispatchEvent(event);
+}
+
 /** Was this page reached from another page of the store in this tab? */
-function hasStoreHistory(): boolean {
+export function hasStoreHistory(): boolean {
   const state = window.history.state as { idx?: number } | null;
   return typeof state?.idx === 'number' && state.idx > 0;
 }
@@ -42,9 +48,7 @@ export function BackButton({ className = '' }: { className?: string }) {
   const { t } = useLang();
 
   const goBack = () => {
-    const event = new Event(BACK_EVENT, { cancelable: true });
-    const notHandled = window.dispatchEvent(event);
-    if (!notHandled) return;
+    if (requestPageBack()) return;
     if (hasStoreHistory()) navigate(-1);
     else navigate('/');
   };
