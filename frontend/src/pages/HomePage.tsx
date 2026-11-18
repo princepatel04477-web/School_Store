@@ -15,6 +15,8 @@ import {
 } from '../motion';
 import { useLang } from '../i18n';
 import { HomeHero } from '../components/home/HomeHero';
+import { OurStorySection } from '../components/home/OurStorySection';
+import { scrollPageTo } from '../motion/SmoothScroll';
 import './home.css';
 
 export interface HomePageProps {
@@ -46,6 +48,14 @@ export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps) {
     frame = requestAnimationFrame(focusWhenReady);
     return () => cancelAnimationFrame(frame);
   }, [focusSearch, navigate, location.pathname, location.search]);
+
+  // Our story's "Find your school": back up to the hero with the search ready to type in.
+  const jumpToSearch = () => {
+    scrollPageTo(0, true);
+    window.setTimeout(() => {
+      document.querySelector<HTMLInputElement>('.emerald-search-input')?.focus({ preventScroll: true });
+    }, 450);
+  };
 
   const categoryTiles = [
     {
@@ -88,6 +98,9 @@ export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps) {
     <div className="home-page" id="main">
       {/* 1. EMERALD STAGE HERO (P1) */}
       <HomeHero onOpenBag={onOpenBag} onOpenLanguage={onOpenLanguage} />
+
+      {/* 2. OUR STORY: the second screen, right under the hero */}
+      <OurStorySection showTitle showSchools={false} onFindSchool={jumpToSearch} />
 
       {/* 3. SHOP BY CATEGORY (Editorial Grid), on the one full-width highlight band */}
       <div className="highlight-band">

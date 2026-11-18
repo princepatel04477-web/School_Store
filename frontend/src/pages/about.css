@@ -533,3 +533,27 @@
   .about-sparkle,
   .about-pivot-arrow { animation: none; }
 }
+
+/* ---------- Our story as the second screen of home ---------- */
+
+.about-page--section .about-sheet {
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.14);
+}
+
+.about-section-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.about-eyebrow--brand { color: var(--ab-emerald); }
+
+.about-h2--title {
+  margin: 0;
+  font-size: clamp(36px, 10vw, 56px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* Saffron is too light on white for text, so the accent word uses a deeper amber (5:1). */
+.about-accent-dark { color: #a85300; }
