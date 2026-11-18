@@ -161,6 +161,39 @@ h4,
   --tile: #12352a;
 }
 
+/* "What do you need?" fits however many categories are live (3 while notebooks and
+   ID cards are paused, 5 when they come back). Phones: two across, and an odd last
+   tile runs the full width with its photo on the left. */
+@media (max-width: 639px) {
+  /* Each tile sits in a display:contents wrapper, so the tile itself is the grid item. */
+  :root .editorial-category-grid > :last-child:nth-child(odd) .cat-tile {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-4);
+  }
+  :root .editorial-category-grid > :last-child:nth-child(odd) .cat-tile-media {
+    width: 46%;
+    flex: 0 0 46%;
+  }
+  :root .editorial-category-grid > :last-child:nth-child(odd) .cat-tile-body {
+    flex: 1;
+    padding: 0 4px;
+  }
+}
+
+/* Desktop: one row, the tiles share the full width whatever their number. */
+@media (min-width: 1024px) {
+  :root .editorial-category-grid {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+  :root .editorial-category-grid .cat-tile-media {
+    aspect-ratio: 4 / 3;
+  }
+}
+
 :root .featured-school-card {
   box-shadow: var(--shadow-sm);
 }

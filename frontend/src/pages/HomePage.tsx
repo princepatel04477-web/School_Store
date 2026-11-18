@@ -17,6 +17,7 @@ import { useLang } from '../i18n';
 import { HomeHero } from '../components/home/HomeHero';
 import { OurStorySection } from '../components/home/OurStorySection';
 import { scrollPageTo } from '../motion/SmoothScroll';
+import { isCategoryLive } from '../data/liveCategories';
 import './home.css';
 
 export interface HomePageProps {
@@ -88,7 +89,7 @@ export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps) {
       kind: 'idcard' as KitKind,
       href: '/shop?cat=ID%20Cards',
     },
-  ];
+  ].filter((tile) => isCategoryLive(tile.category));
 
   const { data: schools = [] } = useStoreSchools();
 
@@ -206,7 +207,7 @@ export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps) {
           </div>
           <div className="for-schools-side">
             <p className="for-schools-sub">
-              Simplify uniform distribution, custom stationery, and RFID cards for your student body with dedicated logistics.
+              Simplify uniform and shoe distribution for your student body with dedicated logistics.
             </p>
             <Link to="/for-schools" className="btn btn-lg for-schools-btn">
               Talk to us

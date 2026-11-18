@@ -16,6 +16,7 @@ import { CLASSES } from '../data/classes';
 import { useStoreState } from '../store/storeState';
 import { CustomisationForm, photoPurposeForCategory } from './CustomisationForm';
 import { Popup } from './Popup';
+import { isCategoryLive } from '../data/liveCategories';
 
 export interface SchoolItem {
   id: string;
@@ -133,7 +134,7 @@ export function SelectionFlow({
   const isAccessoriesFlow = category.toLowerCase().includes('accessories');
 
   const triggerStationeryPrompt = useCallback(() => {
-    if (!isAccessoriesFlow) return;
+    if (!isAccessoriesFlow || !isCategoryLive('Stationery')) return;
     try {
       if (sessionStorage.getItem(STATIONERY_PROMPT_SESSION_KEY) === '1') {
         return;
