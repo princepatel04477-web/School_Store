@@ -144,7 +144,7 @@ describe('Prompt 3: Native Navigation & Back Button Handling', () => {
     vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true);
 
     await setupNativeStatusBar();
-    expect(StatusBar.setBackgroundColor).toHaveBeenCalledWith({ color: '#2F5D50' });
+    expect(StatusBar.setBackgroundColor).toHaveBeenCalledWith({ color: '#0E5E3E' });
     expect(StatusBar.setStyle).toHaveBeenCalledWith({ style: Style.Dark });
   });
 

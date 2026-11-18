@@ -1,8 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 
-/** The app's top bar colour; home uses the deeper emerald of its stage. */
-export const STATUS_BAR_DEFAULT = '#2F5D50';
+/** Status bar colours: the emerald top bar everywhere, the same emerald on home. */
+export const STATUS_BAR_DEFAULT = '#0E5E3E';
 export const STATUS_BAR_HOME = '#0E5E3E';
 
 export async function setupNativeStatusBar(): Promise<void> {
