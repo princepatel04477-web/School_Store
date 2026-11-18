@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth';
 import { isNativeApp } from '../../native/nativePlatform';
 import { setupNativeBackButton, handleNativeBack } from '../../native/backButton';
+import { requestPageBack, hasStoreHistory } from '../BackButton';
 import { setupNativeKeyboard } from '../../native/keyboard';
 import {
   setupNativeStatusBar,
@@ -208,6 +209,7 @@ export function NativeNavigation({ onOpenBag, bagCount = 0, hideTopBar = false }
         isTabRoot,
         isShopTab: isShop,
         onSwitchToShop: () => navigate('/'),
+        pageBack: requestPageBack,
         showExitToast: (msg: string) => {
           setExitToast(msg);
           setTimeout(() => setExitToast(null), 2000);
@@ -219,6 +221,9 @@ export function NativeNavigation({ onOpenBag, bagCount = 0, hideTopBar = false }
   }, [activeTab, isTabRoot, location.pathname, navigate]);
 
   if (!isNativeApp()) return null;
+
+  // The shop pages are a tab root, but parents still need a way back through its steps
+  const inShop = /^\/(shop|flow)/.test(location.pathname);
 
   // Derive Screen Title
   let screenTitle = 'School Store';
@@ -238,11 +243,15 @@ export function NativeNavigation({ onOpenBag, bagCount = 0, hideTopBar = false }
       {!hideTopBar && (
       <header className="native-top-bar">
         <div className="native-top-left">
-          {!isTabRoot ? (
+          {!isTabRoot || inShop ? (
             <button
               type="button"
               className="native-back-button"
-              onClick={() => navigate(-1)}
+              onClick={() => {
+                if (requestPageBack()) return;
+                if (hasStoreHistory()) navigate(-1);
+                else navigate('/');
+              }}
               aria-label="Go back"
             >
               <ArrowLeft width={22} height={22} strokeWidth={2} />

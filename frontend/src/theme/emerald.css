@@ -1194,3 +1194,18 @@ h4,
     scale: none;
   }
 }
+
+/* ---------- App top bar: the back button as a visible circle, same as the website ---------- */
+:root .native-back-button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background-color: rgba(255, 255, 255, 0.14);
+  transition:
+    background-color 0.2s ease,
+    scale 0.15s var(--em-ease);
+}
+:root .native-back-button:active {
+  scale: 0.9;
+  background-color: rgba(255, 255, 255, 0.24);
+}

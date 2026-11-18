@@ -12,11 +12,18 @@ export interface BackButtonContext {
   onSwitchToShop: () => void;
   showExitToast: (msg: string) => void;
   closeModals?: () => boolean; // returns true if a modal was closed
+  /** Steps back inside the page (shop: school > city > state, items > class); true if it did. */
+  pageBack?: () => boolean;
 }
 
 export function handleNativeBack(ctx: BackButtonContext): void {
   // 1. If a modal/drawer is open, dismiss it first
   if (ctx.closeModals && ctx.closeModals()) {
+    return;
+  }
+
+  // 1b. A page with its own steps goes back one step before leaving
+  if (ctx.pageBack && ctx.pageBack()) {
     return;
   }
 
