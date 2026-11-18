@@ -81,7 +81,9 @@ export default function App() {
   const isHome = location.pathname === '/';
   const isAbout = location.pathname === '/about';
 
-  useSchoolTheme(!isPortal);
+  // The whole store wears the emerald theme; a school's own colour stays on its crest
+  // instead of re-tinting every page. Pass !isPortal here to bring school tints back.
+  useSchoolTheme(false);
 
   // The store starts in English. Parents switch from the language link in the
   // top bar or the menu; the chooser only opens when they ask for it.

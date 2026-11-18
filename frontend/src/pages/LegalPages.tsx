@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { siteConfig } from '../siteConfig';
+import { EmeraldBand } from '../components/ui/EmeraldBand';
 import './legal.css';
 
 /*
@@ -14,9 +15,8 @@ const UPDATED = '18 October 2026';
 
 function LegalPage({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <article className="legal container">
-      <p className="legal-meta">Last updated {UPDATED}</p>
-      <h1>{title}</h1>
+    <EmeraldBand eyebrow={`Last updated ${UPDATED}`} title={title}>
+    <article className="legal">
       {children}
       {(siteConfig.supportEmail || siteConfig.supportPhone) && (
         <p className="legal-contact">
@@ -30,6 +30,7 @@ function LegalPage({ title, children }: { title: string; children: ReactNode }) 
         </p>
       )}
     </article>
+    </EmeraldBand>
   );
 }
 
