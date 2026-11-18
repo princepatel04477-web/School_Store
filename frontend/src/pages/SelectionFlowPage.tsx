@@ -38,6 +38,7 @@ import {
 } from '../data/fit';
 import { CATEGORY_PHOTOS } from '../data/categoryPhotos';
 import { LIVE_CATEGORIES, isCategoryLive } from '../data/liveCategories';
+import { useBackHandler } from '../components/BackButton';
 import { CategoryPhoto } from '../components/CategoryPhoto';
 import './flow.css';
 
@@ -407,6 +408,13 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       ),
     [products]
   );
+
+  // The round back button in the top bar goes back one step, like the links on each step
+  // (step 4 asks first if going back would clear the bag).
+  useBackHandler(() => {
+    if (currentStep === 4) requestStepChange(3);
+    else goToStep(currentStep - 1);
+  }, currentStep > 1);
 
   const requiredProducts = useMemo(() => {
     return step4Products.filter((p) => p.required);

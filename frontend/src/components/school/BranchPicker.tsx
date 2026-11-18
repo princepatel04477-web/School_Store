@@ -6,6 +6,7 @@ import { SplitReveal, Stagger } from '../../motion';
 import { ListenButton } from '../ListenButton';
 import { SchoolCrest } from './SchoolCrest';
 import { StateEmblem } from './StateEmblem';
+import { useBackHandler } from '../BackButton';
 import { useLang } from '../../i18n';
 import {
   useStoreBranches,
@@ -118,6 +119,8 @@ export function BranchPicker({
     }
   };
   const canGoBack = (stage === 'branch' && !skipped.city) || (stage !== 'state' && !skipped.state);
+  // The round back button in the top bar steps back here first (school > city > state)
+  useBackHandler(goBack, canGoBack);
 
   const active =
     stage === 'state' ? statesQuery : stage === 'city' ? citiesQuery : branchesQuery;

@@ -6,6 +6,7 @@ import { useAuth } from '../auth';
 import { siteConfig, SHOP_LINK } from '../siteConfig';
 import { useStoreState } from '../store/storeState';
 import { SchoolCrest } from './school/SchoolCrest';
+import { BackButton } from './BackButton';
 import { EASING, DURATION_FAST } from '../motion/motionConfig';
 import { prefetchFlowPage, prefetchBagDrawer } from '../utils/prefetch';
 import { useLang } from '../i18n';
@@ -125,6 +126,9 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
 
       <header className="site-header">
         <div className="header-inner container">
+          {/* Phones: round back button */}
+          <BackButton className="header-back-btn" />
+
           {/* Mobile menu button */}
           <button
             type="button"
