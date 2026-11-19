@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Search } from '../ui/icons';
 import { SchoolPickerSkeleton } from '../ui/Skeleton';
@@ -204,7 +204,7 @@ export function BranchPicker({
               onClick={() => setState(s.name)}
             >
               <span className="state-tile-mark">
-                <StateEmblem name={s.name} size={54} />
+                <StateEmblem name={s.name} size={96} />
               </span>
               <span className="state-tile-name">{s.name}</span>
               <span className="state-tile-meta">{s.cityCount === 1 ? t('flow.s1.oneCity') : t('flow.s1.cityCount', { n: s.cityCount })}</span>

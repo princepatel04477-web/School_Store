@@ -82,7 +82,8 @@ describe('HomeHero (P1 Emerald Stage)', () => {
     const { unmount } = renderHomeHero();
     expect(screen.getByText('First time in')).toBeTruthy();
     expect(screen.getByText('INDIA')).toBeTruthy();
-    expect(screen.getByText(/All school uniform & accessories,/i)).toBeTruthy();
+    expect(screen.getByText(/All schools/i)).toBeTruthy();
+    expect(screen.getByText(/uniform and accessories/i)).toBeTruthy();
     expect(screen.getByText(/at your doorstep\./i)).toBeTruthy();
     unmount();
 
@@ -93,8 +94,9 @@ describe('HomeHero (P1 Emerald Stage)', () => {
     const guView = renderHomeHero();
     expect(screen.getByText('ભારતમાં પ્રથમ વખત')).toBeTruthy();
     expect(screen.getByText('INDIA')).toBeTruthy();
-    expect(screen.getByText(/બધા સ્કૂલ યુનિફોર્મ અને એસેસરીઝ,/i)).toBeTruthy();
-    expect(screen.getByText(/તમારા દરવાજે\./i)).toBeTruthy();
+    expect(screen.getByText(/બધી શાળાઓ/i)).toBeTruthy();
+    expect(screen.getByText(/યુનિફોર્મ અને એસેસરીઝ/i)).toBeTruthy();
+    expect(screen.getByText(/તમારા ઘર સુધી\./i)).toBeTruthy();
     guView.unmount();
 
     // 3. Hindi
@@ -104,8 +106,9 @@ describe('HomeHero (P1 Emerald Stage)', () => {
     const hiView = renderHomeHero();
     expect(screen.getByText('पहली बार भारत में')).toBeTruthy();
     expect(screen.getByText('INDIA')).toBeTruthy();
-    expect(screen.getByText(/सभी स्कूल यूनिफॉर्म और एक्सेसरीज़,/i)).toBeTruthy();
-    expect(screen.getByText(/आपके दरवाज़े पर।/i)).toBeTruthy();
+    expect(screen.getByText(/सभी स्कूल/i)).toBeTruthy();
+    expect(screen.getByText(/यूनिफॉर्म और एक्सेसरीज़/i)).toBeTruthy();
+    expect(screen.getByText(/आपके दरवाज़े तक।/i)).toBeTruthy();
     hiView.unmount();
   });
 

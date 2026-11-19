@@ -278,6 +278,10 @@
   color: var(--emerald-white);
 }
 
+.emerald-tagline-row {
+  display: block;
+}
+
 .emerald-tagline-white {
   color: var(--emerald-white);
 }

@@ -208,7 +208,7 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
                 </span>
               </motion.div>
 
-              {/* Line 3: Tagline */}
+              {/* Line 3: Tagline (3 distinct lines) */}
               <motion.span
                 className="emerald-tagline"
                 custom={2}
@@ -216,8 +216,9 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
                 animate="visible"
                 variants={lineVariants}
               >
-                <span className="emerald-tagline-white">{t('home.emerald.taglineWhite')}{' '}</span>
-                <span className="emerald-tagline-saffron">{t('home.emerald.taglineAccent')}</span>
+                <span className="emerald-tagline-row emerald-tagline-white">{t('home.emerald.taglineLine1')}</span>
+                <span className="emerald-tagline-row emerald-tagline-white">{t('home.emerald.taglineLine2')}</span>
+                <span className="emerald-tagline-row emerald-tagline-saffron">{t('home.emerald.taglineLine3')}</span>
               </motion.span>
             </h1>
           </div>

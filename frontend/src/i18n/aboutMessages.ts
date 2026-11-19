@@ -10,16 +10,16 @@ type Entry = Record<Lang, string>;
 
 export const aboutMessages = {
   'about.pageTitle': {
-    en: 'Our story | SchoolStore by Colorbenz',
-    gu: 'અમારી કહાણી | SchoolStore by Colorbenz',
-    hi: 'हमारी कहानी | SchoolStore by Colorbenz',
+    en: 'Our story | SchoolStore by Color Wings',
+    gu: 'અમારી કહાણી | SchoolStore by Color Wings',
+    hi: 'हमारी कहानी | SchoolStore by Color Wings',
   },
   'about.metaDescription': {
-    en: 'Why Colorbenz built SchoolStore: your school uniform and accessories, ordered from home and delivered to your door.',
-    gu: 'Colorbenz એ SchoolStore કેમ બનાવ્યું: તમારી સ્કૂલનો યુનિફોર્મ અને એક્સેસરીઝ ઘરેથી ઓર્ડર કરો, અમે ઘરે પહોંચાડીએ.',
-    hi: 'Colorbenz ने SchoolStore क्यों बनाया: अपने स्कूल की यूनिफॉर्म और एक्सेसरीज़ घर से ऑर्डर करें, हम घर तक पहुँचाते हैं।',
+    en: 'Why Color Wings built SchoolStore: your school uniform and accessories, ordered from home and delivered to your door.',
+    gu: 'Color Wings એ SchoolStore કેમ બનાવ્યું: તમારી સ્કૂલનો યુનિફોર્મ અને એક્સેસરીઝ ઘરેથી ઓર્ડર કરો, અમે ઘરે પહોંચાડીએ.',
+    hi: 'Color Wings ने SchoolStore क्यों बनाया: अपने स्कूल की यूनिफॉर्म और एक्सेसरीज़ घर से ऑर्डर करें, हम घर तक पहुँचाते हैं।',
   },
-  'about.eyebrow': { en: 'BY COLORBENZ', gu: 'COLORBENZ દ્વારા', hi: 'COLORBENZ द्वारा' },
+  'about.eyebrow': { en: 'BY COLOR WINGS', gu: 'COLOR WINGS દ્વારા', hi: 'COLOR WINGS द्वारा' },
   'about.titleLead': { en: 'Our', gu: 'અમારી', hi: 'हमारी' },
   'about.titleAccent': { en: 'story', gu: 'કહાણી', hi: 'कहानी' },
   'about.sub': {
@@ -34,15 +34,15 @@ export const aboutMessages = {
   },
   'about.problemEyebrow': { en: 'THE PROBLEM', gu: 'સમસ્યા', hi: 'समस्या' },
   'about.problemTitle': {
-    en: 'School shopping is a struggle',
-    gu: 'સ્કૂલની ખરીદી એક મુશ્કેલી છે',
-    hi: 'स्कूल की खरीदारी एक मुश्किल काम है',
+    en: 'School uniform shopping shouldn’t be stressful',
+    gu: 'સ્કૂલ યુનિફોર્મ ખરીદવામાં હવે કોઈ ચિંતા નહીં',
+    hi: 'स्कूल यूनिफॉर्म की खरीदारी में अब कोई तनाव नहीं',
   },
-  'about.timeTitle': { en: 'Parents waste time', gu: 'માતા-પિતાનો સમય બગડે છે', hi: 'माता-पिता का समय बर्बाद होता है' },
+  'about.timeTitle': { en: 'Inconvenience for parents', gu: 'વાલીઓ માટે અસુવિધા', hi: 'माता-पिता के लिए असुविधा' },
   'about.timeBody': {
-    en: 'Hours go into travelling from shop to shop for one school list.',
-    gu: 'એક સ્કૂલ લિસ્ટ માટે દુકાને-દુકાને ફરવામાં કલાકો જાય છે.',
-    hi: 'एक स्कूल लिस्ट के लिए दुकान-दुकान घूमने में घंटों लग जाते हैं।',
+    en: 'Parents face great inconvenience buying uniforms as designated uniform shops are located far away from schools.',
+    gu: 'યુનિફોર્મ ખરીદવામાં વાલીઓને ભારે અસુવિધા થાય છે કારણ કે યુનિફોર્મની દુકાનો શાળાઓથી ઘણી દૂર હોય છે.',
+    hi: 'यूनिफॉर्म खरीदने में माता-पिता को भारी असुविधा होती है क्योंकि यूनिफॉर्म की दुकानें स्कूलों से काफ़ी दूर होती हैं।',
   },
   'about.stockTitle': { en: 'Stock unavailable', gu: 'સ્ટોક મળતો નથી', hi: 'स्टॉक नहीं मिलता' },
   'about.stockBody': {
@@ -51,9 +51,9 @@ export const aboutMessages = {
     hi: 'इतना घूमने के बाद भी ज़रूरी साइज़ या सामान नहीं मिलता।',
   },
   'about.pivot': {
-    en: 'So Colorbenz built SchoolStore',
-    gu: 'એટલે Colorbenz એ SchoolStore બનાવ્યું',
-    hi: 'इसलिए Colorbenz ने SchoolStore बनाया',
+    en: 'So Color Wings built SchoolStore',
+    gu: 'એટલે Color Wings એ SchoolStore બનાવ્યું',
+    hi: 'इसलिए Color Wings ने SchoolStore बनाया',
   },
   'about.fixEyebrow': { en: 'THE FIX', gu: 'ઉકેલ', hi: 'समाधान' },
   'about.fixTitle': {
