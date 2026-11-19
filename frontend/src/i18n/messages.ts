@@ -77,19 +77,19 @@ export const messages = {
 
   // ---------- about / our story ----------
   'about.metaTitle': {
-    en: 'Our story | SchoolStore by Color Wings',
-    gu: 'અમારી વાર્તા | SchoolStore by Color Wings',
-    hi: 'हमारी कहानी | SchoolStore by Color Wings',
+    en: 'Our story | SchoolStore by Colorbenz',
+    gu: 'અમારી વાર્તા | SchoolStore by Colorbenz',
+    hi: 'हमारी कहानी | SchoolStore by Colorbenz',
   },
   'about.metaDescription': {
-    en: 'Learn how SchoolStore by Color Wings fixed what frustrated every parent with doorstep delivery of verified school uniforms and accessories.',
-    gu: 'જાણો કેવી રીતે SchoolStore by Color Wings એ સ્કૂલ યુનિફોર્મ અને એસેસરીઝની હોમ ડિલિવરી સાથે માતા-પિતાની સમસ્યા ઉકેલી.',
-    hi: 'जानिए कैसे SchoolStore by Color Wings ने स्कूल यूनिफ़ॉर्म और एक्सेसरीज़ की होम डिलीवरी के साथ माता-पिता की समस्या दूर की।',
+    en: 'Learn how SchoolStore by Colorbenz fixed what frustrated every parent with doorstep delivery of verified school uniforms and accessories.',
+    gu: 'જાણો કેવી રીતે SchoolStore by Colorbenz એ સ્કૂલ યુનિફોર્મ અને એસેસરીઝની હોમ ડિલિવરી સાથે માતા-પિતાની સમસ્યા ઉકેલી.',
+    hi: 'जानिए कैसे SchoolStore by Colorbenz ने स्कूल यूनिफ़ॉर्म और एक्सेसरीज़ की होम डिलीवरी के साथ माता-पिता की समस्या दूर की।',
   },
   'about.hero.eyebrow': {
-    en: 'BY COLOR WINGS',
-    gu: 'COLOR WINGS દ્વારા',
-    hi: 'COLOR WINGS द्वारा',
+    en: 'BY COLORBENZ',
+    gu: 'COLORBENZ દ્વારા',
+    hi: 'COLORBENZ द्वारा',
   },
   'about.hero.titlePrefix': {
     en: 'Our ',
@@ -142,9 +142,9 @@ export const messages = {
     hi: 'इतनी भागदौड़ के बाद भी सही साइज़ या सामान नहीं मिलता।',
   },
   'about.pivot.line': {
-    en: 'So Color Wings built SchoolStore',
-    gu: 'એટલે Color Wings દ્વારા SchoolStore બનાવવામાં આવ્યું',
-    hi: 'इसलिए Color Wings ने SchoolStore बनाया',
+    en: 'So Colorbenz built SchoolStore',
+    gu: 'એટલે Colorbenz દ્વારા SchoolStore બનાવવામાં આવ્યું',
+    hi: 'इसलिए Colorbenz ने SchoolStore बनाया',
   },
   'about.fix.eyebrow': {
     en: 'THE FIX',

@@ -101,7 +101,7 @@ describe('AboutPage', () => {
     renderAboutPage();
 
     // 1. Hero
-    expect(screen.getByText('BY COLOR WINGS')).toBeDefined();
+    expect(screen.getByText('BY COLORBENZ')).toBeDefined();
     expect(screen.getByRole('heading', { level: 1 })).toBeDefined();
     expect(screen.getByText('We fixed what frustrated every parent.')).toBeDefined();
     expect(screen.getByAltText('SchoolStore school children in uniform')).toBeDefined();
@@ -113,7 +113,7 @@ describe('AboutPage', () => {
     expect(screen.getByText('Stock unavailable')).toBeDefined();
 
     // 3. Pivot
-    expect(screen.getByText('So Color Wings built SchoolStore')).toBeDefined();
+    expect(screen.getByText('So Colorbenz built SchoolStore')).toBeDefined();
 
     // 4. The Fix
     expect(screen.getByText('THE FIX')).toBeDefined();
@@ -148,7 +148,7 @@ describe('AboutPage', () => {
         </MemoryRouter>
       </QueryClientProvider>
     );
-    expect(screen.getByText('COLOR WINGS દ્વારા')).toBeDefined();
+    expect(screen.getByText('COLORBENZ દ્વારા')).toBeDefined();
     expect(screen.getByText('વાર્તા')).toBeDefined();
     expect(screen.getByText('સમસ્યા')).toBeDefined();
     expect(screen.getByText('વાલીઓ માટે અસુવિધા')).toBeDefined();
@@ -166,7 +166,7 @@ describe('AboutPage', () => {
         </MemoryRouter>
       </QueryClientProvider>
     );
-    expect(screen.getByText('COLOR WINGS द्वारा')).toBeDefined();
+    expect(screen.getByText('COLORBENZ द्वारा')).toBeDefined();
     expect(screen.getByText('कहानी')).toBeDefined();
     expect(screen.getByText('समस्या')).toBeDefined();
     expect(screen.getByText('माता-पिता के लिए असुविधा')).toBeDefined();
