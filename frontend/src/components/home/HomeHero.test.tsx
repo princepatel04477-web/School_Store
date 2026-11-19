@@ -94,9 +94,9 @@ describe('HomeHero (P1 Emerald Stage)', () => {
     const guView = renderHomeHero();
     expect(screen.getByText('ભારતમાં પ્રથમ વખત')).toBeTruthy();
     expect(screen.getByText('INDIA')).toBeTruthy();
-    expect(screen.getByText(/બધી શાળાઓ/i)).toBeTruthy();
+    expect(screen.getByText(/દરેક શાળાના/i)).toBeTruthy();
     expect(screen.getByText(/યુનિફોર્મ અને એસેસરીઝ/i)).toBeTruthy();
-    expect(screen.getByText(/તમારા ઘર સુધી\./i)).toBeTruthy();
+    expect(screen.getByText(/હવે તમારા ઘર સુધી\./i)).toBeTruthy();
     guView.unmount();
 
     // 3. Hindi

@@ -1428,3 +1428,26 @@ h4,
 :root .footer-bottom-row {
   margin-top: 0;
 }
+
+/* ---------- Bug sweep (19 Nov): one scrollbar, nothing cut off ---------- */
+/* overflow-x: hidden turns a box into its own vertical scroller; clip hides the sideways spill without that. */
+:root .emerald-hero {
+  overflow: clip;
+}
+:root .about-page-root {
+  overflow-x: clip;
+}
+
+@media (max-width: 767.98px) {
+  :root .emerald-hero {
+    height: auto;
+    min-height: 100dvh;
+    overflow: clip;
+  }
+}
+
+/* The white sheets meet the green band in a straight line, edge to edge. */
+:root .about-sheet,
+:root .em-sheet {
+  border-radius: 0;
+}
