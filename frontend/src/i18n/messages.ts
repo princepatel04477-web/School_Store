@@ -143,7 +143,7 @@ export const messages = {
   },
   'about.hero.imageAlt': {
     en: 'SchoolStore school children in uniform',
-    gu: 'સ્કૂલ યુનિફોર્મમાં સ્કૂલસ્ટોરના બાળકો',
+    gu: 'સ્કૂલ યુનિફોર્મ પહેરેલાં બાળકો',
     hi: 'स्कूल यूनिफ़ॉर्म में स्कूलस्टोर के बच्चे',
   },
   'about.problem.eyebrow': {
@@ -153,7 +153,7 @@ export const messages = {
   },
   'about.problem.title': {
     en: 'School uniform shopping shouldn’t be stressful',
-    gu: 'સ્કૂલ યુનિફોર્મ ખરીદવામાં હવે કોઈ ચિંતા નહીં',
+    gu: 'યુનિફોર્મ ખરીદવો આટલો મુશ્કેલ ન હોવો જોઈએ',
     hi: 'स्कूल यूनिफॉर्म की खरीदारी में अब कोई तनाव नहीं',
   },
   'about.problem.card1.title': {
@@ -163,7 +163,7 @@ export const messages = {
   },
   'about.problem.card1.desc': {
     en: 'Parents face great inconvenience buying uniforms as designated uniform shops are located far away from schools.',
-    gu: 'યુનિફોર્મ ખરીદવામાં વાલીઓને ભારે અસુવિધા થાય છે કારણ કે યુનિફોર્મની દુકાનો શાળાઓથી ઘણી દૂર હોય છે.',
+    gu: 'યુનિફોર્મ ખરીદવામાં વાલીઓને ઘણી તકલીફ પડે છે, કારણ કે નક્કી કરેલી દુકાનો શાળાથી ઘણી દૂર હોય છે.',
     hi: 'यूनिफॉर्म खरीदने में माता-पिता को भारी असुविधा होती है क्योंकि यूनिफॉर्म की दुकानें स्कूलों से काफ़ी दूर होती हैं।',
   },
   'about.problem.card2.title': {
@@ -173,7 +173,7 @@ export const messages = {
   },
   'about.problem.card2.desc': {
     en: 'After all that running, the size or item you need is not there.',
-    gu: 'આટલી દોડધામ પછી પણ જોઈતી સાઇઝ કે સામાન મળતો નથી.',
+    gu: 'આટલું ફર્યા પછી પણ જોઈતી સાઈઝ કે વસ્તુ મળતી નથી.',
     hi: 'इतनी भागदौड़ के बाद भी सही साइज़ या सामान नहीं मिलता।',
   },
   'about.pivot.line': {
@@ -218,7 +218,7 @@ export const messages = {
   },
   'about.network.title': {
     en: 'Schools we deliver to',
-    gu: 'અમે જે શાળાઓમાં ડિલિવર કરીએ છીએ',
+    gu: 'આ શાળાઓ માટે અમે ડિલિવરી કરીએ છીએ',
     hi: 'जिन स्कूलों में हम डिलीवरी करते हैं',
   },
   'about.network.swipeHint': {
@@ -270,27 +270,27 @@ export const messages = {
   },
   'home.emerald.taglineLine1': {
     en: 'All schools',
-    gu: 'બધી શાળાઓ',
+    gu: 'દરેક શાળાના',
     hi: 'सभी स्कूल',
   },
   'home.emerald.taglineLine2': {
     en: 'uniform and accessories',
-    gu: 'યુનિફોર્મ અને એસેસરીઝ',
+    gu: 'યુનિફોર્મ અને એસેસરીઝ,',
     hi: 'यूनिफॉर्म और एक्सेसरीज़',
   },
   'home.emerald.taglineLine3': {
     en: 'at your doorstep.',
-    gu: 'તમારા ઘર સુધી.',
+    gu: 'હવે તમારા ઘર સુધી.',
     hi: 'आपके दरवाज़े तक।',
   },
   'home.emerald.taglineWhite': {
     en: 'All school uniform & accessories,',
-    gu: 'બધા સ્કૂલ યુનિફોર્મ અને એસેસરીઝ,',
+    gu: 'દરેક શાળાના યુનિફોર્મ અને એસેસરીઝ,',
     hi: 'सभी स्कूल यूनिफॉर्म और एक्सेसरीज़,',
   },
   'home.emerald.taglineAccent': {
     en: 'at your doorstep.',
-    gu: 'તમારા દરવાજે.',
+    gu: 'હવે તમારા ઘર સુધી.',
     hi: 'आपके दरवाज़े पर।',
   },
   'home.emerald.searchPlaceholder': {
@@ -328,7 +328,7 @@ export const messages = {
     gu: 'શોપિંગ બેગ',
     hi: 'शॉपिंग बैग',
   },
-  'home.heroLine1': { en: 'Everything your school asks for.', gu: 'શાળાએ કહેલી બધી વસ્તુ.', hi: 'स्कूल की बताई हर चीज़।' },
+  'home.heroLine1': { en: 'Everything your school asks for.', gu: 'શાળાએ માંગેલી બધી વસ્તુઓ.', hi: 'स्कूल की बताई हर चीज़।' },
   'home.heroLine2': { en: 'One order.', gu: 'એક જ ઓર્ડરમાં.', hi: 'एक ही ऑर्डर में।' },
   'home.heroSub': {
     en: 'Uniform, shoes, notebooks and ID card from your school’s own list. We bring it home, or you collect it at school.',
@@ -351,28 +351,28 @@ export const messages = {
   'search.contact': { en: 'Contact us', gu: 'અમારો સંપર્ક કરો', hi: 'हमसे संपर्क करें' },
   'search.noMatch': { en: 'No school matches ‘{query}’', gu: '‘{query}’ નામની કોઈ શાળા મળી નથી', hi: '‘{query}’ नाम का कोई स्कूल नहीं मिला' },
   'search.close': { en: 'Close search', gu: 'શોધ બંધ કરો', hi: 'खोज बंद करें' },
-  'home.catEyebrow': { en: 'Approved by your school', gu: 'તમારી શાળાએ મંજૂર કરેલું', hi: 'आपके स्कूल द्वारा मंज़ूर' },
+  'home.catEyebrow': { en: 'Approved by your school', gu: 'તમારી શાળા દ્વારા માન્ય', hi: 'आपके स्कूल द्वारा मंज़ूर' },
   'home.shopByCategory': { en: 'What do you need?', gu: 'શું જોઈએ છે?', hi: 'क्या चाहिए?' },
   'home.schoolsEyebrow': { en: 'On SchoolStore', gu: 'SchoolStore પર', hi: 'SchoolStore पर' },
   'home.viewAll': { en: 'All schools', gu: 'બધી શાળાઓ', hi: 'सभी स्कूल' },
   'home.policyEyebrow': { en: 'OUR PROMISE', gu: 'અમારું વચન', hi: 'हमारा वादा' },
   'home.policyTitle': { en: 'Store Policy & Guarantee', gu: 'સ્ટોર પોલિસી અને ખાતરી', hi: 'स्टोर पॉलिसी और गारंटी' },
-  'home.policy1Title': { en: '100% School Approved', gu: 'શાળા દ્વારા ૧૦૦% માન્ય', hi: 'स्कूल द्वारा १००% अनुमोदित' },
+  'home.policy1Title': { en: '100% School Approved', gu: 'શાળા દ્વારા 100% માન્ય', hi: 'स्कूल द्वारा १००% अनुमोदित' },
   'home.policy1Desc': {
     en: 'Only verified uniform items strictly matching your school’s guidelines.',
-    gu: 'ફક્ત શાળાના ચોક્કસ નિયમો અને ધોરણો મુજબના જ અસલ યુનિફોર્મ.',
+    gu: 'ફક્ત તમારી શાળાના નિયમો મુજબના, ચકાસેલા યુનિફોર્મ.',
     hi: 'सिर्फ़ स्कूल के आधिकारिक नियमों के अनुसार पूरी तरह से मान्य यूनिफॉर्म।',
   },
-  'home.policy2Title': { en: '7-Day Easy Exchange', gu: '૭ દિવસમાં સરળ એક્સચેન્જ', hi: '७ दिनों में आसान एक्सचेंज' },
+  'home.policy2Title': { en: '7-Day Easy Exchange', gu: '7 દિવસમાં સરળ બદલી', hi: '७ दिनों में आसान एक्सचेंज' },
   'home.policy2Desc': {
     en: 'Wrong size? Exchange it within 7 days with zero hassle.',
-    gu: 'સાઈઝ ખોટી છે? ૭ દિવસની અંદર સરળતાથી બદલી આપો.',
+    gu: 'સાઈઝ ખોટી છે? 7 દિવસમાં કોઈ ઝંઝટ વગર બદલાવી લો.',
     hi: 'गलत साइज़ मिला? ७ दिनों के भीतर बिना किसी झंझट के आसानी से बदलें।',
   },
-  'home.policy3Title': { en: 'Doorstep or School Pickup', gu: 'હોમ ડિલિવરી અથવા શાળા કાઉન્ટર', hi: 'होम डिलीवरी या स्कूल काउंटर' },
+  'home.policy3Title': { en: 'Doorstep or School Pickup', gu: 'હોમ ડિલિવરી અથવા શાળાએથી લઈ જાઓ', hi: 'होम डिलीवरी या स्कूल काउंटर' },
   'home.policy3Desc': {
     en: 'Get your orders delivered right to your home, or collect at your school counter.',
-    gu: 'ઓર્ડર સીધો ઘરે મંગાવો અથવા શાળાના કાઉન્ટર પરથી લઈ જાઓ.',
+    gu: 'ઓર્ડર સીધો ઘરે મંગાવો, અથવા શાળાના કાઉન્ટર પરથી લઈ જાઓ.',
     hi: 'ऑर्डर सीधे घर मँगवाएँ या स्कूल काउंटर से ले जाएँ।',
   },
   'home.partnerEyebrow': { en: 'INSTITUTIONAL PARTNERSHIP', gu: 'શાળાઓ અને સંસ્થાઓ માટે', hi: 'स्कूलों और संस्थानों के लिए' },
@@ -384,11 +384,11 @@ export const messages = {
   },
   'home.partnerPoint1': { en: 'Complete official school uniform list stocked', gu: 'શાળાની સંપૂર્ણ યુનિફોર્મ યાદી ઉપલબ્ધ', hi: 'स्कूल की पूरी यूनिफॉर्म लिस्ट उपलब्ध' },
   'home.partnerPoint2': { en: 'Zero hassle ordering & customer support for parents', gu: 'વાલીઓ માટે સરળ ઓર્ડરિંગ અને સપોર્ટ', hi: 'माता-पिता के लिए आसान ऑर्डरिंग और सहायता' },
-  'home.partnerPoint3': { en: 'Direct home delivery or dedicated school counter', gu: 'સીધી હોમ ડિલિવરી અથવા શાળા કાઉન્ટર વિતરણ', hi: 'सीधी होम डिलीवरी या स्कूल काउंटर वितरण' },
+  'home.partnerPoint3': { en: 'Direct home delivery or dedicated school counter', gu: 'સીધી ઘરે ડિલિવરી અથવા શાળામાં અલગ કાઉન્ટર', hi: 'सीधी होम डिलीवरी या स्कूल काउंटर वितरण' },
   'home.partnerCta': { en: 'Talk to us', gu: 'અમારો સંપર્ક કરો', hi: 'हमसे संपर्क करें' },
   'home.reassure': {
     en: 'Only items your school approved. Wrong size? Exchange it within 7 days. We bring it home, or you collect it at the school counter.',
-    gu: 'ફક્ત શાળાએ મંજૂર કરેલી વસ્તુઓ. સાઈઝ ખોટી? 7 દિવસમાં બદલી આપીશું. ઘરે પહોંચાડીએ, અથવા શાળાના કાઉન્ટરથી લઈ જાઓ.',
+    gu: 'ફક્ત શાળાએ મંજૂર કરેલી વસ્તુઓ. સાઈઝ ખોટી? 7 દિવસમાં બદલી આપીશું. ઘરે પહોંચાડીએ, અથવા શાળાના કાઉન્ટર પરથી લઈ જાઓ.',
     hi: 'सिर्फ़ स्कूल की मंज़ूर चीज़ें। साइज़ गलत? 7 दिन में बदल देंगे। घर पहुँचाएँ, या स्कूल काउंटर से ले जाएँ।',
   },
 
@@ -405,7 +405,7 @@ export const messages = {
   'flow.s1.stateTitle': { en: 'Which state is your child’s school in?', gu: 'તમારા બાળકની શાળા કયા રાજ્યમાં છે?', hi: 'आपके बच्चे का स्कूल किस राज्य में है?' },
   'flow.s1.stateSub': { en: 'Tap your state.', gu: 'તમારા રાજ્ય પર દબાવો.', hi: 'अपने राज्य पर दबाएँ।' },
   'flow.s1.cityTitle': { en: 'Which city?', gu: 'કયું શહેર?', hi: 'कौन सा शहर?' },
-  'flow.s1.citySub': { en: 'Cities in {state} with our schools.', gu: '{state}નાં શહેરો જ્યાં અમારી શાળાઓ છે.', hi: '{state} के शहर जहाँ हमारे स्कूल हैं।' },
+  'flow.s1.citySub': { en: 'Cities in {state} with our schools.', gu: '{state}નાં શહેરો, જ્યાંની શાળાઓ SchoolStore પર છે.', hi: '{state} के शहर जहाँ हमारे स्कूल हैं।' },
   'flow.s1.cityCount': { en: '{n} cities', gu: '{n} શહેર', hi: '{n} शहर' },
   'flow.s1.oneCity': { en: '1 city', gu: '1 શહેર', hi: '1 शहर' },
   'flow.s1.branchCount': { en: '{n} schools', gu: '{n} શાળા', hi: '{n} स्कूल' },
@@ -442,7 +442,7 @@ export const messages = {
   'flow.changeBoyGirl': { en: 'Change boy / girl', gu: 'છોકરો / છોકરી બદલો', hi: 'लड़का / लड़की बदलें' },
   'flow.noItems': {
     en: 'No {cat} listed yet for {cls} ({g})',
-    gu: '{cls} ({g}) માટે હજુ {cat} મૂકાયું નથી',
+    gu: '{cls} ({g}) માટે હજુ {cat} મુકાયું નથી',
     hi: '{cls} ({g}) के लिए अभी {cat} नहीं रखा गया',
   },
   'flow.noItemsSub': {
@@ -484,7 +484,7 @@ export const messages = {
   'set.include': { en: 'Add this back', gu: 'આ પાછું ઉમેરો', hi: 'इसे वापस जोड़ें' },
   'set.addAll': {
     en: 'Add all {count} to bag · {total}',
-    gu: 'બધી {count} બેગમાં ઉમેરો · {total}',
+    gu: 'બધી {count} વસ્તુ બેગમાં ઉમેરો · {total}',
     hi: 'सभी {count} बैग में डालें · {total}',
   },
   'set.chooseSizes': {
@@ -655,7 +655,7 @@ export const messages = {
   'mf.ins.title': { en: 'Before you start', gu: 'શરૂ કરતા પહેલા', hi: 'शुरू करने से पहले' },
   'mf.ins.wall': {
     en: 'Your child stands straight against a plain wall, in fitted clothes, arms a little away from the body, feet together.',
-    gu: 'બાળક સાદી દીવાલ સામે સીધું ઊભું રહે, બંધ બેસતાં કપડાંમાં, હાથ શરીરથી થોડા દૂર, પગ ભેગા.',
+    gu: 'બાળક સાદી દીવાલ સામે સીધું ઊભું રહે. શરીરને બંધબેસતાં કપડાં, હાથ શરીરથી થોડા દૂર અને પગ ભેગા રાખે.',
     hi: 'बच्चा सादी दीवार के सामने सीधा खड़ा हो, फिट कपड़ों में, हाथ शरीर से थोड़ा दूर, पैर साथ में।',
   },
   'mf.ins.phone': {
@@ -861,7 +861,7 @@ export const messages = {
     hi: 'स्कूल के रिकॉर्ड से आपका बच्चा ढूँढेंगे। कुछ लिखना नहीं पड़ेगा।',
   },
   'co.signin.btn': { en: 'Get OTP', gu: 'OTP મેળવો', hi: 'OTP पाएँ' },
-  'co.orderingFor': { en: 'Ordering for', gu: 'ઓર્ડર આ બાળક માટે', hi: 'ऑर्डर इस बच्चे के लिए' },
+  'co.orderingFor': { en: 'Ordering for', gu: 'આ બાળક માટે ઓર્ડર', hi: 'ऑर्डर इस बच्चे के लिए' },
   'co.section': { en: 'Section {s}', gu: 'વર્ગ {s}', hi: 'सेक्शन {s}' },
   'co.verified': { en: 'Mobile {mobile} · checked', gu: 'મોબાઈલ {mobile} · ખાતરી થઈ', hi: 'मोबाइल {mobile} · जाँच हो गई' },
   'co.chooseChild': { en: 'Choose your child', gu: 'તમારું બાળક પસંદ કરો', hi: 'अपना बच्चा चुनें' },
@@ -888,7 +888,7 @@ export const messages = {
   'co.home': { en: 'Bring it home', gu: 'ઘરે પહોંચાડો', hi: 'घर पहुँचाएँ' },
   'co.homeSub': { en: 'We bring it to your door.', gu: 'તમારા ઘરે લાવીશું.', hi: 'आपके घर लाएँगे।' },
   'co.collect': { en: 'Collect at school', gu: 'શાળાએથી લઈ જઈશ', hi: 'स्कूल से ले जाऊँगा/जाऊँगी' },
-  'co.collectSub': { en: 'Pick it up at {school}.', gu: '{school} થી લઈ જાઓ.', hi: '{school} से ले जाएँ।' },
+  'co.collectSub': { en: 'Pick it up at {school}.', gu: '{school}માંથી લઈ જાઓ.', hi: '{school} से ले जाएँ।' },
   'co.yourSchool': { en: 'your school', gu: 'તમારી શાળા', hi: 'आपका स्कूल' },
   'co.pin': { en: 'PIN code', gu: 'પિન કોડ', hi: 'पिन कोड' },
   'co.pinPlaceholder': { en: '6 digits', gu: '6 અંક', hi: '6 अंक' },
@@ -898,7 +898,7 @@ export const messages = {
   'co.addr2': { en: 'Landmark (if any)', gu: 'નજીકની જગ્યા (હોય તો)', hi: 'पास की जगह (अगर हो)' },
   'co.addr2Placeholder': { en: 'Near temple, school, shop…', gu: 'મંદિર, શાળા, દુકાન પાસે…', hi: 'मंदिर, स्कूल, दुकान के पास…' },
   'co.summaryHome': { en: 'Home: {address}', gu: 'ઘર: {address}', hi: 'घर: {address}' },
-  'co.summaryCollect': { en: 'Collect at {school}', gu: '{school} થી લઈ જઈશ', hi: '{school} से ले जाऊँगा/जाऊँगी' },
+  'co.summaryCollect': { en: 'Collect at {school}', gu: '{school}માંથી લઈ જઈશ', hi: '{school} से ले जाऊँगा/जाऊँगी' },
   'co.cash': { en: 'Pay cash when it arrives', gu: 'સામાન આવે ત્યારે રોકડા આપો', hi: 'सामान आने पर नकद दें' },
   'co.cashSub': {
     en: 'Cash on delivery. Paying by UPI is coming soon.',
@@ -931,7 +931,7 @@ export const messages = {
   },
   'co.placed.collect': {
     en: 'Collect it at {school}. Pay {total} in cash when you collect it.',
-    gu: '{school} થી લઈ જાઓ. લેતી વખતે {total} રોકડા આપો.',
+    gu: '{school}માંથી લઈ જાઓ. લેતી વખતે {total} રોકડા આપો.',
     hi: '{school} से ले जाएँ। लेते समय {total} नकद दें।',
   },
   'co.placed.home': {
