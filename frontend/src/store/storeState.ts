@@ -50,9 +50,13 @@ function loadStoredCart(): CartItem[] {
   }
 }
 
+// The chosen school, class and boy/girl last only for this visit (this tab), so the store
+// opens fresh every time it is opened again. The bag is still kept between visits.
 function loadStoredSelection(): StoredSelection | null {
   try {
-    const raw = localStorage.getItem(SELECTION_STORAGE_KEY);
+    // Choices saved permanently by earlier versions are cleared once.
+    localStorage.removeItem(SELECTION_STORAGE_KEY);
+    const raw = sessionStorage.getItem(SELECTION_STORAGE_KEY);
     const selection: StoredSelection | null = raw ? JSON.parse(raw) : null;
     return selection && SERVER_ID.test(selection.schoolId) ? selection : null;
   } catch {
@@ -86,9 +90,9 @@ export const storeState = {
   setSelection: (sel: StoredSelection | null) => {
     selectionState = sel;
     if (sel) {
-      localStorage.setItem(SELECTION_STORAGE_KEY, JSON.stringify(sel));
+      try { sessionStorage.setItem(SELECTION_STORAGE_KEY, JSON.stringify(sel)); } catch { /* storage blocked: kept in memory only */ }
     } else {
-      localStorage.removeItem(SELECTION_STORAGE_KEY);
+      try { sessionStorage.removeItem(SELECTION_STORAGE_KEY); } catch { /* storage blocked */ }
     }
     notify();
   },
