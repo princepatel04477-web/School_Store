@@ -202,7 +202,15 @@ export default function App() {
           <Suspense fallback={<div className="splash">Loading…</div>}>
             <Routes>
               {/* Public Storefront Routes */}
-              <Route path="/" element={<HomePage />} />
+              <Route
+                path="/"
+                element={
+                  <HomePage
+                    onOpenBag={() => setBagOpen(true)}
+                    onOpenLanguage={() => setLangOpen(true)}
+                  />
+                }
+              />
               <Route
                 path="/shop"
                 element={<SelectionFlowPage onOpenBag={() => setBagOpen(true)} />}

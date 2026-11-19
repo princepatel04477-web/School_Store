@@ -21,9 +21,17 @@ import {
 import { siteConfig } from '../siteConfig';
 import { useLang } from '../i18n';
 import { classLabel, genderLabel } from '../i18n/labels';
+import { isNativeApp } from '../native/nativePlatform';
+import { AppLanding } from '../components/home/AppLanding';
 import './home.css';
 
-export function HomePage() {
+interface HomePageProps {
+  onOpenBag?: () => void;
+  onOpenLanguage?: () => void;
+}
+
+export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps = {}) {
+  const isNative = isNativeApp();
   const navigate = useNavigate();
   const { selection, setSelection } = useStoreState();
   const { t } = useLang();
@@ -67,6 +75,11 @@ export function HomePage() {
 
   return (
     <div className="home-page" id="main">
+      {/* In the Android/iOS app the first screen is the full-height landing; the website keeps its hero. */}
+      {isNative ? (
+        <AppLanding onOpenBag={onOpenBag} onOpenLanguage={onOpenLanguage} />
+      ) : (
+      <>
       <div className="house-stripe" aria-hidden="true">
         <span />
         <span />
@@ -168,6 +181,8 @@ export function HomePage() {
         </div>
 
       </section>
+      </>
+      )}
 
       {/* 3. SHOP BY CATEGORY (Editorial Grid), on the one full-width highlight band */}
       <div className="highlight-band">
