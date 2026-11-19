@@ -7,6 +7,20 @@ import { aboutMessages } from '../i18n/aboutMessages';
 import { setLang, type Lang } from '../i18n';
 import type { StoreSchool } from '../data/catalog';
 
+// jsdom has no matchMedia; the motion helpers ask it whether this is a phone.
+if (typeof window.matchMedia !== 'function') {
+  window.matchMedia = (query: string): MediaQueryList => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => false,
+  });
+}
+
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
