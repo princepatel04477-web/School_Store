@@ -73,6 +73,7 @@ export const messages = {
   'nav.sizeGuide': { en: 'Size guide', gu: 'સાઈઝ કેવી રીતે પસંદ કરવી', hi: 'साइज़ कैसे चुनें' },
   'nav.help': { en: 'Help', gu: 'મદદ', hi: 'मदद' },
   'nav.needHelp': { en: 'Need help? Call', gu: 'મદદ જોઈએ? ફોન કરો', hi: 'मदद चाहिए? फ़ोन करें' },
+  'nav.aboutUs': { en: 'About us', gu: 'અમારા વિશે', hi: 'हमारे बारे में' },
 
   // ---------- home ----------
   'home.emerald.firstTimeIn': {
@@ -84,6 +85,21 @@ export const messages = {
     en: 'INDIA',
     gu: 'INDIA',
     hi: 'INDIA',
+  },
+  'home.emerald.taglineLine1': {
+    en: 'All schools',
+    gu: 'બધી શાળાઓ',
+    hi: 'सभी स्कूल',
+  },
+  'home.emerald.taglineLine2': {
+    en: 'uniform and accessories',
+    gu: 'યુનિફોર્મ અને એસેસરીઝ',
+    hi: 'यूनिफॉर्म और एक्सेसरीज़',
+  },
+  'home.emerald.taglineLine3': {
+    en: 'at your doorstep.',
+    gu: 'તમારા ઘર સુધી.',
+    hi: 'आपके दरवाज़े तक।',
   },
   'home.emerald.taglineWhite': {
     en: 'All school uniform & accessories,',
@@ -144,7 +160,8 @@ export const messages = {
   'home.searchPlaceholder': { en: 'Search your school', gu: 'તમારી શાળા શોધો', hi: 'अपना स्कूल खोजें' },
   'home.findSchool': { en: 'Find my school', gu: 'મારી શાળા શોધો', hi: 'मेरा स्कूल खोजें' },
   'home.matching': { en: 'Matching schools', gu: 'મળતી શાળાઓ', hi: 'मिलते-जुलते स्कूल' },
-  'home.schools': { en: 'Schools', gu: 'શાળાઓ', hi: 'स्कूल' },
+  'home.schools': { en: 'All schools', gu: 'બધી શાળાઓ', hi: 'सभी स्कूल' },
+  'home.allSchools': { en: 'All schools', gu: 'બધી શાળાઓ', hi: 'सभी स्कूल' },
   'home.noSchool': { en: 'We don’t have this school yet.', gu: 'આ શાળા હજુ અમારી પાસે નથી.', hi: 'यह स्कूल अभी हमारे पास नहीं है।' },
   'home.requestSchool': { en: 'Ask for your school', gu: 'તમારી શાળા માટે કહો', hi: 'अपने स्कूल के लिए कहें' },
   'search.placeholderLong': { en: 'Search your school or city (e.g. DPS, Cathedral)', gu: 'તમારી શાળા કે શહેર શોધો (જેમ કે DPS, Cathedral)', hi: 'अपना स्कूल या शहर खोजें (जैसे DPS, Cathedral)' },
@@ -156,6 +173,37 @@ export const messages = {
   'home.shopByCategory': { en: 'What do you need?', gu: 'શું જોઈએ છે?', hi: 'क्या चाहिए?' },
   'home.schoolsEyebrow': { en: 'On SchoolStore', gu: 'SchoolStore પર', hi: 'SchoolStore पर' },
   'home.viewAll': { en: 'All schools', gu: 'બધી શાળાઓ', hi: 'सभी स्कूल' },
+  'home.policyEyebrow': { en: 'OUR PROMISE', gu: 'અમારું વચન', hi: 'हमारा वादा' },
+  'home.policyTitle': { en: 'Store Policy & Guarantee', gu: 'સ્ટોર પોલિસી અને ખાતરી', hi: 'स्टोर पॉलिसी और गारंटी' },
+  'home.policy1Title': { en: '100% School Approved', gu: 'શાળા દ્વારા ૧૦૦% માન્ય', hi: 'स्कूल द्वारा १००% अनुमोदित' },
+  'home.policy1Desc': {
+    en: 'Only verified uniform items strictly matching your school’s guidelines.',
+    gu: 'ફક્ત શાળાના ચોક્કસ નિયમો અને ધોરણો મુજબના જ અસલ યુનિફોર્મ.',
+    hi: 'सिर्फ़ स्कूल के आधिकारिक नियमों के अनुसार पूरी तरह से मान्य यूनिफॉर्म।',
+  },
+  'home.policy2Title': { en: '7-Day Easy Exchange', gu: '૭ દિવસમાં સરળ એક્સચેન્જ', hi: '७ दिनों में आसान एक्सचेंज' },
+  'home.policy2Desc': {
+    en: 'Wrong size? Exchange it within 7 days with zero hassle.',
+    gu: 'સાઈઝ ખોટી છે? ૭ દિવસની અંદર સરળતાથી બદલી આપો.',
+    hi: 'गलत साइज़ मिला? ७ दिनों के भीतर बिना किसी झंझट के आसानी से बदलें।',
+  },
+  'home.policy3Title': { en: 'Doorstep or School Pickup', gu: 'હોમ ડિલિવરી અથવા શાળા કાઉન્ટર', hi: 'होम डिलीवरी या स्कूल काउंटर' },
+  'home.policy3Desc': {
+    en: 'Get your orders delivered right to your home, or collect at your school counter.',
+    gu: 'ઓર્ડર સીધો ઘરે મંગાવો અથવા શાળાના કાઉન્ટર પરથી લઈ જાઓ.',
+    hi: 'ऑर्डर सीधे घर मँगवाएँ या स्कूल काउंटर से ले जाएँ।',
+  },
+  'home.partnerEyebrow': { en: 'INSTITUTIONAL PARTNERSHIP', gu: 'શાળાઓ અને સંસ્થાઓ માટે', hi: 'स्कूलों और संस्थानों के लिए' },
+  'home.partnerTitle': { en: 'Partner Your School with SchoolStore', gu: 'તમારી શાળાને SchoolStore સાથે જોડો', hi: 'अपने स्कूल को SchoolStore से जोड़ें' },
+  'home.partnerLead': {
+    en: 'We stock your school’s uniform list, take orders from parents, and deliver to their homes or your school counter.',
+    gu: 'અમે તમારી શાળાની યુનિફોર્મ યાદીનો સ્ટોક રાખીએ છીએ, વાલીઓ પાસેથી ઓર્ડર લઈએ છીએ અને ઘરે કે શાળા કાઉન્ટર પર પહોંચાડીએ છીએ.',
+    hi: 'हम आपके स्कूल की यूनिफॉर्म लिस्ट का स्टॉक रखते हैं, माता-पिता से ऑर्डर लेते हैं और उनके घर या स्कूल काउंटर पर पहुँचाते हैं।',
+  },
+  'home.partnerPoint1': { en: 'Complete official school uniform list stocked', gu: 'શાળાની સંપૂર્ણ યુનિફોર્મ યાદી ઉપલબ્ધ', hi: 'स्कूल की पूरी यूनिफॉर्म लिस्ट उपलब्ध' },
+  'home.partnerPoint2': { en: 'Zero hassle ordering & customer support for parents', gu: 'વાલીઓ માટે સરળ ઓર્ડરિંગ અને સપોર્ટ', hi: 'माता-पिता के लिए आसान ऑर्डरिंग और सहायता' },
+  'home.partnerPoint3': { en: 'Direct home delivery or dedicated school counter', gu: 'સીધી હોમ ડિલિવરી અથવા શાળા કાઉન્ટર વિતરણ', hi: 'सीधी होम डिलीवरी या स्कूल काउंटर वितरण' },
+  'home.partnerCta': { en: 'Talk to us', gu: 'અમારો સંપર્ક કરો', hi: 'हमसे संपर्क करें' },
   'home.reassure': {
     en: 'Only items your school approved. Wrong size? Exchange it within 7 days. We bring it home, or you collect it at the school counter.',
     gu: 'ફક્ત શાળાએ મંજૂર કરેલી વસ્તુઓ. સાઈઝ ખોટી? 7 દિવસમાં બદલી આપીશું. ઘરે પહોંચાડીએ, અથવા શાળાના કાઉન્ટરથી લઈ જાઓ.',
