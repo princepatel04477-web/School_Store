@@ -1374,3 +1374,30 @@ h4,
 :root .for-schools-cta-wrap {
   margin-top: 24px;
 }
+
+/* ---------- State logos: colourful SVG files, 96px phones / 112px desktop ---------- */
+:root img.state-emblem {
+  display: block;
+  width: 96px;
+  height: 96px;
+  transition: translate 0.35s var(--em-ease);
+}
+@media (min-width: 1024px) {
+  :root img.state-emblem {
+    width: 112px;
+    height: 112px;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  :root .state-tile:hover img.state-emblem {
+    translate: 0 -4px;
+  }
+}
+:root .state-tile.is-selected img.state-emblem {
+  translate: 0 -4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root .state-tile img.state-emblem {
+    translate: none;
+  }
+}
