@@ -1401,3 +1401,45 @@ h4,
     translate: none;
   }
 }
+
+/* ---------- Footer: two link columns, no brand row or wordmark (19 Nov) ---------- */
+:root .site-footer {
+  padding-top: var(--space-10, 40px);
+}
+:root .footer-grid--two {
+  grid-template-columns: 1fr 1fr;
+  border-top: 0;
+}
+@media (min-width: 768px) {
+  :root .footer-grid--two {
+    grid-template-columns: repeat(2, minmax(0, 280px));
+    gap: 0 64px;
+    border-bottom: 1px solid var(--footer-line);
+  }
+}
+:root .footer-bottom-row {
+  margin-top: var(--space-6, 24px);
+}
+:root .footer-grid--two {
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+  border: 0;
+}
+:root .footer-grid--two > .footer-col {
+  border: 0;
+  padding: 0;
+  grid-column: auto;
+}
+@media (min-width: 768px) {
+  :root .footer-grid--two {
+    grid-template-columns: repeat(2, minmax(0, 280px));
+    gap: 0 64px;
+    border-bottom: 0;
+  }
+}
+:root .footer-content {
+  padding-bottom: var(--space-8, 32px);
+}
+:root .footer-bottom-row {
+  margin-top: 0;
+}

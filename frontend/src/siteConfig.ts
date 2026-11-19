@@ -27,7 +27,7 @@ export const siteConfig = {
   supportEmail: SUPPORT_EMAIL,
   supportEmailHref: SUPPORT_EMAIL ? `mailto:${SUPPORT_EMAIL}` : '',
   hours: 'Mon – Sat, 9:00 AM – 6:00 PM IST',
-  businessName: 'School Store Retail by Color Wings',
+  businessName: 'School Store Retail by Colorbenz',
   address: ADDRESS,
   categories: [
     { label: 'Uniform', slug: 'Uniform' },

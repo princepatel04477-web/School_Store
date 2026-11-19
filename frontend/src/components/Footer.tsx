@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
-import { siteConfig, SHOP_LINK } from '../siteConfig';
+import { siteConfig } from '../siteConfig';
 import { useLang } from '../i18n';
-import { categoryLabel } from '../i18n/labels';
 import './headerFooter.css';
 
 export function Footer() {
@@ -12,14 +11,9 @@ export function Footer() {
   return (
     <footer className="site-footer">
       <div className="container footer-content">
-        {/* Top: the brand, and the contact details when they are filled in (see siteConfig) */}
-        <div className="footer-top">
-          <Link to="/" className="footer-brand" aria-label={`${siteConfig.name} Home`}>
-            <span className="brand-mark">{siteConfig.mark}</span>
-            <span className="footer-brand-name">{siteConfig.logoText}</span>
-          </Link>
-
-          {hasContact && (
+        {/* Contact details, shown once they are filled in (see siteConfig) */}
+        {hasContact && (
+          <div className="footer-top">
             <div className="footer-contact">
               <h4 className="footer-title">{t('foot.contact')}</h4>
               <p className="footer-hours">{siteConfig.hours}</p>
@@ -56,22 +50,11 @@ export function Footer() {
               </div>
               {siteConfig.address && <p className="footer-address">{siteConfig.address}</p>}
             </div>
-          )}
-        </div>
-
-        {/* Link columns, divided by hairlines */}
-        <div className="footer-grid">
-          <div className="footer-col">
-            <h4 className="footer-title">{t('foot.shop')}</h4>
-            <ul className="footer-list">
-              {siteConfig.categories.map((cat) => (
-                <li key={cat.slug}>
-                  <Link to={SHOP_LINK}>{categoryLabel(cat.slug, t)}</Link>
-                </li>
-              ))}
-            </ul>
           </div>
+        )}
 
+        {/* Two link columns: help and the company */}
+        <div className="footer-grid footer-grid--two">
           <div className="footer-col">
             <h4 className="footer-title">{t('foot.help')}</h4>
             <ul className="footer-list">
@@ -92,15 +75,6 @@ export function Footer() {
             </ul>
           </div>
         </div>
-      </div>
-
-      {/* The wordmark, set across the full width. The brand link above carries the name. */}
-      <div className="footer-wordmark container" aria-hidden="true">
-        <svg viewBox="0 0 1000 170" preserveAspectRatio="xMidYMid meet" focusable="false">
-          <text x="0" y="150" textLength="1000" lengthAdjust="spacingAndGlyphs">
-            {siteConfig.logoText}
-          </text>
-        </svg>
       </div>
 
       <div className="container">

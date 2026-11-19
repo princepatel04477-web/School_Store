@@ -10,16 +10,16 @@ type Entry = Record<Lang, string>;
 
 export const aboutMessages = {
   'about.pageTitle': {
-    en: 'Our story | SchoolStore by Color Wings',
-    gu: 'અમારી કહાણી | SchoolStore by Color Wings',
-    hi: 'हमारी कहानी | SchoolStore by Color Wings',
+    en: 'Our story | SchoolStore by Colorbenz',
+    gu: 'અમારી કહાણી | SchoolStore by Colorbenz',
+    hi: 'हमारी कहानी | SchoolStore by Colorbenz',
   },
   'about.metaDescription': {
-    en: 'Why Color Wings built SchoolStore: your school uniform and accessories, ordered from home and delivered to your door.',
-    gu: 'Color Wings એ SchoolStore કેમ બનાવ્યું: તમારી સ્કૂલનો યુનિફોર્મ અને એક્સેસરીઝ ઘરેથી ઓર્ડર કરો, અમે ઘરે પહોંચાડીએ.',
-    hi: 'Color Wings ने SchoolStore क्यों बनाया: अपने स्कूल की यूनिफॉर्म और एक्सेसरीज़ घर से ऑर्डर करें, हम घर तक पहुँचाते हैं।',
+    en: 'Why Colorbenz built SchoolStore: your school uniform and accessories, ordered from home and delivered to your door.',
+    gu: 'Colorbenz એ SchoolStore કેમ બનાવ્યું: તમારી સ્કૂલનો યુનિફોર્મ અને એક્સેસરીઝ ઘરેથી ઓર્ડર કરો, અમે ઘરે પહોંચાડીએ.',
+    hi: 'Colorbenz ने SchoolStore क्यों बनाया: अपने स्कूल की यूनिफॉर्म और एक्सेसरीज़ घर से ऑर्डर करें, हम घर तक पहुँचाते हैं।',
   },
-  'about.eyebrow': { en: 'BY COLOR WINGS', gu: 'COLOR WINGS દ્વારા', hi: 'COLOR WINGS द्वारा' },
+  'about.eyebrow': { en: 'BY COLORBENZ', gu: 'COLORBENZ દ્વારા', hi: 'COLORBENZ द्वारा' },
   'about.titleLead': { en: 'Our', gu: 'અમારી', hi: 'हमारी' },
   'about.titleAccent': { en: 'story', gu: 'કહાણી', hi: 'कहानी' },
   'about.sub': {
@@ -51,9 +51,9 @@ export const aboutMessages = {
     hi: 'इतना घूमने के बाद भी ज़रूरी साइज़ या सामान नहीं मिलता।',
   },
   'about.pivot': {
-    en: 'So Color Wings built SchoolStore',
-    gu: 'એટલે Color Wings એ SchoolStore બનાવ્યું',
-    hi: 'इसलिए Color Wings ने SchoolStore बनाया',
+    en: 'So Colorbenz built SchoolStore',
+    gu: 'એટલે Colorbenz એ SchoolStore બનાવ્યું',
+    hi: 'इसलिए Colorbenz ने SchoolStore बनाया',
   },
   'about.fixEyebrow': { en: 'THE FIX', gu: 'ઉકેલ', hi: 'समाधान' },
   'about.fixTitle': {
