@@ -23,7 +23,7 @@ export default function Login() {
       const user = register
         ? await signUp({ username: cleanLogin, phone: cleanLogin, password: cleanPass, name: name.trim() })
         : await signIn(cleanLogin, cleanPass);
-      nav(homeFor(user.role));
+      nav(homeFor(user.role, user.city));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Please try again');
     } finally {

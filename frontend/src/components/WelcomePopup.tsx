@@ -2,22 +2,15 @@ import { useEffect, useState } from 'react';
 import { Popup } from './Popup';
 import { useLang } from '../i18n';
 
-const SEEN_KEY = 'schoolstore_welcome_seen';
+// Memory only (nothing is saved on the phone): the note shows once per page load or app open.
+let seen = false;
 
 function alreadySeen(): boolean {
-  try {
-    return sessionStorage.getItem(SEEN_KEY) === '1';
-  } catch {
-    return false;
-  }
+  return seen;
 }
 
 function markSeen() {
-  try {
-    sessionStorage.setItem(SEEN_KEY, '1');
-  } catch {
-    // storage blocked: the note may show again next visit, which is harmless
-  }
+  seen = true;
 }
 
 /**

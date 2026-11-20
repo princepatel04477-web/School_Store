@@ -89,11 +89,12 @@ class StockMovementCreateSerializer(serializers.Serializer):
         actor = request.user
         city = attrs.get("city")
         if actor.role == "ADMIN":
-            if not actor.city_id:
-                raise PermissionDenied("A city-scoped Admin must have an assigned city.")
-            if city and city.pk != actor.city_id:
-                raise PermissionDenied("Admins can only adjust stock in their own city.")
-            attrs["city"] = City.objects.get(pk=actor.city_id)
+            if actor.city_id:
+                if city and city.pk != actor.city_id:
+                    raise PermissionDenied("Admins can only adjust stock in their own city.")
+                attrs["city"] = City.objects.get(pk=actor.city_id)
+            elif not city:
+                raise serializers.ValidationError({"city": "City is required for this stock movement."})
         elif not city:
             raise serializers.ValidationError({"city": "City is required for this stock movement."})
 

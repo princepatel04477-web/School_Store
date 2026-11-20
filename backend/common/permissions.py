@@ -116,6 +116,8 @@ class RoleScopedPermission(permissions.BasePermission):
         include_null = getattr(view, "include_null_scope_for_catalog", False)
 
         if user.role == "ADMIN":
+            if not user.city_id:
+                return True
             if not city_field:
                 return False
             obj_city = getattr(obj, city_field, None)

@@ -32,7 +32,9 @@ def apply_user_scope(
 
     if role == "ADMIN":
         city_id = getattr(user, "city_id", None)
-        if not city_id or not city_field:
+        if not city_id:
+            return qs
+        if not city_field:
             return qs.none()
         if include_null_scope_for_catalog:
             return qs.filter(

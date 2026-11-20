@@ -39,11 +39,12 @@ const SchoolAdmin = lazy(() => import('./pages/SchoolAdmin'));
 const CityAdmin = lazy(() => import('./pages/CityAdmin'));
 const BossPanel = lazy(() => import('./pages/BossPanel'));
 const Retailer = lazy(() => import('./pages/Retailer'));
+const AdminPortal = lazy(() => import('./pages/AdminPortal'));
 
 import { ComingSoonPage, NotFoundPage } from './pages/InfoPages';
 import { PrivacyPage, TermsPage, RefundPage } from './pages/LegalPages';
 
-export const homeFor = (role?: string) =>
+export const homeFor = (role?: string, cityId?: string | null) =>
   role === 'BOSS'
     ? '/boss'
     : role === 'PARENT'
@@ -51,7 +52,7 @@ export const homeFor = (role?: string) =>
     : role === 'TEACHER'
     ? '/teacher'
     : role === 'ADMIN'
-    ? '/city'
+    ? (cityId ? '/city' : '/portal')
     : role === 'RETAILER'
     ? '/retailer'
     : '/school';
@@ -60,7 +61,7 @@ function Guard({ children, roles }: { children: ReactNode; roles?: string[] }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="splash">Loading your store…</div>;
   if (!user) return <Navigate to="/login" replace />;
-  if (roles && !roles.includes(user.role)) return <Navigate to={homeFor(user.role)} replace />;
+  if (roles && !roles.includes(user.role)) return <Navigate to={homeFor(user.role, user.city)} replace />;
   return <>{children}</>;
 }
 
@@ -77,6 +78,7 @@ export default function App() {
     location.pathname.startsWith('/school') ||
     location.pathname.startsWith('/teacher') ||
     location.pathname.startsWith('/retailer') ||
+    location.pathname.startsWith('/portal') ||
     location.pathname.startsWith('/login');
 
   const isHome = location.pathname === '/';
@@ -163,6 +165,7 @@ export default function App() {
               <Route path="/parent/*" element={<Guard roles={['PARENT']}><Parent /></Guard>} />
               <Route path="/teacher/*" element={<Guard roles={['TEACHER', 'SCHOOL_ADMIN']}><Teacher /></Guard>} />
               <Route path="/retailer/*" element={<Guard roles={['RETAILER']}><Retailer /></Guard>} />
+              <Route path="/portal/*" element={<Guard roles={['BOSS', 'ADMIN']}><AdminPortal /></Guard>} />
 
               {/* Fallback 404 */}
               <Route path="*" element={<NotFoundPage />} />
@@ -194,7 +197,7 @@ export default function App() {
 
 export function Shell({ children, title }: { children: ReactNode; title: string }) {
   const { user, signOut } = useAuth();
-  const home = homeFor(user?.role);
+  const home = homeFor(user?.role, user?.city);
   return (
     <div className="app">
       <header>
