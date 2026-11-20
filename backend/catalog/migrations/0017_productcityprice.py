@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('catalog', '0015_kv_catalog'),
+        ('catalog', '0016_kv_photos'),
         ('schools', '0018_school_logo_url_school_show_logo_public'),
     ]
 
