@@ -279,20 +279,12 @@ export function AboutPage({ onOpenBag, onOpenLanguage }: AboutPageProps) {
 
               <div className="about-fix-bullets">
                 <div className="about-fix-row">
-                  <div className="about-fix-check-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </div>
+                  <div className="about-fix-check-icon" aria-hidden="true">1</div>
                   <span>{t('about.fix.bullet1')}</span>
                 </div>
 
                 <div className="about-fix-row">
-                  <div className="about-fix-check-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </div>
+                  <div className="about-fix-check-icon" aria-hidden="true">2</div>
                   <span>{t('about.fix.bullet2')}</span>
                 </div>
               </div>

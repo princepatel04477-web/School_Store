@@ -249,7 +249,7 @@ button.primary:focus-visible,
   justify-content: center;
   height: 40px;
   padding: 0 var(--space-4);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   border: 1px solid var(--line);
   background-color: var(--paper-raised);
   color: var(--ink-soft);

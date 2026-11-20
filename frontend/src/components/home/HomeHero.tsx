@@ -10,14 +10,6 @@ export interface HomeHeroProps {
   onOpenLanguage?: () => void;
 }
 
-// 4 sparkles positioned in percentages of the stage
-const SPARKLES = [
-  { id: 'sp-1', size: 16, top: '12%', left: '14%', delay: 0 },
-  { id: 'sp-2', size: 20, top: '18%', right: '12%', delay: 0.9 },
-  { id: 'sp-3', size: 14, top: '54%', left: '8%', delay: 0.5 },
-  { id: 'sp-4', size: 18, top: '58%', right: '10%', delay: 1.4 },
-] as const;
-
 export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
   const { lang, t, setLang } = useLang();
   const { totalCount } = useStoreState();
@@ -189,6 +181,8 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
               >
                 {t('home.emerald.firstTimeIn')}
               </motion.span>
+              {/* Spaces between the lines, so the heading reads "First time in INDIA All schools …" and not "inINDIAAll". */}
+              {' '}
 
               {/* Line 2: INDIA + Tricolour bar (fit-content block, bar 100% width of INDIA) */}
               <motion.div
@@ -207,6 +201,7 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
                   <span className="emerald-flag-green" />
                 </span>
               </motion.div>
+              {' '}
 
               {/* Line 3: Tagline (3 distinct lines) */}
               <motion.span
@@ -216,14 +211,14 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
                 animate="visible"
                 variants={lineVariants}
               >
-                <span className="emerald-tagline-row emerald-tagline-white">{t('home.emerald.taglineLine1')}</span>
-                <span className="emerald-tagline-row emerald-tagline-white">{t('home.emerald.taglineLine2')}</span>
+                <span className="emerald-tagline-row emerald-tagline-white">{t('home.emerald.taglineLine1')}</span>{' '}
+                <span className="emerald-tagline-row emerald-tagline-white">{t('home.emerald.taglineLine2')}</span>{' '}
                 <span className="emerald-tagline-row emerald-tagline-saffron">{t('home.emerald.taglineLine3')}</span>
               </motion.span>
             </h1>
           </div>
 
-          {/* Right column: Stage with concentric circles, sparkles and kids */}
+          {/* Right column: Stage with concentric circles and kids */}
           <div className="emerald-right-col">
             <motion.div
               className="emerald-stage-container"
@@ -235,51 +230,6 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
               <div className="emerald-circles-bg" aria-hidden="true">
                 <div className="emerald-circle-outer" />
                 <div className="emerald-circle-inner" />
-              </div>
-
-              {/* 4 Twinkling Sparkles positioned in percentages of the stage */}
-              <div className="emerald-sparkles" aria-hidden="true">
-                {SPARKLES.map((sp) => (
-                  <motion.span
-                    key={sp.id}
-                    className={`emerald-sparkle ${sp.id}`}
-                    style={{
-                      top: sp.top,
-                      left: 'left' in sp ? sp.left : undefined,
-                      right: 'right' in sp ? sp.right : undefined,
-                      width: sp.size,
-                      height: sp.size,
-                    }}
-                    animate={
-                      canAnimateLoop
-                        ? {
-                            opacity: [0.35, 1, 0.35],
-                            scale: [0.75, 1.15, 0.75],
-                          }
-                        : { opacity: 0.85, scale: 1 }
-                    }
-                    transition={
-                      canAnimateLoop
-                        ? {
-                            duration: 3,
-                            repeat: Infinity,
-                            ease: 'easeInOut',
-                            delay: sp.delay,
-                          }
-                        : { duration: 0 }
-                    }
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      width={sp.size}
-                      height={sp.size}
-                      fill="var(--emerald-sparkle, #FFD964)"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path d="M12 0C12 7.5 13.5 10.5 24 12C13.5 13.5 12 16.5 12 24C12 16.5 10.5 13.5 0 12C10.5 10.5 12 7.5 12 0Z" />
-                    </svg>
-                  </motion.span>
-                ))}
               </div>
 
               {/* Soft elliptical floor shadow under feet */}

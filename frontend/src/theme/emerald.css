@@ -1,7 +1,7 @@
 /*
  * Emerald theme for the whole store.
  * The home page's emerald stage (P1) set the look: deep emerald, saffron accent,
- * mint surfaces, Baloo 2 headings in sentence case, soft rounded cards.
+ * mint surfaces, Baloo 2 headings in sentence case, crisp cards with 1px borders.
  * Loaded after every other stylesheet, so pages inherit it through the tokens and
  * only the few spots with their own colours are restyled here.
  * A picked school still re-tints --brand at runtime (theme/schoolTheme.ts).
@@ -42,14 +42,14 @@
   --saffron: #ffb766;
   --saffron-ink: #a85300; /* saffron for text on white (5:1) */
 
-  /* Friendly, rounded shapes */
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
+  /* Client rule: crisp corners, 6px at most (3px, 4px for buttons and inputs, 6px for cards) */
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
 
-  /* Soft emerald shadows instead of flat borders only */
-  --shadow-sm: 0 2px 10px rgba(14, 94, 62, 0.08);
-  --shadow-md: 0 14px 30px rgba(14, 94, 62, 0.14);
+  /* Client rule: no drop shadows. Surfaces are separated by a 1px var(--line) border. */
+  --shadow-sm: none;
+  --shadow-md: none;
 }
 
 /* ---------- Type: Baloo 2 headings in sentence case ---------- */
@@ -99,7 +99,7 @@ h4,
   border-radius: var(--radius-md);
   font-family: var(--font-heading);
   font-weight: 800;
-  box-shadow: 0 10px 22px rgba(14, 94, 62, 0.22);
+  box-shadow: none;
 }
 
 :root .btn-primary:focus-visible,
@@ -135,12 +135,12 @@ h4,
 /* ---------- Header and footer ---------- */
 
 :root .site-header {
-  box-shadow: 0 6px 18px rgba(14, 94, 62, 0.18);
+  box-shadow: none;
 }
 
 :root .site-header .site-brand .brand-mark,
 :root .footer-brand .brand-mark {
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
 }
 
 :root .footer-brand .brand-mark {
@@ -154,7 +154,7 @@ h4,
 }
 
 :root .cat-tile-media {
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
 }
 
 :root .cat-tile.house-4 {
@@ -255,7 +255,7 @@ h4,
     align-items: center;
     gap: 8px;
     padding: 6px 14px;
-    border-radius: 999px;
+    border-radius: var(--radius-md);
     background: var(--emerald-bg, #0e5e3e);
     color: #ffffff;
     font-weight: 800;
@@ -270,7 +270,7 @@ h4,
 }
 
 :root .step-node.is-active .step-node-bubble {
-  box-shadow: 0 6px 14px rgba(14, 94, 62, 0.3);
+  box-shadow: none;
 }
 
 :root .step-node.is-complete .step-node-bubble {
@@ -331,7 +331,7 @@ h4,
 :root .school-select-arrow {
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   background: var(--emerald-bg, #0e5e3e);
   color: #ffffff;
   display: grid;
@@ -483,9 +483,9 @@ h4,
 .em-sheet {
   position: relative;
   z-index: 1;
-  background: #ffffff;
-  border-radius: 28px 28px 0 0;
-  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.16);
+  background: var(--paper);
+  border-radius: 6px 6px 0 0;
+  box-shadow: none;
   padding: clamp(28px, 5vw, 56px) 0 calc(clamp(40px, 6vw, 72px) + env(safe-area-inset-bottom));
 }
 
@@ -536,7 +536,7 @@ h4,
 :root .selection-summary-bar .pill {
   background: var(--paper-sunk);
   color: var(--highlight-ink);
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   font-weight: 800;
 }
 
@@ -899,7 +899,7 @@ h4,
   width: 100%;
   padding: 8px 4px 10px;
   border: 0;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: none;
   color: var(--ink);
   font: inherit;
@@ -1013,7 +1013,7 @@ h4,
 }
 
 :root .pick-row .branch-photo {
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   object-fit: cover;
 }
 
@@ -1066,7 +1066,7 @@ h4,
 :root .pick-row:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1088,7 +1088,7 @@ h4,
   min-width: 44px;
   min-height: 44px;
   padding: 0;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   border: 1px solid rgba(255, 255, 255, 0.28);
   background-color: rgba(255, 255, 255, 0.14);
   color: #fff;
@@ -1183,7 +1183,7 @@ h4,
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   background-color: var(--line-subtle, #e8f0ec);
   color: var(--brand, #0e5e3e);
   transition: transform 0.25s ease, background-color 0.2s ease, color 0.2s ease;
@@ -1228,39 +1228,37 @@ h4,
 }
 
 :root .store-policy-grid {
+  /* One ruled list, not a row of 3 feature cards (client rule). */
   display: grid;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
-  gap: var(--space-6);
-}
-
-@media (min-width: 768px) {
-  :root .store-policy-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-6);
-  }
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 760px;
+  background: var(--paper-raised, #ffffff);
+  border: 1px solid var(--line, #e2e8e5);
+  border-radius: var(--radius-lg, 6px);
 }
 
 :root .policy-card {
-  background: var(--paper-raised, #ffffff);
-  border: 1px solid var(--line, #e2e8e5);
-  border-radius: var(--radius-lg, 16px);
-  padding: clamp(20px, 3.5vw, 28px);
-  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 16px;
+  row-gap: 4px;
+  align-items: start;
+  padding: clamp(16px, 3vw, 22px) clamp(16px, 3vw, 24px);
 }
 
-:root .policy-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.08));
+:root .policy-card + .policy-card {
+  border-top: 1px solid var(--line, #e2e8e5);
+}
+
+:root .policy-card > :not(.policy-icon-tile) {
+  grid-column: 2;
 }
 
 :root .policy-icon-tile {
+  grid-row: 1 / span 2;
   width: 52px;
   height: 52px;
-  border-radius: var(--radius-md, 12px);
+  border-radius: var(--radius-md, 6px);
   background: color-mix(in oklab, var(--brand, #0e5e3e) 12%, transparent);
   color: var(--brand, #0e5e3e);
   display: flex;

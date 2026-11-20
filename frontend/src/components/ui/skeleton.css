@@ -124,3 +124,28 @@
   gap: var(--space-3);
   background: var(--paper-raised);
 }
+
+/* Page skeleton, shown while a page's code loads */
+.page-skeleton {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 48px 16px;
+  min-height: 70vh;
+}
+
+.page-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 32px;
+}
+
+@media (min-width: 768px) {
+  .page-skeleton {
+    padding: 64px 24px;
+  }
+  .page-skeleton-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+}

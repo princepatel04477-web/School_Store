@@ -58,7 +58,7 @@ header.about-top-bar {
   min-height: 44px;
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   color: #FFFFFF;
   cursor: pointer;
   transition: transform 0.16s ease, background-color 0.16s ease;
@@ -67,7 +67,6 @@ header.about-top-bar {
 
 .about-back-btn:hover {
   background: rgba(255, 255, 255, 0.20);
-  transform: translateX(-2px);
 }
 
 .about-back-btn:focus-visible {
@@ -87,11 +86,11 @@ header.about-top-bar {
   width: 38px;
   height: 38px;
   background: #FFFFFF;
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+  box-shadow: none;
   flex-shrink: 0;
 }
 
@@ -126,7 +125,7 @@ header.about-top-bar {
   padding: 0 14px;
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 9999px;
+  border-radius: var(--radius-md);
   color: #FFFFFF;
   font-family: 'Nunito', sans-serif;
   font-size: 14px;
@@ -156,7 +155,7 @@ header.about-top-bar {
   min-height: 44px;
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   color: #FFFFFF;
   cursor: pointer;
   transition: transform 0.16s ease, background-color 0.16s ease;
@@ -165,12 +164,34 @@ header.about-top-bar {
 
 .about-bag-btn:hover {
   background: rgba(255, 255, 255, 0.20);
-  transform: scale(1.04);
 }
 
 .about-bag-btn:focus-visible {
   outline: 2px solid #FFB766;
   outline-offset: 2px;
+}
+
+/* Phones: back, logo, name, language and bag must fit 375px, or the bag is cut off. */
+@media (max-width: 419.98px) {
+  .about-top-bar,
+  nav.about-top-bar,
+  header.about-top-bar {
+    padding-inline: 16px;
+    gap: 8px;
+  }
+  .about-nav-left,
+  .about-nav-right {
+    gap: 8px;
+  }
+  .about-brand-link {
+    gap: 8px;
+  }
+  .about-brand-text {
+    font-size: 21px;
+  }
+  .about-lang-pill {
+    padding: 0 10px;
+  }
 }
 
 .about-bag-badge {
@@ -188,7 +209,7 @@ header.about-top-bar {
   font-weight: 800;
   line-height: 19px;
   text-align: center;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
 }
 
 /* --------------------------------------------------------------------------
@@ -346,11 +367,11 @@ header.about-top-bar {
   position: relative;
   z-index: 5;
   width: 100%;
-  background: #FFFFFF;
-  border-top-left-radius: 28px;
-  border-top-right-radius: 28px;
+  background: var(--paper);
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
   margin-top: -28px;
-  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.18);
+  box-shadow: none;
   flex: 1 0 auto;
 }
 
@@ -412,7 +433,7 @@ header.about-top-bar {
 .about-problem-card {
   background: #FFEFEA;
   border: 1.5px solid #FAD3C7;
-  border-radius: 22px;
+  border-radius: var(--radius-lg);
   padding: clamp(20px, 3vw, 28px);
   display: flex;
   flex-direction: column;
@@ -421,8 +442,7 @@ header.about-top-bar {
 }
 
 .about-problem-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(168, 65, 43, 0.08);
+  box-shadow: none;
 }
 
 .about-icon-tile-problem {
@@ -431,12 +451,12 @@ header.about-top-bar {
   min-width: 52px;
   min-height: 52px;
   background: #FFFFFF;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #A8412B;
-  box-shadow: 0 4px 12px rgba(168, 65, 43, 0.08);
+  box-shadow: none;
 }
 
 .about-problem-card-title {
@@ -473,13 +493,13 @@ header.about-top-bar {
 .about-pivot-circle {
   width: 44px;
   height: 44px;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   background: #0E5E3E;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #FFB766;
-  box-shadow: 0 6px 16px rgba(14, 94, 62, 0.24);
+  box-shadow: none;
 }
 
 .about-pivot-line {
@@ -495,10 +515,10 @@ header.about-top-bar {
    -------------------------------------------------------------------------- */
 .about-fix-card {
   background: #0E5E3E;
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
   padding: clamp(24px, 4vw, 36px);
   color: #FFFFFF;
-  box-shadow: 0 12px 36px rgba(14, 94, 62, 0.22);
+  box-shadow: none;
 }
 
 .about-fix-eyebrow {
@@ -541,7 +561,7 @@ header.about-top-bar {
   gap: 14px;
   background: rgba(255, 255, 255, 0.10);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 14px 18px;
   font-family: 'Nunito', sans-serif;
   font-size: clamp(14px, 1.6vw, 16px);
@@ -561,6 +581,10 @@ header.about-top-bar {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  font-family: var(--font-heading, inherit);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 /* --------------------------------------------------------------------------
@@ -569,7 +593,7 @@ header.about-top-bar {
 .about-badge-callout {
   background: #FFF3E3;
   border: 1.5px solid #FFD9A8;
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   padding: clamp(16px, 2.5vw, 24px);
   display: flex;
   align-items: center;
@@ -581,12 +605,12 @@ header.about-top-bar {
   height: 48px;
   min-width: 48px;
   background: #FFFFFF;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #FF9933;
-  box-shadow: 0 4px 12px rgba(255, 183, 102, 0.25);
+  box-shadow: none;
   flex-shrink: 0;
 }
 
@@ -696,10 +720,10 @@ header.about-top-bar {
 .about-school-tile {
   width: 84px;
   height: 84px;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   background: #FFFFFF;
   border: 2px solid #CDE9D9;
-  box-shadow: 0 4px 12px rgba(14, 94, 62, 0.06);
+  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -715,9 +739,8 @@ header.about-top-bar {
 }
 
 .about-school-card:hover .about-school-tile {
-  transform: translateY(-3px);
   border-color: #14825A;
-  box-shadow: 0 8px 20px rgba(14, 94, 62, 0.14);
+  box-shadow: none;
 }
 
 .about-school-logo {
@@ -746,7 +769,7 @@ header.about-top-bar {
 .about-school-skeleton-tile {
   width: 84px;
   height: 84px;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   background: #E2EFE7;
   animation: aboutPulse 1.4s ease-in-out infinite;
 }
@@ -788,21 +811,21 @@ header.about-top-bar {
     transform: translateY(-50%);
     width: 44px;
     height: 44px;
-    border-radius: 50%;
+    border-radius: var(--radius-md);
     background: #0E5E3E;
     color: #FFFFFF;
     border: none;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 4px 14px rgba(14, 94, 62, 0.28);
+    box-shadow: none;
     transition: background-color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
     z-index: 4;
   }
 
   .about-slider-nav-btn:hover:not(:disabled) {
     background: #11704B;
-    transform: translateY(-50%) scale(1.06);
+    transform: translateY(-50%);
   }
 
   .about-slider-nav-btn:disabled {
@@ -841,12 +864,12 @@ header.about-top-bar {
   background: #0E5E3E;
   color: #FFFFFF;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-md);
   font-family: 'Baloo 2', sans-serif;
   font-size: clamp(18px, 2vw, 21px);
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(14, 94, 62, 0.25);
+  box-shadow: none;
   transition: background-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
   touch-action: manipulation;
   text-decoration: none;
@@ -854,8 +877,7 @@ header.about-top-bar {
 
 .about-cta-btn:hover {
   background: #11704B;
-  transform: translateY(-2px);
-  box-shadow: 0 14px 30px rgba(14, 94, 62, 0.32);
+  box-shadow: none;
 }
 
 .about-cta-btn:active {
@@ -870,7 +892,7 @@ header.about-top-bar {
 .about-cta-arrow-circle {
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   background: #FFB766;
   color: #0E5E3E;
   display: flex;
