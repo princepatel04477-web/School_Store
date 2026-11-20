@@ -1,11 +1,12 @@
 import { api, ApiError } from '../api';
 import type { MessageKey } from '../i18n';
 import type { fitPayload } from '../data/fit';
+import { readSaved, writeSaved, removeSaved } from '../store/persist';
 
 /**
  * Sends a checkout to the server so that a bad signal can never lose or double an order.
  *
- * - The order is written to the phone before the first try, with a key that the
+ * - For a signed-in parent the order is written to the phone before the first try, with a key that the
  *   server stores uniquely: sending it again returns the same order, never a second one.
  * - If the phone is offline or the server can't be reached, it keeps trying.
  * - If the page is closed mid-way, the saved order is sent again on the next visit.
@@ -46,27 +47,20 @@ function sameOrder(a: Omit<OrderPayload, 'idempotency_key'>, b: Omit<OrderPayloa
 
 export function loadPendingOrder(): OrderPayload | null {
   try {
-    const raw = localStorage.getItem(PENDING_KEY);
+    const raw = readSaved(PENDING_KEY);
     return raw ? (JSON.parse(raw) as OrderPayload) : null;
   } catch {
     return null;
   }
 }
 
+// Kept only for a signed-in parent; the order still goes out without a saved copy.
 function savePendingOrder(payload: OrderPayload) {
-  try {
-    localStorage.setItem(PENDING_KEY, JSON.stringify(payload));
-  } catch {
-    // Private mode or full storage: the order still goes out, just without a saved copy.
-  }
+  writeSaved(PENDING_KEY, JSON.stringify(payload));
 }
 
 export function clearPendingOrder() {
-  try {
-    localStorage.removeItem(PENDING_KEY);
-  } catch {
-    // nothing saved
-  }
+  removeSaved(PENDING_KEY);
 }
 
 /** Reuses the key of a saved attempt for the same order, so retrying can't double it. */

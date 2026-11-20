@@ -1,3 +1,4 @@
+import { purgeSavedData } from './store/persist';
 export type Role='PARENT'|'TEACHER'|'SCHOOL_ADMIN'|'ADMIN'|'BOSS'|'RETAILER';
 export type User={id:string;username:string;role:Role;city?:string|null;city_name?:string|null;school?:{name:string}|string|null;school_name?:string|null;school_code?:string|null;phone?:string;email?:string;first_name?:string;last_name?:string;is_active?:boolean;created_at?:string};
 export type CustomisationField = {
@@ -42,7 +43,7 @@ export async function api<T>(path:string, init:RequestInit={},{retry=true}={}):P
 export async function upload<T>(path:string, form:FormData):Promise<T>{const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{method:'POST',headers,body:form}); if(!res.ok){const data=await res.json().catch(()=>({})); throw new ApiError(data.detail||'Upload failed',res.status,data);} return res.json();}
 /** Stream a protected file with the bearer token attached (no token in the URL). */
 export async function download(path:string, filename:string){const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{headers}); if(!res.ok) throw new Error((await res.json().catch(()=>({}))).detail||'Download failed'); const blob=await res.blob(); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);}
-export function logout(){localStorage.removeItem('access');localStorage.removeItem('refresh'); window.location.href='/login';}
+export function logout(){localStorage.removeItem('access');localStorage.removeItem('refresh'); purgeSavedData(); try{sessionStorage.clear();}catch{/* storage blocked */} window.location.href='/login';}
 export const auth={login:(username:string,password:string)=>api<{access:string;refresh:string;user:User}>('/auth/token/',{method:'POST',body:JSON.stringify({username,password})}),register:(body:unknown)=>api<{access:string;refresh:string;user:User}>('/auth/register/',{method:'POST',body:JSON.stringify(body)}),me:()=>api<User>('/auth/me/'),
   /** Parent sign-in by mobile number: send the code, then verify it. */
   sendOtp:(phone:string)=>api<{detail:string;phone:string;otp_debug?:string}>('/auth/otp/send/',{method:'POST',body:JSON.stringify({phone})}),

@@ -159,19 +159,10 @@ interface SizeFitResponse {
 // ---------------------------------------------------------------------------
 // The parent's answer, kept for the school + class + boy/girl it was given for
 // ---------------------------------------------------------------------------
-const STORAGE_KEY = 'schoolstore_fit';
+// Memory only: the child's height and weight are never written to the phone or browser.
 type Saved = { forKey: string; answer: Fit | 'skipped' };
 
-function load(): Saved | null {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Saved) : null;
-  } catch {
-    return null;
-  }
-}
-
-let saved: Saved | null = load();
+let saved: Saved | null = null;
 const listeners = new Set<() => void>();
 
 export function fitKey(schoolId?: string, classId?: string, gender?: string | null): string {
@@ -184,12 +175,6 @@ export function getFit(forKey: string): FitAnswer {
 
 export function setFit(forKey: string, answer: Fit | 'skipped' | null) {
   saved = answer && forKey ? { forKey, answer } : null;
-  try {
-    if (saved) sessionStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-    else sessionStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Private mode: the answer lasts until the page closes.
-  }
   listeners.forEach((listener) => listener());
 }
 

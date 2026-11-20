@@ -1,9 +1,10 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { messages, type MessageKey } from './messages';
+import { readSaved, writeSaved } from '../store/persist';
 
 /**
  * The parent's language: English by default, or Gujarati or Hindi when the parent
- * switches; the choice is remembered on the phone. Staff pages stay in English.
+ * switches; the choice is remembered on the phone only while signed in. Staff pages stay in English.
  */
 export type Lang = 'en' | 'gu' | 'hi';
 export type { MessageKey };
@@ -17,16 +18,13 @@ export const LANGUAGES: { code: Lang; name: string; bcp47: string }[] = [
 
 const LANG_KEY = 'schoolstore_lang';
 
-function readSaved(): Lang | null {
-  try {
-    const saved = localStorage.getItem(LANG_KEY);
-    return saved === 'en' || saved === 'gu' || saved === 'hi' ? saved : null;
-  } catch {
-    return null;
-  }
+// Kept on the device only for a signed-in parent; a guest picks again each visit.
+function readSavedLang(): Lang | null {
+  const saved = readSaved(LANG_KEY);
+  return saved === 'en' || saved === 'gu' || saved === 'hi' ? saved : null;
 }
 
-let chosen: Lang | null = readSaved();
+let chosen: Lang | null = readSavedLang();
 const listeners = new Set<() => void>();
 
 function applyToDocument(lang: Lang) {
@@ -36,11 +34,7 @@ applyToDocument(chosen ?? 'en');
 
 export function setLang(lang: Lang) {
   chosen = lang;
-  try {
-    localStorage.setItem(LANG_KEY, lang);
-  } catch {
-    // Private mode: the choice lasts until the page closes.
-  }
+  writeSaved(LANG_KEY, lang);
   applyToDocument(lang);
   listeners.forEach((listener) => listener());
 }
