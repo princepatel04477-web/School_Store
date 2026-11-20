@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "school-store",
+  "account_id": "0e1accef8ef38c95615ccc2127999037",
   "main": "worker/index.js",
   "compatibility_date": "2026-09-01",
   "assets": {

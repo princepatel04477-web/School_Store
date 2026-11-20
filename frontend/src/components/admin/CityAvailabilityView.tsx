@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   type BranchAvailability,
   type AvailabilityStatus,
@@ -6,6 +6,7 @@ import {
   saveBranchAvailability,
   getRemainingTime,
 } from '../../data/availability';
+import { getPortalSchools, PORTAL_EVENT } from '../../data/portalStore';
 import { Clock, Check, Plus, AlertCircle } from '../ui/icons';
 
 interface CityRow {
@@ -31,6 +32,7 @@ const DEFAULT_CITIES: CityRow[] = [
 
 export function CityAvailabilityView() {
   const [rules, setRules] = useState<BranchAvailability[]>(getStoredAvailability);
+  const [portalSchools, setPortalSchools] = useState(getPortalSchools);
   const [selectedSchool, setSelectedSchool] = useState<string>('Kendriya Vidyalaya');
   const [selectedState, setSelectedState] = useState<string>('ALL');
   const [editingTarget, setEditingTarget] = useState<CityRow | null>(null);
@@ -40,14 +42,38 @@ export function CityAvailabilityView() {
   const [allowPreorder, setAllowPreorder] = useState<boolean>(true);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const schools = useMemo(() => Array.from(new Set(DEFAULT_CITIES.map((c) => c.schoolName))), []);
-  const states = useMemo(() => Array.from(new Set(DEFAULT_CITIES.filter((c) => c.schoolName === selectedSchool).map((c) => c.state))), [selectedSchool]);
+  useEffect(() => {
+    const refresh = () => {
+      setRules(getStoredAvailability());
+      setPortalSchools(getPortalSchools());
+    };
+    window.addEventListener(PORTAL_EVENT, refresh);
+    return () => window.removeEventListener(PORTAL_EVENT, refresh);
+  }, []);
+
+  const allCities: CityRow[] = useMemo(() => {
+    const customRows: CityRow[] = portalSchools.map((s) => ({
+      schoolName: s.name,
+      state: s.state || 'Gujarat',
+      cityName: s.city,
+    }));
+    const combined = [...DEFAULT_CITIES];
+    for (const c of customRows) {
+      if (!combined.some((row) => row.schoolName === c.schoolName && row.cityName === c.cityName)) {
+        combined.push(c);
+      }
+    }
+    return combined;
+  }, [portalSchools]);
+
+  const schools = useMemo(() => Array.from(new Set(allCities.map((c) => c.schoolName))), [allCities]);
+  const states = useMemo(() => Array.from(new Set(allCities.filter((c) => c.schoolName === selectedSchool).map((c) => c.state))), [allCities, selectedSchool]);
 
   const filteredCities = useMemo(() => {
-    return DEFAULT_CITIES.filter(
+    return allCities.filter(
       (c) => c.schoolName === selectedSchool && (selectedState === 'ALL' || c.state === selectedState)
     );
-  }, [selectedSchool, selectedState]);
+  }, [allCities, selectedSchool, selectedState]);
 
   const getRuleForCity = (cityName: string, state: string) => {
     return rules.find(

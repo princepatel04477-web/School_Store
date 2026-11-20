@@ -8,7 +8,8 @@
 // If the server or its tunnel is down, server paths get a clear "offline" page (never a different copy of the store).
 
 // Paths Django answers on the server; everything else is the React app.
-const SERVER_PATH = /^\/(api|admin|static|media)(\/|$)/;
+// Note: /admin and /portal belong to the React Operations & Uniform Management Portal
+const SERVER_PATH = /^\/(api|django-admin|static|media)(\/|$)/;
 
 const TUNNEL_DOWN = new Set([502, 503, 504, 521, 522, 523, 524, 530]);
 

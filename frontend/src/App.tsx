@@ -74,6 +74,8 @@ export default function App() {
   const location = useLocation();
 
   const isPortal =
+    location.pathname.startsWith('/portal') ||
+    location.pathname.startsWith('/admin') ||
     location.pathname.startsWith('/boss') ||
     location.pathname.startsWith('/city') ||
     location.pathname.startsWith('/school') ||

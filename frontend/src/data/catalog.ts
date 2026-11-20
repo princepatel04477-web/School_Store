@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
 import type { SeedProduct, SeedSchool } from './seedData';
+import { getPortalSchools, getPortalUniforms } from './portalStore';
 
 /**
  * The public store's real data: schools and their approved items, read from the
@@ -100,7 +101,31 @@ function toProduct(product: PublicProduct): StoreProduct {
 export function useStoreSchools() {
   return useQuery({
     queryKey: ['store', 'schools'],
-    queryFn: async () => (await api<PublicSchool[]>('/public/schools/')).map(toSchool),
+    queryFn: async () => {
+      let apiSchools: StoreSchool[] = [];
+      try {
+        apiSchools = (await api<PublicSchool[]>('/public/schools/')).map(toSchool);
+      } catch {
+        apiSchools = [];
+      }
+      const portalSchools = getPortalSchools().map((s): StoreSchool => ({
+        id: s.id,
+        name: s.name,
+        code: s.code,
+        slug: slugify(s.name),
+        city: s.city,
+        cityId: s.id,
+        homeDelivery: s.homeDelivery,
+        schoolPickup: s.schoolPickup,
+      }));
+      const combined = [...apiSchools];
+      for (const ps of portalSchools) {
+        if (!combined.some((s) => s.name.toLowerCase() === ps.name.toLowerCase() || s.id === ps.id)) {
+          combined.push(ps);
+        }
+      }
+      return combined;
+    },
     staleTime: 10 * 60 * 1000,
   });
 }
@@ -221,13 +246,55 @@ export function useStoreProducts(
       if (cityId) params.set('city', cityId);
       const products: PublicProduct[] = [];
       let path: string | null = `/public/products/?${params}`;
-      // The list is paged; a school's class list is small, so a few pages at most.
-      for (let pages = 0; path && pages < 20; pages++) {
-        const page: Page<PublicProduct> = await api<Page<PublicProduct>>(path);
-        products.push(...page.results);
-        path = page.next ? page.next.slice(page.next.indexOf('/public/')) : null;
+      try {
+        // The list is paged; a school's class list is small, so a few pages at most.
+        for (let pages = 0; path && pages < 20; pages++) {
+          const page: Page<PublicProduct> = await api<Page<PublicProduct>>(path);
+          products.push(...page.results);
+          path = page.next ? page.next.slice(page.next.indexOf('/public/')) : null;
+        }
+      } catch {
+        // Fallback for static showcase / local network
       }
-      return products.map(toProduct);
+      const converted = products.map(toProduct);
+
+      // Merge portal uniforms for this school
+      const portalSchools = getPortalSchools();
+      const currentSchool = portalSchools.find(
+        (s) => s.id === schoolId || s.name.toLowerCase() === schoolId?.toLowerCase()
+      );
+      const targetSchoolName = currentSchool?.name || schoolId || '';
+
+      const portalItems = getPortalUniforms().filter((u) => {
+        const matchesSchool = !targetSchoolName || u.schoolName.toLowerCase() === targetSchoolName.toLowerCase();
+        const matchesGender = u.gender === 'unisex' || !gender || u.gender === gender;
+        return matchesSchool && matchesGender;
+      });
+
+      for (const item of portalItems) {
+        if (!converted.some((p) => p.name.toLowerCase() === item.name.toLowerCase())) {
+          converted.push({
+            id: item.id,
+            name: item.name,
+            category: (item.category as SeedProduct['category']) || 'Uniform',
+            categorySlug: slugify(item.category),
+            descriptor: `${item.schoolName} approved uniform item`,
+            description: `${item.name} (${item.classes})`,
+            pricePaise: Math.round(item.price * 100),
+            gender: item.gender,
+            sizes: item.sizes.map((sz, idx) => ({
+              id: `sz-${item.id}-${idx}`,
+              size: sz,
+              inStock: item.inStock,
+            })),
+            imageUrl: item.photo,
+            needsDetails: false,
+            official: true,
+          });
+        }
+      }
+
+      return converted;
     },
   });
 }
