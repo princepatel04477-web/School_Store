@@ -1,0 +1,117 @@
+{
+  "title": "Benchmark: catalog-warm",
+  "timestamp": "2026-11-20T18:20:00.451772Z",
+  "root_group": {
+    "name": "Benchmark: catalog-warm",
+    "path": "",
+    "id": "root",
+    "groups": {},
+    "checks": {
+      "status is 200": {
+        "name": "status is 200",
+        "path": "::status is 200",
+        "id": "chk_200",
+        "passes": 1628,
+        "fails": 0
+      }
+    }
+  },
+  "metrics": {
+    "http_reqs": {
+      "count": 1628,
+      "rate": 26.62
+    },
+    "http_req_duration": {
+      "min": 18.95,
+      "med": 271.72,
+      "avg": 271.72,
+      "max": 3360.99,
+      "p(90)": 1830.45,
+      "p(95)": 2052.16,
+      "p(99)": 2808.57
+    },
+    "errors": {
+      "passes": 0,
+      "fails": 1628,
+      "value": 0.0
+    }
+  },
+  "steps": [
+    {
+      "vus": 1,
+      "duration_s": 15.05,
+      "total_requests": 254,
+      "rps": 16.9,
+      "p50_ms": 18.95,
+      "p95_ms": 28.86,
+      "p99_ms": 31.6,
+      "max_ms": 32.36,
+      "errors": 0,
+      "error_pct": 0.0,
+      "status_codes": {
+        "200": 254
+      },
+      "db_connections": 2,
+      "app_cpu_pct": 1.8,
+      "app_mem_mb": 93.6,
+      "gen_cpu_pct": 1.8
+    },
+    {
+      "vus": 5,
+      "duration_s": 15.07,
+      "total_requests": 605,
+      "rps": 40.1,
+      "p50_ms": 79.71,
+      "p95_ms": 150.54,
+      "p99_ms": 193.48,
+      "max_ms": 233.89,
+      "errors": 0,
+      "error_pct": 0.0,
+      "status_codes": {
+        "200": 605
+      },
+      "db_connections": 2,
+      "app_cpu_pct": 6.9,
+      "app_mem_mb": 94.1,
+      "gen_cpu_pct": 6.9
+    },
+    {
+      "vus": 10,
+      "duration_s": 15.28,
+      "total_requests": 402,
+      "rps": 26.3,
+      "p50_ms": 225.5,
+      "p95_ms": 795.78,
+      "p99_ms": 1386.42,
+      "max_ms": 2207.41,
+      "errors": 0,
+      "error_pct": 0.0,
+      "status_codes": {
+        "200": 402
+      },
+      "db_connections": 2,
+      "app_cpu_pct": 6.7,
+      "app_mem_mb": 93.6,
+      "gen_cpu_pct": 6.7
+    },
+    {
+      "vus": 25,
+      "duration_s": 15.76,
+      "total_requests": 367,
+      "rps": 23.3,
+      "p50_ms": 762.72,
+      "p95_ms": 2273.88,
+      "p99_ms": 2852.55,
+      "max_ms": 3360.99,
+      "errors": 0,
+      "error_pct": 0.0,
+      "status_codes": {
+        "200": 367
+      },
+      "db_connections": 2,
+      "app_cpu_pct": 6.6,
+      "app_mem_mb": 93.7,
+      "gen_cpu_pct": 6.6
+    }
+  ]
+}
