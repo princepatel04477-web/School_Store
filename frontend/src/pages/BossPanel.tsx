@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { X, Overview, BarChart as BarChartIcon, Users, SchoolBuilding, Eye, Ruler, ShoppingBag, ShieldCheck } from '../components/ui/icons';
+import { X, Overview, BarChart as BarChartIcon, Users, SchoolBuilding, Eye, Ruler, ShoppingBag, ShieldCheck, Package } from '../components/ui/icons';
 import { PanelShell, type PanelNavItem } from '../components/admin/PanelShell';
 import { Link, Route, Routes, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -27,6 +27,7 @@ const NAV: PanelNavItem[] = [
   { to: 'size-charts', label: 'Size Charts', icon: Ruler },
   { to: 'school-requests', label: 'School Requests', icon: ShieldCheck },
   { to: 'retailers', label: 'Retailers', icon: ShoppingBag },
+  { to: '/portal', label: 'Uniform Portal', icon: Package },
 ];
 
 /**

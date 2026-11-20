@@ -22,6 +22,7 @@ const NAV: PanelNavItem[] = [
   { to: 'orders', label: 'Orders', icon: Receipt },
   { to: 'schools', label: 'Schools', icon: SchoolBuilding },
   { to: 'size-charts', label: 'Size Charts', icon: Ruler },
+  { to: '/portal', label: 'Uniform Portal', icon: Package },
 ];
 
 export default function CityAdmin() {

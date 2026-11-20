@@ -551,3 +551,88 @@ export function fieldErrors(err:unknown):Record<string,string>{
   }
   return out;
 }
+
+/* ------------------------------------------------------------------ *
+ * Uniform Portal (Schools, Uniforms, Stock)
+ * ------------------------------------------------------------------ */
+export type PortalVariant = {
+  id: string;
+  product: string;
+  product_name?: string;
+  category_name?: string;
+  school?: string | null;
+  city?: string | null;
+  size: string;
+  sku: string;
+  active: boolean;
+  created_at: string;
+};
+
+export type PortalProduct = {
+  id: string;
+  category: string;
+  category_name?: string;
+  school: string | null;
+  school_name?: string | null;
+  city?: string | null;
+  name: string;
+  description: string;
+  images: string[];
+  thumbnail?: string | null;
+  cost_price?: string | number;
+  selling_price: string | number;
+  gender: 'boy' | 'girl' | 'unisex';
+  product_type?: 'SOCKS' | 'BELT' | 'TIE' | string | null;
+  needs_review?: boolean;
+  grades?: string[];
+  class_from?: number | null;
+  class_to?: number | null;
+  customisation_schema?: any;
+  active: boolean;
+  variants: PortalVariant[];
+  created_at: string;
+};
+
+export type PortalCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  display_order: number;
+  active: boolean;
+};
+
+export type PortalCity = {
+  id: string;
+  name: string;
+  code: string;
+  state: string;
+  active: boolean;
+};
+
+export const portalApi = {
+  schools: (p: Record<string, string> = {}) => api<Page<CitySchool>>(`/schools/?${new URLSearchParams(p)}`),
+  addSchool: (body: Partial<CitySchool>) => api<CitySchool>('/schools/', { method: 'POST', body: JSON.stringify(body) }),
+  updateSchool: (id: string, body: Partial<CitySchool>) => api<CitySchool>(`/schools/${id}/`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteSchool: (id: string) => api<CitySchool>(`/schools/${id}/`, { method: 'PATCH', body: JSON.stringify({ active: false }) }),
+  cities: (p: Record<string, string> = {}) => api<Page<PortalCity>>(`/cities/?${new URLSearchParams({ page_size: '50', ...p })}`),
+  products: (p: Record<string, string> = {}) => api<Page<PortalProduct>>(`/products/?${new URLSearchParams(p)}`),
+  createProduct: (body: any) => api<PortalProduct>('/products/', { method: 'POST', body: JSON.stringify(body) }),
+  updateProduct: (id: string, body: any) => api<PortalProduct>(`/products/${id}/`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteProduct: (id: string) => api<void>(`/products/${id}/`, { method: 'DELETE' }),
+  uploadProductPhoto: (productId: string, file: File) => {
+    const fd = new FormData();
+    fd.append('photo', file);
+    return upload<PortalProduct>(`/products/${productId}/photo/`, fd);
+  },
+  variants: (p: Record<string, string> = {}) => api<Page<PortalVariant>>(`/variants/?${new URLSearchParams(p)}`),
+  createVariant: (body: { product: string; size: string; sku: string; active?: boolean }) =>
+    api<PortalVariant>('/variants/', { method: 'POST', body: JSON.stringify(body) }),
+  updateVariant: (id: string, body: { size?: string; sku?: string; active?: boolean }) =>
+    api<PortalVariant>(`/variants/${id}/`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteVariant: (id: string) => api<void>(`/variants/${id}/`, { method: 'DELETE' }),
+  categories: () => api<Page<PortalCategory>>('/categories/?page_size=50'),
+  stockBalances: (p: Record<string, string> = {}) => api<Page<StockBalance>>(`/stock-balances/?${new URLSearchParams(p)}`),
+  addStockMovement: (body: { variant: string; quantity_change: number; reason: string; city?: string }) =>
+    api<StockMovement>('/stock-movements/', { method: 'POST', body: JSON.stringify(body) }),
+};
