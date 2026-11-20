@@ -44,15 +44,19 @@ async function register(request, env) {
 
 async function forwardToShowcase(env, request, bodyBytes) {
   if (!env.SHOWCASE) return null;
+  const url = new URL(request.url);
+  const targetUrl = new URL(url.pathname + url.search, 'https://schoolstore-showcase.internal');
+  const headers = new Headers(request.headers);
+  headers.set('X-Forwarded-Host', url.host);
   const init = {
     method: request.method,
-    headers: request.headers,
+    headers,
     redirect: request.redirect,
   };
   if (bodyBytes && !['GET', 'HEAD'].includes(request.method)) {
     init.body = bodyBytes;
   }
-  return env.SHOWCASE.fetch(request.url, init);
+  return env.SHOWCASE.fetch(targetUrl.toString(), init);
 }
 
 export default {
@@ -79,10 +83,10 @@ export default {
       ? await request.arrayBuffer()
       : null;
 
-    if (isRetail && env.SHOWCASE) {
+    if ((isRetail || isAuth) && env.SHOWCASE) {
       try {
         const scRes = await forwardToShowcase(env, request, bodyBytes);
-        if (scRes) {
+        if (scRes && (scRes.ok || isRetail)) {
           const out = new Response(scRes.body, scRes);
           out.headers.set('x-served-by', 'showcase');
           return out;
