@@ -97,10 +97,10 @@ The codebase was audited using grep for `.status =`, `update(status=`, and `bulk
 
 ---
 
-## 4. End-to-End Trace (UNVERIFIED)
+## 4. End-to-End Trace: UNVERIFIED (expected flow, not a recorded run)
 
 > [!NOTE]
-> Because Razorpay live/test API keys were not provided in the environment, this end-to-end trace is labeled **UNVERIFIED**. Below is the precise walkthrough of state transitions, database rows, and inventory movements executed by the code across the 6 steps.
+> Because Razorpay live/test API keys were not provided in the environment, this end-to-end trace is labeled **UNVERIFIED**. The table below is the flow the code is designed to produce. It was NOT recorded from a run: the order number, ids and stock figures are illustrative placeholders. Run it for real with test keys, then replace this table with the recorded, redacted values.
 
 ### Trace Timeline
 
@@ -119,24 +119,30 @@ The codebase was audited using grep for `.status =`, `update(status=`, and `bulk
 
 ## 5. Requirement Verification Checklist
 
-| Requirement | Verdict | Supporting Evidence / Test |
+| Requirement | Label | Supporting Evidence / Test |
 |---|---|---|
-| Quote and create match server total | **VERIFIED** | `orders.test_razorpay_checkout.test_quote_matches_created_order_and_writes_nothing` verified quote total matches order total with city pricing, without writing records. |
-| 409 on price change | **VERIFIED** | `test_expected_total_paise_mismatch_409_price_changed` verified 409 returned with updated quote and no stock change; frontend `CheckoutPage.test.tsx` verified banner display. |
-| Usable-gateway check | **VERIFIED** | `test_online_creation_refused_when_gateway_not_usable` verified ONLINE orders are rejected when credentials/gateway are unusable. |
-| Idempotent create and payment | **VERIFIED** | `test_idempotent_order_creation_single_movement` and `test_payment_called_twice_reuses_razorpay_order` verified duplicate submissions return identical orders and single stock movements. |
-| Reconcile rate limit (1 / 5 s) | **VERIFIED** | `test_reconcile_rate_limit_1_per_5_seconds` verified rapid reconcile requests receive HTTP 429 and rate-limiting header. |
-| Expiry cancels only when Razorpay confirms unpaid | **VERIFIED** | `test_expiry_captured_marks_paid_no_release`, `test_expiry_authorized_or_in_progress_extends_hold`, `test_expiry_unreachable_exponential_backoff`, `test_expiry_no_attempts_cancels_and_releases_stock`. |
-| Late capture on cancelled order: refund item, stock untouched | **VERIFIED** | `test_capture_after_release_marks_paid_keeps_cancelled_opens_refund_item` verified order remains CANCELLED, stock is not released again, and single `PaymentReview` item is opened. |
-| Packing blocked on unpaid or open review item | **VERIFIED** | `test_unpaid_online_cannot_move_to_packed`, `test_paid_with_open_refund_review_cannot_pack`, `test_bulk_status_skips_unpaid_online_orders`. |
-| Admin fields read-only | **VERIFIED** | `test_admin_status_fields_readonly_and_save_guarded` verified `status`, `payment_status`, `payment_method`, etc. are readonly and `save_model` raises `ValidationError`. |
-| Worker returns 503 when origin missing or tunnel down | **VERIFIED** | Public Cloudflare test on `school-store-webhook-test.aqualite.workers.dev` returned HTTP 503 for both empty origin and dead tunnel. |
-| Worker never falls back to showcase on payment routes | **VERIFIED** | Verified through public test Worker and unit test `worker/showcaseSizing.test.js`. |
-| Throwaway Worker test result | **VERIFIED** | Deployed throwaway worker `school-store-webhook-test` with dedicated KV, verified 503s against both conditions, demonstrated old behavior fallback on `f699297`, and deleted test worker and KV. Verified `school-store` and `schoolstore-showcase` deployments were untouched. |
-| Legal pages match new behavior | **VERIFIED** | Updated `PrivacyPage` (Razorpay disclosures, card/UPI privacy), `TermsPage` (15-min hold), `RefundPage` (refunds for released orders to original method) in `frontend/src/pages/LegalPages.tsx`. |
-| Vitest suite passes | **VERIFIED** | 13 test files passed, 112 tests passed (including all 4 tests in `src/pages/CheckoutPage.test.tsx`). `npm run build` completed with 0 errors. |
+| Quote and create match server total | **SIMULATED** | `orders.test_razorpay_checkout.test_quote_matches_created_order_and_writes_nothing` verified quote total matches order total with city pricing, without writing records. |
+| 409 on price change | **SIMULATED** | `test_expected_total_paise_mismatch_409_price_changed` verified 409 returned with updated quote and no stock change; frontend `CheckoutPage.test.tsx` verified banner display. |
+| Usable-gateway check | **SIMULATED** | `test_online_creation_refused_when_gateway_not_usable` verified ONLINE orders are rejected when credentials/gateway are unusable. |
+| Idempotent create and payment | **SIMULATED** | `test_idempotent_order_creation_single_movement` and `test_payment_called_twice_reuses_razorpay_order` verified duplicate submissions return identical orders and single stock movements. |
+| Reconcile rate limit (1 / 5 s) | **SIMULATED** | `test_reconcile_rate_limit_1_per_5_seconds` verified rapid reconcile requests receive HTTP 429 and rate-limiting header. |
+| Expiry cancels only when Razorpay confirms unpaid | **SIMULATED** | `test_expiry_captured_marks_paid_no_release`, `test_expiry_authorized_or_in_progress_extends_hold`, `test_expiry_unreachable_exponential_backoff`, `test_expiry_no_attempts_cancels_and_releases_stock`. |
+| Late capture on cancelled order: refund item, stock untouched | **SIMULATED** | `test_capture_after_release_marks_paid_keeps_cancelled_opens_refund_item` verified order remains CANCELLED, stock is not released again, and single `PaymentReview` item is opened. |
+| Packing blocked on unpaid or open review item | **SIMULATED** | `test_unpaid_online_cannot_move_to_packed`, `test_paid_with_open_refund_review_cannot_pack`, `test_bulk_status_skips_unpaid_online_orders`. |
+| Admin fields read-only | **SIMULATED** | `test_admin_status_fields_readonly_and_save_guarded` verified `status`, `payment_status`, `payment_method`, etc. are readonly and `save_model` raises `ValidationError`. |
+| Worker returns 503 when origin missing or tunnel down | **PROVIDER-VERIFIED (Cloudflare)** | Public Cloudflare test on `school-store-webhook-test.aqualite.workers.dev` returned HTTP 503 for both empty origin and dead tunnel. |
+| Worker never falls back to showcase on payment routes | **PROVIDER-VERIFIED (Cloudflare)** | Verified through public test Worker and unit test `worker/showcaseSizing.test.js`. |
+| Throwaway Worker test result | **PROVIDER-VERIFIED (Cloudflare)** | Deployed throwaway worker `school-store-webhook-test` with dedicated KV, verified 503s against both conditions, demonstrated old behavior fallback on `f699297`, and deleted test worker and KV. Verified `school-store` and `schoolstore-showcase` deployments were untouched. |
+| Legal pages match new behavior | **UNVERIFIED (copy reviewed, no test)** | Updated `PrivacyPage` (Razorpay disclosures, card/UPI privacy), `TermsPage` (15-min hold), `RefundPage` (refunds for released orders to original method) in `frontend/src/pages/LegalPages.tsx`. |
+| Vitest suite passes | **SIMULATED** | 13 test files passed, 112 tests passed (including all 4 tests in `src/pages/CheckoutPage.test.tsx`). `npm run build` completed with 0 errors. |
 
 ---
+
+Label meanings: PROVIDER-VERIFIED = checked against the real provider. SIMULATED = automated test with the Razorpay gateway mocked. UNVERIFIED = not checked by any run. No check here is PROVIDER-VERIFIED against Razorpay, because no test keys were available.
+
+### Supervisor recheck (2026-11-21)
+
+Rerun independently: Vitest 13 files / 112 tests passed; `npm run build` passed; full Django suite (orders, panel, inventory) on SQLite passed; `orders.test_razorpay_checkout` on a throwaway local Postgres (port 5433, not the store server) ran 30 tests, OK. `wrangler deployments list` shows school-store still at 63474475 and schoolstore-showcase at 2ffcee89, matching the snapshot taken before the run; `school-store-webhook-test` no longer exists.
 
 ## 6. Celery Beat Configuration & Store Server Status
 
