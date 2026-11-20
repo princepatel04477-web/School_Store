@@ -230,6 +230,14 @@ RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 RAZORPAY_WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
 
+if "test" in sys.argv:
+    if not RAZORPAY_KEY_ID:
+        RAZORPAY_KEY_ID = "rzp_test_placeholder"
+    if not RAZORPAY_KEY_SECRET:
+        RAZORPAY_KEY_SECRET = "placeholder_secret"
+    if not RAZORPAY_WEBHOOK_SECRET:
+        RAZORPAY_WEBHOOK_SECRET = "placeholder_webhook_secret"
+
 if (
     "test" in sys.argv
     or os.environ.get("USE_LOCMEM_CACHE") == "1"

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft } from '../components/ui/icons';
 import { formatINR } from '../utils/formatINR';
@@ -7,11 +7,12 @@ import { siteConfig } from '../siteConfig';
 import { useStoreSchools } from '../data/catalog';
 import { fitPayload } from '../data/fit';
 import { buildOrderMessage, whatsappOrderUrl } from '../services/whatsappOrder';
-import { orderErrorMessage, prepareOrder, submitOrder, type PlacedOrder } from '../services/placeOrder';
+import { orderErrorMessage, prepareOrder, submitOrder, clearPendingOrder, type PlacedOrder } from '../services/placeOrder';
+import { loadRazorpay, openRazorpayCheckout } from '../services/paymentAdapter';
 import { useAuth } from '../auth';
 import { useLang } from '../i18n';
 import { classLabel } from '../i18n/labels';
-import type { ParentChild } from '../api';
+import { api, ApiError, orderApi, type ParentChild, type Order, type OrderQuote } from '../api';
 import { ParentSignInSheet } from '../components/parent/ParentSignInSheet';
 import { scrollPageTo } from '../motion/SmoothScroll';
 import '../components/cart/bagCheckout.css';
@@ -53,6 +54,27 @@ export function CheckoutPage() {
   const [retrying, setRetrying] = useState(false);
   const [orderError, setOrderError] = useState('');
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
+
+  // Online Payment & Quote State
+  const [quote, setQuote] = useState<OrderQuote | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState<'ONLINE' | 'COD'>('ONLINE');
+  const [priceNotice, setPriceNotice] = useState('');
+  const [paymentStep, setPaymentStep] = useState<'idle' | 'checking' | 'confirming' | 'failed' | 'done'>('idle');
+  const [inProgressWarning, setInProgressWarning] = useState(false);
+  const [onlineOrder, setOnlineOrder] = useState<PlacedOrder | null>(null);
+  const [lastAttemptReason, setLastAttemptReason] = useState('');
+  const [willTextMessage, setWillTextMessage] = useState(false);
+  const reconcileLastCallRef = useRef<number>(0);
+  const pollingIntervalRef = useRef<any>(null);
+  const pollingTimeoutRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+      if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
+    };
+  }, []);
 
   // WhatsApp hand-off
   const [reference] = useState(() => `SS-${Date.now().toString(36).toUpperCase()}`);
@@ -131,16 +153,236 @@ export function CheckoutPage() {
 
   const homeAddress = [addressLine1, addressLine2, city, state, pinCode].map((part) => part.trim()).filter(Boolean).join(', ');
 
+  const fetchQuote = useCallback(async () => {
+    if (!child || cart.length === 0) return;
+    setQuoteLoading(true);
+    try {
+      const q = await orderApi.quote({
+        student: child.id,
+        items: cart.map((item) => ({
+          variant: item.variantId,
+          quantity: item.quantity,
+          ...(item.measurement ? { fit: fitPayload(item.measurement) } : {}),
+        })),
+      });
+      setQuote(q);
+      if (q.payment_methods.includes('ONLINE')) {
+        setSelectedMethod('ONLINE');
+      } else {
+        setSelectedMethod('COD');
+      }
+    } catch {
+      // Keep existing total or fallback
+    } finally {
+      setQuoteLoading(false);
+    }
+  }, [child, cart]);
+
+  useEffect(() => {
+    if (activeStep === 3 && mode === 'account' && child) {
+      fetchQuote();
+    }
+  }, [activeStep, mode, child, fetchQuote]);
+
+  const stopPolling = () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current);
+      pollingTimeoutRef.current = null;
+    }
+  };
+
+  const startPolling = (orderId: string) => {
+    setPaymentStep('confirming');
+    setWillTextMessage(false);
+    stopPolling();
+
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const order = await api<Order>(`/orders/${orderId}/`);
+        if (order.payment_status === 'PAID' || order.status === 'CONFIRMED') {
+          stopPolling();
+          setPaymentStep('done');
+          clearPendingOrder();
+          clearCart();
+          setPlaced({
+            id: order.id,
+            order_number: order.order_number,
+            total: String(order.total),
+            student_name: order.student_name,
+            fulfillment_type: order.fulfillment_type || 'HOME_DELIVERY',
+            status: order.status,
+            payment_status: order.payment_status,
+            payment_method: order.payment_method,
+          });
+          scrollPageTo(0);
+        }
+      } catch {
+        // Keep polling until timeout
+      }
+    }, 3000);
+
+    pollingTimeoutRef.current = setTimeout(() => {
+      stopPolling();
+      setWillTextMessage(true);
+    }, 120000);
+  };
+
+  const handlePaymentSuccess = async (order: PlacedOrder, response: any) => {
+    setPaymentStep('confirming');
+    setOrderError('');
+    try {
+      const res = await orderApi.verifyPayment(order.id, {
+        razorpay_order_id: response.razorpay_order_id,
+        razorpay_payment_id: response.razorpay_payment_id,
+        razorpay_signature: response.razorpay_signature,
+      });
+      if (res.status === 'paid') {
+        setPaymentStep('done');
+        clearPendingOrder();
+        clearCart();
+        setPlaced({
+          ...order,
+          status: 'CONFIRMED',
+          payment_status: 'PAID',
+        });
+        scrollPageTo(0);
+        return;
+      }
+    } catch {
+      // Verify failed or returned confirming: fall through to poll
+    }
+    startPolling(order.id);
+  };
+
+  const handleReconcile = async (orderId: string) => {
+    const now = Date.now();
+    if (now - reconcileLastCallRef.current < 5000) {
+      return;
+    }
+    reconcileLastCallRef.current = now;
+    setPaymentStep('checking');
+    setOrderError('');
+    try {
+      const res = await orderApi.reconcilePayment(orderId);
+      if (res.payment_status === 'PAID' || res.status === 'CONFIRMED') {
+        stopPolling();
+        setPaymentStep('done');
+        clearPendingOrder();
+        clearCart();
+        if (onlineOrder) {
+          setPlaced({
+            ...onlineOrder,
+            status: 'CONFIRMED',
+            payment_status: 'PAID',
+          });
+        }
+        scrollPageTo(0);
+        return;
+      }
+      if (res.has_in_progress_attempt) {
+        setPaymentStep('checking');
+        setInProgressWarning(true);
+        return;
+      }
+      setInProgressWarning(false);
+      setPaymentStep('failed');
+      if (res.last_attempt_failed) {
+        setLastAttemptReason(t('co.tryAgain'));
+      }
+    } catch {
+      setPaymentStep('failed');
+      setInProgressWarning(false);
+    }
+  };
+
+  const handleCheckoutDismissed = (orderId: string) => {
+    setPaymentStep('checking');
+    handleReconcile(orderId);
+  };
+
+  const handlePaymentFailure = (errorResponse: any) => {
+    setPaymentStep('failed');
+    setInProgressWarning(false);
+    const desc = errorResponse?.error?.description || errorResponse?.description || '';
+    setLastAttemptReason(desc);
+  };
+
+  const initiateOnlinePayment = async (order: PlacedOrder) => {
+    setOrderError('');
+    try {
+      const paymentInfo = await orderApi.payment(order.id);
+      const loaded = await loadRazorpay();
+      if (!loaded) {
+        setOrderError('Could not load payment gateway. Please check your connection.');
+        return;
+      }
+      openRazorpayCheckout({
+        key: paymentInfo.key_id,
+        order_id: paymentInfo.razorpay_order_id,
+        amount: paymentInfo.amount_paise,
+        currency: paymentInfo.currency,
+        name: 'School Store',
+        description: `Order #${paymentInfo.store_order_number || order.order_number}`,
+        prefill: paymentInfo.prefill,
+        timeout: 840,
+        modal: {
+          ondismiss: () => {
+            handleCheckoutDismissed(order.id);
+          },
+        },
+        handler: async (response) => {
+          await handlePaymentSuccess(order, response);
+        },
+        onPaymentFailed: (errRes) => {
+          handlePaymentFailure(errRes);
+        },
+      });
+    } catch (error) {
+      setOrderError(t(orderErrorMessage(error)));
+    }
+  };
+
+  const handleSwitchToCod = async () => {
+    if (!onlineOrder) return;
+    setPlacing(true);
+    setOrderError('');
+    try {
+      const res = await orderApi.switchToCod(onlineOrder.id);
+      stopPolling();
+      clearPendingOrder();
+      clearCart();
+      setPlaced({
+        ...onlineOrder,
+        payment_method: 'COD',
+        payment_status: 'PENDING',
+        status: res.status || 'PLACED',
+      });
+      scrollPageTo(0);
+    } catch (error) {
+      setOrderError(t(orderErrorMessage(error)));
+    } finally {
+      setPlacing(false);
+    }
+  };
+
+  const effectiveTotalPaise = quote ? quote.total_paise : totalPaise;
+
   const handlePlaceOrder = async () => {
     if (!child || placing) return;
     setOrderError('');
+    setPriceNotice('');
     setPlacing(true);
     setRetrying(false);
     const contact = { recipient_name: parentName.trim(), phone: parentMobile };
     const payload = prepareOrder({
       student: child.id,
       fulfillment_type: deliveryType === 'HOME' ? 'HOME_DELIVERY' : 'SCHOOL_PICKUP',
-      payment_method: 'COD',
+      payment_method: selectedMethod,
+      expected_total_paise: effectiveTotalPaise,
       delivery_details:
         deliveryType === 'HOME'
           ? {
@@ -158,13 +400,29 @@ export function CheckoutPage() {
         ...(item.measurement ? { fit: fitPayload(item.measurement) } : {}),
       })),
     });
+
     try {
       const order = await submitOrder(payload, () => setRetrying(true));
-      setPlaced(order);
-      clearCart();
-      scrollPageTo(0);
-    } catch (error) {
-      setOrderError(t(orderErrorMessage(error)));
+      if (selectedMethod === 'COD') {
+        clearPendingOrder();
+        setPlaced(order);
+        clearCart();
+        scrollPageTo(0);
+      } else {
+        setOnlineOrder(order);
+        await initiateOnlinePayment(order);
+      }
+    } catch (error: any) {
+      if (error instanceof ApiError && error.status === 409 && (error.data?.code === 'price_changed' || String(error.data?.detail || '').includes('Price changed'))) {
+        setPriceNotice(t('co.priceChanged'));
+        if (error.data?.quote) {
+          setQuote(error.data.quote as OrderQuote);
+        } else {
+          await fetchQuote();
+        }
+      } else {
+        setOrderError(t(orderErrorMessage(error)));
+      }
     } finally {
       setPlacing(false);
       setRetrying(false);
@@ -181,7 +439,7 @@ export function CheckoutPage() {
     deliveryType,
     address: homeAddress,
     items: cart,
-    totalPaise,
+    totalPaise: effectiveTotalPaise,
   });
   const whatsappUrl = whatsappAvailable ? whatsappOrderUrl(siteConfig.whatsappNumber, orderMessage) : '';
 
@@ -189,16 +447,23 @@ export function CheckoutPage() {
   if (placed) {
     const placedTotal = formatINR(Math.round(parseFloat(placed.total) * 100));
     const collect = placed.fulfillment_type === 'SCHOOL_PICKUP';
+    const isOnline = placed.payment_method === 'ONLINE';
     return (
       <div className="order-confirmed-wrap container">
         <div className="order-confirmed-card">
-          <h1 className="confirmed-heading">{t('co.placed.title')}</h1>
+          <h1 className="confirmed-heading">
+            {isOnline ? t('co.paymentSuccess', { n: placed.order_number }) : t('co.placed.title')}
+          </h1>
           <div className="order-num-label">{t('co.placed.number', { n: placed.order_number })}</div>
 
           <div className="confirmed-steps">
             <div className="confirmed-step-row">
               <span className="step-circle">1</span>
-              <span>{t('co.placed.saved', { name: placed.student_name || studentName })}</span>
+              <span>
+                {isOnline
+                  ? t('co.placed.online', { n: placed.order_number })
+                  : t('co.placed.saved', { name: placed.student_name || studentName })}
+              </span>
             </div>
             <div className="confirmed-step-row">
               <span className="step-circle">2</span>
@@ -609,63 +874,159 @@ export function CheckoutPage() {
 
             {activeStep === 3 && (
               <div className="step-body">
-                <div className="payment-options-grid">
-                  <div className="payment-option is-selected">
-                    <div>
-                      <strong>{t('co.cash')}</strong>
-                      <p>{t('co.cashSub')}</p>
+                {priceNotice && (
+                  <div className="checkout-notice-banner" role="alert">
+                    {priceNotice}
+                  </div>
+                )}
+
+                {quoteLoading ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+                    <div className="checkout-skeleton" style={{ height: 56 }} />
+                    <div className="checkout-skeleton" style={{ height: 56 }} />
+                  </div>
+                ) : (
+                  <div className="delivery-radio-group" style={{ marginBottom: 'var(--space-4)' }}>
+                    {quote?.payment_methods.includes('ONLINE') && (
+                      <label className={`delivery-radio-card ${selectedMethod === 'ONLINE' ? 'is-selected' : ''}`}>
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="ONLINE"
+                          checked={selectedMethod === 'ONLINE'}
+                          onChange={() => setSelectedMethod('ONLINE')}
+                          disabled={paymentStep === 'checking' || paymentStep === 'confirming'}
+                        />
+                        <div>
+                          <strong>{t('co.method.online')}</strong>
+                          <p>{t('co.legal')}</p>
+                        </div>
+                      </label>
+                    )}
+                    <label className={`delivery-radio-card ${selectedMethod === 'COD' ? 'is-selected' : ''}`}>
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="COD"
+                        checked={selectedMethod === 'COD'}
+                        onChange={() => setSelectedMethod('COD')}
+                        disabled={paymentStep === 'checking' || paymentStep === 'confirming'}
+                      />
+                      <div>
+                        <strong>{t('co.method.cod')}</strong>
+                        <p>{t('co.cashSub')}</p>
+                      </div>
+                    </label>
+                  </div>
+                )}
+
+                {paymentStep === 'checking' && (
+                  <div className="checkout-status-card" role="status">
+                    <h3>{t('co.checkingPayment')}</h3>
+                    {inProgressWarning ? (
+                      <>
+                        <p>{t('co.paymentInProgress')}</p>
+                        <button
+                          type="button"
+                          className="btn btn-outline"
+                          onClick={() => onlineOrder && handleReconcile(onlineOrder.id)}
+                        >
+                          {t('co.checkAgain')}
+                        </button>
+                      </>
+                    ) : (
+                      <p>{t('co.checkingPayment')}</p>
+                    )}
+                  </div>
+                )}
+
+                {paymentStep === 'confirming' && (
+                  <div className="checkout-status-card" role="status">
+                    <h3>{t('co.confirmingPayment')}</h3>
+                    {willTextMessage && <p>{t('co.willText')}</p>}
+                  </div>
+                )}
+
+                {paymentStep === 'failed' && (
+                  <div className="checkout-status-card" role="status">
+                    {lastAttemptReason && <p>{lastAttemptReason}</p>}
+                    <div className="checkout-action-row">
+                      {!inProgressWarning && (
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={() => onlineOrder && initiateOnlinePayment(onlineOrder)}
+                          >
+                            {t('co.tryAgain')}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-outline"
+                            onClick={handleSwitchToCod}
+                          >
+                            {t('co.switchToCod')}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
-                </div>
+                )}
 
-                {mode === 'account' ? (
+                {paymentStep === 'idle' && (
                   <>
-                    <button
-                      type="button"
-                      className="btn btn-primary pay-now-btn"
-                      onClick={handlePlaceOrder}
-                      disabled={placing}
-                      aria-busy={placing}
-                    >
-                      {placing
-                        ? retrying
-                          ? t('co.retrying')
-                          : t('co.placing')
-                        : t('co.place', { total: formatINR(totalPaise) })}
-                    </button>
-                    {orderError && (
-                      <p className="field-err checkout-order-error" role="alert">
-                        {orderError}
+                    {mode === 'account' ? (
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn-primary pay-now-btn"
+                          onClick={handlePlaceOrder}
+                          disabled={placing || quoteLoading}
+                          aria-busy={placing}
+                        >
+                          {placing
+                            ? retrying
+                              ? t('co.retrying')
+                              : t('co.placing')
+                            : selectedMethod === 'ONLINE'
+                            ? `${t('co.payNow')} · ${formatINR(effectiveTotalPaise)}`
+                            : t('co.place', { total: formatINR(effectiveTotalPaise) })}
+                        </button>
+                        {orderError && (
+                          <p className="field-err checkout-order-error" role="alert">
+                            {orderError}
+                          </p>
+                        )}
+                        <p className="checkout-legal-note">
+                          {t('co.legal')} <Link to="/terms">{t('co.terms')}</Link> · <Link to="/refunds">{t('co.refunds')}</Link> ·{' '}
+                          <Link to="/privacy">{t('co.privacy')}</Link>
+                        </p>
+                      </>
+                    ) : whatsappUrl ? (
+                      <>
+                        <a
+                          href={whatsappUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-primary pay-now-btn"
+                          onClick={() => {
+                            setSentOnWhatsApp(true);
+                            scrollPageTo(0);
+                          }}
+                        >
+                          {t('co.wa.send', { total: formatINR(effectiveTotalPaise) })}
+                        </a>
+                        <p className="checkout-legal-note">
+                          {t('co.wa.note')} {t('co.legal')} <Link to="/terms">{t('co.terms')}</Link> ·{' '}
+                          <Link to="/refunds">{t('co.refunds')}</Link> · <Link to="/privacy">{t('co.privacy')}</Link>
+                        </p>
+                      </>
+                    ) : (
+                      <p className="checkout-closed-note" role="status">
+                        {t('co.closed')}
                       </p>
                     )}
-                    <p className="checkout-legal-note">
-                      {t('co.legal')} <Link to="/terms">{t('co.terms')}</Link> · <Link to="/refunds">{t('co.refunds')}</Link> ·{' '}
-                      <Link to="/privacy">{t('co.privacy')}</Link>
-                    </p>
                   </>
-                ) : whatsappUrl ? (
-                  <>
-                    <a
-                      href={whatsappUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-primary pay-now-btn"
-                      onClick={() => {
-                        setSentOnWhatsApp(true);
-                        scrollPageTo(0);
-                      }}
-                    >
-                      {t('co.wa.send', { total: formatINR(totalPaise) })}
-                    </a>
-                    <p className="checkout-legal-note">
-                      {t('co.wa.note')} {t('co.legal')} <Link to="/terms">{t('co.terms')}</Link> ·{' '}
-                      <Link to="/refunds">{t('co.refunds')}</Link> · <Link to="/privacy">{t('co.privacy')}</Link>
-                    </p>
-                  </>
-                ) : (
-                  <p className="checkout-closed-note" role="status">
-                    {t('co.closed')}
-                  </p>
                 )}
               </div>
             )}
@@ -699,7 +1060,7 @@ export function CheckoutPage() {
 
               <div className="math-total-row">
                 <span>{t('bag.total')}</span>
-                <span className="total-amount">{formatINR(totalPaise)}</span>
+                <span className="total-amount">{formatINR(effectiveTotalPaise)}</span>
               </div>
             </div>
           </div>

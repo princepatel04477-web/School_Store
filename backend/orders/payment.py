@@ -10,14 +10,68 @@ class RazorpayGateway:
     def __init__(self):
         self.key_id = getattr(settings, "RAZORPAY_KEY_ID", "")
         self.secret = getattr(settings, "RAZORPAY_KEY_SECRET", "")
+        self.webhook_secret = getattr(settings, "RAZORPAY_WEBHOOK_SECRET", "")
+
+    def is_usable(self) -> bool:
+        """ONLINE payment is available only when gateway credentials and SDK are available."""
+        if not (self.key_id and self.secret and (self.webhook_secret or settings.DEBUG)):
+            return False
+        try:
+            import razorpay  # noqa: F401
+            return True
+        except Exception:
+            return False
 
     def create_order(self, order):
         if not self.key_id or not self.secret:
             return {"id": f"local_{order.id}", "amount": int(order.total * 100), "currency": "INR"}
-        import razorpay
-        return razorpay.Client(auth=(self.key_id, self.secret)).order.create({
-            "amount": int(Decimal(order.total) * 100), "currency": "INR", "receipt": order.order_number,
-        })
+        import requests
+        resp = requests.post(
+            "https://api.razorpay.com/v1/orders",
+            auth=(self.key_id, self.secret),
+            json={
+                "amount": int(Decimal(order.total) * 100),
+                "currency": "INR",
+                "receipt": order.order_number,
+                "notes": {"store_order_id": str(order.id)},
+            },
+            timeout=5,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def fetch_payment(self, payment_id: str) -> dict:
+        """Fetch payment entity from Razorpay (5s timeout)."""
+        if not (self.key_id and self.secret):
+            return {
+                "id": payment_id,
+                "status": "captured",
+                "amount": 0,
+                "currency": "INR",
+                "method": "test",
+            }
+        import requests
+        resp = requests.get(
+            f"https://api.razorpay.com/v1/payments/{payment_id}",
+            auth=(self.key_id, self.secret),
+            timeout=5,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def fetch_order_payments(self, razorpay_order_id: str) -> list[dict]:
+        """Fetch all payments for a Razorpay order from Razorpay (5s timeout)."""
+        if not razorpay_order_id or not (self.key_id and self.secret):
+            return []
+        import requests
+        resp = requests.get(
+            f"https://api.razorpay.com/v1/orders/{razorpay_order_id}/payments",
+            auth=(self.key_id, self.secret),
+            timeout=5,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("items", []) if isinstance(data, dict) else []
 
     def _can_verify(self) -> bool:
         # Without a secret every HMAC is forgeable (the key is ""), so refuse
@@ -31,7 +85,10 @@ class RazorpayGateway:
         return hmac.compare_digest(expected, signature)
 
     def verify_webhook(self, payload, signature):
-        if not self._can_verify():
+        secret = self.webhook_secret or (self.secret if settings.DEBUG else "")
+        if not secret:
             return False
-        expected = hmac.new(self.secret.encode(), payload, hashlib.sha256).hexdigest()
+        if isinstance(payload, str):
+            payload = payload.encode("utf-8")
+        expected = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, signature)

@@ -5,7 +5,8 @@ import { Shell } from '../App';
 import { ListenButton } from '../components/ListenButton';
 import { SelectionFlow } from '../components/SelectionFlow';
 import { Cart, Timeline, type CartItem } from '../components/Store';
-import { api, deleteChildPhotos, Order, Product } from '../api';
+import { api, deleteChildPhotos, Order, Product, orderApi } from '../api';
+import { loadRazorpay, openRazorpayCheckout } from '../services/paymentAdapter';
 import { useLang } from '../i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import '../components/photoConsent.css';
@@ -365,11 +366,47 @@ function Dashboard() {
 }
 
 function Orders() {
+  const { t } = useLang();
+  const queryClient = useQueryClient();
   const { data } = useQuery({
     queryKey: ['orders'],
     queryFn: () => api<any>('/orders/').catch(() => []),
   });
   const orders: Order[] = (data?.results || data || []) as Order[];
+
+  const handlePayNow = async (order: Order) => {
+    try {
+      const paymentInfo = await orderApi.payment(order.id);
+      const loaded = await loadRazorpay();
+      if (!loaded) return;
+      openRazorpayCheckout({
+        key: paymentInfo.key_id,
+        order_id: paymentInfo.razorpay_order_id,
+        amount: paymentInfo.amount_paise,
+        currency: paymentInfo.currency,
+        name: 'School Store',
+        description: `Order #${paymentInfo.store_order_number || order.order_number}`,
+        prefill: paymentInfo.prefill,
+        timeout: 840,
+        modal: {
+          ondismiss: async () => {
+            await orderApi.reconcilePayment(order.id).catch(() => {});
+            queryClient.invalidateQueries({ queryKey: ['orders'] });
+          },
+        },
+        handler: async (response) => {
+          await orderApi.verifyPayment(order.id, {
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          }).catch(() => {});
+          queryClient.invalidateQueries({ queryKey: ['orders'] });
+        },
+      });
+    } catch {
+      // Payment start failed
+    }
+  };
 
   return (
     <>
@@ -393,11 +430,49 @@ function Orders() {
                   {new Date(o.created_at).toLocaleDateString('en-IN')}
                 </small>
               </div>
-              <span className="status">{o.status}</span>
+              <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                {o.payment_method === 'ONLINE' && (
+                  <span className="status" style={{ background: 'var(--paper-sunk)', color: 'var(--ink)' }}>
+                    {o.payment_status}
+                  </span>
+                )}
+                <span className="status">{o.status}</span>
+              </div>
             </div>
             <p>
               {o.student_name} · <strong>₹{o.total}</strong>
             </p>
+
+            {o.status === 'CANCELLED' && (
+              <div style={{ margin: 'var(--space-3) 0', padding: 'var(--space-3)', background: 'var(--paper-sunk)', borderRadius: 'var(--radius-sm)' }}>
+                <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--ink-soft)' }}>
+                  {t('co.orderReleased')}
+                </p>
+                <Link to="/parent" className="btn btn-outline" style={{ marginTop: 'var(--space-2)', display: 'inline-block' }}>
+                  {t('co.placeOrderAgain')}
+                </Link>
+              </div>
+            )}
+
+            {o.has_in_progress_attempt && o.status !== 'CANCELLED' && (
+              <div style={{ margin: 'var(--space-3) 0', padding: 'var(--space-3)', background: 'var(--paper-sunk)', borderRadius: 'var(--radius-sm)' }}>
+                <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--ink)' }}>
+                  {t('co.paymentInProgress')}
+                </p>
+              </div>
+            )}
+
+            {o.can_pay_now && o.status !== 'CANCELLED' && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ marginTop: 'var(--space-3)' }}
+                onClick={() => handlePayNow(o)}
+              >
+                {t('co.payNow')}
+              </button>
+            )}
+
             <Timeline order={o} />
           </article>
         ))

@@ -10,11 +10,14 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from unittest.mock import patch
+
 from accounts.models import User
 from catalog.models import Category, Product, ProductVariant
 from inventory.models import StockBalance, StockMovement
 from inventory.services import apply_stock_movement
-from orders.models import Order, OrderItem, OrderStatusEvent
+from orders.models import Order, OrderItem, OrderStatusEvent, PaymentReview
+from orders.payment import RazorpayGateway
 from schools.models import City, School, Student
 
 SECRET = "test_secret"
@@ -60,7 +63,7 @@ class OrderFixture(TestCase):
 
 class StatusTransitionTests(OrderFixture):
     def test_single_order_patch_changes_status_and_writes_event(self):
-        order = self.make_order("ORD-PNQ-1")
+        order = self.make_order("ORD-PNQ-1", payment_method="COD")
         res = self.admin_client().patch(f"/api/orders/{order.pk}/", {"status": "CONFIRMED"}, format="json")
         self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
         order.refresh_from_db()
@@ -98,7 +101,7 @@ class StatusTransitionTests(OrderFixture):
         self.assertEqual(self.stock(), 8)
 
 
-@override_settings(RAZORPAY_KEY_ID="rzp_test", RAZORPAY_KEY_SECRET=SECRET)
+@override_settings(RAZORPAY_KEY_ID="rzp_test", RAZORPAY_KEY_SECRET=SECRET, RAZORPAY_WEBHOOK_SECRET=SECRET)
 class PaymentSafetyTests(OrderFixture):
     def parent_client(self):
         client = APIClient()
@@ -118,10 +121,19 @@ class PaymentSafetyTests(OrderFixture):
 
     def test_valid_signature_for_this_order_marks_it_paid(self):
         order = self.make_order("ORD-PNQ-6", payer=self.parent, razorpay_order_id="order_ok")
-        res = self.parent_client().post(
-            reverse("order-verify-payment", kwargs={"pk": order.pk}),
-            {"razorpay_order_id": "order_ok", "razorpay_payment_id": "pay_2", "razorpay_signature": sign(b"order_ok|pay_2")},
-        )
+        fake_payment = {
+            "id": "pay_2",
+            "order_id": "order_ok",
+            "status": "captured",
+            "amount": int(order.total * 100),
+            "currency": "INR",
+            "method": "upi",
+        }
+        with patch.object(RazorpayGateway, "fetch_payment", return_value=fake_payment):
+            res = self.parent_client().post(
+                reverse("order-verify-payment", kwargs={"pk": order.pk}),
+                {"razorpay_order_id": "order_ok", "razorpay_payment_id": "pay_2", "razorpay_signature": sign(b"order_ok|pay_2")},
+            )
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         order.refresh_from_db()
         self.assertEqual(order.payment_status, Order.PaymentStatus.PAID)
@@ -135,13 +147,28 @@ class PaymentSafetyTests(OrderFixture):
 
     def test_late_webhook_does_not_revive_a_cancelled_order(self):
         order = self.make_order("ORD-PNQ-8", order_status=Order.Status.CANCELLED, payer=self.parent, razorpay_order_id="order_late")
-        body = json.dumps({"payload": {"payment": {"entity": {"id": "pay_late", "order_id": "order_late"}}}}).encode()
+        body = json.dumps({
+            "event_id": "evt_late_123",
+            "event": "payment.captured",
+            "payload": {
+                "payment": {
+                    "entity": {
+                        "id": "pay_late",
+                        "order_id": "order_late",
+                        "status": "captured",
+                        "amount": int(order.total * 100),
+                        "currency": "INR",
+                        "method": "card",
+                    }
+                }
+            }
+        }).encode()
         res = self.client.post(reverse("razorpay-webhook"), body, content_type="application/json", HTTP_X_RAZORPAY_SIGNATURE=sign(body))
         self.assertEqual(res.status_code, 200)
         order.refresh_from_db()
         self.assertEqual(order.payment_status, Order.PaymentStatus.PAID)
         self.assertEqual(order.status, Order.Status.CANCELLED)
-        self.assertTrue(OrderStatusEvent.objects.filter(order=order, note__icontains="Refund needed").exists())
+        self.assertTrue(PaymentReview.objects.filter(order=order, reason="REFUND_AFTER_RELEASE").exists())
 
         # Gateways resend: the second delivery changes nothing.
         self.client.post(reverse("razorpay-webhook"), body, content_type="application/json", HTTP_X_RAZORPAY_SIGNATURE=sign(body))

@@ -30,7 +30,43 @@ export type Product={
   customisation_schema?:CustomisationField[] | {fields?: CustomisationField[]};
   variants:{id:string;size:string;stock_status:StockStatus|null}[];
 };
-export type Order={id:string;order_number:string;student_name:string;status:string;payment_status:string;total:number;created_at:string;status_events?:{status:string;timestamp:string}[]};
+export type OrderQuoteLine = {
+  variant: string;
+  sku: string;
+  name: string;
+  size: string;
+  quantity: number;
+  unit_price: string;
+  line_total: string;
+};
+
+export type OrderQuote = {
+  lines: OrderQuoteLine[];
+  subtotal: string;
+  total: string;
+  total_paise: number;
+  currency: 'INR';
+  payment_methods: ('COD' | 'ONLINE')[];
+  reservation_minutes: number;
+};
+
+export type Order = {
+  id: string;
+  order_number: string;
+  student_name: string;
+  status: string;
+  payment_status: string;
+  payment_method?: 'COD' | 'ONLINE';
+  fulfillment_type?: string;
+  total: number | string;
+  created_at: string;
+  expires_at?: string;
+  last_attempt_failed?: string | null;
+  has_in_progress_attempt?: boolean;
+  can_pay_now?: boolean;
+  razorpay_order_id?: string;
+  status_events?: { status: string; timestamp: string }[];
+};
 const API=import.meta.env.VITE_API_URL||'/api';
 let refreshing:Promise<string>|null=null;
 async function refresh(){const token=localStorage.getItem('refresh'); const r=await fetch(`${API}/auth/token/refresh/`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh:token})}); if(!r.ok) throw Error('session expired'); const d=await r.json(); localStorage.setItem('access',d.access); return d.access;}
@@ -58,6 +94,42 @@ export const parentChildren={
   claim:(school:string,gr_number:string,date_of_birth:string)=>api<ParentChild>('/students/claim/',{method:'POST',body:JSON.stringify({school,gr_number,date_of_birth})}),
   /** Every active school (public list) for the find-your-child form. */
   schools:()=>api<{id:string;name:string;code:string}[]>('/public/schools/'),
+};
+
+export type PaymentStartResponse = {
+  key_id: string;
+  razorpay_order_id: string;
+  amount_paise: number;
+  amount: number;
+  currency: string;
+  store_order_number?: string;
+  prefill?: {
+    name?: string;
+    contact?: string;
+    email?: string;
+  };
+};
+
+export type VerifyPaymentResponse = {
+  status: 'paid' | 'confirming' | 'failed';
+  payment_status: string;
+  order_status: string;
+};
+
+export type SwitchToCodResponse = {
+  detail: string;
+  order_number: string;
+  payment_method: 'COD';
+  status?: string;
+};
+
+export const orderApi = {
+  quote: (body: unknown) => api<OrderQuote>('/orders/quote/', { method: 'POST', body: JSON.stringify(body) }),
+  payment: (orderId: string) => api<PaymentStartResponse>(`/orders/${orderId}/payment/`, { method: 'POST' }),
+  verifyPayment: (orderId: string, data: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) =>
+    api<VerifyPaymentResponse>(`/orders/${orderId}/verify-payment/`, { method: 'POST', body: JSON.stringify(data) }),
+  reconcilePayment: (orderId: string) => api<Order>(`/orders/${orderId}/reconcile-payment/`, { method: 'POST' }),
+  switchToCod: (orderId: string) => api<SwitchToCodResponse>(`/orders/${orderId}/switch-to-cod/`, { method: 'POST' }),
 };
 export const queryKey={catalog:['catalog'],orders:['orders'],students:['students']};
 

@@ -946,6 +946,81 @@ export const messages = {
   'co.err.address': { en: 'Write your house and society', gu: 'ઘર નંબર અને સોસાયટી લખો', hi: 'मकान नंबर और सोसाइटी लिखें' },
   'co.err.city': { en: 'Write your city', gu: 'શહેર લખો', hi: 'शहर लिखें' },
   'co.err.state': { en: 'Write your state', gu: 'રાજ્ય લખો', hi: 'राज्य लिखें' },
+  'co.method.online': {
+    en: 'Pay online (UPI, card, netbanking)',
+    gu: 'ઓનલાઈન ચૂકવો (UPI, કાર્ડ, નેટબેન્કિંગ)',
+    hi: 'ऑनलाइन भुगतान करें (UPI, कार्ड, नेटबैंकिंग)',
+  },
+  'co.method.cod': {
+    en: 'Cash on delivery',
+    gu: 'ડિલિવરી વખતે રોકડા (COD)',
+    hi: 'डिलीवरी पर नकद (COD)',
+  },
+  'co.priceChanged': {
+    en: 'Prices have been updated. Please review the new total and confirm your order.',
+    gu: 'ભાવ બદલાયા છે. કૃપા કરીને નવી કુલ રકમ ચકાસો અને તમારા ઓર્ડરની પુષ્ટિ કરો.',
+    hi: 'कीमतें बदल गई हैं। कृपया नई कुल राशि देखें और अपने ऑर्डर की पुष्टि करें।',
+  },
+  'co.checkingPayment': {
+    en: 'Checking your payment...',
+    gu: 'તમારી ચુકવણી તપાસી રહ્યા છીએ...',
+    hi: 'आपके भुगतान की जाँच कर रहे हैं...',
+  },
+  'co.confirmingPayment': {
+    en: 'We are confirming your payment. Please do not pay again.',
+    gu: 'અમે તમારી ચુકવણીની પુષ્ટિ કરી રહ્યા છીએ. કૃપા કરીને ફરીથી ચૂકવણી કરશો નહીં.',
+    hi: 'हम आपके भुगतान की पुष्टि कर रहे हैं। कृपया दोबारा भुगतान न करें।',
+  },
+  'co.paymentInProgress': {
+    en: 'A payment is still in progress. Check your UPI app. Please do not pay again.',
+    gu: 'ચુકવણી હજુ ચાલુ છે. તમારી UPI એપ તપાસો. કૃપા કરીને ફરીથી ચૂકવણી કરશો નહીં.',
+    hi: 'भुगतान अभी प्रक्रिया में है। अपना UPI ऐप देखें। कृपया दोबारा भुगतान न करें।',
+  },
+  'co.checkAgain': {
+    en: 'Check again',
+    gu: 'ફરી તપાસો',
+    hi: 'फिर से जाँचें',
+  },
+  'co.tryAgain': {
+    en: 'Try again',
+    gu: 'ફરી પ્રયત્ન કરો',
+    hi: 'फिर से कोशिश करें',
+  },
+  'co.switchToCod': {
+    en: 'Pay cash on delivery instead',
+    gu: 'તેના બદલે ડિલિવરી વખતે રોકડા ચૂકવો',
+    hi: 'इसके बजाय डिलीवरी पर नकद भुगतान करें',
+  },
+  'co.paymentSuccess': {
+    en: 'Payment received. Order {n} is confirmed.',
+    gu: 'ચુકવણી મળી ગઈ છે. ઓર્ડર {n} પાકો થઈ ગયો છે.',
+    hi: 'भुगतान प्राप्त हुआ। ऑर्डर {n} कन्फ़र्म हो गया है।',
+  },
+  'co.willText': {
+    en: 'We will text you when it is confirmed.',
+    gu: 'ઓર્ડર પાકો થશે ત્યારે અમે તમને મેસેજ કરીશું.',
+    hi: 'कन्फ़र्म होने पर हम आपको मैसेज भेजेंगे।',
+  },
+  'co.orderReleased': {
+    en: 'This order was released because payment did not arrive in time. If money left your account it will be refunded within 7 working days.',
+    gu: 'સમયસર ચુકવણી ન થવાને કારણે આ ઓર્ડર રદ થયો છે. જો તમારા ખાતામાંથી પૈસા કપાયા હોય, તો 7 કામકાજના દિવસોમાં પરત મળશે.',
+    hi: 'समय पर भुगतान न होने के कारण यह ऑर्डर रद्द कर दिया गया है। यदि आपके खाते से पैसे कट गए हैं, तो 7 कार्य दिवसों में वापस कर दिए जाएँगे।',
+  },
+  'co.placeOrderAgain': {
+    en: 'Place the order again',
+    gu: 'ફરીથી ઓર્ડર કરો',
+    hi: 'फिर से ऑर्डर करें',
+  },
+  'co.payNow': {
+    en: 'Pay now',
+    gu: 'હમણાં ચૂકવો',
+    hi: 'अभी भुगतान करें',
+  },
+  'co.placed.online': {
+    en: 'Payment received online. Order number {n}.',
+    gu: 'ઓનલાઈન ચુકવણી મળી ગઈ છે. ઓર્ડર નંબર {n}.',
+    hi: 'ऑनलाइन भुगतान प्राप्त हुआ। ऑर्डर नंबर {n}।',
+  },
 
   // ---------- order problems ----------
   'err.offline': {

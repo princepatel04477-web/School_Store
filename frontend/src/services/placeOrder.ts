@@ -16,7 +16,8 @@ export interface OrderPayload {
   idempotency_key: string;
   student: string;
   fulfillment_type: 'HOME_DELIVERY' | 'SCHOOL_PICKUP';
-  payment_method: 'COD';
+  payment_method: 'COD' | 'ONLINE';
+  expected_total_paise?: number;
   delivery_details: Record<string, string>;
   /** A shirt or trouser line carries the child's measurement it was sized from. */
   items: { variant: string; quantity: number; fit?: ReturnType<typeof fitPayload> }[];
@@ -28,6 +29,9 @@ export interface PlacedOrder {
   total: string;
   student_name?: string;
   fulfillment_type: string;
+  payment_method?: 'COD' | 'ONLINE';
+  payment_status?: string;
+  status?: string;
 }
 
 const PENDING_KEY = 'schoolstore_pending_order';

@@ -71,6 +71,7 @@ export default {
     }
 
     // Retailer endpoints (/api/retail/...) live on Cloudflare Showcase (D1 + KV).
+    const isPayment = url.pathname.startsWith('/api/payments/');
     const isRetail = url.pathname.startsWith('/api/retail/');
     const isAuth = url.pathname === '/api/auth/token/' || url.pathname === '/api/auth/token/refresh/' || url.pathname === '/api/auth/me/';
     const isPublicRetail = url.pathname.startsWith('/api/public/schools/') || url.pathname.startsWith('/api/public/mockups/');
@@ -79,7 +80,7 @@ export default {
       ? await request.arrayBuffer()
       : null;
 
-    if (isRetail && env.SHOWCASE) {
+    if (!isPayment && isRetail && env.SHOWCASE) {
       try {
         const scRes = await forwardToShowcase(env, request, bodyBytes);
         if (scRes) {
@@ -92,7 +93,7 @@ export default {
 
     const origin = await env.CONFIG.get('origin', { cacheTtl: 60 });
     if (!origin) {
-      if ((isAuth || isRetail || isPublicRetail) && env.SHOWCASE) {
+      if (!isPayment && (isAuth || isRetail || isPublicRetail) && env.SHOWCASE) {
         const scRes = await forwardToShowcase(env, request, bodyBytes);
         if (scRes) return scRes;
       }
@@ -114,7 +115,7 @@ export default {
       const res = await fetch(upstreamUrl.toString(), init);
 
       // If Django returns 401 on auth (e.g. retailer account in D1) or 404 on retail/public assets, fall back to showcase
-      if (((isAuth && res.status === 401) || ((isRetail || isPublicRetail) && res.status === 404) || TUNNEL_DOWN.has(res.status)) && env.SHOWCASE) {
+      if (!isPayment && ((isAuth && res.status === 401) || ((isRetail || isPublicRetail) && res.status === 404) || TUNNEL_DOWN.has(res.status)) && env.SHOWCASE) {
         try {
           const scRes = await forwardToShowcase(env, request, bodyBytes);
           if (scRes && (scRes.ok || (TUNNEL_DOWN.has(res.status) && scRes.status !== 404))) {
@@ -130,7 +131,7 @@ export default {
       out.headers.set('x-served-by', 'local');
       return out;
     } catch (_) {
-      if ((isAuth || isRetail || isPublicRetail) && env.SHOWCASE) {
+      if (!isPayment && (isAuth || isRetail || isPublicRetail) && env.SHOWCASE) {
         try {
           const scRes = await forwardToShowcase(env, request, bodyBytes);
           if (scRes) return scRes;

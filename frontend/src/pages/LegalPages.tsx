@@ -79,7 +79,11 @@ export function PrivacyPage() {
           also store the time you agreed, the policy version, and the IP address and browser of that request.
         </dd>
         <dt>Payments</dt>
-        <dd>Handled by our payment partner. We never see or store your card or UPI PIN.</dd>
+        <dd>
+          Online payments are handled by our payment partner, Razorpay. When you choose online payment, Razorpay
+          receives your order number, amount, parent name and phone number to process the transaction.
+          Your card and UPI details are entered directly on Razorpay's page and never reach us or get stored by us.
+        </dd>
       </dl>
 
       <h2>How your child is linked to you</h2>
@@ -92,7 +96,7 @@ export function PrivacyPage() {
       <h2>Who we share it with</h2>
       <p>
         Your child's school (to confirm orders and run the collection counter), the delivery partner (name, phone and
-        address only) and the payment partner. Staff of your child's school, and our own staff, can see the
+        address only) and our payment partner, Razorpay (order number, amount, parent name and phone for online payments). Staff of your child's school, and our own staff, can see the
         measurements saved on your child's record, and a teacher who orders for your child can add one. The tailor
         who sews the uniform gets a sheet with your child's name, GR number, class, the sizes ordered and the
         measurements, and nothing else. School staff do not get this sheet. School
@@ -154,6 +158,12 @@ export function TermsPage() {
         dispatch and you can cancel for a full refund.
       </p>
 
+      <h2>Online payment and stock reservation</h2>
+      <p>
+        When you choose to pay online, stock for the items in your order is reserved for 15 minutes while you complete
+        payment. If payment is not completed within 15 minutes, the reservation expires and items are released back to stock.
+      </p>
+
       <h2>Personalised items</h2>
       <p>
         ID cards and anything printed with your child's name are made to order. Check the preview carefully: once
@@ -199,6 +209,12 @@ export function RefundPage() {
       <p>
         Cancel any time before dispatch for a full refund. Personalised items (ID cards, name labels) cannot be
         cancelled once production starts.
+      </p>
+
+      <h2>Orders released due to payment timeout</h2>
+      <p>
+        If your payment arrives after an order's 15-minute reservation has expired and the order was cancelled, the payment
+        is automatically flagged and refunded in full to your original payment method within 7 working days.
       </p>
 
       <h2>How refunds are paid</h2>
