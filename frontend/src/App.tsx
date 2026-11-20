@@ -43,7 +43,6 @@ const AdminPortal = lazy(() => import('./pages/AdminPortal'));
 
 import { ComingSoonPage, NotFoundPage } from './pages/InfoPages';
 import { PrivacyPage, TermsPage, RefundPage } from './pages/LegalPages';
-
 export const homeFor = (role?: string, cityId?: string | null) =>
   role === 'BOSS'
     ? '/boss'

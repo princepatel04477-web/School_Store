@@ -67,7 +67,7 @@ export const messages = {
   'nav.change': { en: 'Change', gu: 'બદલો', hi: 'बदलें' },
   'nav.search': { en: 'Search', gu: 'શોધો', hi: 'खोजें' },
   'nav.language': { en: 'Language', gu: 'ભાષા', hi: 'भाषा' },
-  'nav.myAccount': { en: 'My orders', gu: 'મારા ઓર્ડર', hi: 'मेरे ऑर्डर' },
+  'nav.myAccount': { en: 'My account', gu: 'મારું એકાઉન્ટ', hi: 'मेरा खाता' },
   'nav.signIn': { en: 'Sign in', gu: 'લોગિન', hi: 'लॉगिन' },
   'nav.bag': { en: 'Bag, {count} items', gu: 'બેગ, {count} વસ્તુ', hi: 'बैग, {count} चीज़ें' },
   'nav.sizeGuide': { en: 'Size guide', gu: 'સાઈઝ કેવી રીતે પસંદ કરવી', hi: 'साइज़ कैसे चुनें' },

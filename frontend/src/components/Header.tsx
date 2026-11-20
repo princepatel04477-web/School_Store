@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Search, ShoppingBag, Menu, X, ArrowRight, User } from './ui/icons';
 import { motion, AnimatePresence, useAnimate, useReducedMotion } from 'motion/react';
-import { useAuth } from '../auth';
+import { useAccountEntry } from './account/useAccountEntry';
 import { siteConfig, SHOP_LINK } from '../siteConfig';
 import { useStoreState } from '../store/storeState';
 import { SchoolCrest } from './school/SchoolCrest';
@@ -23,7 +23,7 @@ export interface HeaderProps {
 const indexLabel = (i: number) => String(i + 1).padStart(2, '0');
 
 export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps) {
-  const { user } = useAuth();
+  const accountEntry = useAccountEntry();
   const { t } = useLang();
   const { totalCount, selection } = useStoreState();
 
@@ -184,22 +184,22 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
               <Search width={20} height={20} strokeWidth={1.5} />
             </button>
 
-            {user ? (
-              <Link to="/parent" className="action-account-btn" aria-label={t('nav.myAccount')}>
+            {accountEntry.isSignedIn ? (
+              <Link to={accountEntry.to} className="action-account-btn" aria-label={accountEntry.ariaLabel}>
                 <User width={20} height={20} strokeWidth={1.5} />
               </Link>
             ) : (
-              <Link to="/login" className="action-signin-link">
-                {t('nav.signIn')}
+              <Link to={accountEntry.to} className="action-signin-link">
+                {accountEntry.label}
               </Link>
             )}
 
             {/* A direct, always-visible profile entry for phone users. */}
             <Link
-              to={user ? '/parent' : '/login'}
+              to={accountEntry.to}
               className="mobile-profile-btn"
-              aria-label={user ? t('nav.myAccount') : t('nav.signIn')}
-              title={user ? t('nav.myAccount') : t('nav.signIn')}
+              aria-label={accountEntry.ariaLabel}
+              title={accountEntry.ariaLabel}
             >
               <User width={20} height={20} strokeWidth={1.5} />
             </Link>
@@ -291,15 +291,9 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
               <Link to="/help" className="sheet-secondary-item" onClick={closeMenu}>
                 {t('nav.help')}
               </Link>
-              {user ? (
-                <Link to="/parent" className="sheet-secondary-item" onClick={closeMenu}>
-                  {t('nav.myAccount')}
-                </Link>
-              ) : (
-                <Link to="/login" className="sheet-secondary-item" onClick={closeMenu}>
-                  {t('nav.signIn')}
-                </Link>
-              )}
+              <Link to={accountEntry.to} className="sheet-secondary-item" onClick={closeMenu}>
+                {accountEntry.label}
+              </Link>
               <button
                 type="button"
                 className="sheet-secondary-item sheet-lang-item"

@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
 import { useStoreState } from '../../store/storeState';
 import { useLang } from '../../i18n';
 import { EASING } from '../../motion/motionConfig';
+import { User } from '../ui/icons';
+import { useAccountEntry } from '../account/useAccountEntry';
 import './homeHero.css';
 
 export interface HomeHeroProps {
@@ -13,6 +16,7 @@ export interface HomeHeroProps {
 export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
   const { lang, t, setLang } = useLang();
   const { totalCount } = useStoreState();
+  const accountEntry = useAccountEntry();
   const shouldReduceMotion = useReducedMotion();
   const [isCompact, setIsCompact] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -132,6 +136,15 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
               </svg>
               <span className="emerald-lang-name">{langPillLabel}</span>
             </button>
+
+            <Link
+              to={accountEntry.to}
+              className="emerald-account-btn"
+              aria-label={accountEntry.ariaLabel}
+            >
+              <User width={22} height={22} strokeWidth={2} className="emerald-account-icon" />
+              <span className="emerald-account-label">{accountEntry.label}</span>
+            </Link>
 
             <button
               type="button"
