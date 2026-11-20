@@ -268,6 +268,45 @@ export function UniformCatalogView() {
     },
   });
 
+  const deleteProductMutation = useMutation({
+    mutationFn: (productId: string) => portalApi.deleteProduct(productId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['portal-products'] });
+      queryClient.invalidateQueries({ queryKey: ['portal-stock-balances'] });
+    },
+    onError: (err: any) => {
+      alert(err instanceof Error ? err.message : 'Failed to delete uniform item.');
+    },
+  });
+
+  const reactivateProductMutation = useMutation({
+    mutationFn: (productId: string) => portalApi.updateProduct(productId, { active: true }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['portal-products'] });
+      queryClient.invalidateQueries({ queryKey: ['portal-stock-balances'] });
+    },
+    onError: (err: any) => {
+      alert(err instanceof Error ? err.message : 'Failed to reactivate uniform item.');
+    },
+  });
+
+  const deleteVariantMutation = useMutation({
+    mutationFn: (variantId: string) => portalApi.deleteVariant(variantId),
+    onSuccess: (_, variantId) => {
+      if (managingSizesProduct) {
+        setManagingSizesProduct({
+          ...managingSizesProduct,
+          variants: (managingSizesProduct.variants || []).filter((v) => v.id !== variantId),
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['portal-products'] });
+      queryClient.invalidateQueries({ queryKey: ['portal-stock-balances'] });
+    },
+    onError: (err: any) => {
+      alert(err instanceof Error ? err.message : 'Failed to delete variant.');
+    },
+  });
+
   return (
     <div>
       <div className="portal-page-header">
@@ -483,13 +522,41 @@ export function UniformCatalogView() {
                         )}
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <button
-                          type="button"
-                          className="portal-btn portal-btn-secondary portal-btn-sm"
-                          onClick={() => openEditModal(p)}
-                        >
-                          Edit
-                        </button>
+                        <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
+                          <button
+                            type="button"
+                            className="portal-btn portal-btn-secondary portal-btn-sm"
+                            onClick={() => openEditModal(p)}
+                          >
+                            Edit
+                          </button>
+                          {p.active ? (
+                            <button
+                              type="button"
+                              className="portal-btn portal-btn-danger portal-btn-sm"
+                              onClick={() => {
+                                if (window.confirm(`Delete "${p.name}"? This removes it from the parent storefront.`)) {
+                                  deleteProductMutation.mutate(p.id);
+                                }
+                              }}
+                              disabled={deleteProductMutation.isPending}
+                              title="Delete uniform item"
+                            >
+                              Delete
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="portal-btn portal-btn-secondary portal-btn-sm"
+                              onClick={() => reactivateProductMutation.mutate(p.id)}
+                              disabled={reactivateProductMutation.isPending}
+                              style={{ color: '#065f46', borderColor: '#a7f3d0' }}
+                              title="Reactivate uniform item"
+                            >
+                              Reactivate
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -738,25 +805,44 @@ export function UniformCatalogView() {
                 </div>
               </div>
 
-              <div className="portal-modal-footer">
-                <button
-                  type="button"
-                  className="portal-btn portal-btn-secondary"
-                  onClick={() => setItemModalOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="portal-btn portal-btn-primary"
-                  disabled={saveProductMutation.isPending || uploadProgress}
-                >
-                  {saveProductMutation.isPending
-                    ? 'Saving...'
-                    : editingProduct
-                    ? 'Save Changes'
-                    : 'Create Product'}
-                </button>
+              <div className="portal-modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {editingProduct ? (
+                  <button
+                    type="button"
+                    className="portal-btn portal-btn-danger"
+                    onClick={() => {
+                      if (window.confirm(`Are you sure you want to delete "${editingProduct.name}"?`)) {
+                        deleteProductMutation.mutate(editingProduct.id, {
+                          onSuccess: () => setItemModalOpen(false),
+                        });
+                      }
+                    }}
+                    disabled={deleteProductMutation.isPending}
+                  >
+                    {deleteProductMutation.isPending ? 'Deleting...' : 'Delete Item'}
+                  </button>
+                ) : <div />}
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="portal-btn portal-btn-secondary"
+                    onClick={() => setItemModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="portal-btn portal-btn-primary"
+                    disabled={saveProductMutation.isPending || uploadProgress}
+                  >
+                    {saveProductMutation.isPending
+                      ? 'Saving...'
+                      : editingProduct
+                      ? 'Save Changes'
+                      : 'Create Product'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -858,18 +944,32 @@ export function UniformCatalogView() {
                               )}
                             </td>
                             <td style={{ textAlign: 'right' }}>
-                              <button
-                                type="button"
-                                className="portal-btn portal-btn-secondary portal-btn-sm"
-                                onClick={() =>
-                                  toggleVariantMutation.mutate({
-                                    variantId: v.id,
-                                    active: !v.active,
-                                  })
-                                }
-                              >
-                                {v.active ? 'Disable' : 'Enable'}
-                              </button>
+                              <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                <button
+                                  type="button"
+                                  className="portal-btn portal-btn-secondary portal-btn-sm"
+                                  onClick={() =>
+                                    toggleVariantMutation.mutate({
+                                      variantId: v.id,
+                                      active: !v.active,
+                                    })
+                                  }
+                                >
+                                  {v.active ? 'Disable' : 'Enable'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="portal-btn portal-btn-danger portal-btn-sm"
+                                  onClick={() => {
+                                    if (window.confirm(`Delete size variant "${v.size}"?`)) {
+                                      deleteVariantMutation.mutate(v.id);
+                                    }
+                                  }}
+                                  title="Delete size variant"
+                                >
+                                  Delete
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}

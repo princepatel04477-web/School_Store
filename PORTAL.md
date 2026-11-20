@@ -15,9 +15,10 @@ Rebuilt the uniform management portal cleanly from the live codebase (`origin/re
   - **Storage**: Saves output to disk under `MEDIA_ROOT/products/<product_id>/<uuid>.webp`.
   - **Catalogue Integration**: Prepends the CDN absolute URL `https://school-store.aqualite.workers.dev/media/products/<product_id>/<uuid>.webp` to the product's `images` array and flushes catalog cache. Returns the updated product representation.
 
-- **Catalogue Serializer & Scoping**:
+- **Catalogue Serializer, Scoping & Deletion**:
   - `backend/catalog/serializers.py`: Added `product_type` (`SOCKS`, `BELT`, `TIE`) to `ProductSerializer`. Auto-fills `grades` M2M using `class_from` and `class_to` range mapping (`Class 1`..`Class 12`) when explicit `grades` is not supplied.
   - City admin permission scoping: `ADMIN` can only manage schools, products, and variants matching their designated city.
+  - Soft-delete: Added `perform_destroy` on `ProductViewSet` and `ProductVariantViewSet`. Soft-deletes products and variants by setting `active = False` (cascading deactivation from product to variants) and clearing catalogue cache without breaking protected foreign keys in order history. Restricts city-admin to their assigned city.
 
 - **Stock Balances & Movements**:
   - `backend/inventory/views.py`: Filter `StockBalanceViewSet` by `city`, `variant`, `school`, and `product`.
@@ -33,6 +34,7 @@ All portal screens follow the design rules defined in `CLAUDE.md` (no drop shado
    - Protected route `/portal/*` wrapped in `<Guard roles={['BOSS', 'ADMIN']}>`.
    - Accessible via "Uniform Portal" navigation link in both `BossPanel` (`/boss`) and `CityAdmin` (`/city`) panels.
    - Clean top bar displaying current authenticated user and role, link to customer storefront, back button to management panel, and sign-out button.
+   - Layout isolation: Header and secondary navigation bar (`.portal-nav-bar`) separated into distinct blocks with explicit styling overrides against global 76px header rules, avoiding squashed badges or clipped tab bars.
 
 2. **Schools Screen (`frontend/src/components/admin/SchoolManagerView.tsx`)**:
    - List, search, add, and edit schools using `/api/schools/` and `/api/cities/`.
@@ -42,7 +44,8 @@ All portal screens follow the design rules defined in `CLAUDE.md` (no drop shado
 3. **Uniform Catalogue Screen (`frontend/src/components/admin/UniformCatalogView.tsx`)**:
    - Filter by school, category, gender (boy, girl, unisex), and class range (1-12).
    - Add/edit garments: Name, Description, Category, Product Type, Gender, Class From–To, Cost Price (Boss only), Selling Price, Active status.
-   - Size variant manager: Add, rename, or toggle active/inactive size variants with unique SKU generation in `<SCHOOLCODE>-<ITEMSLUG>-<SIZE>` format.
+   - Delete/Reactivate items: Row-level "Delete" (with confirm dialog) and "Reactivate" actions; "Delete Item" in edit modal footer.
+   - Size variant manager: Add, rename, toggle active/inactive, or delete size variants with unique SKU generation in `<SCHOOLCODE>-<ITEMSLUG>-<SIZE>` format.
    - Direct computer photo upload with client-side preview, file size check, progress feedback, and server error handling.
 
 4. **Stock Screen (`frontend/src/components/admin/CityAvailabilityView.tsx`)**:
@@ -56,31 +59,33 @@ All portal screens follow the design rules defined in `CLAUDE.md` (no drop shado
 ## 3. Manual Verification & Test Summary
 
 - **Backend Tests (Django)**:
-  - `backend/catalog/test_portal_api.py` (9 tests):
+  - `backend/catalog/test_portal_api.py` (11 tests):
     - Photo upload rejected for anonymous (401), parent/teacher (403).
     - Rejects non-image and file > 8MB (400).
     - Saves 900×900 WebP, stores file under `MEDIA_ROOT`, and puts URL first in `Product.images`.
     - City admin scoping: Admin cannot upload photo or edit products for schools in another city.
     - Product create/update with `class_from`..`class_to` automatically populates `grades` M2M.
     - Variant create/update permitted for BOSS/ADMIN and refused for PARENT.
+    - Product and variant soft-delete cascades `active = False` and enforces city-admin scoping.
   - `backend/inventory/test_portal_stock.py` (4 tests):
     - Stock movements create initial balance rows and update balances atomically.
     - Mark out of stock brings balance to 0.
     - City-scoped Admin cannot modify stock in another city (403).
     - Stock balances and movements inaccessible to Parent (403).
-  - All 132 tests in `catalog` and `inventory` pass. Full Django test suite passes.
+  - All 134 tests in `catalog` and `inventory` pass. Full Django test suite passes.
   - `python manage.py makemigrations --check` detects no missing migrations.
 
 - **Frontend Tests (Vitest & TypeScript)**:
-  - `frontend/src/pages/AdminPortal.test.tsx` (5 tests):
+  - `frontend/src/pages/AdminPortal.test.tsx` (6 tests):
     - `/portal` redirects to sign-in when signed out.
     - `/portal` refuses PARENT role and redirects to `/parent`.
     - Renders navigation tabs and header for BOSS / ADMIN.
     - Catalogue form sends accurate payload and renders API validation errors.
+    - Renders Delete button for uniform items and invokes `deleteProduct` API.
     - Zero `localStorage` calls verified across all admin components and portal pages.
   - `npx tsc --noEmit`: 0 TypeScript errors.
-  - `npm test -- --run`: All 11 test files and 104 tests pass.
-  - `npm run build` with `VITE_API_URL=/api`: Succeeded cleanly in 13.27s.
+  - `npm test -- --run`: All 11 test files and 105 tests pass.
+  - `npm run build` with `VITE_API_URL=/api`: Succeeded cleanly in 14.84s.
 
 - **Live Proxy Preview (`npm run preview` on port 4173)**:
   - Verified `GET /api/public/cities/?state=Haryana` returns Gurugram city (`id: b8d65aed-837c-49f9-be26-1970d5272995`).

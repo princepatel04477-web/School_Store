@@ -204,6 +204,21 @@ class ProductViewSet(
                 request=self.request,
             )
 
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if getattr(user, "role", None) == "ADMIN":
+            if not user.city_id:
+                raise PermissionDenied("City-scoped Admin must have an assigned city.")
+            if instance.city_id and instance.city_id != user.city_id:
+                raise PermissionDenied("Admins can only delete products for their own city.")
+            if instance.school and instance.school.city_id and instance.school.city_id != user.city_id:
+                raise PermissionDenied("Admins can only delete products for schools in their own city.")
+
+        instance.active = False
+        instance.save(update_fields=["active", "updated_at"])
+        instance.variants.all().update(active=False)
+        invalidate_catalog_cache()
+
 
 
 class ProductVariantViewSet(
@@ -260,6 +275,17 @@ class ProductVariantViewSet(
                 },
                 request=self.request,
             )
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if getattr(user, "role", None) == "ADMIN":
+            if not user.city_id:
+                raise PermissionDenied("City-scoped Admin must have an assigned city.")
+            if instance.city_id and instance.city_id != user.city_id:
+                raise PermissionDenied("Admins can only delete variants for their own city.")
+        instance.active = False
+        instance.save(update_fields=["active", "updated_at"])
+        invalidate_catalog_cache()
 
 
 from rest_framework.views import APIView

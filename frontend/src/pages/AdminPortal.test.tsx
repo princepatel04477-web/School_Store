@@ -217,6 +217,57 @@ describe('Uniform Portal Frontend Tests', () => {
     ).toBeTruthy();
   });
 
+  it('renders Delete button for uniform items and invokes deleteProduct API', async () => {
+    mockUser.current = {
+      id: 'boss-123',
+      username: 'test_boss',
+      role: 'BOSS',
+    };
+
+    vi.spyOn(portalApi, 'categories').mockResolvedValue({
+      results: [{ id: 'cat-1', name: 'Uniforms', slug: 'uniforms', display_order: 1, active: true }],
+      next: null,
+      previous: null,
+    } as any);
+
+    vi.spyOn(portalApi, 'schools').mockResolvedValue({
+      results: [],
+      next: null,
+      previous: null,
+    } as any);
+
+    vi.spyOn(portalApi, 'products').mockResolvedValue({
+      results: [
+        {
+          id: 'prod-delete-test',
+          name: 'Deletable Blazer',
+          selling_price: '599.00',
+          active: true,
+          category: 'cat-1',
+          gender: 'unisex',
+          variants: [],
+          images: [],
+        },
+      ],
+      next: null,
+      previous: null,
+    } as any);
+
+    const deleteSpy = vi.spyOn(portalApi, 'deleteProduct').mockResolvedValue(undefined as any);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    renderWithProviders(<UniformCatalogView />);
+
+    const deleteButton = await screen.findByRole('button', { name: /^Delete$/i });
+    expect(deleteButton).toBeTruthy();
+
+    fireEvent.click(deleteButton);
+
+    await waitFor(() => {
+      expect(deleteSpy).toHaveBeenCalledWith('prod-delete-test');
+    });
+  });
+
   it('verifies grep find nothing for localStorage in admin components and portal page', () => {
     const adminModules = import.meta.glob<string>(
       ['../components/admin/**/*.tsx', '../components/admin/**/*.ts', './AdminPortal.tsx'],

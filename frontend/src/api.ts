@@ -619,6 +619,7 @@ export const portalApi = {
   products: (p: Record<string, string> = {}) => api<Page<PortalProduct>>(`/products/?${new URLSearchParams(p)}`),
   createProduct: (body: any) => api<PortalProduct>('/products/', { method: 'POST', body: JSON.stringify(body) }),
   updateProduct: (id: string, body: any) => api<PortalProduct>(`/products/${id}/`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteProduct: (id: string) => api<void>(`/products/${id}/`, { method: 'DELETE' }),
   uploadProductPhoto: (productId: string, file: File) => {
     const fd = new FormData();
     fd.append('photo', file);
@@ -629,6 +630,7 @@ export const portalApi = {
     api<PortalVariant>('/variants/', { method: 'POST', body: JSON.stringify(body) }),
   updateVariant: (id: string, body: { size?: string; sku?: string; active?: boolean }) =>
     api<PortalVariant>(`/variants/${id}/`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteVariant: (id: string) => api<void>(`/variants/${id}/`, { method: 'DELETE' }),
   categories: () => api<Page<PortalCategory>>('/categories/?page_size=50'),
   stockBalances: (p: Record<string, string> = {}) => api<Page<StockBalance>>(`/stock-balances/?${new URLSearchParams(p)}`),
   addStockMovement: (body: { variant: string; quantity_change: number; reason: string; city?: string }) =>

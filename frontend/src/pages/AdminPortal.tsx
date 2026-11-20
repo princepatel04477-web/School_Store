@@ -53,37 +53,37 @@ export default function AdminPortal() {
             </button>
           </div>
         </div>
-
-        {/* Tab Navigation */}
-        <nav className="portal-nav-bar" aria-label="Portal Navigation">
-          <div className="portal-nav-inner">
-            <NavLink
-              to=""
-              end
-              className={({ isActive }) => `portal-nav-tab ${isActive ? 'active' : ''}`}
-            >
-              <Package width={17} height={17} />
-              <span>Uniform Catalogue</span>
-            </NavLink>
-
-            <NavLink
-              to="schools"
-              className={({ isActive }) => `portal-nav-tab ${isActive ? 'active' : ''}`}
-            >
-              <SchoolBuilding width={17} height={17} />
-              <span>Schools & Campuses</span>
-            </NavLink>
-
-            <NavLink
-              to="stock"
-              className={({ isActive }) => `portal-nav-tab ${isActive ? 'active' : ''}`}
-            >
-              <Package width={17} height={17} />
-              <span>City Stock & Availability</span>
-            </NavLink>
-          </div>
-        </nav>
       </header>
+
+      {/* Tab Navigation */}
+      <nav className="portal-nav-bar" aria-label="Portal Navigation">
+        <div className="portal-nav-inner">
+          <NavLink
+            to=""
+            end
+            className={({ isActive }) => `portal-nav-tab ${isActive ? 'active' : ''}`}
+          >
+            <Package width={17} height={17} />
+            <span>Uniform Catalogue</span>
+          </NavLink>
+
+          <NavLink
+            to="schools"
+            className={({ isActive }) => `portal-nav-tab ${isActive ? 'active' : ''}`}
+          >
+            <SchoolBuilding width={17} height={17} />
+            <span>Schools & Campuses</span>
+          </NavLink>
+
+          <NavLink
+            to="stock"
+            className={({ isActive }) => `portal-nav-tab ${isActive ? 'active' : ''}`}
+          >
+            <Package width={17} height={17} />
+            <span>City Stock & Availability</span>
+          </NavLink>
+        </div>
+      </nav>
 
       {/* Main Content */}
       <main className="portal-main">

@@ -71,6 +71,12 @@ class PortalCatalogApiTests(TestCase):
             role="ADMIN",
             city=cls.city_surat,
         )
+        cls.admin_pune = User.objects.create_user(
+            username="portal_admin_pune",
+            password="testpassword",
+            role="ADMIN",
+            city=cls.city_pune,
+        )
         cls.parent = User.objects.create_user(
             username="portal_parent",
             password="testpassword",
@@ -254,3 +260,20 @@ class PortalCatalogApiTests(TestCase):
         self.assertEqual(patch_res.status_code, 200, patch_res.data)
         var = ProductVariant.objects.get(id=var_id)
         self.assertFalse(var.active)
+
+    def test_product_delete_soft_deletes_item_and_variants(self):
+        self._auth(self.boss)
+        self.assertTrue(self.product_surat.active)
+        res = self.client.delete(f"/api/products/{self.product_surat.id}/")
+        self.assertEqual(res.status_code, 204)
+        self.product_surat.refresh_from_db()
+        self.assertFalse(self.product_surat.active)
+
+    def test_product_delete_refused_for_parent_and_cross_city_admin(self):
+        self._auth(self.parent)
+        res = self.client.delete(f"/api/products/{self.product_surat.id}/")
+        self.assertEqual(res.status_code, 403)
+
+        self._auth(self.admin_pune)
+        res = self.client.delete(f"/api/products/{self.product_surat.id}/")
+        self.assertIn(res.status_code, (403, 404))
