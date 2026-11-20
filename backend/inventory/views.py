@@ -30,6 +30,22 @@ class StockBalanceViewSet(ScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
     scope_school_field = None
     scope_parent_field = None
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        city_id = self.request.query_params.get("city")
+        variant_id = self.request.query_params.get("variant")
+        school_id = self.request.query_params.get("school")
+        product_id = self.request.query_params.get("product")
+        if city_id:
+            qs = qs.filter(city_id=city_id)
+        if variant_id:
+            qs = qs.filter(variant_id=variant_id)
+        if school_id:
+            qs = qs.filter(variant__school_id=school_id)
+        if product_id:
+            qs = qs.filter(variant__product_id=product_id)
+        return qs
+
     @action(detail=False, methods=["get"], url_path="low")
     def low(self, request):
         """Low-stock list.

@@ -35,8 +35,14 @@ export function PanelShell({
 }) {
   const { user, signOut } = useAuth();
   const { pathname } = useLocation();
-  const isCurrent = (item: PanelNavItem) =>
-    item.end ? pathname === base || pathname === `${base}/` : pathname.startsWith(`${base}/${item.to}`);
+  const isCurrent = (item: PanelNavItem) => {
+    if (item.to.startsWith('/')) {
+      return pathname === item.to || pathname.startsWith(`${item.to}/`);
+    }
+    return item.end
+      ? pathname === base || pathname === `${base}/`
+      : pathname.startsWith(`${base}/${item.to}`);
+  };
   const initial = user?.username?.slice(0, 1).toUpperCase();
 
   return (
@@ -66,7 +72,7 @@ export function PanelShell({
             return (
               <Link
                 key={item.to}
-                to={item.to ? `${base}/${item.to}` : base}
+                to={item.to.startsWith('/') ? item.to : (item.to ? `${base}/${item.to}` : base)}
                 className={current ? 'active' : ''}
                 aria-current={current ? 'page' : undefined}
               >

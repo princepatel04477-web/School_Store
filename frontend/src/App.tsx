@@ -39,6 +39,7 @@ const SchoolAdmin = lazy(() => import('./pages/SchoolAdmin'));
 const CityAdmin = lazy(() => import('./pages/CityAdmin'));
 const BossPanel = lazy(() => import('./pages/BossPanel'));
 const Retailer = lazy(() => import('./pages/Retailer'));
+const AdminPortal = lazy(() => import('./pages/AdminPortal'));
 
 import { ComingSoonPage, NotFoundPage } from './pages/InfoPages';
 import { PrivacyPage, TermsPage, RefundPage } from './pages/LegalPages';
@@ -77,6 +78,7 @@ export default function App() {
     location.pathname.startsWith('/school') ||
     location.pathname.startsWith('/teacher') ||
     location.pathname.startsWith('/retailer') ||
+    location.pathname.startsWith('/portal') ||
     location.pathname.startsWith('/login');
 
   const isHome = location.pathname === '/';
@@ -163,6 +165,7 @@ export default function App() {
               <Route path="/parent/*" element={<Guard roles={['PARENT']}><Parent /></Guard>} />
               <Route path="/teacher/*" element={<Guard roles={['TEACHER', 'SCHOOL_ADMIN']}><Teacher /></Guard>} />
               <Route path="/retailer/*" element={<Guard roles={['RETAILER']}><Retailer /></Guard>} />
+              <Route path="/portal/*" element={<Guard roles={['BOSS', 'ADMIN']}><AdminPortal /></Guard>} />
 
               {/* Fallback 404 */}
               <Route path="*" element={<NotFoundPage />} />
