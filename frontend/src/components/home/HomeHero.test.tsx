@@ -137,31 +137,21 @@ describe('HomeHero (P1 Emerald Stage)', () => {
     expect(sources[1].getAttribute('srcset')).toBe('/brand/kids-uniform.clean.webp');
   });
 
-  it('renders stage with concentric circles, tricolour pill, and 4 sparkles', () => {
+  it('renders stage with concentric circles and tricolour pill, and no sparkles (client rule)', () => {
     const { container } = renderHomeHero();
     expect(container.querySelector('.emerald-circle-outer')).toBeTruthy();
     expect(container.querySelector('.emerald-circle-inner')).toBeTruthy();
     expect(container.querySelector('.emerald-tricolour-pill')).toBeTruthy();
     expect(container.querySelector('.emerald-ground-shadow')).toBeTruthy();
 
-    const sparkles = container.querySelectorAll('.emerald-sparkle');
-    expect(sparkles.length).toBe(4);
+    expect(container.querySelectorAll('.emerald-sparkle').length).toBe(0);
   });
 
   it('with reduced motion on, looping animations are not rendered', () => {
     reducedMotionValue = true;
     const { container } = renderHomeHero();
 
-    // Check float wrap and sparkles
     const floatWrap = container.querySelector('.emerald-float-wrap');
     expect(floatWrap).toBeTruthy();
-
-    const sparkles = container.querySelectorAll('.emerald-sparkle');
-    expect(sparkles.length).toBe(4);
-
-    // Sparkles have reduced motion opacity set
-    sparkles.forEach((sparkle) => {
-      expect(sparkle).toBeTruthy();
-    });
   });
 });

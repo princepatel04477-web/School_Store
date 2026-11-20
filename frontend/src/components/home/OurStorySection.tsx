@@ -10,12 +10,11 @@ import '../../pages/about.css';
 export const MIN_SLIDER_SCHOOLS = 4;
 const MAX_SLIDER_SCHOOLS = 16;
 
-function CheckDot() {
+/** A small numbered marker for the fix list. The client bans checkmark bullets. */
+function NumberDot({ n }: { n: number }) {
   return (
     <span className="about-check" aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M5 12l5 5 9-10" />
-      </svg>
+      {n}
     </span>
   );
 }
@@ -194,11 +193,11 @@ export function OurStorySection({ onFindSchool, showTitle = false, showSchools =
             </div>
             <ul className="about-fix-list">
               <li className="about-fix-item">
-                <CheckDot />
+                <NumberDot n={1} />
                 <span>{t('about.fixHome')}</span>
               </li>
               <li className="about-fix-item">
-                <CheckDot />
+                <NumberDot n={2} />
                 <span>{t('about.fixList')}</span>
               </li>
             </ul>

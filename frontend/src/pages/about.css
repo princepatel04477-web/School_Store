@@ -140,9 +140,9 @@
 .about-sheet {
   position: relative;
   z-index: 1;
-  background: #fff;
-  border-radius: 28px 28px 0 0;
-  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.18);
+  background: var(--paper);
+  border-radius: 6px 6px 0 0;
+  box-shadow: none;
   padding: 30px 0 calc(32px + env(safe-area-inset-bottom));
 }
 
@@ -178,7 +178,7 @@
 
 .about-problem-card {
   padding: 16px 14px 18px;
-  border-radius: 22px;
+  border-radius: var(--radius-lg);
   background: var(--ab-coral);
   border: 1px solid var(--ab-coral-line);
 }
@@ -186,7 +186,7 @@
 .about-problem-icon {
   width: 52px;
   height: 52px;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: #fff;
   border: 1px solid var(--ab-coral-line);
   color: var(--ab-coral-ink);
@@ -224,12 +224,12 @@
 .about-pivot-arrow {
   width: 44px;
   height: 44px;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   background: var(--ab-emerald);
   color: var(--ab-saffron);
   display: grid;
   place-items: center;
-  box-shadow: 0 8px 18px rgba(14, 94, 62, 0.3);
+  box-shadow: none;
   animation: about-nudge 2.4s ease-in-out infinite;
 }
 
@@ -245,9 +245,9 @@
 
 .about-fix {
   padding: 20px 16px 16px;
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
   background: var(--ab-emerald);
-  box-shadow: 0 14px 28px rgba(14, 94, 62, 0.28);
+  box-shadow: none;
   color: #fff;
 }
 
@@ -274,7 +274,7 @@
   align-items: center;
   gap: 12px;
   padding: 12px;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.1);
   font-size: 16px;
   font-weight: 800;
@@ -290,6 +290,10 @@
   color: var(--ab-dark);
   display: grid;
   place-items: center;
+  font-family: var(--font-heading, inherit);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 /* badge */
@@ -299,7 +303,7 @@
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
-  border-radius: 22px;
+  border-radius: var(--radius-lg);
   background: var(--ab-badge);
   border: 1px solid var(--ab-badge-line);
 }
@@ -308,7 +312,7 @@
   flex: none;
   width: 48px;
   height: 48px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--ab-saffron);
   color: var(--ab-dark);
   display: grid;
@@ -359,7 +363,7 @@
 .about-nav-btn {
   width: 44px;
   height: 44px;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   border: 0;
   background: var(--ab-emerald);
   color: #fff;
@@ -406,10 +410,10 @@
 .about-school-badge {
   width: 84px;
   height: 84px;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   background: #fff;
   border: 2px solid var(--ab-mint-line);
-  box-shadow: 0 6px 14px rgba(14, 94, 62, 0.1);
+  box-shadow: none;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -417,7 +421,7 @@
 }
 
 .about-school-badge .about-school-crest { border-radius: 50% !important; }
-.about-school-badge img.about-school-crest { border-radius: 8px !important; }
+.about-school-badge img.about-school-crest { border-radius: 6px !important; }
 
 .about-school-name {
   font-size: 13px;
@@ -443,14 +447,14 @@
   justify-content: center;
   gap: 10px;
   border: 0;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: var(--ab-emerald);
   color: #fff;
   font-family: var(--ab-heading);
   font-weight: 800;
   font-size: 21px;
   cursor: pointer;
-  box-shadow: 0 14px 28px rgba(14, 94, 62, 0.3);
+  box-shadow: none;
   transition: transform 0.2s ease;
 }
 
@@ -535,7 +539,7 @@
 /* ---------- Our story as the second screen of home ---------- */
 
 .about-page--section .about-sheet {
-  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.14);
+  box-shadow: none;
 }
 
 .about-section-title {

@@ -581,7 +581,7 @@
 .confirmed-badge {
   width: 64px;
   height: 64px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-lg);
   background-color: var(--brand-tint);
   color: var(--brand);
   display: grid;

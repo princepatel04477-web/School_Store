@@ -6,7 +6,7 @@
   min-height: 44px;
   padding: 0 var(--space-4);
   border: 1.5px solid var(--brand);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   background-color: var(--paper-raised);
   color: var(--brand);
   font-weight: 600;
