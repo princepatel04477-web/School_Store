@@ -189,6 +189,8 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
               >
                 {t('home.emerald.firstTimeIn')}
               </motion.span>
+              {/* Spaces between the lines, so the heading reads "First time in INDIA All schools …" and not "inINDIAAll". */}
+              {' '}
 
               {/* Line 2: INDIA + Tricolour bar (fit-content block, bar 100% width of INDIA) */}
               <motion.div
@@ -207,6 +209,7 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
                   <span className="emerald-flag-green" />
                 </span>
               </motion.div>
+              {' '}
 
               {/* Line 3: Tagline (3 distinct lines) */}
               <motion.span
@@ -216,8 +219,8 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
                 animate="visible"
                 variants={lineVariants}
               >
-                <span className="emerald-tagline-row emerald-tagline-white">{t('home.emerald.taglineLine1')}</span>
-                <span className="emerald-tagline-row emerald-tagline-white">{t('home.emerald.taglineLine2')}</span>
+                <span className="emerald-tagline-row emerald-tagline-white">{t('home.emerald.taglineLine1')}</span>{' '}
+                <span className="emerald-tagline-row emerald-tagline-white">{t('home.emerald.taglineLine2')}</span>{' '}
                 <span className="emerald-tagline-row emerald-tagline-saffron">{t('home.emerald.taglineLine3')}</span>
               </motion.span>
             </h1>

@@ -29,6 +29,21 @@ export function Skeleton({
   );
 }
 
+/** Shown while a page's code loads: a title, a line and a grid, instead of the word "Loading…". */
+export function PageSkeleton() {
+  return (
+    <div className="page-skeleton" role="status" aria-label="Loading">
+      <Skeleton width="min(420px, 70%)" height="40px" />
+      <Skeleton width="min(260px, 50%)" height="16px" style={{ marginTop: 14 }} />
+      <div className="page-skeleton-grid">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} height="132px" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function SchoolPickerSkeleton({ count = 6 }: { count?: number }) {
   return (
     <div className="school-picker-skeleton-grid" aria-label="Loading schools...">

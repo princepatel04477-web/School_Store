@@ -49,6 +49,14 @@ const GROUP_KEYS: Record<string, MessageKey> = {
   Secondary: 'grp.secondary',
 };
 
+/** "Add the matching …" names the item it opens: a girl's shirt matches a skirt, not a trouser. */
+function matchLabelKey(name: string): MessageKey {
+  if (/skirt|pinafore/i.test(name)) return 'match.addSkirt';
+  if (/shorts/i.test(name)) return 'match.addShorts';
+  if (/kurta|kameez/i.test(name)) return 'match.addKurta';
+  return garmentKind(name) === 'bottom' ? 'match.addBottom' : 'match.addTop';
+}
+
 export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -940,7 +948,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         message={added?.product.name ?? ''}
         confirmLabel={
           added?.match
-            ? t(garmentKind(added.match.name) === 'bottom' ? 'match.addBottom' : 'match.addTop')
+            ? t(matchLabelKey(added.match.name))
             : t(added?.product.category === 'School Shoes' ? 'match.accessories' : 'match.shoes')
         }
         cancelLabel={added?.match ? t('match.continue') : null}

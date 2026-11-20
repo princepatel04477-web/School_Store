@@ -104,7 +104,9 @@ export function CheckoutPage() {
     const errs: Record<string, string> = {};
     if (!parentName.trim()) errs.parentName = t('co.err.name');
     if (mode === 'account') {
-      if (!child) errs.child = t('co.err.child');
+      // Before sign-in there is no child to choose yet, so ask for the sign-in first.
+      if (!isParent) errs.child = t('co.err.signIn');
+      else if (!child) errs.child = t('co.err.child');
       else if (wrongSchool) errs.child = t('co.err.otherSchool');
     } else {
       if (!/^\d{10}$/.test(parentMobile.trim())) errs.parentMobile = t('co.err.mobile');

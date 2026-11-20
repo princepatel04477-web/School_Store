@@ -9,6 +9,7 @@ import { useSchoolTheme } from './theme/schoolTheme';
 import { hasChosenLanguage, useLang } from './i18n';
 import { LanguageChooser } from './components/LanguageChooser';
 import { WelcomePopup } from './components/WelcomePopup';
+import { PageSkeleton } from './components/ui/Skeleton';
 
 // Lazy Loaded Components
 const BagDrawer = lazy(() =>
@@ -114,7 +115,7 @@ export default function App() {
         )}
 
         <PageTransition>
-          <Suspense fallback={<div className="splash">Loading…</div>}>
+          <Suspense fallback={<PageSkeleton />}>
             <Routes>
               {/* Public Storefront Routes */}
               <Route

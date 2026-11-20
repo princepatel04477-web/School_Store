@@ -67,7 +67,6 @@ header.about-top-bar {
 
 .about-back-btn:hover {
   background: rgba(255, 255, 255, 0.20);
-  transform: translateX(-2px);
 }
 
 .about-back-btn:focus-visible {
@@ -165,12 +164,34 @@ header.about-top-bar {
 
 .about-bag-btn:hover {
   background: rgba(255, 255, 255, 0.20);
-  transform: scale(1.04);
 }
 
 .about-bag-btn:focus-visible {
   outline: 2px solid #FFB766;
   outline-offset: 2px;
+}
+
+/* Phones: back, logo, name, language and bag must fit 375px, or the bag is cut off. */
+@media (max-width: 419.98px) {
+  .about-top-bar,
+  nav.about-top-bar,
+  header.about-top-bar {
+    padding-inline: 16px;
+    gap: 8px;
+  }
+  .about-nav-left,
+  .about-nav-right {
+    gap: 8px;
+  }
+  .about-brand-link {
+    gap: 8px;
+  }
+  .about-brand-text {
+    font-size: 21px;
+  }
+  .about-lang-pill {
+    padding: 0 10px;
+  }
 }
 
 .about-bag-badge {
@@ -421,7 +442,6 @@ header.about-top-bar {
 }
 
 .about-problem-card:hover {
-  transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(168, 65, 43, 0.08);
 }
 
@@ -715,7 +735,6 @@ header.about-top-bar {
 }
 
 .about-school-card:hover .about-school-tile {
-  transform: translateY(-3px);
   border-color: #14825A;
   box-shadow: 0 8px 20px rgba(14, 94, 62, 0.14);
 }
@@ -802,7 +821,7 @@ header.about-top-bar {
 
   .about-slider-nav-btn:hover:not(:disabled) {
     background: #11704B;
-    transform: translateY(-50%) scale(1.06);
+    transform: translateY(-50%);
   }
 
   .about-slider-nav-btn:disabled {
@@ -854,7 +873,6 @@ header.about-top-bar {
 
 .about-cta-btn:hover {
   background: #11704B;
-  transform: translateY(-2px);
   box-shadow: 0 14px 30px rgba(14, 94, 62, 0.32);
 }
 

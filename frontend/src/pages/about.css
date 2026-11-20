@@ -369,7 +369,6 @@
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
-.about-nav-btn:hover:not(:disabled) { transform: translateY(-1px); }
 .about-nav-btn:disabled { opacity: 0.35; cursor: default; }
 
 .about-schools-rail {
@@ -456,7 +455,6 @@
 }
 
 .about-cta svg { color: var(--ab-saffron); }
-.about-cta:hover { transform: translateY(-1px); }
 
 /* focus */
 
