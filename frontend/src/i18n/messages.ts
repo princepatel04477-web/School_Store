@@ -1119,6 +1119,16 @@ export const messages = {
     hi: 'SMS नहीं भेज पाए। एक मिनट बाद फिर कोशिश करें।',
   },
   'signin.sendFailed': { en: 'Could not send the OTP. Try again.', gu: 'OTP મોકલી શકાયો નહીં. ફરી પ્રયત્ન કરો.', hi: 'OTP नहीं भेज पाए। फिर कोशिश करें।' },
+  'signin.loadChildrenError': {
+    en: 'Could not load your children. Please try again.',
+    gu: 'તમારા બાળકોની વિગતો લોડ થઈ શકી નહીં. ફરી પ્રયત્ન કરો.',
+    hi: 'आपके बच्चों की जानकारी लोड नहीं हो सकी। फिर कोशिश करें।',
+  },
+  'signin.findInstead': {
+    en: 'Find child with GR number instead',
+    gu: 'તેના બદલે GR નંબરથી બાળક શોધો',
+    hi: 'इसके बजाय GR नंबर से बच्चा ढूँढें',
+  },
   'signin.tooMany': {
     en: 'Too many tries. Please wait a few minutes.',
     gu: 'ઘણા પ્રયત્ન થયા. થોડી મિનિટ રાહ જુઓ.',
@@ -1186,6 +1196,88 @@ export const messages = {
     en: 'We could not delete the photos. Try again.',
     gu: 'ફોટા કાઢી શકાયા નહીં. ફરી પ્રયત્ન કરો.',
     hi: 'फ़ोटो नहीं हट पाईं। फिर कोशिश करें।',
+  },
+
+  // ---------- parent dashboard and orders ----------
+  'parent.myChildren': {
+    en: 'My children',
+    gu: 'મારા બાળકો',
+    hi: 'मेरे बच्चे',
+  },
+  'parent.loadingStudents': {
+    en: 'Loading student records...',
+    gu: 'વિદ્યાર્થીના રેકોર્ડ લોડ થઈ રહ્યા છે...',
+    hi: 'विद्यार्थी रिकॉर्ड लोड हो रहे हैं...',
+  },
+  'parent.studentsError': {
+    en: 'Could not load student records. Check your connection and try again.',
+    gu: 'વિદ્યાર્થીના રેકોર્ડ લોડ થઈ શક્યા નહીં. નેટ તપાસો અને ફરી પ્રયત્ન કરો.',
+    hi: 'विद्यार्थी रिकॉर्ड लोड नहीं हो सके। इंटरनेट जाँचें और फिर से कोशिश करें।',
+  },
+  'parent.refreshError': {
+    en: 'Could not refresh student records. Showing saved details.',
+    gu: 'વિદ્યાર્થીના રેકોર્ડ રિફ્રેશ થઈ શક્યા નહીં. સાચવેલી વિગતો બતાવી રહ્યા છીએ.',
+    hi: 'विद्यार्थी रिकॉर्ड रीफ़्रेश नहीं हो सके। पहले से सुरक्षित जानकारी दिखाई जा रही है।',
+  },
+  'parent.noChildren': {
+    en: 'No children linked to this mobile number',
+    gu: 'આ મોબાઇલ નંબર સાથે કોઈ બાળક જોડાયેલું નથી',
+    hi: 'इस मोबाइल नंबर से कोई बच्चा जुड़ा नहीं है',
+  },
+  'parent.noChildrenLead': {
+    en: 'Link your child using their GR number and date of birth, or contact your school office.',
+    gu: 'GR નંબર અને જન્મ તારીખથી બાળકને જોડો, અથવા શાળા ઑફિસનો સંપર્ક કરો.',
+    hi: 'GR नंबर और जन्म तारीख़ से बच्चे को जोड़ें, या स्कूल ऑफ़िस से संपर्क करें।',
+  },
+  'parent.addChild': {
+    en: 'Link a child',
+    gu: 'બાળક જોડો',
+    hi: 'बच्चा जोड़ें',
+  },
+  'parent.contactSchool': {
+    en: 'Contact your school to correct this. Only school staff can update student records.',
+    gu: 'આ સુધારવા તમારી શાળાનો સંપર્ક કરો. ફક્ત શાળાના સ્ટાફ જ વિદ્યાર્થીના રેકોર્ડ બદલી શકે છે.',
+    hi: 'इसे ठीक करने के लिए अपने स्कूल से संपर्क करें। केवल स्कूल कर्मचारी ही विद्यार्थी रिकॉर्ड बदल सकते हैं।',
+  },
+  'parent.myOrders': {
+    en: 'My orders',
+    gu: 'મારા ઓર્ડર',
+    hi: 'मेरे ऑर्डर',
+  },
+  'parent.loadingOrders': {
+    en: 'Loading your orders...',
+    gu: 'તમારા ઓર્ડર લોડ થઈ રહ્યા છે...',
+    hi: 'आपके ऑर्डर लोड हो रहे हैं...',
+  },
+  'parent.ordersError': {
+    en: 'Could not load your orders right now. Check your connection and try again.',
+    gu: 'અત્યારે તમારા ઓર્ડર લોડ થઈ શક્યા નહીં. નેટ તપાસો અને ફરી પ્રયત્ન કરો.',
+    hi: 'अभी आपके ऑर्डर लोड नहीं हो सके। इंटरनेट जाँचें और फिर से कोशिश करें।',
+  },
+  'parent.ordersRefreshError': {
+    en: 'Could not refresh orders. Showing previously loaded orders.',
+    gu: 'ઓર્ડર રિફ્રેશ થઈ શક્યા નહીં. અગાઉ લોડ થયેલા ઓર્ડર બતાવી રહ્યા છીએ.',
+    hi: 'ऑर्डर रीफ़्रेश नहीं हो सके। पहले से लोड किए गए ऑर्डर दिखाए जा रहे हैं।',
+  },
+  'parent.noOrders': {
+    en: 'No orders yet',
+    gu: 'હજુ કોઈ ઓર્ડર નથી',
+    hi: 'अभी कोई ऑर्डर नहीं है',
+  },
+  'parent.noOrdersSub': {
+    en: 'Your orders and live delivery timeline will appear here.',
+    gu: 'તમારા ઓર્ડર અને ડિલિવરી ટાઇમલાઇન અહીં દેખાશે.',
+    hi: 'आपके ऑर्डर और डिलीवरी टाइमलाइन यहाँ दिखाई देंगे।',
+  },
+  'parent.browseCatalogue': {
+    en: 'Browse catalogue',
+    gu: 'કેટેલોગ જુઓ',
+    hi: 'कैटलॉग देखें',
+  },
+  'parent.shopAgain': {
+    en: 'Shop again',
+    gu: 'ફરી ખરીદી કરો',
+    hi: 'फिर से खरीदारी करें',
   },
 
   // ---------- footer ----------

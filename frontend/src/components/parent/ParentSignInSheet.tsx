@@ -7,6 +7,7 @@ import { classLabel as translateClass } from '../../i18n/labels';
 import { useAuth } from '../../auth';
 import { SchoolCrest } from '../school/SchoolCrest';
 import { EASING } from '../../motion/motionConfig';
+import { Skeleton } from '../ui/Skeleton';
 import './parentSignIn.css';
 
 type Step = 'phone' | 'otp' | 'children' | 'find';
@@ -18,6 +19,8 @@ export interface ParentSignInSheetProps {
   onDone: (child: ParentChild | null) => void;
   /** School the parent picked in the shop, used to pre-select it in the find form. */
   schoolName?: string;
+  /** Start directly at a specific step (e.g. 'find' for adding/claiming child) */
+  initialStep?: Step;
 }
 
 const RESEND_SECONDS = 30;
@@ -45,7 +48,7 @@ function sendError(err: unknown): MessageKey {
  * (no typing). Only when the school's list has no phone for this parent do we
  * ask for two things: GR number and date of birth.
  */
-export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentSignInSheetProps) {
+export function ParentSignInSheet({ open, onClose, onDone, schoolName, initialStep }: ParentSignInSheetProps) {
   const { user, signInWithOtp } = useAuth();
   const { t } = useLang();
   const [step, setStep] = useState<Step>('phone');
@@ -56,23 +59,29 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
   const [busy, setBusy] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const [children, setChildren] = useState<ParentChild[]>([]);
+  const [loadingKids, setLoadingKids] = useState(false);
+  const [kidsLoadError, setKidsLoadError] = useState(false);
   const [schools, setSchools] = useState<{ id: string; name: string; code: string }[]>([]);
   const [schoolId, setSchoolId] = useState('');
   const [grNumber, setGrNumber] = useState('');
   const [dob, setDob] = useState('');
   const otpRef = useRef<HTMLInputElement>(null);
 
-  // Already signed in: go straight to the children
+  // Already signed in: go straight to the children (or find if initialStep is 'find')
   useEffect(() => {
     if (!open) return;
     setError('');
-    if (user?.role === 'PARENT') {
+    setKidsLoadError(false);
+    if (initialStep === 'find') {
+      void openFind();
+    } else if (user?.role === 'PARENT') {
+      setStep('children');
       void loadChildren();
     } else {
       setStep('phone');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, initialStep]);
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -121,6 +130,7 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
     setError('');
     try {
       await signInWithOtp(digits, code);
+      setStep('children');
       await loadChildren();
     } catch (err) {
       setError(
@@ -139,6 +149,9 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
   }, [otp, step]);
 
   async function loadChildren() {
+    setLoadingKids(true);
+    setKidsLoadError(false);
+    setError('');
     try {
       const res = await parentChildren.list();
       const kids = (res.results ?? []).filter((c) => c.active);
@@ -149,7 +162,11 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
         await openFind();
       }
     } catch {
-      await openFind();
+      // Failed request must NOT route to openFind; stay on children step and offer Retry
+      setKidsLoadError(true);
+      setStep('children');
+    } finally {
+      setLoadingKids(false);
     }
   }
 
@@ -183,16 +200,15 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
     }
   }
 
-  const title = useMemo(
-    () =>
-      ({
-        phone: t('signin.title'),
-        otp: t('signin.otpTitle'),
-        children: children.length > 1 ? t('signin.whichChild') : t('signin.isThisChild'),
-        find: t('signin.findTitle'),
-      })[step],
-    [step, children.length, t]
-  );
+  const title = useMemo(() => {
+    if (step === 'phone') return t('signin.title');
+    if (step === 'otp') return t('signin.otpTitle');
+    if (step === 'find') return t('signin.findTitle');
+    // step === 'children'
+    if (loadingKids) return t('signin.checking');
+    if (kidsLoadError) return t('common.tryAgain');
+    return children.length > 1 ? t('signin.whichChild') : t('signin.isThisChild');
+  }, [step, children.length, loadingKids, kidsLoadError, t]);
 
   return (
     <AnimatePresence>
@@ -286,7 +302,37 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
               </div>
             )}
 
-            {step === 'children' && (
+            {step === 'children' && loadingKids && (
+              <div className="psi-body" role="status" aria-busy="true" aria-label={t('signin.checking')}>
+                <p className="psi-lead">{t('signin.checking')}</p>
+                <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
+                  <Skeleton height="72px" borderRadius="var(--radius-md)" />
+                  <Skeleton height="72px" borderRadius="var(--radius-md)" />
+                </div>
+              </div>
+            )}
+
+            {step === 'children' && !loadingKids && kidsLoadError && (
+              <div className="psi-body" role="alert">
+                <p className="psi-error">{t('signin.loadChildrenError')}</p>
+                <button
+                  type="button"
+                  className="btn btn-primary psi-cta"
+                  onClick={() => void loadChildren()}
+                >
+                  {t('common.tryAgain')}
+                </button>
+                <button
+                  type="button"
+                  className="psi-link psi-other"
+                  onClick={() => void openFind()}
+                >
+                  {t('signin.findInstead')}
+                </button>
+              </div>
+            )}
+
+            {step === 'children' && !loadingKids && !kidsLoadError && (
               <div className="psi-body">
                 <p className="psi-lead">{t('signin.fromRecords')}</p>
                 <ul className="psi-kids">
