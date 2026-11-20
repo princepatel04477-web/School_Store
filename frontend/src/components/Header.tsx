@@ -194,6 +194,16 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
               </Link>
             )}
 
+            {/* A direct, always-visible profile entry for phone users. */}
+            <Link
+              to={user ? '/parent' : '/login'}
+              className="mobile-profile-btn"
+              aria-label={user ? t('nav.myAccount') : t('nav.signIn')}
+              title={user ? t('nav.myAccount') : t('nav.signIn')}
+            >
+              <User width={20} height={20} strokeWidth={1.5} />
+            </Link>
+
             <button
               type="button"
               className="action-icon-btn bag-btn"

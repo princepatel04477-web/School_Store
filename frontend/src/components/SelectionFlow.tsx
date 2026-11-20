@@ -68,8 +68,9 @@ interface SelectionFlowProps {
   publicView?: boolean;
 }
 
-const SESSION_STORAGE_KEY = 'school_store_selection_flow';
-const STATIONERY_PROMPT_SESSION_KEY = 'school_store_stationery_prompt_dismissed';
+// Memory only (never saved to the phone): the choices and the "asked about stationery"
+// note last until the page or app is closed.
+let stationeryPromptDismissed = false;
 
 export function SelectionFlow({
   category = 'Uniform',
@@ -84,24 +85,8 @@ export function SelectionFlow({
   const { cart: storeCart, clearCart: clearStoreCart } = useStoreState();
   const activeCartCount = cartItemCount !== undefined ? cartItemCount : storeCart.length;
 
-  // Try restoring from sessionStorage
-  const [selection, setSelection] = useState<SelectionState>(() => {
-    try {
-      const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          school: parsed.school || null,
-          city: parsed.city || null,
-          grade: parsed.grade || null,
-          gender: parsed.gender === 'boy' || parsed.gender === 'girl' ? parsed.gender : null,
-        };
-      }
-    } catch {
-      // ignore
-    }
-    return { school: null, city: null, grade: null, gender: null };
-  });
+  // Always starts empty: nothing is restored from the phone.
+  const [selection, setSelection] = useState<SelectionState>({ school: null, city: null, grade: null, gender: null });
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(() => {
     if (selection.school && selection.city && selection.grade && selection.gender) return 5;
@@ -135,32 +120,18 @@ export function SelectionFlow({
 
   const triggerStationeryPrompt = useCallback(() => {
     if (!isAccessoriesFlow || !isCategoryLive('Stationery')) return;
-    try {
-      if (sessionStorage.getItem(STATIONERY_PROMPT_SESSION_KEY) === '1') {
-        return;
-      }
-    } catch {
-      // ignore
-    }
+    if (stationeryPromptDismissed) return;
     setShowStationeryPrompt(true);
   }, [isAccessoriesFlow]);
 
   const handleStationeryConfirm = () => {
-    try {
-      sessionStorage.setItem(STATIONERY_PROMPT_SESSION_KEY, '1');
-    } catch {
-      // ignore
-    }
+    stationeryPromptDismissed = true;
     setShowStationeryPrompt(false);
     onNavigateCategory?.('Stationery');
   };
 
   const handleStationeryDismiss = () => {
-    try {
-      sessionStorage.setItem(STATIONERY_PROMPT_SESSION_KEY, '1');
-    } catch {
-      // ignore
-    }
+    stationeryPromptDismissed = true;
     setShowStationeryPrompt(false);
   };
 
@@ -213,15 +184,6 @@ export function SelectionFlow({
     selectedProduct.variants.length <= 1 ||
     selectedProduct.variants.every((v) => !v.size || ['standard', 'one size', 'free size', 'no size', ''].includes(v.size.trim().toLowerCase()))
   );
-
-  // Persist selection to sessionStorage
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(selection));
-    } catch {
-      // ignore
-    }
-  }, [selection]);
 
   // Query: Step 1 Schools (Sorted A-Z by DB, search query supported)
   const { data: schools = [], isLoading: loadingSchools } = useQuery({

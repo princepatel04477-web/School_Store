@@ -277,3 +277,69 @@ class PortalCatalogApiTests(TestCase):
         self._auth(self.admin_pune)
         res = self.client.delete(f"/api/products/{self.product_surat.id}/")
         self.assertIn(res.status_code, (403, 404))
+
+    def test_city_price_override_crud_and_public_reflection(self):
+        # 1. Base price is 650.00
+        self.assertEqual(float(self.product_surat.selling_price), 650.0)
+
+        # 2. Parent cannot create city price
+        self._auth(self.parent)
+        res = self.client.post(
+            "/api/city-prices/",
+            {
+                "product": str(self.product_surat.id),
+                "city": str(self.city_surat.id),
+                "selling_price": "700.00",
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, 403)
+
+        # 3. Boss sets custom price for Surat (₹700.00, ₹50 higher)
+        self._auth(self.boss)
+        res = self.client.post(
+            "/api/city-prices/",
+            {
+                "product": str(self.product_surat.id),
+                "city": str(self.city_surat.id),
+                "selling_price": "700.00",
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201, res.data)
+        cp_id = res.data["id"]
+        self.assertEqual(res.data["selling_price"], "700.00")
+
+        # 4. Upsert check: posting again updates the price
+        res_update = self.client.post(
+            "/api/city-prices/",
+            {
+                "product": str(self.product_surat.id),
+                "city": str(self.city_surat.id),
+                "selling_price": "710.00",
+            },
+            format="json",
+        )
+        self.assertEqual(res_update.status_code, 201)
+        self.assertEqual(res_update.data["selling_price"], "710.00")
+
+        # 5. Public endpoint reflects city price when Surat is passed
+        pub_res = self.client.get(
+            f"/api/public/products/?school={self.school_surat.id}&class=1&gender=boy&city={self.city_surat.id}"
+        )
+        self.assertEqual(pub_res.status_code, 200)
+        found = next((p for p in pub_res.data["results"] if p["id"] == str(self.product_surat.id)), None)
+        if found:
+            self.assertEqual(found["price"], 710.0)
+
+        # 6. Delete city override reverts to base price
+        del_res = self.client.delete(f"/api/city-prices/{cp_id}/")
+        self.assertEqual(del_res.status_code, 204)
+
+        pub_res2 = self.client.get(
+            f"/api/public/products/?school={self.school_surat.id}&class=1&gender=boy&city={self.city_surat.id}"
+        )
+        self.assertEqual(pub_res2.status_code, 200)
+        found2 = next((p for p in pub_res2.data["results"] if p["id"] == str(self.product_surat.id)), None)
+        if found2:
+            self.assertEqual(found2["price"], 650.0)

@@ -1,8 +1,33 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { portalApi, type StockBalance, type PortalVariant, type PortalProduct } from '../../api';
 import { useAuth } from '../../auth';
-import { Search, Plus, X, Package, RefreshCw } from '../ui/icons';
+import { Search, X, Package, ChevronDown, ChevronUp } from '../ui/icons';
+
+interface VariantStockItem {
+  variantId: string;
+  sku: string;
+  size: string;
+  stockQuantity: number;
+  hasBalanceRow: boolean;
+  isLowStock: boolean;
+}
+
+interface ProductStockGroup {
+  productId: string;
+  productName: string;
+  productImage?: string;
+  schoolId?: string | null;
+  schoolName?: string | null;
+  categoryName?: string;
+  gender?: string;
+  classRange?: string;
+  totalStock: number;
+  totalVariantsCount: number;
+  stockedVariantsCount: number;
+  uninitializedVariantsCount: number;
+  variants: VariantStockItem[];
+}
 
 export function CityAvailabilityView() {
   const queryClient = useQueryClient();
@@ -13,6 +38,9 @@ export function CityAvailabilityView() {
   const [selectedCityId, setSelectedCityId] = useState<string>(user?.city || '');
   const [search, setSearch] = useState('');
   const [schoolFilter, setSchoolFilter] = useState('');
+
+  // Expand / collapse tracking for product rows
+  const [expandedProductIds, setExpandedProductIds] = useState<Set<string>>(new Set());
 
   // Restock / Adjust Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -49,7 +77,7 @@ export function CityAvailabilityView() {
 
   // Fetch Stock Balances for active city
   const balanceParams = useMemo(() => {
-    const p: Record<string, string> = { page_size: '50' };
+    const p: Record<string, string> = { page_size: '100' };
     if (activeCityId) p.city = activeCityId;
     if (schoolFilter) p.school = schoolFilter;
     return p;
@@ -64,7 +92,7 @@ export function CityAvailabilityView() {
 
   // Fetch Products & Variants to find items without stock balance rows in this city
   const productParams = useMemo(() => {
-    const p: Record<string, string> = { page_size: '50' };
+    const p: Record<string, string> = { page_size: '100' };
     if (schoolFilter) p.school = schoolFilter;
     return p;
   }, [schoolFilter]);
@@ -84,92 +112,129 @@ export function CityAvailabilityView() {
     return map;
   }, [balances]);
 
-  // Combine balances with variants so admin can initialize unstocked items (e.g. KV school items)
-  interface CombinedStockRow {
-    variantId: string;
-    sku: string;
-    productName: string;
-    productCategory: string;
-    size: string;
-    stockQuantity: number;
-    hasBalanceRow: boolean;
-    isLowStock: boolean;
-  }
+  // Group products and their variants into clean product-level cards/rows
+  const productGroups: ProductStockGroup[] = useMemo(() => {
+    const groups: ProductStockGroup[] = [];
+    const seenProductIds = new Set<string>();
 
-  const allRows: CombinedStockRow[] = useMemo(() => {
-    const rows: CombinedStockRow[] = [];
-    const seenVariantIds = new Set<string>();
-
-    // First include all items that have explicit stock balance rows
-    for (const b of balances) {
-      seenVariantIds.add(b.variant);
-      rows.push({
-        variantId: b.variant,
-        sku: b.variant_sku,
-        productName: b.product_name,
-        productCategory: b.product_category || '',
-        size: b.variant_size || '',
-        stockQuantity: b.stock_quantity,
-        hasBalanceRow: true,
-        isLowStock: b.is_low_stock,
-      });
-    }
-
-    // Next, check products & their variants for any items missing a balance row in this city
     for (const p of products) {
-      if (!p.variants) continue;
-      for (const v of p.variants) {
-        if (!seenVariantIds.has(v.id)) {
-          seenVariantIds.add(v.id);
-          rows.push({
+      seenProductIds.add(p.id);
+      const variantItems: VariantStockItem[] = [];
+      let totalStock = 0;
+      let stockedCount = 0;
+      let uninitCount = 0;
+
+      if (p.variants && p.variants.length > 0) {
+        for (const v of p.variants) {
+          const bal = balanceByVariant.get(v.id);
+          const qty = bal ? bal.stock_quantity : 0;
+          const hasRow = Boolean(bal);
+          const isLow = bal ? bal.is_low_stock : true;
+
+          if (qty > 0) stockedCount++;
+          if (!hasRow) uninitCount++;
+          totalStock += qty;
+
+          variantItems.push({
             variantId: v.id,
             sku: v.sku,
-            productName: p.name,
-            productCategory: p.category_name || '',
             size: v.size,
-            stockQuantity: 0,
-            hasBalanceRow: false,
-            isLowStock: true,
+            stockQuantity: qty,
+            hasBalanceRow: hasRow,
+            isLowStock: isLow,
           });
         }
       }
+
+      const classRange =
+        p.class_from && p.class_to
+          ? `Class ${p.class_from}–${p.class_to}`
+          : p.class_from
+          ? `Class ${p.class_from}+`
+          : p.grades && p.grades.length > 0
+          ? `Grades ${p.grades.join(', ')}`
+          : undefined;
+
+      groups.push({
+        productId: p.id,
+        productName: p.name,
+        productImage: p.images && p.images.length > 0 ? p.images[0] : undefined,
+        schoolId: p.school,
+        schoolName: p.school_name,
+        categoryName: p.category_name,
+        gender: p.gender,
+        classRange,
+        totalStock,
+        totalVariantsCount: variantItems.length,
+        stockedVariantsCount: stockedCount,
+        uninitializedVariantsCount: uninitCount,
+        variants: variantItems,
+      });
     }
 
-    // Filter by search
-    if (!search.trim()) return rows;
-    const query = search.trim().toLowerCase();
-    return rows.filter(
-      (r) =>
-        r.sku.toLowerCase().includes(query) ||
-        r.productName.toLowerCase().includes(query) ||
-        r.size.toLowerCase().includes(query)
-    );
-  }, [balances, products, search]);
+    // Filter by search query (matches product name, category, school, variant SKU, or size)
+    if (!search.trim()) return groups;
+    const q = search.trim().toLowerCase();
+    return groups.filter((g) => {
+      const matchProduct =
+        g.productName.toLowerCase().includes(q) ||
+        (g.schoolName && g.schoolName.toLowerCase().includes(q)) ||
+        (g.categoryName && g.categoryName.toLowerCase().includes(q));
 
-  // Actions
-  const openRestockModal = (row: CombinedStockRow) => {
+      const matchVariant = g.variants.some(
+        (v) => v.sku.toLowerCase().includes(q) || v.size.toLowerCase().includes(q)
+      );
+
+      return matchProduct || matchVariant;
+    });
+  }, [products, balanceByVariant, search]);
+
+  // Toggle expand for single product
+  const toggleProductExpand = (id: string) => {
+    setExpandedProductIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Expand / collapse all
+  const expandAll = () => {
+    setExpandedProductIds(new Set(productGroups.map((g) => g.productId)));
+  };
+  const collapseAll = () => {
+    setExpandedProductIds(new Set());
+  };
+
+  // Restock Modal openers
+  const openRestockModal = (
+    productName: string,
+    item: VariantStockItem
+  ) => {
     setTargetVariant({
-      id: row.variantId,
-      sku: row.sku,
-      productName: row.productName,
-      size: row.size,
-      currentQty: row.stockQuantity,
-      hasBalanceRow: row.hasBalanceRow,
+      id: item.variantId,
+      sku: item.sku,
+      productName,
+      size: item.size,
+      currentQty: item.stockQuantity,
+      hasBalanceRow: item.hasBalanceRow,
     });
     setQuantityInput(50);
-    setMovementReason(row.hasBalanceRow ? 'RESTOCK' : 'INITIAL_STOCK');
+    setMovementReason(item.hasBalanceRow ? 'RESTOCK' : 'INITIAL_STOCK');
     setMovementError('');
     setMovementSuccess('');
     setModalOpen(true);
   };
 
-  const markOutOfStockMutation = useMutation({
-    mutationFn: async (row: CombinedStockRow) => {
-      if (row.stockQuantity <= 0) return;
+  // Zero out a single variant
+  const markVariantOutOfStock = useMutation({
+    mutationFn: async (item: VariantStockItem) => {
+      if (item.stockQuantity <= 0) return;
       return portalApi.addStockMovement({
-        variant: row.variantId,
+        variant: item.variantId,
         city: activeCityId,
-        quantity_change: -row.stockQuantity,
+        quantity_change: -item.stockQuantity,
         reason: 'ADJUSTMENT',
       });
     },
@@ -178,6 +243,25 @@ export function CityAvailabilityView() {
     },
   });
 
+  // Zero out all variants of a product in this city
+  const markProductOutOfStock = useMutation({
+    mutationFn: async (group: ProductStockGroup) => {
+      const itemsToZero = group.variants.filter((v) => v.stockQuantity > 0);
+      for (const item of itemsToZero) {
+        await portalApi.addStockMovement({
+          variant: item.variantId,
+          city: activeCityId,
+          quantity_change: -item.stockQuantity,
+          reason: 'ADJUSTMENT',
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['portal-stock-balances'] });
+    },
+  });
+
+  // Apply movement form
   const movementMutation = useMutation({
     mutationFn: async () => {
       if (!targetVariant) return;
@@ -206,19 +290,28 @@ export function CityAvailabilityView() {
 
   const selectedCityObj = cities.find((c) => c.id === activeCityId);
 
+  // Overall city stats
+  const totalCityUnits = useMemo(() => {
+    return productGroups.reduce((acc, g) => acc + g.totalStock, 0);
+  }, [productGroups]);
+
+  const inStockProductsCount = useMemo(() => {
+    return productGroups.filter((g) => g.totalStock > 0).length;
+  }, [productGroups]);
+
   return (
     <div>
       <div className="portal-page-header">
         <div>
           <h1 className="portal-page-title">City Stock & Availability</h1>
           <p className="portal-page-sub">
-            Monitor on-hand inventory per city, manage restocks, and mark items out of stock.
+            Monitor on-hand inventory per city, manage restocks, and configure size availability organized by product.
           </p>
         </div>
       </div>
 
       <div className="portal-card">
-        {/* Filters */}
+        {/* Filters and Controls */}
         <div className="portal-filters-row">
           {/* City Selector */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -255,7 +348,7 @@ export function CityAvailabilityView() {
             <Search width={16} height={16} className="portal-search-icon" />
             <input
               type="text"
-              placeholder="Search by SKU, product name, or size..."
+              placeholder="Search by product, SKU, size, or school..."
               className="portal-search-input"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -274,9 +367,59 @@ export function CityAvailabilityView() {
               </option>
             ))}
           </select>
+
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              className="portal-btn portal-btn-secondary portal-btn-sm"
+              onClick={expandAll}
+              title="Expand all size drawers"
+            >
+              Expand All
+            </button>
+            <button
+              type="button"
+              className="portal-btn portal-btn-secondary portal-btn-sm"
+              onClick={collapseAll}
+              title="Collapse all size drawers"
+            >
+              Collapse All
+            </button>
+          </div>
         </div>
 
-        {/* Content Table */}
+        {/* Quick Metrics Bar */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '16px',
+            padding: '10px 14px',
+            background: 'var(--paper)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--line)',
+            fontSize: '13px',
+            marginBottom: '16px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            Target City: <strong>{selectedCityObj?.name || 'Selected City'}</strong>
+          </div>
+          <div>·</div>
+          <div>
+            Catalog Products: <strong>{productGroups.length}</strong>
+          </div>
+          <div>·</div>
+          <div>
+            Total Stock On-Hand: <strong>{totalCityUnits.toLocaleString()} units</strong>
+          </div>
+          <div>·</div>
+          <div>
+            Active in City: <strong>{inStockProductsCount} products</strong>
+          </div>
+        </div>
+
+        {/* Product Grouped Table */}
         {balancesLoading || productsLoading ? (
           <div>
             <div className="portal-skeleton-row" />
@@ -287,10 +430,10 @@ export function CityAvailabilityView() {
           <div className="portal-alert-error">
             Failed to load stock: {balancesError instanceof Error ? balancesError.message : 'Unknown error'}
           </div>
-        ) : allRows.length === 0 ? (
+        ) : productGroups.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--ink-soft)' }}>
             <Package width={36} height={36} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
-            <div style={{ fontWeight: 600, fontSize: '15px' }}>No inventory rows found</div>
+            <div style={{ fontWeight: 600, fontSize: '15px' }}>No products found</div>
             <div style={{ fontSize: '13px', marginTop: '4px' }}>
               Select a school or adjust your search filter.
             </div>
@@ -300,67 +443,281 @@ export function CityAvailabilityView() {
             <table className="portal-table">
               <thead>
                 <tr>
-                  <th>Product & Size</th>
-                  <th>SKU</th>
-                  <th>City</th>
-                  <th>Current Stock</th>
+                  <th style={{ width: '40px' }} />
+                  <th>Product Details</th>
+                  <th>Configured Sizes</th>
+                  <th>City Stock (Total)</th>
                   <th>Availability Status</th>
-                  <th style={{ textAlign: 'right' }}>Stock Actions</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {allRows.map((row) => (
-                  <tr key={row.variantId}>
-                    <td>
-                      <div style={{ fontWeight: 700 }}>{row.productName}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--ink-soft)' }}>
-                        Size: <strong>{row.size}</strong> {row.productCategory ? `· ${row.productCategory}` : ''}
-                      </div>
-                    </td>
-                    <td>
-                      <code style={{ fontSize: '12px' }}>{row.sku}</code>
-                    </td>
-                    <td>{selectedCityObj?.name || 'City'}</td>
-                    <td>
-                      <span style={{ fontSize: '15px', fontWeight: 800 }}>
-                        {row.stockQuantity}
-                      </span>{' '}
-                      <span style={{ fontSize: '11px', color: 'var(--ink-soft)' }}>units</span>
-                    </td>
-                    <td>
-                      {!row.hasBalanceRow ? (
-                        <span className="portal-badge-inactive">Not Stocked in City</span>
-                      ) : row.stockQuantity > 0 ? (
-                        <span className="portal-badge-instock">Available ({row.stockQuantity})</span>
-                      ) : (
-                        <span className="portal-badge-outofstock">Out of Stock</span>
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '6px' }}>
-                        <button
-                          type="button"
-                          className="portal-btn portal-btn-primary portal-btn-sm"
-                          onClick={() => openRestockModal(row)}
-                        >
-                          {!row.hasBalanceRow ? 'Initialize Stock' : 'Restock / Adjust'}
-                        </button>
+                {productGroups.map((group) => {
+                  const isExpanded = expandedProductIds.has(group.productId) || Boolean(search.trim());
 
-                        {row.hasBalanceRow && row.stockQuantity > 0 && (
+                  return (
+                    <Fragment key={group.productId}>
+                      <tr
+                        style={{
+                          backgroundColor: isExpanded ? 'rgba(47, 93, 80, 0.04)' : undefined,
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => toggleProductExpand(group.productId)}
+                      >
+                        {/* Toggle Icon */}
+                        <td style={{ textAlign: 'center', padding: '12px 6px' }}>
                           <button
                             type="button"
-                            className="portal-btn portal-btn-danger portal-btn-sm"
-                            onClick={() => markOutOfStockMutation.mutate(row)}
-                            disabled={markOutOfStockMutation.isPending}
-                            title="Zero out inventory for this city"
+                            className="portal-btn portal-btn-secondary portal-btn-sm"
+                            style={{ padding: '4px', border: 'none', background: 'transparent' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleProductExpand(group.productId);
+                            }}
+                            aria-label={isExpanded ? 'Collapse' : 'Expand'}
                           >
-                            Mark Out of Stock
+                            {isExpanded ? (
+                              <ChevronUp width={16} height={16} />
+                            ) : (
+                              <ChevronDown width={16} height={16} />
+                            )}
                           </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        </td>
+
+                        {/* Product Info with Thumbnail */}
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            {group.productImage ? (
+                              <img
+                                src={group.productImage}
+                                alt={group.productName}
+                                style={{
+                                  width: '42px',
+                                  height: '42px',
+                                  objectFit: 'cover',
+                                  borderRadius: 'var(--radius-sm)',
+                                  border: '1px solid var(--line)',
+                                  flexShrink: 0,
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: '42px',
+                                  height: '42px',
+                                  background: 'var(--paper)',
+                                  borderRadius: 'var(--radius-sm)',
+                                  border: '1px solid var(--line)',
+                                  display: 'grid',
+                                  placeItems: 'center',
+                                  flexShrink: 0,
+                                  color: 'var(--ink-faint)',
+                                }}
+                              >
+                                <Package width={20} height={20} />
+                              </div>
+                            )}
+
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: '14px' }}>
+                                {group.productName}
+                              </div>
+                              <div style={{ fontSize: '12px', color: 'var(--ink-soft)', marginTop: '2px' }}>
+                                {group.schoolName && (
+                                  <span
+                                    style={{
+                                      background: 'var(--paper-sunk)',
+                                      padding: '1px 6px',
+                                      borderRadius: '3px',
+                                      marginRight: '6px',
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    {group.schoolName}
+                                  </span>
+                                )}
+                                {group.categoryName && <span>{group.categoryName} · </span>}
+                                {group.gender && <span>{group.gender} · </span>}
+                                {group.classRange && <span>{group.classRange}</span>}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Sizes Summary */}
+                        <td>
+                          <div style={{ fontSize: '12px', fontWeight: 600 }}>
+                            {group.totalVariantsCount} {group.totalVariantsCount === 1 ? 'size' : 'sizes'}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '11px',
+                              color: 'var(--ink-soft)',
+                              maxWidth: '220px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              marginTop: '2px',
+                            }}
+                            title={group.variants.map((v) => v.size).join(', ')}
+                          >
+                            {group.variants.map((v) => v.size).join(', ') || 'No sizes configured'}
+                          </div>
+                        </td>
+
+                        {/* City Stock (Total) */}
+                        <td>
+                          <span style={{ fontSize: '15px', fontWeight: 800 }}>
+                            {group.totalStock}
+                          </span>{' '}
+                          <span style={{ fontSize: '11px', color: 'var(--ink-soft)' }}>units</span>
+                        </td>
+
+                        {/* Availability Status Badge */}
+                        <td>
+                          {group.totalStock > 0 && group.stockedVariantsCount === group.totalVariantsCount ? (
+                            <span className="portal-badge-instock">
+                              All In Stock ({group.totalStock} units)
+                            </span>
+                          ) : group.totalStock > 0 ? (
+                            <span className="portal-badge-warning">
+                              Partial ({group.stockedVariantsCount}/{group.totalVariantsCount} sizes)
+                            </span>
+                          ) : group.uninitializedVariantsCount > 0 ? (
+                            <span className="portal-badge-inactive">
+                              Not Stocked ({group.uninitializedVariantsCount} uninitialized)
+                            </span>
+                          ) : (
+                            <span className="portal-badge-outofstock">Out of Stock (0 units)</span>
+                          )}
+                        </td>
+
+                        {/* Actions */}
+                        <td style={{ textAlign: 'right' }}>
+                          <div
+                            style={{ display: 'inline-flex', gap: '6px' }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              className="portal-btn portal-btn-secondary portal-btn-sm"
+                              onClick={() => toggleProductExpand(group.productId)}
+                            >
+                              {isExpanded ? 'Hide Sizes' : `Manage Sizes (${group.totalVariantsCount})`}
+                            </button>
+
+                            {group.totalStock > 0 && (
+                              <button
+                                type="button"
+                                className="portal-btn portal-btn-danger portal-btn-sm"
+                                onClick={() => {
+                                  if (
+                                    window.confirm(
+                                      `Are you sure you want to mark all sizes of "${group.productName}" out of stock in ${selectedCityObj?.name}?`
+                                    )
+                                  ) {
+                                    markProductOutOfStock.mutate(group);
+                                  }
+                                }}
+                                disabled={markProductOutOfStock.isPending}
+                                title="Zero out all sizes for this product in this city"
+                              >
+                                Mark 0
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Expandable Sub-Table for Sizes */}
+                      {isExpanded && (
+                        <tr style={{ backgroundColor: 'rgba(47, 93, 80, 0.02)' }}>
+                          <td colSpan={6} style={{ padding: '0 14px 14px 44px' }}>
+                            <div className="portal-subtable-container">
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  marginBottom: '8px',
+                                }}
+                              >
+                                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink)' }}>
+                                  Individual Size Inventory for {selectedCityObj?.name || 'City'}
+                                </span>
+                                <span style={{ fontSize: '11px', color: 'var(--ink-soft)' }}>
+                                  Click Restock or Adjust to record a stock movement
+                                </span>
+                              </div>
+
+                              <table className="portal-subtable">
+                                <thead>
+                                  <tr>
+                                    <th>Size</th>
+                                    <th>SKU</th>
+                                    <th>City Units</th>
+                                    <th>Status</th>
+                                    <th style={{ textAlign: 'right' }}>Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {group.variants.map((v) => (
+                                    <tr key={v.variantId}>
+                                      <td>
+                                        <strong style={{ fontSize: '13px' }}>Size {v.size}</strong>
+                                      </td>
+                                      <td>
+                                        <code style={{ fontSize: '12px' }}>{v.sku}</code>
+                                      </td>
+                                      <td>
+                                        <strong style={{ fontSize: '13px' }}>{v.stockQuantity}</strong>{' '}
+                                        <span style={{ fontSize: '11px', color: 'var(--ink-soft)' }}>units</span>
+                                      </td>
+                                      <td>
+                                        {!v.hasBalanceRow ? (
+                                          <span className="portal-badge-inactive">Not Stocked</span>
+                                        ) : v.stockQuantity > 0 ? (
+                                          <span className="portal-badge-instock">
+                                            Available ({v.stockQuantity})
+                                          </span>
+                                        ) : (
+                                          <span className="portal-badge-outofstock">0 units</span>
+                                        )}
+                                      </td>
+                                      <td style={{ textAlign: 'right' }}>
+                                        <div style={{ display: 'inline-flex', gap: '6px' }}>
+                                          <button
+                                            type="button"
+                                            className="portal-btn portal-btn-primary portal-btn-sm"
+                                            onClick={() => openRestockModal(group.productName, v)}
+                                          >
+                                            {!v.hasBalanceRow ? 'Initialize' : 'Restock / Adjust'}
+                                          </button>
+
+                                          {v.hasBalanceRow && v.stockQuantity > 0 && (
+                                            <button
+                                              type="button"
+                                              className="portal-btn portal-btn-danger portal-btn-sm"
+                                              onClick={() => markVariantOutOfStock.mutate(v)}
+                                              disabled={markVariantOutOfStock.isPending}
+                                              title="Zero out this size"
+                                            >
+                                              Zero Out
+                                            </button>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

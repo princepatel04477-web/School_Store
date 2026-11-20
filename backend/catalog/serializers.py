@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
 from .images import is_remote_image_url
-from .models import Category, Product, ProductVariant
+from .models import Category, Product, ProductVariant, ProductCityPrice
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -217,3 +217,39 @@ class ProductSerializer(serializers.ModelSerializer):
         ]
         if matched:
             instance.grades.set(matched)
+
+
+class ProductCityPriceSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    product_images = serializers.JSONField(source="product.images", read_only=True)
+    universal_selling_price = serializers.DecimalField(
+        source="product.selling_price", max_digits=10, decimal_places=2, read_only=True
+    )
+    universal_cost_price = serializers.DecimalField(
+        source="product.cost_price", max_digits=10, decimal_places=2, read_only=True
+    )
+    city_name = serializers.CharField(source="city.name", read_only=True)
+    school_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductCityPrice
+        fields = [
+            "id",
+            "product",
+            "product_name",
+            "product_images",
+            "school_name",
+            "universal_selling_price",
+            "universal_cost_price",
+            "city",
+            "city_name",
+            "selling_price",
+            "cost_price",
+            "active",
+            "created_at",
+            "updated_at",
+        ]
+        validators = []  # Allows upsert handling in viewset
+
+    def get_school_name(self, obj):
+        return obj.product.school.name if obj.product.school else "Universal / All Schools"
