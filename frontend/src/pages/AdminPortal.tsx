@@ -1,11 +1,231 @@
-import { useState } from 'react';
-import { Routes, Route, NavLink, Link } from 'react-router-dom';
+import { useState, type FormEvent } from 'react';
+import { Routes, Route, NavLink, Link, useNavigate } from 'react-router-dom';
 import { SchoolBuilding, Package, Clock, ArrowRight, Check } from '../components/ui/icons';
 import { SchoolManagerView } from '../components/admin/SchoolManagerView';
 import { UniformCatalogView } from '../components/admin/UniformCatalogView';
 import { CityAvailabilityView } from '../components/admin/CityAvailabilityView';
+import { useAuth } from '../auth';
 
 export default function AdminPortal() {
+  const { user, signIn, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const [usernameInput, setUsernameInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // Check if authenticated as uniform admin, boss, or admin
+  const isAuth =
+    localStorage.getItem('uniform_admin_auth') === 'true' ||
+    user?.role === 'UNIFORM_ADMIN' ||
+    user?.role === 'BOSS' ||
+    user?.role === 'ADMIN';
+
+  const handlePortalLogin = async (e: FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    setBusy(true);
+
+    const u = usernameInput.trim().toLowerCase();
+    const p = passwordInput.trim();
+
+    const isMatch =
+      (u === 'uniform admin' || u === 'uniform_admin' || u === 'uniformadmin' || u === 'admin') &&
+      (p === 'admin@123' || p === 'admin at thread 123');
+
+    if (isMatch) {
+      try {
+        await signIn(u, p);
+      } catch {
+        // Fallback for offline/mock
+      }
+      localStorage.setItem('uniform_admin_auth', 'true');
+      setBusy(false);
+      return;
+    }
+
+    try {
+      await signIn(u, p);
+      localStorage.setItem('uniform_admin_auth', 'true');
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Invalid credentials. Please enter ID: uniform admin and Password: admin@123');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handlePortalLogout = () => {
+    localStorage.removeItem('uniform_admin_auth');
+    localStorage.removeItem('access');
+    localStorage.removeItem('refresh');
+    signOut();
+  };
+
+  if (!isAuth) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background: 'linear-gradient(135deg, #063d27 0%, #0e5b38 100%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px',
+          fontFamily: 'var(--font-body, system-ui, sans-serif)',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: '440px',
+            width: '100%',
+            background: '#ffffff',
+            borderRadius: '16px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
+            padding: '36px 32px',
+          }}
+        >
+          {/* Brand header */}
+          <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+            <div
+              style={{
+                width: '56px',
+                height: '56px',
+                margin: '0 auto 16px',
+                borderRadius: '12px',
+                background: 'var(--brand, #0e5b38)',
+                color: '#ffffff',
+                display: 'grid',
+                placeItems: 'center',
+                fontWeight: 800,
+                fontSize: '24px',
+                fontFamily: 'var(--font-display, inherit)',
+                boxShadow: '0 8px 16px rgba(14, 91, 56, 0.25)',
+              }}
+            >
+              SS
+            </div>
+            <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: '0 0 6px 0' }}>
+              Management Portal
+            </h1>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: 1.5 }}>
+              Sign in with operations credentials to manage school catalog, uniform items & 24h city restock timers.
+            </p>
+          </div>
+
+          <form onSubmit={handlePortalLogin} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                Admin User ID
+              </label>
+              <input
+                type="text"
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value)}
+                placeholder="uniform admin"
+                required
+                style={{
+                  width: '100%',
+                  padding: '11px 14px',
+                  borderRadius: '8px',
+                  border: '1.5px solid #cbd5e1',
+                  fontSize: '14px',
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                Password
+              </label>
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder="••••••••"
+                required
+                style={{
+                  width: '100%',
+                  padding: '11px 14px',
+                  borderRadius: '8px',
+                  border: '1.5px solid #cbd5e1',
+                  fontSize: '14px',
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                }}
+              />
+            </div>
+
+            {authError && (
+              <div
+                style={{
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '8px',
+                  padding: '10px 12px',
+                  fontSize: '12px',
+                  color: '#991b1b',
+                  lineHeight: 1.4,
+                }}
+              >
+                {authError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={busy}
+              style={{
+                background: 'var(--brand, #0e5b38)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '12px',
+                fontSize: '14px',
+                fontWeight: 700,
+                cursor: busy ? 'not-allowed' : 'pointer',
+                opacity: busy ? 0.7 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                marginTop: '4px',
+              }}
+            >
+              <span>{busy ? 'Authenticating…' : 'Sign In to Portal'}</span>
+              <ArrowRight width={16} height={16} />
+            </button>
+          </form>
+
+          {/* Helper hint */}
+          <div
+            style={{
+              marginTop: '22px',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              background: '#f1f5f9',
+              border: '1px dashed #cbd5e1',
+              fontSize: '12px',
+              color: '#475569',
+              textAlign: 'center',
+            }}
+          >
+            Authorized ID: <code style={{ fontWeight: 700, color: '#0e5b38' }}>uniform admin</code> &nbsp;|&nbsp;
+            Password: <code style={{ fontWeight: 700, color: '#0e5b38' }}>admin@123</code>
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: '18px' }}>
+            <Link to="/" style={{ fontSize: '13px', color: '#64748b', textDecoration: 'none' }}>
+              ← Return to SchoolStore Frontpage
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="admin-portal-shell" style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
       {/* Top Navbar */}
@@ -74,8 +294,25 @@ export default function AdminPortal() {
             </div>
           </div>
 
-          {/* Quick External Actions */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Quick External Actions & User status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#065f46',
+                background: '#ecfdf5',
+                padding: '6px 10px',
+                borderRadius: '6px',
+                border: '1px solid #a7f3d0',
+              }}
+            >
+              <span>👤 Signed in as: <strong>uniform admin</strong></span>
+            </div>
+
             <Link
               to="/shop"
               target="_blank"
@@ -97,6 +334,26 @@ export default function AdminPortal() {
               <span>View Customer Storefront</span>
               <ArrowRight width={14} height={14} />
             </Link>
+
+            <button
+              type="button"
+              onClick={handlePortalLogout}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#ef4444',
+                background: '#fef2f2',
+                padding: '7px 12px',
+                borderRadius: '6px',
+                border: '1px solid #fecaca',
+                cursor: 'pointer',
+              }}
+            >
+              Sign Out
+            </button>
           </div>
         </div>
 

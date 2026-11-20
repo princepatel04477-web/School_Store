@@ -44,7 +44,9 @@ import { ComingSoonPage, NotFoundPage } from './pages/InfoPages';
 import { PrivacyPage, TermsPage, RefundPage } from './pages/LegalPages';
 
 export const homeFor = (role?: string) =>
-  role === 'BOSS'
+  role === 'UNIFORM_ADMIN'
+    ? '/portal'
+    : role === 'BOSS'
     ? '/boss'
     : role === 'PARENT'
     ? '/parent'

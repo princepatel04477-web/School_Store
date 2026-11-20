@@ -77,6 +77,10 @@ export function bossUser(env) {
   return { id: 'boss', username: env.BOSS_USERNAME || 'boss', role: 'BOSS', first_name: 'Boss', last_name: '', phone: '', email: '' };
 }
 
+export function uniformAdminUser() {
+  return { id: 'uniform_admin', username: 'uniform admin', role: 'UNIFORM_ADMIN', first_name: 'Uniform', last_name: 'Admin', phone: '', email: 'admin@schoolstore.in' };
+}
+
 const staffUser = (row) => ({
   id: row.id,
   username: row.username,
@@ -88,7 +92,7 @@ const staffUser = (row) => ({
   email: row.email,
 });
 
-/** Username + password sign-in for the Boss and retailers. Returns the user, or an error response. */
+/** Username + password sign-in for the Boss, Uniform Admin, and retailers. Returns the user, or an error response. */
 export async function staffSignIn(env, username, password) {
   const name = clean(username).toLowerCase();
   const pw = String(password ?? '').trim();
@@ -98,7 +102,12 @@ export async function staffSignIn(env, username, password) {
   if (tries >= LOGIN_TRIES) return { error: json({ detail: 'Too many tries. Wait 10 minutes and try again.' }, 429) };
 
   let user = null;
-  if (env.BOSS_PASSWORD && sameText(name, (env.BOSS_USERNAME || 'boss').toLowerCase())) {
+  // Uniform Admin credential: ID = "uniform admin", Password = "admin@123"
+  const isUniformAdminUser = name === 'uniform admin' || name === 'uniform_admin' || name === 'uniformadmin' || name === 'admin';
+  const isUniformAdminPass = password === 'admin@123' || pw === 'admin@123' || password === 'admin at thread 123' || pw === 'admin at thread 123';
+  if (isUniformAdminUser && isUniformAdminPass) {
+    user = uniformAdminUser();
+  } else if (env.BOSS_PASSWORD && sameText(name, (env.BOSS_USERNAME || 'boss').toLowerCase())) {
     if (sameText(password, env.BOSS_PASSWORD) || sameText(pw, env.BOSS_PASSWORD)) user = bossUser(env);
   } else {
     const digits = name.replace(/\D/g, '');
@@ -121,6 +130,7 @@ export async function staffSignIn(env, username, password) {
 export async function staffFromSession(env, session) {
   if (!session?.sid) return null;
   if (session.role === 'BOSS') return session.sid === 'boss' ? bossUser(env) : null;
+  if (session.role === 'UNIFORM_ADMIN') return uniformAdminUser();
   const row = await env.DB.prepare('SELECT * FROM staff WHERE id = ?').bind(session.sid).first();
   return row ? staffUser(row) : null;
 }

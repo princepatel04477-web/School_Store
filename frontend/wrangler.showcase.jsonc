@@ -1,9 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // The showcase store: everything on Cloudflare, no store server needed (see worker/showcase.js).
-  // Release: vite build, refresh worker/showcase-photos.json, then
-  //   npx wrangler deploy -c wrangler.showcase.jsonc
   "name": "schoolstore-showcase",
+  "account_id": "0e1accef8ef38c95615ccc2127999037",
   "main": "worker/showcase.js",
   "compatibility_date": "2026-09-01",
   "assets": {
