@@ -1,6 +1,6 @@
 import { Preferences } from '@capacitor/preferences';
 import { isNativeApp } from './native/nativePlatform';
-
+import { purgeSavedData, markSignedIn, markSignedOut } from './store/persist';
 export type Role='PARENT'|'TEACHER'|'SCHOOL_ADMIN'|'ADMIN'|'BOSS'|'RETAILER';
 export type User={id:string;username:string;role:Role;city?:string|null;city_name?:string|null;school?:{name:string}|string|null;school_name?:string|null;school_code?:string|null;phone?:string;email?:string;first_name?:string;last_name?:string;is_active?:boolean;created_at?:string};
 export type CustomisationField = {
@@ -59,6 +59,8 @@ async function ensurePrefLoaded():Promise<void>{
       ]);
       cachedAccess=acc.value;
       cachedRefresh=ref.value;
+      // Phones already signed in before the flag existed.
+      if(cachedAccess) markSignedIn();
     })();
   }
   return prefInitPromise;
@@ -75,6 +77,7 @@ export async function getStoredToken(key:'access'|'refresh'):Promise<string|null
 export async function setStoredTokens(tokens:{access:string;refresh?:string}):Promise<void>{
   if(isNativeApp()){
     cachedAccess=tokens.access;
+    markSignedIn();
     await Preferences.set({key:'access',value:tokens.access});
     if(tokens.refresh!==undefined){
       cachedRefresh=tokens.refresh;
@@ -92,6 +95,7 @@ export async function clearStoredTokens():Promise<void>{
   if(isNativeApp()){
     cachedAccess=null;
     cachedRefresh=null;
+    markSignedOut();
     await Promise.all([
       Preferences.remove({key:'access'}),
       Preferences.remove({key:'refresh'}),
@@ -173,6 +177,10 @@ export async function logout():Promise<void>{
     await unregisterDeviceToken();
   } catch {}
   await clearStoredTokens();
+  // Signing out leaves nothing behind on the phone.
+  purgeSavedData();
+  try{ sessionStorage.clear(); }catch{ /* storage blocked */ }
+  try{ const { clearLastSelection } = await import('./native/lastSelection'); await clearLastSelection(); }catch{}
   window.location.href='/login';
 }
 export const auth={login:(username:string,password:string)=>api<{access:string;refresh:string;user:User}>('/auth/token/',{method:'POST',body:JSON.stringify({username,password})}),register:(body:unknown)=>api<{access:string;refresh:string;user:User}>('/auth/register/',{method:'POST',body:JSON.stringify(body)}),me:()=>api<User>('/auth/me/'),

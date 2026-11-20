@@ -42,6 +42,9 @@ import { useBackHandler } from '../components/BackButton';
 import { CategoryPhoto } from '../components/CategoryPhoto';
 import './flow.css';
 
+// Memory only (nothing is saved on the phone): asked once per page load or app open.
+let stationeryAsked = false;
+
 const GROUP_KEYS: Record<string, MessageKey> = {
   'Pre-primary': 'grp.preprimary',
   Primary: 'grp.primary',
@@ -219,7 +222,6 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const { cart: bagLines } = useStoreState();
   const [added, setAdded] = useState<{ product: CardProduct; match: CardProduct | null } | null>(null);
   const [askStationery, setAskStationery] = useState(false);
-  const STATIONERY_ASKED = 'school_store_stationery_prompt_dismissed';
   const nextTab: Record<string, string> = { Uniform: 'School Shoes', 'School Shoes': 'Uniform Accessories' };
   const matchFor = (product: CardProduct): CardProduct | null => {
     const kind = garmentKind(product.name);
@@ -246,13 +248,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       return;
     }
     if (product.category === 'Uniform Accessories' && isCategoryLive('Stationery')) {
-      let asked = false;
-      try {
-        asked = sessionStorage.getItem(STATIONERY_ASKED) === '1';
-      } catch {
-        // storage blocked: ask
-      }
-      if (!asked) {
+      if (!stationeryAsked) {
         setAskStationery(true);
         return;
       }
@@ -261,11 +257,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     if (!fromCard) onOpenBag?.();
   };
   const closeStationery = (goToStationery: boolean) => {
-    try {
-      sessionStorage.setItem(STATIONERY_ASKED, '1');
-    } catch {
-      // storage blocked: may ask again next visit
-    }
+    stationeryAsked = true;
     setAskStationery(false);
     if (goToStationery) selectTab('Stationery');
   };

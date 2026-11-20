@@ -1,6 +1,11 @@
 import { Preferences } from '@capacitor/preferences';
 import { isNativeApp } from './nativePlatform';
 
+/**
+ * The phone app no longer remembers the school, class or boy/girl someone picked.
+ * Opening the app always starts with nothing chosen, so saving is switched off and
+ * anything saved by an earlier version is deleted.
+ */
 const KEY_LAST_SELECTION = 'schoolstore_last_selection';
 
 export interface SavedSelection {
@@ -11,32 +16,11 @@ export interface SavedSelection {
   gender?: string;
 }
 
-export async function saveLastSelection(sel: SavedSelection): Promise<void> {
-  const data = JSON.stringify(sel);
-  if (isNativeApp()) {
-    try {
-      await Preferences.set({ key: KEY_LAST_SELECTION, value: data });
-      return;
-    } catch {}
-  }
-  try {
-    localStorage.setItem(KEY_LAST_SELECTION, data);
-  } catch {}
+export async function saveLastSelection(_sel: SavedSelection): Promise<void> {
+  // Deliberately saves nothing.
 }
 
 export async function getLastSelection(): Promise<SavedSelection | null> {
-  if (isNativeApp()) {
-    try {
-      const { value } = await Preferences.get({ key: KEY_LAST_SELECTION });
-      if (value) {
-        return JSON.parse(value);
-      }
-    } catch {}
-  }
-  try {
-    const raw = localStorage.getItem(KEY_LAST_SELECTION);
-    if (raw) return JSON.parse(raw);
-  } catch {}
   return null;
 }
 
