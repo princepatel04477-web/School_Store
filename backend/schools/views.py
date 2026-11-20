@@ -67,7 +67,7 @@ class CityViewSet(
         user = self.request.user
         if not user or not user.is_authenticated:
             return qs.none()
-        if user.role == "BOSS" or getattr(user, "is_superuser", False):
+        if user.role == "BOSS" or getattr(user, "is_superuser", False) or (user.role == "ADMIN" and not user.city_id):
             return qs
         if user.city_id:
             return qs.filter(id=user.city_id)

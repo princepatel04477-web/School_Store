@@ -44,7 +44,7 @@ const AdminPortal = lazy(() => import('./pages/AdminPortal'));
 import { ComingSoonPage, NotFoundPage } from './pages/InfoPages';
 import { PrivacyPage, TermsPage, RefundPage } from './pages/LegalPages';
 
-export const homeFor = (role?: string) =>
+export const homeFor = (role?: string, cityId?: string | null) =>
   role === 'BOSS'
     ? '/boss'
     : role === 'PARENT'
@@ -52,7 +52,7 @@ export const homeFor = (role?: string) =>
     : role === 'TEACHER'
     ? '/teacher'
     : role === 'ADMIN'
-    ? '/city'
+    ? (cityId ? '/city' : '/portal')
     : role === 'RETAILER'
     ? '/retailer'
     : '/school';
@@ -61,7 +61,7 @@ function Guard({ children, roles }: { children: ReactNode; roles?: string[] }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="splash">Loading your store…</div>;
   if (!user) return <Navigate to="/login" replace />;
-  if (roles && !roles.includes(user.role)) return <Navigate to={homeFor(user.role)} replace />;
+  if (roles && !roles.includes(user.role)) return <Navigate to={homeFor(user.role, user.city)} replace />;
   return <>{children}</>;
 }
 
@@ -197,7 +197,7 @@ export default function App() {
 
 export function Shell({ children, title }: { children: ReactNode; title: string }) {
   const { user, signOut } = useAuth();
-  const home = homeFor(user?.role);
+  const home = homeFor(user?.role, user?.city);
   return (
     <div className="app">
       <header>

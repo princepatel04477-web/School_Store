@@ -33,7 +33,9 @@ All portal screens follow the design rules defined in `CLAUDE.md` (no drop shado
 1. **Route & Shell (`frontend/src/pages/AdminPortal.tsx`)**:
    - Protected route `/portal/*` wrapped in `<Guard roles={['BOSS', 'ADMIN']}>`.
    - Accessible via "Uniform Portal" navigation link in both `BossPanel` (`/boss`) and `CityAdmin` (`/city`) panels.
-   - Clean top bar displaying current authenticated user and role, link to customer storefront, back button to management panel, and sign-out button.
+   - Dedicated National Uniform Admin support: An `ADMIN` user without a city (e.g. national uniform operations staff) is automatically routed to `/portal` upon sign-in (`homeFor('ADMIN', null) -> '/portal'`).
+   - Boss Isolation: Accounts with role `ADMIN` are strictly blocked from `/boss` (BossPanel executive KPIs, revenue, profits, margins, and staff management).
+   - Clean top bar displaying current authenticated user and role, link to customer storefront, contextual back buttons (only displayed for Boss and City-scoped Admins, omitted for National Uniform Admins), and sign-out button.
    - Layout isolation: Header and secondary navigation bar (`.portal-nav-bar`) separated into distinct blocks with explicit styling overrides against global 76px header rules, avoiding squashed badges or clipped tab bars.
 
 2. **Schools Screen (`frontend/src/components/admin/SchoolManagerView.tsx`)**:

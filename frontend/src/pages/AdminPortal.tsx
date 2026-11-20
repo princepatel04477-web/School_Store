@@ -8,7 +8,7 @@ import '../components/admin/portal.css';
 
 export default function AdminPortal() {
   const { user, signOut } = useAuth();
-  const backPanelPath = user?.role === 'BOSS' ? '/boss' : '/city';
+  const backPanelPath = user?.role === 'BOSS' ? '/boss' : user?.city_name ? '/city' : '/portal';
 
   return (
     <div className="portal-root">
@@ -25,12 +25,14 @@ export default function AdminPortal() {
 
           <div className="portal-topbar-actions">
             <span className="portal-user-badge">
-              {user?.username} ({user?.role === 'BOSS' ? 'Boss' : user?.city_name || 'Admin'})
+              {user?.username} ({user?.role === 'BOSS' ? 'Boss' : user?.city_name || 'All India'})
             </span>
 
-            <Link to={backPanelPath} className="portal-btn portal-btn-secondary portal-btn-sm" style={{ textDecoration: 'none' }}>
-              Back to {user?.role === 'BOSS' ? 'Executive Panel' : 'City Panel'}
-            </Link>
+            {backPanelPath !== '/portal' && (
+              <Link to={backPanelPath} className="portal-btn portal-btn-secondary portal-btn-sm" style={{ textDecoration: 'none' }}>
+                Back to {user?.role === 'BOSS' ? 'Executive Panel' : 'City Panel'}
+              </Link>
+            )}
 
             <Link
               to="/shop"

@@ -114,9 +114,7 @@ class ProductViewSet(
         if user.role not in ("BOSS", "ADMIN") and not getattr(user, "is_superuser", False):
             raise PermissionDenied("Only Boss and City Admins can upload product photos.")
 
-        if user.role == "ADMIN":
-            if not user.city_id:
-                raise PermissionDenied("City-scoped Admin must have an assigned city.")
+        if user.role == "ADMIN" and user.city_id:
             if product.city_id and product.city_id != user.city_id:
                 raise PermissionDenied("Admins can only manage products for their own city.")
             if product.school and product.school.city_id and product.school.city_id != user.city_id:
@@ -206,9 +204,7 @@ class ProductViewSet(
 
     def perform_destroy(self, instance):
         user = self.request.user
-        if getattr(user, "role", None) == "ADMIN":
-            if not user.city_id:
-                raise PermissionDenied("City-scoped Admin must have an assigned city.")
+        if getattr(user, "role", None) == "ADMIN" and user.city_id:
             if instance.city_id and instance.city_id != user.city_id:
                 raise PermissionDenied("Admins can only delete products for their own city.")
             if instance.school and instance.school.city_id and instance.school.city_id != user.city_id:
@@ -278,9 +274,7 @@ class ProductVariantViewSet(
 
     def perform_destroy(self, instance):
         user = self.request.user
-        if getattr(user, "role", None) == "ADMIN":
-            if not user.city_id:
-                raise PermissionDenied("City-scoped Admin must have an assigned city.")
+        if getattr(user, "role", None) == "ADMIN" and user.city_id:
             if instance.city_id and instance.city_id != user.city_id:
                 raise PermissionDenied("Admins can only delete variants for their own city.")
         instance.active = False
