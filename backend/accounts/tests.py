@@ -266,6 +266,13 @@ class RolesPermissionsAndScopingTests(TestCase):
         self.assertEqual(res_students.status_code, 200)
         parent_ids = {str(row["parent"]) for row in res_students.data["results"]}
         self.assertEqual(parent_ids, {str(self.parent_rahul.id)})
+        # Prompt 3: Verify branch and branch_name are present on student row
+        first_student = res_students.data["results"][0]
+        self.assertIn("branch", first_student)
+        self.assertIn("branch_name", first_student)
+        if self.student_dps.branch_id:
+            self.assertEqual(str(first_student["branch"]), str(self.student_dps.branch_id))
+            self.assertEqual(first_student["branch_name"], self.student_dps.branch.name)
         self.assertEqual(
             client.get(f"/api/students/{self.student_udg.id}/").status_code,
             404,

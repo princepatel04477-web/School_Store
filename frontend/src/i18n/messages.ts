@@ -1067,6 +1067,31 @@ export const messages = {
     hi: 'स्टाफ़ खाते यूज़रनेम और पासवर्ड से लॉगिन करते हैं।',
   },
 
+  // ---------- parent landing ----------
+  'parent.activeOrder': { en: 'Order in progress', gu: 'પ્રગતિમાં ઓર્ડર', hi: 'प्रगति में ऑर्डर' },
+  'parent.viewOrder': { en: 'View in My Orders', gu: 'મારા ઓર્ડરમાં જુઓ', hi: 'मेरे ऑर्डर में देखें' },
+  'parent.shopFor': { en: 'Shop for {name}', gu: '{name} માટે ખરીદી કરો', hi: '{name} के लिए खरीदारी करें' },
+  'parent.noChildren': { en: 'No children linked yet', gu: 'હજી કોઈ બાળક લિંક થયેલ નથી', hi: 'अभी कोई बच्चा लिंक नहीं है' },
+  'parent.findSchool': { en: 'Find your school', gu: 'તમારી શાળા શોધો', hi: 'अपना स्कूल खोजें' },
+  'parent.addChild': { en: 'Add your child', gu: 'તમારું બાળક ઉમેરો', hi: 'अपना बच्चा जोड़ें' },
+  'parent.studentProfile': { en: 'Student Profile (View only)', gu: 'વિદ્યાર્થી પ્રોફાઇલ (માત્ર જુઓ)', hi: 'छात्र प्रोफ़ाइल (केवल देखें)' },
+  'parent.grNumber': { en: 'GR Number', gu: 'જીઆર નંબર', hi: 'जीआर नंबर' },
+  'parent.class': { en: 'Class', gu: 'ધોરણ', hi: 'कक्षा' },
+  'parent.section': { en: 'Section', gu: 'વિભાગ', hi: 'वर्ग' },
+  'parent.gender': { en: 'Gender', gu: 'જાતિ', hi: 'लिंग' },
+  'parent.school': { en: 'School', gu: 'શાળા', hi: 'स्कूल' },
+  'parent.branch': { en: 'Campus', gu: 'કેમ્પસ', hi: 'परिसर' },
+  'parent.errorTitle': { en: 'Could not load your account', gu: 'તમારું ખાતું લોડ થઈ શક્યું નથી', hi: 'आपका खाता लोड नहीं हो सका' },
+  'parent.retry': { en: 'Try again', gu: 'ફરી પ્રયાસ કરો', hi: 'पुनः प्रयास करें' },
+  'parent.schoolInactive': {
+    en: 'This school is not active in the store yet. Please choose your school.',
+    gu: 'આ શાળા હજી સ્ટોરમાં સક્રિય નથી. કૃપા કરીને તમારી શાળા પસંદ કરો.',
+    hi: 'यह स्कूल अभी स्टोर में सक्रिय नहीं है। कृपया अपना स्कूल चुनें।',
+  },
+  'parent.orderNumber': { en: 'Order #{number}', gu: 'ઓર્ડર #{number}', hi: 'ऑर्डर #{number}' },
+  'parent.fulfilment': { en: 'Status', gu: 'સ્થિતિ', hi: 'स्थिति' },
+  'parent.payment': { en: 'Payment', gu: 'ચુકવણી', hi: 'भुगतान' },
+
   // ---------- child photo consent ----------
   'photo.consent.listen': {
     en: 'This photo is used only to print this notebook or ID card. School staff who open the order can see it. The print file is what the printer uses. We delete the original and the print file 30 days after delivery. The small preview is deleted too, unless you choose to keep it for next year’s ID card.',

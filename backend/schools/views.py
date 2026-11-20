@@ -142,7 +142,8 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
     """
 
     # `grade` is read by the serializer (grade_name) for every row: load it in the same query.
-    queryset = Student.objects.select_related("school", "parent", "grade").order_by(
+    # `branch` is read by the serializer (branch_name) for every row: load it in the same query.
+    queryset = Student.objects.select_related("school", "parent", "grade", "branch").order_by(
         "school_id", "class_name", "section", "name"
     )
     serializer_class = StudentSerializer
