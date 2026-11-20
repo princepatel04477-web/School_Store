@@ -1,3 +1,4 @@
+import { purgeSavedData } from './store/persist';
 export type Role='PARENT'|'TEACHER'|'SCHOOL_ADMIN'|'ADMIN'|'BOSS'|'RETAILER';
 export type User={id:string;username:string;role:Role;city?:string|null;city_name?:string|null;school?:{name:string}|string|null;school_name?:string|null;school_code?:string|null;phone?:string;email?:string;first_name?:string;last_name?:string;is_active?:boolean;created_at?:string};
 export type CustomisationField = {
@@ -42,7 +43,7 @@ export async function api<T>(path:string, init:RequestInit={},{retry=true}={}):P
 export async function upload<T>(path:string, form:FormData):Promise<T>{const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{method:'POST',headers,body:form}); if(!res.ok){const data=await res.json().catch(()=>({})); throw new ApiError(data.detail||'Upload failed',res.status,data);} return res.json();}
 /** Stream a protected file with the bearer token attached (no token in the URL). */
 export async function download(path:string, filename:string){const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{headers}); if(!res.ok) throw new Error((await res.json().catch(()=>({}))).detail||'Download failed'); const blob=await res.blob(); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);}
-export function logout(){localStorage.removeItem('access');localStorage.removeItem('refresh'); window.location.href='/login';}
+export function logout(){localStorage.removeItem('access');localStorage.removeItem('refresh'); purgeSavedData(); try{sessionStorage.clear();}catch{/* storage blocked */} window.location.href='/login';}
 export const auth={login:(username:string,password:string)=>api<{access:string;refresh:string;user:User}>('/auth/token/',{method:'POST',body:JSON.stringify({username,password})}),register:(body:unknown)=>api<{access:string;refresh:string;user:User}>('/auth/register/',{method:'POST',body:JSON.stringify(body)}),me:()=>api<User>('/auth/me/'),
   /** Parent sign-in by mobile number: send the code, then verify it. */
   sendOtp:(phone:string)=>api<{detail:string;phone:string;otp_debug?:string}>('/auth/otp/send/',{method:'POST',body:JSON.stringify({phone})}),
@@ -610,6 +611,23 @@ export type PortalCity = {
   active: boolean;
 };
 
+export type ProductCityPrice = {
+  id: string;
+  product: string;
+  product_name: string;
+  product_images: string[];
+  school_name: string;
+  universal_selling_price: string;
+  universal_cost_price?: string;
+  city: string;
+  city_name: string;
+  selling_price: string;
+  cost_price?: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export const portalApi = {
   schools: (p: Record<string, string> = {}) => api<Page<CitySchool>>(`/schools/?${new URLSearchParams(p)}`),
   addSchool: (body: Partial<CitySchool>) => api<CitySchool>('/schools/', { method: 'POST', body: JSON.stringify(body) }),
@@ -635,4 +653,8 @@ export const portalApi = {
   stockBalances: (p: Record<string, string> = {}) => api<Page<StockBalance>>(`/stock-balances/?${new URLSearchParams(p)}`),
   addStockMovement: (body: { variant: string; quantity_change: number; reason: string; city?: string }) =>
     api<StockMovement>('/stock-movements/', { method: 'POST', body: JSON.stringify(body) }),
+  cityPrices: (p: Record<string, string> = {}) => api<Page<ProductCityPrice>>(`/city-prices/?${new URLSearchParams(p)}`),
+  setCityPrice: (body: { product: string; city: string; selling_price: string; cost_price?: string }) =>
+    api<ProductCityPrice>('/city-prices/', { method: 'POST', body: JSON.stringify(body) }),
+  deleteCityPrice: (id: string) => api<void>(`/city-prices/${id}/`, { method: 'DELETE' }),
 };

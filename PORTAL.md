@@ -20,6 +20,13 @@ Rebuilt the uniform management portal cleanly from the live codebase (`origin/re
   - City admin permission scoping: `ADMIN` can only manage schools, products, and variants matching their designated city.
   - Soft-delete: Added `perform_destroy` on `ProductViewSet` and `ProductVariantViewSet`. Soft-deletes products and variants by setting `active = False` (cascading deactivation from product to variants) and clearing catalogue cache without breaking protected foreign keys in order history. Restricts city-admin to their assigned city.
 
+- **City Pricing & Overrides Endpoint**:
+  - `POST /api/city-prices/`, `GET /api/city-prices/`, `DELETE /api/city-prices/{id}/`
+  - Model `ProductCityPrice(product, city, selling_price, cost_price, active)` with `unique_together = ('product', 'city')` and migration `0016_productcityprice.py`.
+  - Scoping: City admins can only view and set prices for their assigned city; Boss/National Uniform Admins can set city price overrides across any city in India.
+  - Universal Listing Default: Products sell across India at the universal base `Product.selling_price` unless explicitly overridden for a specific city.
+  - Storefront Integration: Public catalogue endpoint `/api/public/products/?city=<uuid>` checks `ProductCityPrice` and reflects city-specific pricing with fallback to universal price. Order checkout snapshots `ProductCityPrice.selling_price` into `OrderItem.unit_price_snapshot`.
+
 - **Stock Balances & Movements**:
   - `backend/inventory/views.py`: Filter `StockBalanceViewSet` by `city`, `variant`, `school`, and `product`.
   - `POST /api/stock-movements/`: Supports `RESTOCK`, `ADJUSTMENT`, and `INITIAL_STOCK` movements. Allows creating initial stock balance records for variants that have no row yet (e.g. Kendriya Vidyalaya uniform items). Zeroes out stock atomically when negative adjustment matching balance is posted.
@@ -51,10 +58,16 @@ All portal screens follow the design rules defined in `CLAUDE.md` (no drop shado
    - Direct computer photo upload with client-side preview, file size check, progress feedback, and server error handling.
 
 4. **Stock Screen (`frontend/src/components/admin/CityAvailabilityView.tsx`)**:
-   - City inventory monitor displaying current stock balances and low-stock alerts.
-   - Lists both stocked and unstocked catalogue variants for the city (enabling initial stock entry for KV items).
-   - "Restock / Adjust" button: Records audited `StockMovement` records.
-   - "Mark out of stock in this city" button: Computes negative delta to bring on-hand balance to exactly 0.
+   - Product-Level Grouping: Replaced 150+ raw size rows with clean, grouped product rows displaying photo thumbnail, school name, category, gender, class grades, total city stock on hand, and overall availability status.
+   - Collapsible Size Drawers: Each product row features a "Manage Sizes" drawer and expand/collapse toggle displaying size chips, individual SKUs, stock units, and instant action buttons (`Initialize Stock`, `Restock / Adjust`, `Zero Out`).
+   - Global and Batch Controls: Features "Expand All" / "Collapse All" toggle buttons, a quick city metrics summary bar, and a "Mark 0" button to zero out all sizes for a product in that city with a single confirmation.
+   - City inventory monitor displaying current stock balances and low-stock alerts, enabling initial stock entry for Kendriya Vidyalaya uniform items.
+
+5. **City Pricing & Overrides Screen (`frontend/src/components/admin/CityPricingView.tsx`)**:
+   - City selector allowing staff to inspect and set city-level retail rates.
+   - Universal Listing First: Products default to universal catalogue pricing; staff can add custom local rates (e.g. +₹50 in Jaipur).
+   - Quick adjustment presets: One-click buttons for +₹10, +₹20, +₹50, +₹100, -₹20, -₹50, or custom rate inputs with live delta calculation (+₹50 / +7.8%).
+   - Reset to Universal: Single-click button to remove custom city override and immediately revert back to universal catalogue price.
 
 ---
 

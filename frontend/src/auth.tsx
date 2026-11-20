@@ -31,7 +31,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       auth.me()
         .then((u) => {
           setUser(u);
-          storeState.mergeOnSignIn(u);
         })
         .catch(() => logout())
         .finally(() => setLoading(false));

@@ -17,11 +17,12 @@ from common.pagination import BoundedCursorPagination
 from common.permissions import RoleScopedPermission
 from common.scoping import ScopedQuerysetMixin
 
-from .models import Category, Product, ProductVariant
+from .models import Category, Product, ProductVariant, ProductCityPrice
 from .serializers import (
     CategorySerializer,
     ProductSerializer,
     ProductVariantSerializer,
+    ProductCityPriceSerializer,
 )
 
 
@@ -374,5 +375,71 @@ class CartValidateView(APIView):
                 "product_id": str(product.id),
             }
         )
+
+
+class ProductCityPriceViewSet(viewsets.ModelViewSet):
+    queryset = ProductCityPrice.objects.select_related(
+        "product", "city", "product__school"
+    ).order_by("city__name", "product__name")
+    serializer_class = ProductCityPriceSerializer
+    permission_classes = [RoleScopedPermission]
+    read_roles = ("BOSS", "ADMIN")
+    write_roles = ("BOSS", "ADMIN")
+    scope_city_field = "city_id"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if getattr(user, "role", None) == "ADMIN" and user.city_id:
+            qs = qs.filter(city_id=user.city_id)
+
+        city = self.request.query_params.get("city")
+        product = self.request.query_params.get("product")
+        school = self.request.query_params.get("school")
+        if city:
+            qs = qs.filter(city_id=city)
+        if product:
+            qs = qs.filter(product_id=product)
+        if school:
+            qs = qs.filter(product__school_id=school)
+        return qs
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        city = serializer.validated_data.get("city")
+        if getattr(user, "role", None) == "ADMIN" and user.city_id:
+            if city.id != user.city_id:
+                raise PermissionDenied("Admins can only set prices for their own city.")
+
+        # Upsert: if an override already exists for this (product, city), update it
+        product = serializer.validated_data["product"]
+        existing = ProductCityPrice.objects.filter(product=product, city=city).first()
+        if existing:
+            existing.selling_price = serializer.validated_data["selling_price"]
+            if "cost_price" in serializer.validated_data:
+                existing.cost_price = serializer.validated_data["cost_price"]
+            if "active" in serializer.validated_data:
+                existing.active = serializer.validated_data["active"]
+            existing.save()
+            serializer.instance = existing
+        else:
+            serializer.save()
+        invalidate_catalog_cache()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        if getattr(user, "role", None) == "ADMIN" and user.city_id:
+            if serializer.instance.city_id != user.city_id:
+                raise PermissionDenied("Admins can only update prices for their own city.")
+        serializer.save()
+        invalidate_catalog_cache()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if getattr(user, "role", None) == "ADMIN" and user.city_id:
+            if instance.city_id != user.city_id:
+                raise PermissionDenied("Admins can only delete prices for their own city.")
+        instance.delete()
+        invalidate_catalog_cache()
 
 

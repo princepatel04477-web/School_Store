@@ -543,6 +543,12 @@ class PublicProductList(APIView):
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(qs, request, view=self)
 
+        city_price_map = {}
+        if city_uuid and page:
+            from catalog.models import ProductCityPrice
+            for cp in ProductCityPrice.objects.filter(city_id=city_uuid, active=True, product__in=page):
+                city_price_map[cp.product_id] = float(cp.selling_price)
+
         # Requirement 9: Returns only card fields
         data = [
             {
@@ -554,7 +560,7 @@ class PublicProductList(APIView):
                 "gender": product.gender,
                 "needs_review": product.needs_review,
                 "school": product.school.name if product.school else None,
-                "price": float(product.selling_price),
+                "price": city_price_map.get(product.id, float(product.selling_price)),
                 "thumbnail": product_thumbnail(product.images),
                 "image": product_image(product.images),
                 "image_alt": product_image_alt(product.images),

@@ -343,6 +343,15 @@
   place-items: center;
 }
 
+.mobile-profile-btn {
+  display: none;
+  color: var(--bar-ink);
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  place-items: center;
+}
+
 .bag-btn {
   position: relative;
 }
@@ -562,11 +571,14 @@
     display: inline-flex;
     align-items: center;
   }
-  /* Sign in and My Account live in the menu on phones. Search stays:
-     it opens the full-screen school search. */
+  /* Keep a profile shortcut beside search and the bag. The menu retains its
+     sign-in/account link as well. */
   .action-signin-link,
   .action-account-btn {
     display: none;
+  }
+  .mobile-profile-btn {
+    display: inline-grid;
   }
   .brand-wordmark {
     font-size: var(--text-xl);

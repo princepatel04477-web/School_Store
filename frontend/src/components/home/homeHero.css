@@ -48,7 +48,9 @@
   color: var(--emerald-white);
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;
+  /* Clip decorative overflow without turning the hero into a second vertical
+     scroll container. `hidden` on one axis can make the other axis scrollable. */
+  overflow-x: clip;
   box-sizing: border-box;
   font-family: var(--font-body);
 }
