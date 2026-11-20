@@ -46,10 +46,6 @@ HOUSES = [
     ("Yellow", "YELLOW", "kv-house-tshirt-yellow.webp"),
 ]
 
-# An earlier import stored the en dash in KV item names as UTF-8 read as
-# cp1252 ("Class 1â€“5"). Shown to parents as is, so it is repaired here.
-MOJIBAKE_DASH = "â€“"
-
 
 def _sized(prefix, sizes):
     return [(size, f"{prefix}-{size}") for size in sizes]
@@ -146,18 +142,10 @@ KV_ITEMS += [
 
 
 def apply_kv_catalog(School, Grade, Category, Product, ProductVariant):
-    """Add the missing KV items and repair garbled KV names. Returns how many items were added."""
+    """Add the missing KV items. Returns how many items were added."""
     school = School.objects.filter(code=KV_CODE).first()
     if school is None:
         return 0  # directory not imported yet (tests, fresh installs)
-
-    for product in Product.objects.filter(school=school, name__contains=MOJIBAKE_DASH):
-        product.name = product.name.replace(MOJIBAKE_DASH, "-")
-        product.description = product.description.replace(MOJIBAKE_DASH, "-")
-        product.save(update_fields=["name", "description", "updated_at"])
-    for product in Product.objects.filter(school=school, description__contains=MOJIBAKE_DASH):
-        product.description = product.description.replace(MOJIBAKE_DASH, "-")
-        product.save(update_fields=["description", "updated_at"])
 
     by_class = {}
     for grade in Grade.objects.filter(name__startswith="Class "):

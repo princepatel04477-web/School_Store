@@ -5,7 +5,7 @@ from django.test import TestCase, override_settings
 
 from schools.models import Grade, School
 
-from .kv_catalog import KV_ITEMS, MOJIBAKE_DASH, apply_kv_catalog
+from .kv_catalog import KV_ITEMS, apply_kv_catalog
 from .models import Category, Product, ProductVariant
 
 LOCMEM = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
@@ -57,18 +57,11 @@ class KvCatalogTests(TestCase):
         ):
             self.assertIn(name, names)
 
-    def test_repairs_garbled_dash_in_existing_names(self):
-        uniform = Category.objects.get(slug="uniform")
-        old = Product.objects.create(
-            name=f"KV Boys Grey Shorts (Class 1{MOJIBAKE_DASH}5)",
-            description=f"Girls wear it in classes 1{MOJIBAKE_DASH}8.",
-            school=self.kv, category=uniform, gender="boy",
-            cost_price=Decimal("5"), selling_price=Decimal("10"),
-        )
+    def test_items_without_a_photo_have_no_image(self):
         run()
-        old.refresh_from_db()
-        self.assertEqual(old.name, "KV Boys Grey Shorts (Class 1-5)")
-        self.assertEqual(old.description, "Girls wear it in classes 1-8.")
+        socks = Product.objects.get(school=self.kv, name="KV Navy Socks with Red Stripes (Pack of 2)")
+        self.assertEqual(socks.images, [])
+        self.assertEqual(socks.selling_price, Decimal("180.00"))
 
     def test_no_kv_school_is_a_no_op(self):
         self.kv.delete()
