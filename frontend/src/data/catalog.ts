@@ -15,7 +15,12 @@ export interface StoreSchool extends SeedSchool {
 }
 
 export interface StoreProduct extends SeedProduct {
+  /** The small photo for cards and lists. */
   imageUrl?: string;
+  /** The full-size photo for the item's own page. */
+  heroUrl?: string;
+  /** What the photo shows, read out by screen readers. */
+  imageAlt?: string;
   /** Needs a photo or details the parent can't give here (ID card, photo notebook). */
   needsDetails: boolean;
   /** Made for this school (its own shirt, tie, belt…), as opposed to a general item. */
@@ -43,6 +48,8 @@ type PublicProduct = {
   school: string | null;
   price: number;
   thumbnail: string | null;
+  image?: string | null;
+  image_alt?: string | null;
   customisation_schema: CustomisationField[] | { fields?: CustomisationField[] } | null;
   variants: PublicVariant[];
 };
@@ -92,6 +99,8 @@ function toProduct(product: PublicProduct): StoreProduct {
       inStock: variant.stock_status === 'IN_STOCK' || variant.stock_status === 'LOW_STOCK',
     })),
     imageUrl: product.thumbnail || undefined,
+    heroUrl: product.image || undefined,
+    imageAlt: product.image_alt || undefined,
     needsDetails: needsDetails(product.customisation_schema),
     official: Boolean(product.school),
   };

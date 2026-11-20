@@ -15,6 +15,8 @@ The sleeveless coatie is not in the KVS pattern; many Vidyalayas sell it as a
 layer over the shirt, so it is offered alongside.
 
 Items with photo None show the shop's drawn placeholder until a photo is added.
+Every item below has a photo; catalog/kv_photos.py is the table of which photo each
+item shows, and migration 0016 applies it to items that already exist.
 
 Sizes follow the store's existing KV items: junior sizes for Classes 1-5,
 senior sizes for Classes 6-12. No stock is created; KV stock is set per city
@@ -84,7 +86,7 @@ for colour, code, photo in HOUSES:
     )
 
 KV_ITEMS += _banded(
-    "KV Navy PT Track Pants", "PT-TRACK", None,
+    "KV Navy PT Track Pants", "PT-TRACK", "kv-track-pant-navy.webp",
     "Navy blue track pants with white piping down each side and an elastic waist, for PT and sports days.",
     "340.00", "420.00",
     junior_sizes=JUNIOR_PANT_SIZES, senior_sizes=SENIOR_PANT_SIZES,
@@ -95,7 +97,7 @@ KV_ITEMS += _banded(
     "690.00", "790.00",
 )
 KV_ITEMS += _banded(
-    "KV Grey Hooded Jacket, Half Sleeve", "JACKET-HALF", None,
+    "KV Grey Hooded Jacket, Half Sleeve", "JACKET-HALF", "kv-hooded-jacket-half.webp",
     "Grey zip-front hooded jacket with half sleeves and red stripes on the sleeve ends and hem. "
     "Worn over the shirt in early winter.",
     "590.00", "680.00",
@@ -110,7 +112,7 @@ KV_ITEMS += _banded(
 KV_ITEMS += [
     {
         "name": "KV Girls Grey Leggings (Class 1-8)", "category": "uniform", "gender": "girl",
-        "classes": (1, 8), "photo": None,
+        "classes": (1, 8), "photo": "kv-girls-leggings-grey.webp",
         "description": "Plain grey full-length cotton leggings, worn with the tunic or divided skirt.",
         "cost": "160.00", "price": "270.00", "variants": _sized("KV-LEGGINGS", LEGGING_SIZES),
     },
@@ -125,7 +127,7 @@ KV_ITEMS += [
     {
         "name": "KV Navy Socks with Red Stripes (Pack of 2)", "category": "uniform-accessories",
         "product_type": "SOCKS", "gender": "unisex", "classes": ALL_CLASSES,
-        "photo": None,
+        "photo": "kv-socks-navy.webp",
         "description": "Navy blue cotton school socks with red stripes at the top. Pack of 2 pairs.",
         "cost": "95.00", "price": "180.00",
         "variants": [("Size 4-6 (Junior)", "KV-SOCK-NAVY-JR"), ("Size 7-9 (Senior)", "KV-SOCK-NAVY-SR")],
@@ -133,7 +135,7 @@ KV_ITEMS += [
     {
         "name": "KV Grey Socks with Red Stripes (Pack of 2)", "category": "uniform-accessories",
         "product_type": "SOCKS", "gender": "unisex", "classes": ALL_CLASSES,
-        "photo": None,
+        "photo": "kv-socks-grey.webp",
         "description": "Grey cotton school socks with red stripes at the top. Pack of 2 pairs.",
         "cost": "95.00", "price": "180.00",
         "variants": [("Size 4-6 (Junior)", "KV-SOCK-GREY-JR"), ("Size 7-9 (Senior)", "KV-SOCK-GREY-SR")],

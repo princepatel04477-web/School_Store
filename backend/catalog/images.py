@@ -14,6 +14,8 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 
+from .kv_photos import alt_for_url, thumbnail_for_url
+
 
 def is_remote_image_url(url) -> bool:
     """True when `url` is an absolute http(s) URL (object storage / CDN)."""
@@ -35,7 +37,25 @@ def cdn_thumbnail_url(url: str | None) -> str | None:
 
 
 def product_thumbnail(images) -> str | None:
-    """One thumbnail for the product card: the first stored image, resized."""
+    """One thumbnail for the product card: the first stored image, resized.
+
+    Store photos that ship with the React build come in two sizes, so the card
+    gets the 400 px file; any other image is resized by the CDN.
+    """
     if not images:
         return None
-    return cdn_thumbnail_url(images[0])
+    return thumbnail_for_url(images[0]) or cdn_thumbnail_url(images[0])
+
+
+def product_image(images) -> str | None:
+    """The full-size first image, for the product sheet."""
+    if not images or not is_remote_image_url(images[0]):
+        return None
+    return images[0]
+
+
+def product_image_alt(images) -> str | None:
+    """Alt text for the first image when the store has written one for it."""
+    if not images:
+        return None
+    return alt_for_url(images[0])

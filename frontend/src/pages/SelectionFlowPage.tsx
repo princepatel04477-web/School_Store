@@ -838,10 +838,11 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                         </div>
 
                         <Stagger key={`req-${activeTab}`} className="products-grid">
-                          {requiredProducts.map((p) => (
+                          {requiredProducts.map((p, index) => (
                             <ProductCard
                               key={p.id}
                               product={p}
+                              priority={index === 0}
                               onOpenDetails={(item) => setActiveProductForSheet(item)}
                               onAdded={(item) => handleAdded(item, true)}
                             />
@@ -859,10 +860,11 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                             : t('flow.listFor', { cls: classLabel(activeClass?.name, t) })}
                         </h2>
                         <Stagger key={`opt-${activeTab}`} className="products-grid">
-                          {optionalProducts.map((p) => (
+                          {optionalProducts.map((p, index) => (
                             <ProductCard
                               key={p.id}
                               product={p}
+                              priority={index === 0 && requiredProducts.length === 0}
                               onOpenDetails={(item) => setActiveProductForSheet(item)}
                               onAdded={(item) => handleAdded(item, true)}
                             />

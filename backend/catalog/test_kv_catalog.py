@@ -57,11 +57,12 @@ class KvCatalogTests(TestCase):
         ):
             self.assertIn(name, names)
 
-    def test_items_without_a_photo_have_no_image(self):
+    def test_every_item_has_a_photo(self):
         run()
         socks = Product.objects.get(school=self.kv, name="KV Navy Socks with Red Stripes (Pack of 2)")
-        self.assertEqual(socks.images, [])
+        self.assertTrue(socks.images[0].endswith("kv-socks-navy.webp"))
         self.assertEqual(socks.selling_price, Decimal("180.00"))
+        self.assertFalse(Product.objects.filter(school=self.kv, images=[]).exists())
 
     def test_no_kv_school_is_a_no_op(self):
         self.kv.delete()

@@ -6,6 +6,10 @@ export interface ProductImageProps {
   name: string;
   category: string;
   imageUrl?: string;
+  /** What the photo shows. Falls back to the item's name. */
+  alt?: string;
+  /** Pixel size of the file, so the page reserves the right space before it loads. */
+  imageSize?: number;
   priority?: boolean;
   className?: string;
 }
@@ -15,6 +19,8 @@ export function ProductImage({
   name,
   category,
   imageUrl,
+  alt,
+  imageSize = 400,
   priority = false,
   className = '',
 }: ProductImageProps) {
@@ -39,11 +45,11 @@ export function ProductImage({
         <motion.img
           layoutId={`product-img-${id}`}
           src={imageUrl}
-          alt={name}
+          alt={alt || name}
           loading={priority ? 'eager' : 'lazy'}
           decoding="async"
-          width={400}
-          height={400}
+          width={imageSize}
+          height={imageSize}
           style={{
             width: '100%',
             height: '100%',

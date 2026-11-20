@@ -23,7 +23,7 @@ from inventory.models import StockBalance
 from inventory.services import stock_flag
 from schools.models import School
 
-from .images import product_thumbnail
+from .images import product_image, product_image_alt, product_thumbnail
 from .models import Product, ProductVariant
 
 
@@ -556,6 +556,8 @@ class PublicProductList(APIView):
                 "school": product.school.name if product.school else None,
                 "price": float(product.selling_price),
                 "thumbnail": product_thumbnail(product.images),
+                "image": product_image(product.images),
+                "image_alt": product_image_alt(product.images),
                 "customisation_schema": product.customisation_schema,
                 "variants": [
                     {

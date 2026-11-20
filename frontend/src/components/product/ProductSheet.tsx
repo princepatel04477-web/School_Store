@@ -171,7 +171,15 @@ export function ProductSheet({
             {/* Gallery Left */}
             <div className="sheet-gallery-col">
               <motion.div layoutId={`product-image-${product.id}`} style={{ width: '100%' }}>
-                <ProductImage id={product.id} name={product.name} category={product.category} imageUrl={product.imageUrl} priority />
+                <ProductImage
+                  id={product.id}
+                  name={product.name}
+                  category={product.category}
+                  imageUrl={product.heroUrl ?? product.imageUrl}
+                  alt={product.imageAlt}
+                  imageSize={product.heroUrl ? 1000 : 400}
+                  priority
+                />
               </motion.div>
             </div>
 

@@ -131,7 +131,7 @@ export function FullSetSheet({
                 className={`fullset-row ${isSkipped ? 'is-skipped' : ''} ${showMissing && needsSize ? 'is-missing' : ''}`}
               >
                 <div className="fullset-media">
-                  <ProductImage id={p.id} name={p.name} category={p.category} imageUrl={p.imageUrl} />
+                  <ProductImage id={p.id} name={p.name} category={p.category} imageUrl={p.imageUrl} alt={p.imageAlt} />
                 </div>
                 <div className="fullset-info">
                   <span className="fullset-cat">{categoryLabel(p.category, t)}</span>
