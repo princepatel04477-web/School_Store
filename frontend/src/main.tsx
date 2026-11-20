@@ -12,6 +12,17 @@ import './components/ui/ui.css';
 import './motion/interactions.css';
 import './theme/emerald.css';
 
+// A browser refresh starts the school uniform flow from its first step instead of
+// replaying the school, class, gender, or category encoded in an old flow URL.
+const pageNavigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+if (
+  pageNavigation?.type === 'reload' &&
+  (window.location.pathname === '/shop' || window.location.pathname === '/flow') &&
+  window.location.search
+) {
+  window.history.replaceState(window.history.state, '', window.location.pathname);
+}
+
 // A new release replaces the page's code files. A page opened before it can then fail to load a
 // screen; reload once to pick up the new release instead of showing an error.
 window.addEventListener('vite:preloadError', (event) => {
