@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96" role="img" aria-label="Ladakh">
+<title>Ladakh</title>
+<g fill="none" stroke="#2F3A35" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 58c10-3 18-8 28-8s18 5 28 8z" fill="#D9B98C" stroke="none"/>
+  <path d="M18 50v-9h28v9zM22 41v-7h20v7zM26 34v-6h12v6z" fill="#FFFFFF" stroke="none"/>
+  <path d="M18 41h28v2H18zM22 34h20v2H22zM26 28h12v2H26z" fill="#B33A3A" stroke="none"/>
+  <path d="M30 28v-4h4v4z" fill="#F2C14E" stroke="none"/>
+  <path d="M9 19h3v3H9zM39 20h3v3h-3z" fill="#2E86DE" stroke="none"/>
+  <path d="M15 20h3v3h-3zM51 19h3v3h-3z" fill="#D62828" stroke="none"/>
+  <path d="M21 19h3v3h-3zM45 20h3v3h-3z" fill="#2E9E6B" stroke="none"/>
+  <path d="M4 58c10-3 18-8 28-8s18 5 28 8" />
+  <path d="M18 50v-9h28v9M22 41v-7h20v7M26 34v-6h12v6" />
+  <path d="M22 45h3M29 45h3M36 45h3M26 37h3M33 37h3" />
+  <path d="M30 28v-4h4v4M32 24v-3" />
+  <path d="M6 18c8 4 16 4 26-2 8 6 16 6 26 2" />
+  <path d="M12 20v3M20 21v3M44 21v3M52 20v3" />
+</g>
+</svg>

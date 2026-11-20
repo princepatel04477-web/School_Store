@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96" role="img" aria-label="Rajasthan">
+<title>Rajasthan</title>
+<g fill="none" stroke="#2F3A35" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M8 58V40h48v18zM16 32v-8h32v8zM26 17v-6h12v6z" fill="#E07A5F" stroke="none"/>
+  <path d="M12 40v-8h40v8zM21 24v-7h22v7zM29 11a3 3 0 0 1 6 0z" fill="#EE9A82" stroke="none"/>
+  <path d="M29 58v-6a3 3 0 0 1 6 0v6z" fill="#8B3A2A" stroke="none"/>
+  <path d="M6 58h52" />
+  <path d="M8 58V40h48v18M12 40v-8h40v8M16 32v-8h32v8M21 24v-7h22v7M26 17v-6h12v6" />
+  <path d="M29 11a3 3 0 0 1 6 0" />
+  <path d="M12 58v-5a2 2 0 0 1 4 0v5M20 58v-5a2 2 0 0 1 4 0v5M40 58v-5a2 2 0 0 1 4 0v5M48 58v-5a2 2 0 0 1 4 0v5" />
+  <path d="M29 58v-6a3 3 0 0 1 6 0v6" />
+  <path d="M16 38v-2a2 2 0 0 1 4 0v2M23 38v-2a2 2 0 0 1 4 0v2M30 38v-2a2 2 0 0 1 4 0v2M37 38v-2a2 2 0 0 1 4 0v2M44 38v-2a2 2 0 0 1 4 0v2" />
+  <path d="M20 30v-2a2 2 0 0 1 4 0v2M28 30v-2a2 2 0 0 1 4 0v2M36 30v-2a2 2 0 0 1 4 0v2" />
+  <path d="M25 22v-2a2 2 0 0 1 4 0v2M35 22v-2a2 2 0 0 1 4 0v2" />
+</g>
+</svg>

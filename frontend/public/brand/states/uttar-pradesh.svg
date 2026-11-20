@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96" role="img" aria-label="Uttar Pradesh">
+<title>Uttar Pradesh</title>
+<g fill="none" stroke="#2F3A35" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M6 58v-3h52v3zM10 55v-3h44v3z" fill="#E3CBB9" stroke="none"/>
+  <path d="M10 52V40h44v12z" fill="#F3BCA6" stroke="none"/>
+  <path d="M12 40c0-4 2-7 5-9 3 2 5 5 5 9zM42 40c0-4 2-7 5-9 3 2 5 5 5 9zM24 40c0-12 4-22 8-28 4 6 8 16 8 28z" fill="#E99A82" stroke="none"/>
+  <path d="M29 52v-7a3 3 0 0 1 6 0v7z" fill="#8B3A2A" stroke="none"/>
+  <path d="M32 3l6 2-6 2z" fill="#F28C38" stroke="none"/>
+  <path d="M6 58h52M6 58v-3h52v3M10 55v-3h44v3" />
+  <path d="M10 52V40h44v12M16 52V43M22 52V43M42 52V43M48 52V43" />
+  <path d="M29 52v-7a3 3 0 0 1 6 0v7" />
+  <path d="M12 40c0-4 2-7 5-9 3 2 5 5 5 9M42 40c0-4 2-7 5-9 3 2 5 5 5 9M17 31v-3M47 31v-3" />
+  <path d="M24 40c0-12 4-22 8-28 4 6 8 16 8 28M26 33h12M27 26h10M29 19h6M32 12V3l6 2-6 2" />
+</g>
+</svg>

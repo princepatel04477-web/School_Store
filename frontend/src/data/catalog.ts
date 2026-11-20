@@ -148,15 +148,36 @@ export interface StoreBranch {
 const withSchool = (path: string, schoolId?: string) =>
   schoolId ? `${path}${path.includes('?') ? '&' : '?'}school=${encodeURIComponent(schoolId)}` : path;
 
+const DEFAULT_NORTH_INDIA_STATES: StoreState[] = [
+  { name: 'Chandigarh', cityCount: 1 },
+  { name: 'Delhi', cityCount: 1 },
+  { name: 'Gujarat', cityCount: 2 },
+  { name: 'Haryana', cityCount: 22 },
+  { name: 'Himachal Pradesh', cityCount: 12 },
+  { name: 'Jammu and Kashmir', cityCount: 20 },
+  { name: 'Ladakh', cityCount: 2 },
+  { name: 'Punjab', cityCount: 23 },
+  { name: 'Rajasthan', cityCount: 33 },
+  { name: 'Uttar Pradesh', cityCount: 75 },
+  { name: 'Uttarakhand', cityCount: 13 },
+];
+
 /** States with at least one open branch (of one school, when given). */
 export function useStoreStates(schoolId?: string) {
   return useQuery({
     queryKey: ['store', 'states', schoolId ?? ''],
     staleTime: 10 * 60 * 1000,
-    queryFn: async () =>
-      (await api<{ name: string; city_count: number }[]>(withSchool('/public/states/', schoolId))).map(
-        (s): StoreState => ({ name: s.name, cityCount: s.city_count })
-      ),
+    queryFn: async () => {
+      try {
+        const list = await api<{ name: string; city_count: number }[]>(withSchool('/public/states/', schoolId));
+        if (Array.isArray(list) && list.length > 0) {
+          return list.map((s): StoreState => ({ name: s.name, cityCount: s.city_count }));
+        }
+      } catch {
+        // Fall back to default states if API is offline or running static showcase
+      }
+      return DEFAULT_NORTH_INDIA_STATES;
+    },
   });
 }
 

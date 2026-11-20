@@ -82,7 +82,8 @@ describe('HomeHero (P1 Emerald Stage)', () => {
     const { unmount } = renderHomeHero();
     expect(screen.getByText('First time in')).toBeTruthy();
     expect(screen.getByText('INDIA')).toBeTruthy();
-    expect(screen.getByText(/All school uniform & accessories,/i)).toBeTruthy();
+    expect(screen.getByText(/All schools/i)).toBeTruthy();
+    expect(screen.getByText(/uniform and accessories/i)).toBeTruthy();
     expect(screen.getByText(/at your doorstep\./i)).toBeTruthy();
     unmount();
 
@@ -93,8 +94,9 @@ describe('HomeHero (P1 Emerald Stage)', () => {
     const guView = renderHomeHero();
     expect(screen.getByText('ભારતમાં પ્રથમ વખત')).toBeTruthy();
     expect(screen.getByText('INDIA')).toBeTruthy();
-    expect(screen.getByText(/બધા સ્કૂલ યુનિફોર્મ અને એસેસરીઝ,/i)).toBeTruthy();
-    expect(screen.getByText(/તમારા દરવાજે\./i)).toBeTruthy();
+    expect(screen.getByText(/બધી શાળાઓ/i)).toBeTruthy();
+    expect(screen.getByText(/યુનિફોર્મ અને એસેસરીઝ/i)).toBeTruthy();
+    expect(screen.getByText(/તમારા ઘર સુધી\./i)).toBeTruthy();
     guView.unmount();
 
     // 3. Hindi
@@ -104,41 +106,19 @@ describe('HomeHero (P1 Emerald Stage)', () => {
     const hiView = renderHomeHero();
     expect(screen.getByText('पहली बार भारत में')).toBeTruthy();
     expect(screen.getByText('INDIA')).toBeTruthy();
-    expect(screen.getByText(/सभी स्कूल यूनिफॉर्म और एक्सेसरीज़,/i)).toBeTruthy();
-    expect(screen.getByText(/आपके दरवाज़े पर।/i)).toBeTruthy();
+    expect(screen.getByText(/सभी स्कूल/i)).toBeTruthy();
+    expect(screen.getByText(/यूनिफॉर्म और एक्सेसरीज़/i)).toBeTruthy();
+    expect(screen.getByText(/आपके दरवाज़े तक।/i)).toBeTruthy();
     hiView.unmount();
   });
 
-  it('submitting the form with a school calls the existing navigation once', () => {
-    renderHomeHero();
-    const input = screen.getByRole('combobox');
-    
-    // Type school name
-    fireEvent.change(input, { target: { value: 'Delhi' } });
+  it('has no school search; its one button opens the shop', () => {
+    const { container } = renderHomeHero();
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.queryByRole('search')).toBeNull();
 
-    // Submit form
-    const form = screen.getByRole('search');
-    fireEvent.submit(form);
-
-    expect(mockNavigate).toHaveBeenCalledTimes(1);
-    expect(mockNavigate).toHaveBeenCalledWith('/flow?school=sch-dps&step=2');
-  });
-
-  it('the input is labelled and its font size is at least 16 px', () => {
-    renderHomeHero();
-    const input = screen.getByRole('combobox') as HTMLInputElement;
-
-    // Check label
-    expect(input.getAttribute('aria-label')).toBeTruthy();
-    expect(input.getAttribute('aria-label')?.length).toBeGreaterThan(0);
-    expect(input.placeholder).toBe('Find your school');
-
-    // Check class and style / computed font-size
-    expect(input.classList.contains('emerald-search-input')).toBe(true);
-    // In CSS .emerald-search-input font-size is 16px (to prevent iOS auto-zoom)
-    const style = window.getComputedStyle(input);
-    const fontSize = parseFloat(style.fontSize) || 16;
-    expect(fontSize).toBeGreaterThanOrEqual(16);
+    expect(container.querySelector('.emerald-cta')).toBeNull();
+    expect(screen.queryByRole('link', { name: /Shop school uniform/i })).toBeNull();
   });
 
   it('renders clean picture element with avif, webp sources and clean png img', () => {

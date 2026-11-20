@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96" role="img" aria-label="Jammu and Kashmir">
+<title>Jammu and Kashmir</title>
+<g fill="none" stroke="#2F3A35" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 40l12-16 8 10 10-14 14 20zM48 40l5-7 7 7z" fill="#A9CBEA" stroke="none"/>
+  <path d="M31 24l3-4 3 4-3-1zM13 28l3-4 3 4-3-1z" fill="#FFFFFF" stroke="none"/>
+  <path d="M4 56h56v6H4z" fill="#6FB7E3" stroke="none"/>
+  <path d="M12 50h40l-4 6H16z" fill="#9C5A2E" stroke="none"/>
+  <path d="M16 50v-7h32v7z" fill="#EBC07C" stroke="none"/>
+  <path d="M14 43l4-4h28l4 4z" fill="#C0563F" stroke="none"/>
+  <path d="M4 40l12-16 8 10 10-14 14 20M48 40l5-7 7 7" />
+  <path d="M12 50h40l-4 6H16z" />
+  <path d="M16 50v-7h32v7M14 43l4-4h28l4 4" />
+  <path d="M20 46h4M28 46h4M36 46h4" />
+  <path d="M6 60c4-2 8 2 12 0s8 2 12 0 8 2 12 0 8 2 12 0" />
+</g>
+</svg>

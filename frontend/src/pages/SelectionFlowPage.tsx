@@ -38,6 +38,8 @@ import {
 } from '../data/fit';
 import { CATEGORY_PHOTOS } from '../data/categoryPhotos';
 import { CategoryPhoto } from '../components/CategoryPhoto';
+import { checkAvailability } from '../data/availability';
+import { RestockCountdownBanner } from '../components/common/RestockCountdownBanner';
 import './flow.css';
 
 const GROUP_KEYS: Record<string, MessageKey> = {
@@ -146,6 +148,15 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         .map((p) => ({ id: p.id, name: p.name })),
     [products]
   );
+
+  const branchAvailability = useMemo(() => {
+    return checkAvailability({
+      schoolName: activeSchool?.name,
+      cityName: activeBranch?.cityName || activeSchool?.city,
+      state: activeBranch?.stateName,
+      branchId: activeBranch?.branchId,
+    });
+  }, [activeSchool?.name, activeBranch?.cityName, activeSchool?.city, activeBranch?.stateName, activeBranch?.branchId]);
 
   // The school part of the saved choice: the school, and its branch if one was picked.
   const schoolAnswer = () => ({
@@ -660,7 +671,9 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         {/* ================= STEP 4: ITEMS ================= */}
         {currentStep === 4 && activeSchool && (
           <div className="step-panel step-items-panel">
-            {/* Summary Bar above product list */}
+            <RestockCountdownBanner availability={branchAvailability} />
+
+              {/* Summary Bar above product list */}
             <div
               className="selection-summary-bar"
               style={{

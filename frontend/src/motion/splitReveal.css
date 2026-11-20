@@ -1,0 +1,9 @@
+/* Words for SplitReveal. No overflow mask, so tall Gujarati/Hindi signs and descenders are never cut. */
+.split-mask {
+  display: inline-block;
+}
+
+.split-word {
+  display: inline-block;
+  will-change: transform, opacity;
+}

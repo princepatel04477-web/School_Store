@@ -11,6 +11,49 @@ import './styles.css';
 import './components/ui/ui.css';
 import './motion/interactions.css';
 
+// Clear all cookies on load and prevent cookie retention
+function clearAllCookies() {
+  try {
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+      const eqPos = cookie.indexOf('=');
+      const name = eqPos > -1 ? cookie.slice(0, eqPos).trim() : cookie.trim();
+      if (name) {
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;SameSite=Lax`;
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+        const host = window.location.hostname;
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${host};SameSite=Lax`;
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${host};SameSite=Lax`;
+      }
+    }
+  } catch {
+    // cookies not accessible
+  }
+}
+
+clearAllCookies();
+window.addEventListener('load', clearAllCookies);
+window.addEventListener('pageshow', clearAllCookies);
+
+// Ensure website loads from the front page ('/') on fresh page load/refresh
+try {
+  const path = window.location.pathname;
+  const isPortal =
+    path.startsWith('/portal') ||
+    path.startsWith('/boss') ||
+    path.startsWith('/admin') ||
+    path.startsWith('/city') ||
+    path.startsWith('/school') ||
+    path.startsWith('/teacher') ||
+    path.startsWith('/retailer') ||
+    path.startsWith('/login');
+  if (path !== '/' && !isPortal) {
+    window.history.replaceState(null, '', '/');
+  }
+} catch {
+  // ignore
+}
+
 // A new release replaces the page's code files. A page opened before it can then fail to load a
 // screen; reload once to pick up the new release instead of showing an error.
 window.addEventListener('vite:preloadError', (event) => {

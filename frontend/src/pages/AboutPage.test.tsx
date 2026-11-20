@@ -101,24 +101,24 @@ describe('AboutPage', () => {
     renderAboutPage();
 
     // 1. Hero
-    expect(screen.getByText('BY COLORBENZ')).toBeDefined();
+    expect(screen.getByText('BY COLOR WINGS')).toBeDefined();
     expect(screen.getByRole('heading', { level: 1 })).toBeDefined();
     expect(screen.getByText('We fixed what frustrated every parent.')).toBeDefined();
     expect(screen.getByAltText('SchoolStore school children in uniform')).toBeDefined();
 
     // 2. The Problem
     expect(screen.getByText('THE PROBLEM')).toBeDefined();
-    expect(screen.getByRole('heading', { level: 2, name: /School shopping is a struggle/i })).toBeDefined();
-    expect(screen.getByText('Parents waste time')).toBeDefined();
+    expect(screen.getByRole('heading', { level: 2, name: /School uniform shopping shouldn’t be stressful/i })).toBeDefined();
+    expect(screen.getByText('Inconvenience for parents')).toBeDefined();
     expect(screen.getByText('Stock unavailable')).toBeDefined();
 
     // 3. Pivot
-    expect(screen.getByText('So Colorbenz built SchoolStore')).toBeDefined();
+    expect(screen.getByText('So Color Wings built SchoolStore')).toBeDefined();
 
     // 4. The Fix
     expect(screen.getByText('THE FIX')).toBeDefined();
     expect(screen.getByRole('heading', { level: 2, name: /Your school's uniform, delivered to your door\./i })).toBeDefined();
-    expect(screen.getByText(/Order from home/i)).toBeDefined();
+    expect(screen.getByText(/Order in a few taps/i)).toBeDefined();
     expect(screen.getByText(/Everything on your school's list/i)).toBeDefined();
 
     // 5. Badge
@@ -148,10 +148,10 @@ describe('AboutPage', () => {
         </MemoryRouter>
       </QueryClientProvider>
     );
-    expect(screen.getByText('COLORBENZ દ્વારા')).toBeDefined();
+    expect(screen.getByText('COLOR WINGS દ્વારા')).toBeDefined();
     expect(screen.getByText('વાર્તા')).toBeDefined();
     expect(screen.getByText('સમસ્યા')).toBeDefined();
-    expect(screen.getByText('સમયનો બગાડ')).toBeDefined();
+    expect(screen.getByText('વાલીઓ માટે અસુવિધા')).toBeDefined();
     expect(screen.getByText('સ્ટોક મળતો નથી')).toBeDefined();
     expect(screen.getByText('ઉકેલ')).toBeDefined();
 
@@ -166,10 +166,10 @@ describe('AboutPage', () => {
         </MemoryRouter>
       </QueryClientProvider>
     );
-    expect(screen.getByText('COLORBENZ द्वारा')).toBeDefined();
+    expect(screen.getByText('COLOR WINGS द्वारा')).toBeDefined();
     expect(screen.getByText('कहानी')).toBeDefined();
     expect(screen.getByText('समस्या')).toBeDefined();
-    expect(screen.getByText('समय की बर्बादी')).toBeDefined();
+    expect(screen.getByText('माता-पिता के लिए असुविधा')).toBeDefined();
     expect(screen.getByText('स्टॉक उपलब्ध नहीं')).toBeDefined();
     expect(screen.getByText('समाधान')).toBeDefined();
   });
@@ -186,7 +186,7 @@ describe('AboutPage', () => {
     expect(screen.queryByText('Schools we deliver to')).toBeNull();
   });
 
-  it('triggers CTA navigation to home with focusSearch state', () => {
+  it('"Find your school" opens the shop', () => {
     renderAboutPage();
 
     const ctaButton = screen.getByRole('button', { name: /Find your school/i });

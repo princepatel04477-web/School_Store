@@ -1,60 +1,13 @@
-import {
-  useState,
-  useRef,
-  useEffect,
-  useId,
-  useMemo,
-  type FormEvent,
-  type KeyboardEvent,
-} from 'react';
-import { useLocation } from 'react-router-dom';
-import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
-import { useStoreSchools, type StoreSchool } from '../../data/catalog';
-import { useSelectSchool } from '../school/useSelectSchool';
+import { useState, useEffect, useRef } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { useStoreState } from '../../store/storeState';
 import { useLang } from '../../i18n';
-import { SchoolCrest } from '../school/SchoolCrest';
 import { EASING } from '../../motion/motionConfig';
-import { prefetchFlowPage, prefetchSchoolData } from '../../utils/prefetch';
 import './homeHero.css';
 
 export interface HomeHeroProps {
   onOpenBag?: () => void;
   onOpenLanguage?: () => void;
-}
-
-const DEBOUNCE_MS = 180;
-const POPULAR_COUNT = 5;
-
-function matches(school: StoreSchool, q: string) {
-  return (
-    school.name.toLowerCase().includes(q) ||
-    Boolean(school.city && school.city.toLowerCase().includes(q))
-  );
-}
-
-function filterSchools(schools: StoreSchool[], query: string) {
-  const q = query.trim().toLowerCase();
-  return q ? schools.filter((s) => matches(s, q)) : schools.slice(0, POPULAR_COUNT);
-}
-
-function highlight(text: string, query: string) {
-  const q = query.trim().toLowerCase();
-  if (!q) return text;
-  const lower = text.toLowerCase();
-  const parts: (string | JSX.Element)[] = [];
-  let from = 0;
-  for (let at = lower.indexOf(q); at !== -1; at = lower.indexOf(q, from)) {
-    if (at > from) parts.push(text.slice(from, at));
-    parts.push(
-      <mark key={at} className="emerald-mark">
-        {text.slice(at, at + q.length)}
-      </mark>
-    );
-    from = at + q.length;
-  }
-  if (from < text.length) parts.push(text.slice(from));
-  return parts;
 }
 
 // 4 sparkles positioned in percentages of the stage
@@ -69,114 +22,50 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
   const { lang, t, setLang } = useLang();
   const { totalCount } = useStoreState();
   const shouldReduceMotion = useReducedMotion();
-  const listId = useId();
-
-  const { data: schools = [] } = useStoreSchools();
-  const handleSelectSchool = useSelectSchool();
-
-  const [query, setQuery] = useState('');
-  const [debounced, setDebounced] = useState('');
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
   const [isCompact, setIsCompact] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isHeroVisible, setIsHeroVisible] = useState(true);
+  const heroRef = useRef<HTMLElement>(null);
 
-  const location = useLocation();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const rootRef = useRef<HTMLElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if ((location.state as { focusSearch?: boolean } | null)?.focusSearch) {
-      inputRef.current?.focus();
-      inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [location.state]);
-
-  // Debounce search query
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebounced(query), DEBOUNCE_MS);
-    return () => window.clearTimeout(timer);
-  }, [query]);
-
-  const results = useMemo(() => filterSchools(schools, debounced), [schools, debounced]);
-
-  // Handle virtual viewport (short screens or keyboard open)
+  // Short screens get the compact hero
   useEffect(() => {
     const handleViewport = () => {
       const vv = window.visualViewport;
       const height = vv ? vv.height : window.innerHeight;
-      const isShort = height < 640;
-      const isKeyboard = Boolean(vv && vv.height < window.innerHeight * 0.78);
-      setIsCompact(isShort || isKeyboard);
+      const width = vv ? vv.width : window.innerWidth;
+      setIsCompact(height < 640);
+      setIsMobile(width < 768);
     };
 
     handleViewport();
 
     const vv = window.visualViewport;
-    if (vv) {
-      vv.addEventListener('resize', handleViewport);
-      vv.addEventListener('scroll', handleViewport);
-    }
-    window.addEventListener('resize', handleViewport);
+    if (vv) vv.addEventListener('resize', handleViewport, { passive: true });
+    window.addEventListener('resize', handleViewport, { passive: true });
 
     return () => {
-      if (vv) {
-        vv.removeEventListener('resize', handleViewport);
-        vv.removeEventListener('scroll', handleViewport);
-      }
+      if (vv) vv.removeEventListener('resize', handleViewport);
       window.removeEventListener('resize', handleViewport);
     };
   }, []);
 
-  // Close suggestions on outside click
+  // Pause continuous looping animations when the hero is off-screen
   useEffect(() => {
-    if (!isPanelOpen) return;
-    const handlePointerDown = (e: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setIsPanelOpen(false);
-      }
-    };
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => document.removeEventListener('pointerdown', handlePointerDown);
-  }, [isPanelOpen]);
+    const el = heroRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsHeroVisible(entry.isIntersecting);
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
-  const selectSchoolAndNavigate = (school: StoreSchool) => {
-    setIsPanelOpen(false);
-    handleSelectSchool(school);
-  };
+  const canAnimateLoop = !shouldReduceMotion && isHeroVisible && !isMobile;
 
-  const handleSubmit = (e?: FormEvent) => {
-    if (e) e.preventDefault();
-    const currentSchools = filterSchools(schools, query);
-    const chosen = (debounced === query && results[activeIndex]) || currentSchools[0];
-    if (chosen) {
-      selectSchoolAndNavigate(chosen);
-    } else {
-      setIsPanelOpen(true);
-      inputRef.current?.focus();
-    }
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (!isPanelOpen) {
-        setIsPanelOpen(true);
-        return;
-      }
-      if (results.length === 0) return;
-      const step = e.key === 'ArrowDown' ? 1 : -1;
-      setActiveIndex((prev) => (prev + step + results.length) % results.length);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSubmit();
-    } else if (e.key === 'Escape') {
-      setIsPanelOpen(false);
-      setActiveIndex(-1);
-    }
-  };
-
-  const langPillLabel = lang === 'gu' ? 'ગુજ' : lang === 'hi' ? 'हिં' : 'EN';
+  const langPillLabel = lang === 'gu' ? 'ગુજ' : lang === 'hi' ? 'हिं' : 'EN';
 
   const handleLangClick = () => {
     if (onOpenLanguage) {
@@ -214,22 +103,9 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
     },
   };
 
-  const searchEntrance = {
-    hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 18 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: shouldReduceMotion ? 0 : 0.44,
-        ease: EASING,
-        delay: shouldReduceMotion ? 0 : 0.24,
-      },
-    },
-  };
-
   return (
-    <header ref={rootRef} className={`emerald-hero ${isCompact ? 'is-compact' : ''}`}>
-      {/* 1. Header with shared container */}
+    <header ref={heroRef} className={`emerald-hero ${isCompact ? 'is-compact' : ''}`}>
+      {/* 1. Top bar: fixed to the top of the screen, so it stays while the page scrolls */}
       <div className="emerald-container emerald-header-container">
         <nav className="emerald-header" aria-label="Emerald Top Navigation">
           <div className="emerald-header-left">
@@ -332,7 +208,7 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
                 </span>
               </motion.div>
 
-              {/* Line 3: Tagline */}
+              {/* Line 3: Tagline (3 distinct lines) */}
               <motion.span
                 className="emerald-tagline"
                 custom={2}
@@ -340,144 +216,11 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
                 animate="visible"
                 variants={lineVariants}
               >
-                <span className="emerald-tagline-white">{t('home.emerald.taglineWhite')}{' '}</span>
-                <span className="emerald-tagline-saffron">{t('home.emerald.taglineAccent')}</span>
+                <span className="emerald-tagline-row emerald-tagline-white">{t('home.emerald.taglineLine1')}</span>
+                <span className="emerald-tagline-row emerald-tagline-white">{t('home.emerald.taglineLine2')}</span>
+                <span className="emerald-tagline-row emerald-tagline-saffron">{t('home.emerald.taglineLine3')}</span>
               </motion.span>
             </h1>
-
-            {/* Search Box */}
-            <div className="emerald-search-wrapper">
-              <motion.form
-                role="search"
-                className="emerald-search-form"
-                onSubmit={handleSubmit}
-                initial="hidden"
-                animate="visible"
-                variants={searchEntrance}
-              >
-                <div className="emerald-search-bar">
-                  <svg
-                    className="emerald-search-icon"
-                    viewBox="0 0 24 24"
-                    width="20"
-                    height="20"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    inputMode="search"
-                    enterKeyHint="search"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    role="combobox"
-                    aria-expanded={isPanelOpen}
-                    aria-controls={listId}
-                    aria-autocomplete="list"
-                    aria-activedescendant={
-                      isPanelOpen && activeIndex >= 0 ? `${listId}-opt-${activeIndex}` : undefined
-                    }
-                    aria-label={t('home.emerald.searchLabel')}
-                    placeholder={t('home.emerald.searchPlaceholder')}
-                    className="emerald-search-input"
-                    value={query}
-                    onChange={(e) => {
-                      setQuery(e.target.value);
-                      setIsPanelOpen(true);
-                      setActiveIndex(-1);
-                    }}
-                    onFocus={() => {
-                      setIsPanelOpen(true);
-                    }}
-                    onKeyDown={handleKeyDown}
-                  />
-
-                  <button
-                    type="submit"
-                    className="emerald-submit-btn"
-                    aria-label={t('home.emerald.submitLabel')}
-                  >
-                    <svg
-                      className="emerald-arrow-icon"
-                      viewBox="0 0 24 24"
-                      width="22"
-                      height="22"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                      <polyline points="12 5 19 12 12 19" />
-                    </svg>
-                  </button>
-                </div>
-
-                {/* Suggestions Panel */}
-                <AnimatePresence>
-                  {isPanelOpen && (
-                    <motion.div
-                      ref={panelRef}
-                      className="emerald-suggestions-panel"
-                      initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scaleY: 0.96 }}
-                      animate={{ opacity: 1, y: 0, scaleY: 1 }}
-                      exit={{ opacity: 0, y: 4 }}
-                      transition={{ duration: shouldReduceMotion ? 0 : 0.18, ease: EASING }}
-                      onMouseDown={(e) => e.preventDefault()}
-                    >
-                      {results.length > 0 ? (
-                        <ul className="emerald-results-list" id={listId} role="listbox" aria-label={t('home.schools')}>
-                          {results.map((school, idx) => (
-                            <li
-                              key={school.id}
-                              id={`${listId}-opt-${idx}`}
-                              role="option"
-                              aria-selected={idx === activeIndex}
-                              className={`emerald-school-row ${idx === activeIndex ? 'is-active' : ''}`}
-                              onPointerEnter={() => {
-                                prefetchFlowPage();
-                                prefetchSchoolData(school.id);
-                              }}
-                              onClick={() => selectSchoolAndNavigate(school)}
-                            >
-                              <SchoolCrest
-                                id={school.id}
-                                color={school.color}
-                                name={school.name}
-                                code={school.code}
-                                size={34}
-                              />
-                              <div className="emerald-school-info">
-                                <span className="emerald-school-name">{highlight(school.name, debounced)}</span>
-                                {school.city && (
-                                  <span className="emerald-school-city">{highlight(school.city, debounced)}</span>
-                                )}
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <div className="emerald-empty-results" role="status">
-                          {t('search.noMatch', { query: debounced.trim() })}
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.form>
-            </div>
           </div>
 
           {/* Right column: Stage with concentric circles, sparkles and kids */}
@@ -508,22 +251,22 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
                       height: sp.size,
                     }}
                     animate={
-                      shouldReduceMotion
-                        ? { opacity: 0.85, scale: 1 }
-                        : {
+                      canAnimateLoop
+                        ? {
                             opacity: [0.35, 1, 0.35],
                             scale: [0.75, 1.15, 0.75],
                           }
+                        : { opacity: 0.85, scale: 1 }
                     }
                     transition={
-                      shouldReduceMotion
-                        ? { duration: 0 }
-                        : {
+                      canAnimateLoop
+                        ? {
                             duration: 3,
                             repeat: Infinity,
                             ease: 'easeInOut',
                             delay: sp.delay,
                           }
+                        : { duration: 0 }
                     }
                   >
                     <svg
@@ -546,15 +289,15 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
               <div className="emerald-stage-img-wrap">
                 <motion.div
                   className="emerald-float-wrap"
-                  animate={shouldReduceMotion ? { y: 0 } : { y: [0, -6, 0] }}
+                  animate={canAnimateLoop ? { y: [0, -6, 0] } : { y: 0 }}
                   transition={
-                    shouldReduceMotion
-                      ? { duration: 0 }
-                      : {
+                    canAnimateLoop
+                      ? {
                           duration: 5,
                           repeat: Infinity,
                           ease: 'easeInOut',
                         }
+                      : { duration: 0 }
                   }
                 >
                   <picture>

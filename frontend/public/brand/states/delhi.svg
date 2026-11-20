@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96" role="img" aria-label="Delhi">
+<title>Delhi</title>
+<g fill="none" stroke="#2F3A35" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M14 58V20h36v38z" fill="#E9A86F" stroke="none"/>
+  <path d="M14 16h36v4H14zM18 12h28v4H18zM27 12a5 4 0 0 1 10 0z" fill="#D3824A" stroke="none"/>
+  <path d="M25 58V38a7 7 0 0 1 14 0v20z" fill="#FDEBD6" stroke="none"/>
+  <path d="M6 58h52" />
+  <path d="M14 58V20h36v38" />
+  <path d="M25 58V38a7 7 0 0 1 14 0v20" />
+  <path d="M12 20h40M14 16h36v4M18 12h28v4" />
+  <path d="M27 12a5 4 0 0 1 10 0" />
+  <path d="M18 42h3v9h-3zM43 42h3v9h-3z" />
+  <path d="M14 31h11M39 31h11" />
+</g>
+</svg>

@@ -123,3 +123,10 @@ export const Package = makeIcon('package', <path d="M4 7.5L12 3l8 4.5v9L12 21l-8
 export const Receipt = makeIcon('receipt', <path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3" />);
 export const Download = makeIcon('download', <path d="M12 4v11M7 10l5 5 5-5M4 20h16" />);
 export const SignOut = makeIcon('sign-out', <path d="M10 4H4v16h6M14 8l4 4-4 4M8 12h10" />);
+export const Clock = makeIcon(
+  'clock',
+  <>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 3" />
+  </>
+);

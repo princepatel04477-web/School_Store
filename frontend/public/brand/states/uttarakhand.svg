@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96" role="img" aria-label="Uttarakhand">
+<title>Uttarakhand</title>
+<g fill="none" stroke="#2F3A35" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M2 46l10-22 8 12v10zM44 46V36l8-14 10 24z" fill="#9DB7D6" stroke="none"/>
+  <path d="M9 30l3-6 3 5-3 3zM49 27l3-5 2 4-2 2z" fill="#FFFFFF" stroke="none"/>
+  <path d="M14 58v-4h36v4z" fill="#CFC4B5" stroke="none"/>
+  <path d="M20 54V42h24v12z" fill="#C9BFAF" stroke="none"/>
+  <path d="M22 42c0-6 3-10 10-14 7 4 10 8 10 14z" fill="#8E7F6E" stroke="none"/>
+  <path d="M29 54v-7a3 3 0 0 1 6 0v7z" fill="#6B3A20" stroke="none"/>
+  <path d="M32 23l5 1.5-5 1.5z" fill="#F28C38" stroke="none"/>
+  <path d="M2 46l10-22 8 12M44 36l8-14 10 24" />
+  <path d="M9 30l3 2 3-3M49 27l3 1 2-2" />
+  <path d="M6 58h52M14 58v-4h36v4" />
+  <path d="M20 54V42h24v12" />
+  <path d="M29 54v-7a3 3 0 0 1 6 0v7" />
+  <path d="M22 42c0-6 3-10 10-14 7 4 10 8 10 14M32 28v-5M30 25h4" />
+</g>
+</svg>

@@ -185,6 +185,34 @@ async function api(request, env, path) {
   if (path === '/health/') return json({ status: 'ok', store: 'showcase' });
 
   // Public catalogue
+  if (path === '/public/states/' && method === 'GET') {
+    return json([
+      { name: 'Chandigarh', city_count: 1 },
+      { name: 'Delhi', city_count: 1 },
+      { name: 'Gujarat', city_count: 2 },
+      { name: 'Haryana', city_count: 22 },
+      { name: 'Himachal Pradesh', city_count: 12 },
+      { name: 'Jammu and Kashmir', city_count: 20 },
+      { name: 'Ladakh', city_count: 2 },
+      { name: 'Punjab', city_count: 23 },
+      { name: 'Rajasthan', city_count: 33 },
+      { name: 'Uttar Pradesh', city_count: 75 },
+      { name: 'Uttarakhand', city_count: 13 },
+    ]);
+  }
+  if (path === '/public/cities/' && method === 'GET') {
+    const state = (url.searchParams.get('state') || '').toLowerCase();
+    if (state.includes('gujarat')) {
+      return json([
+        { id: 'c99559c0-3c35-4845-9785-527960943ca4', name: 'Surat', code: 'SUR', state: 'Gujarat', branch_count: 3 },
+        { id: '9b3fe609-b9af-4d7c-8604-d22e2d44113e', name: 'Ahmedabad', code: 'AMD', state: 'Gujarat', branch_count: 3 },
+      ]);
+    }
+    // Generic city for other states in showcase
+    return json([
+      { id: 'c99559c0-3c35-4845-9785-527960943ca4', name: url.searchParams.get('state') || 'Central', code: 'MAIN', state: url.searchParams.get('state') || '', branch_count: 1 }
+    ]);
+  }
   if (path === '/public/schools/' && method === 'GET') {
     const q = (url.searchParams.get('search') || '').toLowerCase();
     return json(DATA.schools.filter((s) => !q || s.name.toLowerCase().includes(q)));

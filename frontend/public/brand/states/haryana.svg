@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="96" height="96" role="img" aria-label="Haryana">
+<title>Haryana</title>
+<g fill="none" stroke="#2F3A35" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M10 58v-4h44v4z" fill="#CFC4B5" stroke="none"/>
+  <path d="M14 54V41h14v13z" fill="#F7D9A6" stroke="none"/>
+  <path d="M15 41l6-6 6 6zM30 54V34c0-10 5-18 10-22 5 4 10 12 10 22v20z" fill="#F28C38" stroke="none"/>
+  <path d="M37 54v-8a3 3 0 0 1 6 0v8z" fill="#8B3A1E" stroke="none"/>
+  <path d="M40 7l4 1-4 1z" fill="#D62828" stroke="none"/>
+  <path d="M6 58h52" />
+  <path d="M10 58v-4h44v4" />
+  <path d="M14 54V41h14v13M15 41l6-6 6 6" />
+  <path d="M30 54V34c0-10 5-18 10-22 5 4 10 12 10 22v20M30 34h20M33 27h14M35 20h10" />
+  <path d="M40 12V7l4 1-4 1" />
+  <path d="M37 54v-8a3 3 0 0 1 6 0v8" />
+</g>
+</svg>

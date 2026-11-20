@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { siteConfig } from '../siteConfig';
+import { siteConfig, SHOP_LINK } from '../siteConfig';
 import { useLang } from '../i18n';
 import { categoryLabel } from '../i18n/labels';
 import './headerFooter.css';
@@ -66,7 +66,7 @@ export function Footer() {
             <ul className="footer-list">
               {siteConfig.categories.map((cat) => (
                 <li key={cat.slug}>
-                  <Link to={`/shop?cat=${encodeURIComponent(cat.slug)}`}>{categoryLabel(cat.slug, t)}</Link>
+                  <Link to={SHOP_LINK}>{categoryLabel(cat.slug, t)}</Link>
                 </li>
               ))}
             </ul>
@@ -106,7 +106,7 @@ export function Footer() {
       <div className="container">
         <div className="footer-bottom-row">
           <p className="footer-copyright">
-            © {currentYear} {siteConfig.businessName}. All rights reserved.
+            © 2025 {siteConfig.businessName}. All rights reserved.
           </p>
           <div className="footer-legal-links">
             <Link to="/privacy">{t('co.privacy')}</Link>

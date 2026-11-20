@@ -5,6 +5,7 @@ import { SchoolPickerSkeleton } from '../ui/Skeleton';
 import { Stagger } from '../../motion';
 import { ListenButton } from '../ListenButton';
 import { SchoolCrest } from './SchoolCrest';
+import { StateEmblem } from './StateEmblem';
 import { useLang } from '../../i18n';
 import {
   useStoreBranches,
@@ -191,6 +192,7 @@ export function BranchPicker({
               className={`school-select-card ${s.name === state ? 'is-selected' : ''}`}
               onClick={() => setState(s.name)}
             >
+              <StateEmblem name={s.name} size={52} />
               <div className="school-select-details">
                 <h3 className="school-select-name">{s.name}</h3>
                 <span className="school-select-meta">{s.cityCount === 1 ? t('flow.s1.oneCity') : t('flow.s1.cityCount', { n: s.cityCount })}</span>

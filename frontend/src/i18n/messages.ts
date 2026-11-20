@@ -18,6 +18,17 @@ export const messages = {
     gu: 'SchoolStore માં આપનું સ્વાગત છે',
     hi: 'SchoolStore में आपका स्वागत है',
   },
+  'welcome.title': {
+    en: 'Proudly Indian. Made for our schools.',
+    gu: 'ગર્વથી ભારતીય. આપણી શાળાઓ માટે બનાવેલું.',
+    hi: 'गर्व से भारतीय। हमारे स्कूलों के लिए बना।',
+  },
+  'welcome.body': {
+    en: 'Welcome to SchoolStore. Your child’s school uniform, ordered from home and brought to your door.',
+    gu: 'SchoolStore માં આપનું સ્વાગત છે. તમારા બાળકનો શાળાનો યુનિફોર્મ, ઘરેથી ઓર્ડર કરો અને ઘરઆંગણે મેળવો.',
+    hi: 'SchoolStore में आपका स्वागत है। आपके बच्चे की स्कूल यूनिफ़ॉर्म, घर बैठे ऑर्डर करें और घर पर पाएँ।',
+  },
+  'welcome.start': { en: 'Let’s begin', gu: 'ચાલો શરૂ કરીએ', hi: 'चलिए शुरू करें' },
   'common.tryAgain': { en: 'Try again', gu: 'ફરી પ્રયત્ન કરો', hi: 'फिर से कोशिश करें' },
   'common.checkInternet': {
     en: 'Check your internet and try again.',
@@ -48,6 +59,7 @@ export const messages = {
 
   // ---------- header & menu ----------
   'nav.skip': { en: 'Skip to content', gu: 'મુખ્ય ભાગ પર જાઓ', hi: 'मुख्य भाग पर जाएँ' },
+  'nav.back': { en: 'Go back', gu: 'પાછા જાઓ', hi: 'वापस जाएँ' },
   'nav.openMenu': { en: 'Open menu', gu: 'મેનુ ખોલો', hi: 'मेन्यू खोलें' },
   'nav.closeMenu': { en: 'Close menu', gu: 'મેનુ બંધ કરો', hi: 'मेन्यू बंद करें' },
   'nav.menu': { en: 'Menu', gu: 'મેનુ', hi: 'मेन्यू' },
@@ -65,19 +77,19 @@ export const messages = {
 
   // ---------- about / our story ----------
   'about.metaTitle': {
-    en: 'Our story | SchoolStore by Colorbenz',
-    gu: 'અમારી વાર્તા | SchoolStore by Colorbenz',
-    hi: 'हमारी कहानी | SchoolStore by Colorbenz',
+    en: 'Our story | SchoolStore by Color Wings',
+    gu: 'અમારી વાર્તા | SchoolStore by Color Wings',
+    hi: 'हमारी कहानी | SchoolStore by Color Wings',
   },
   'about.metaDescription': {
-    en: 'Learn how SchoolStore by Colorbenz fixed what frustrated every parent with doorstep delivery of verified school uniforms and accessories.',
-    gu: 'જાણો કેવી રીતે SchoolStore by Colorbenz એ સ્કૂલ યુનિફોર્મ અને એસેસરીઝની હોમ ડિલિવરી સાથે માતા-પિતાની સમસ્યા ઉકેલી.',
-    hi: 'जानिए कैसे SchoolStore by Colorbenz ने स्कूल यूनिफ़ॉर्म और एक्सेसरीज़ की होम डिलीवरी के साथ माता-पिता की समस्या दूर की।',
+    en: 'Learn how SchoolStore by Color Wings fixed what frustrated every parent with doorstep delivery of verified school uniforms and accessories.',
+    gu: 'જાણો કેવી રીતે SchoolStore by Color Wings એ સ્કૂલ યુનિફોર્મ અને એસેસરીઝની હોમ ડિલિવરી સાથે માતા-પિતાની સમસ્યા ઉકેલી.',
+    hi: 'जानिए कैसे SchoolStore by Color Wings ने स्कूल यूनिफ़ॉर्म और एक्सेसरीज़ की होम डिलीवरी के साथ माता-पिता की समस्या दूर की।',
   },
   'about.hero.eyebrow': {
-    en: 'BY COLORBENZ',
-    gu: 'COLORBENZ દ્વારા',
-    hi: 'COLORBENZ द्वारा',
+    en: 'BY COLOR WINGS',
+    gu: 'COLOR WINGS દ્વારા',
+    hi: 'COLOR WINGS द्वारा',
   },
   'about.hero.titlePrefix': {
     en: 'Our ',
@@ -105,19 +117,19 @@ export const messages = {
     hi: 'समस्या',
   },
   'about.problem.title': {
-    en: 'School shopping is a struggle',
-    gu: 'સ્કૂલ શોપિંગ એક મોટો સંઘર્ષ છે',
-    hi: 'स्कूल की खरीदारी एक बड़ा संघर्ष है',
+    en: 'School uniform shopping shouldn’t be stressful',
+    gu: 'સ્કૂલ યુનિફોર્મ ખરીદવામાં હવે કોઈ ચિંતા નહીં',
+    hi: 'स्कूल यूनिफॉर्म की खरीदारी में अब कोई तनाव नहीं',
   },
   'about.problem.card1.title': {
-    en: 'Parents waste time',
-    gu: 'સમયનો બગાડ',
-    hi: 'समय की बर्बादी',
+    en: 'Inconvenience for parents',
+    gu: 'વાલીઓ માટે અસુવિધા',
+    hi: 'माता-पिता के लिए असुविधा',
   },
   'about.problem.card1.desc': {
-    en: 'Hours go into travelling from shop to shop for one school list.',
-    gu: 'એક સ્કૂલ લિસ્ટ માટે દુકાને-દુકાને ભટકવામાં કલાકો વેડફાય છે.',
-    hi: 'एक स्कूल लिस्ट के लिए दुकान-दुकान भटकने में घंटों लग जाते हैं।',
+    en: 'Parents face great inconvenience buying uniforms as designated uniform shops are located far away from schools.',
+    gu: 'યુનિફોર્મ ખરીદવામાં વાલીઓને ભારે અસુવિધા થાય છે કારણ કે યુનિફોર્મની દુકાનો શાળાઓથી ઘણી દૂર હોય છે.',
+    hi: 'यूनिफॉर्म खरीदने में माता-पिता को भारी असुविधा होती है क्योंकि यूनिफॉर्म की दुकानें स्कूलों से काफ़ी दूर होती हैं।',
   },
   'about.problem.card2.title': {
     en: 'Stock unavailable',
@@ -130,9 +142,9 @@ export const messages = {
     hi: 'इतनी भागदौड़ के बाद भी सही साइज़ या सामान नहीं मिलता।',
   },
   'about.pivot.line': {
-    en: 'So Colorbenz built SchoolStore',
-    gu: 'એટલે Colorbenz દ્વારા SchoolStore બનાવવામાં આવ્યું',
-    hi: 'इसलिए Colorbenz ने SchoolStore बनाया',
+    en: 'So Color Wings built SchoolStore',
+    gu: 'એટલે Color Wings દ્વારા SchoolStore બનાવવામાં આવ્યું',
+    hi: 'इसलिए Color Wings ने SchoolStore बनाया',
   },
   'about.fix.eyebrow': {
     en: 'THE FIX',
@@ -145,9 +157,9 @@ export const messages = {
     hi: 'आपके स्कूल का यूनिफ़ॉर्म, सीधे आपके घर तक।',
   },
   'about.fix.bullet1': {
-    en: 'Order from home. No more shop-to-shop trips.',
-    gu: 'ઘરે બેઠા ઓર્ડર કરો. દુકાને-દુકાને જવાની જરૂર નથી.',
-    hi: 'घर बैठे ऑर्डर करें। दुकान-दुकान घूमने का झंझट खत्म।',
+    en: 'Order in a few taps, right from home.',
+    gu: 'ઘરે બેઠા, થોડા જ ટેપમાં ઓર્ડર કરો.',
+    hi: 'घर बैठे, बस कुछ टैप में ऑर्डर करें।',
   },
   'about.fix.bullet2': {
     en: "Everything on your school's list, in one place.",
@@ -221,6 +233,21 @@ export const messages = {
     gu: 'INDIA',
     hi: 'INDIA',
   },
+  'home.emerald.taglineLine1': {
+    en: 'All schools',
+    gu: 'બધી શાળાઓ',
+    hi: 'सभी स्कूल',
+  },
+  'home.emerald.taglineLine2': {
+    en: 'uniform and accessories',
+    gu: 'યુનિફોર્મ અને એસેસરીઝ',
+    hi: 'यूनिफॉर्म और एक्सेसरीज़',
+  },
+  'home.emerald.taglineLine3': {
+    en: 'at your doorstep.',
+    gu: 'તમારા ઘર સુધી.',
+    hi: 'आपके दरवाज़े तक।',
+  },
   'home.emerald.taglineWhite': {
     en: 'All school uniform & accessories,',
     gu: 'બધા સ્કૂલ યુનિફોર્મ અને એસેસરીઝ,',
@@ -235,6 +262,11 @@ export const messages = {
     en: 'Find your school',
     gu: 'તમારી સ્કૂલ શોધો',
     hi: 'अपना स्कूल खोजें',
+  },
+  'home.emerald.cta': {
+    en: 'Shop school uniform',
+    gu: 'સ્કૂલ યુનિફોર્મ ખરીદો',
+    hi: 'स्कूल यूनिफ़ॉर्म ख़रीदें',
   },
   'home.emerald.kidsAlt': {
     en: 'Two smiling children in school uniform',
@@ -275,7 +307,8 @@ export const messages = {
   'home.searchPlaceholder': { en: 'Search your school', gu: 'તમારી શાળા શોધો', hi: 'अपना स्कूल खोजें' },
   'home.findSchool': { en: 'Find my school', gu: 'મારી શાળા શોધો', hi: 'मेरा स्कूल खोजें' },
   'home.matching': { en: 'Matching schools', gu: 'મળતી શાળાઓ', hi: 'मिलते-जुलते स्कूल' },
-  'home.schools': { en: 'Schools', gu: 'શાળાઓ', hi: 'स्कूल' },
+  'home.schools': { en: 'All schools', gu: 'બધી શાળાઓ', hi: 'सभी स्कूल' },
+  'home.allSchools': { en: 'All schools', gu: 'બધી શાળાઓ', hi: 'सभी स्कूल' },
   'home.noSchool': { en: 'We don’t have this school yet.', gu: 'આ શાળા હજુ અમારી પાસે નથી.', hi: 'यह स्कूल अभी हमारे पास नहीं है।' },
   'home.requestSchool': { en: 'Ask for your school', gu: 'તમારી શાળા માટે કહો', hi: 'अपने स्कूल के लिए कहें' },
   'search.placeholderLong': { en: 'Search your school or city (e.g. DPS, Cathedral)', gu: 'તમારી શાળા કે શહેર શોધો (જેમ કે DPS, Cathedral)', hi: 'अपना स्कूल या शहर खोजें (जैसे DPS, Cathedral)' },
@@ -287,6 +320,37 @@ export const messages = {
   'home.shopByCategory': { en: 'What do you need?', gu: 'શું જોઈએ છે?', hi: 'क्या चाहिए?' },
   'home.schoolsEyebrow': { en: 'On SchoolStore', gu: 'SchoolStore પર', hi: 'SchoolStore पर' },
   'home.viewAll': { en: 'All schools', gu: 'બધી શાળાઓ', hi: 'सभी स्कूल' },
+  'home.policyEyebrow': { en: 'OUR PROMISE', gu: 'અમારું વચન', hi: 'हमारा वादा' },
+  'home.policyTitle': { en: 'Store Policy & Guarantee', gu: 'સ્ટોર પોલિસી અને ખાતરી', hi: 'स्टोर पॉलिसी और गारंटी' },
+  'home.policy1Title': { en: '100% School Approved', gu: 'શાળા દ્વારા ૧૦૦% માન્ય', hi: 'स्कूल द्वारा १००% अनुमोदित' },
+  'home.policy1Desc': {
+    en: 'Only verified uniform items strictly matching your school’s guidelines.',
+    gu: 'ફક્ત શાળાના ચોક્કસ નિયમો અને ધોરણો મુજબના જ અસલ યુનિફોર્મ.',
+    hi: 'सिर्फ़ स्कूल के आधिकारिक नियमों के अनुसार पूरी तरह से मान्य यूनिफॉर्म।',
+  },
+  'home.policy2Title': { en: '7-Day Easy Exchange', gu: '૭ દિવસમાં સરળ એક્સચેન્જ', hi: '७ दिनों में आसान एक्सचेंज' },
+  'home.policy2Desc': {
+    en: 'Wrong size? Exchange it within 7 days with zero hassle.',
+    gu: 'સાઈઝ ખોટી છે? ૭ દિવસની અંદર સરળતાથી બદલી આપો.',
+    hi: 'गलत साइज़ मिला? ७ दिनों के भीतर बिना किसी झंझट के आसानी से बदलें।',
+  },
+  'home.policy3Title': { en: 'Doorstep or School Pickup', gu: 'હોમ ડિલિવરી અથવા શાળા કાઉન્ટર', hi: 'होम डिलीवरी या स्कूल काउंटर' },
+  'home.policy3Desc': {
+    en: 'Get your orders delivered right to your home, or collect at your school counter.',
+    gu: 'ઓર્ડર સીધો ઘરે મંગાવો અથવા શાળાના કાઉન્ટર પરથી લઈ જાઓ.',
+    hi: 'ऑर्डर सीधे घर मँगवाएँ या स्कूल काउंटर से ले जाएँ।',
+  },
+  'home.partnerEyebrow': { en: 'INSTITUTIONAL PARTNERSHIP', gu: 'શાળાઓ અને સંસ્થાઓ માટે', hi: 'स्कूलों और संस्थानों के लिए' },
+  'home.partnerTitle': { en: 'Partner Your School with SchoolStore', gu: 'તમારી શાળાને SchoolStore સાથે જોડો', hi: 'अपने स्कूल को SchoolStore से जोड़ें' },
+  'home.partnerLead': {
+    en: 'We stock your school’s uniform list, take orders from parents, and deliver to their homes or your school counter.',
+    gu: 'અમે તમારી શાળાની યુનિફોર્મ યાદીનો સ્ટોક રાખીએ છીએ, વાલીઓ પાસેથી ઓર્ડર લઈએ છીએ અને ઘરે કે શાળા કાઉન્ટર પર પહોંચાડીએ છીએ.',
+    hi: 'हम आपके स्कूल की यूनिफॉर्म लिस्ट का स्टॉक रखते हैं, माता-पिता से ऑर्डर लेते हैं और उनके घर या स्कूल काउंटर पर पहुँचाते हैं।',
+  },
+  'home.partnerPoint1': { en: 'Complete official school uniform list stocked', gu: 'શાળાની સંપૂર્ણ યુનિફોર્મ યાદી ઉપલબ્ધ', hi: 'स्कूल की पूरी यूनिफॉर्म लिस्ट उपलब्ध' },
+  'home.partnerPoint2': { en: 'Zero hassle ordering & customer support for parents', gu: 'વાલીઓ માટે સરળ ઓર્ડરિંગ અને સપોર્ટ', hi: 'माता-पिता के लिए आसान ऑर्डरिंग और सहायता' },
+  'home.partnerPoint3': { en: 'Direct home delivery or dedicated school counter', gu: 'સીધી હોમ ડિલિવરી અથવા શાળા કાઉન્ટર વિતરણ', hi: 'सीधी होम डिलीवरी या स्कूल काउंटर वितरण' },
+  'home.partnerCta': { en: 'Talk to us', gu: 'અમારો સંપર્ક કરો', hi: 'हमसे संपर्क करें' },
   'home.reassure': {
     en: 'Only items your school approved. Wrong size? Exchange it within 7 days. We bring it home, or you collect it at the school counter.',
     gu: 'ફક્ત શાળાએ મંજૂર કરેલી વસ્તુઓ. સાઈઝ ખોટી? 7 દિવસમાં બદલી આપીશું. ઘરે પહોંચાડીએ, અથવા શાળાના કાઉન્ટરથી લઈ જાઓ.',

@@ -27,7 +27,8 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Mouse wheels only: touch screens and trackpads keep native scrolling, and reduced motion is respected
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const isDesktopPointer = window.matchMedia('(pointer: fine)').matches && !('ontouchstart' in window);
+    const hasTouch = 'ontouchstart' in window || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0);
+    const isDesktopPointer = window.matchMedia('(pointer: fine)').matches && !hasTouch;
 
     if (prefersReducedMotion || !isDesktopPointer) {
       return;
@@ -40,6 +41,7 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
       wheelMultiplier: 0.9,
       smoothWheel: true,
       syncTouch: false,
+      touchMultiplier: 0,
       // Drawers, sheets and lists scroll themselves instead of the page behind them
       allowNestedScroll: true,
       autoRaf: true,
