@@ -132,8 +132,8 @@ describe('Prompt 4: Native Touches', () => {
     });
   });
 
-  describe('Preferences Persistence (School / Class / Gender)', () => {
-    it('saves and restores last selected school and grade', async () => {
+  describe('Last selection (School / Class / Gender)', () => {
+    it('is never remembered, and old saved copies are deleted', async () => {
       vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true);
 
       await saveLastSelection({
@@ -144,18 +144,9 @@ describe('Prompt 4: Native Touches', () => {
         gender: 'MALE',
       });
 
-      const restored = await getLastSelection();
-      expect(restored).toEqual({
-        schoolId: 'sch-1',
-        schoolName: 'Delhi Public School',
-        classId: 'grade-5',
-        className: '5',
-        gender: 'MALE',
-      });
-
+      expect(await getLastSelection()).toBeNull();
       await clearLastSelection();
-      const afterClear = await getLastSelection();
-      expect(afterClear).toBeNull();
+      expect(await getLastSelection()).toBeNull();
     });
   });
 

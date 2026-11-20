@@ -1,3 +1,4 @@
+import { clearLastSelection } from './native/lastSelection';
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './auth';
@@ -126,6 +127,8 @@ export default function App() {
   useEffect(() => {
     hideSplashScreen();
     if (isNativeApp()) {
+      // Choices saved by an earlier version of the app are deleted on every open.
+      void clearLastSelection();
       initPushNotifications((orderId) => {
         navigate(`/parent?order=${orderId}`);
       });

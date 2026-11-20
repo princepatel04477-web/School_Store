@@ -35,7 +35,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .then((u) => {
             if (!mounted) return;
             setUser(u);
-            storeState.mergeOnSignIn(u);
           })
           .catch(() => logout())
           .finally(() => { if (mounted) setLoading(false); });
