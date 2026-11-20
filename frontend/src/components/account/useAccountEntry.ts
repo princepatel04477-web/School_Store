@@ -1,26 +1,25 @@
 import { useAuth } from '../../auth';
 import { homeFor } from '../../App';
 import { useLang } from '../../i18n';
+import { useAccountSheet } from './AccountSheetContext';
+import type { MouseEvent } from 'react';
 
 export interface AccountEntry {
   label: string;
   ariaLabel: string;
   to: string;
   isSignedIn: boolean;
+  onClick?: (e: MouseEvent) => void;
 }
 
 /**
- * Shared hook determining the account link destination, label, and signed-in state.
- * While auth is loading or user is signed out:
- *   - label: 'Sign in', to: '/login', isSignedIn: false
- * When signed in as PARENT:
- *   - label: 'My account', to: '/parent', isSignedIn: true
- * When signed in as staff (TEACHER, ADMIN, BOSS, RETAILER, SCHOOL_ADMIN):
- *   - label: 'My account', to: homeFor(role, city), isSignedIn: true
+ * Shared hook determining the account link destination, label, signed-in state,
+ * and click handler (opens the mobile OTP sign-in sheet when signed out).
  */
 export function useAccountEntry(): AccountEntry {
   const { user, loading } = useAuth();
   const { t } = useLang();
+  const { openSheet } = useAccountSheet();
 
   if (loading || !user) {
     return {
@@ -28,6 +27,10 @@ export function useAccountEntry(): AccountEntry {
       ariaLabel: t('nav.signIn'),
       to: '/login',
       isSignedIn: false,
+      onClick: (e: MouseEvent) => {
+        e.preventDefault();
+        openSheet();
+      },
     };
   }
 

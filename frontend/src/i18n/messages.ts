@@ -996,6 +996,12 @@ export const messages = {
 
   // ---------- sign in ----------
   'signin.title': { en: 'Sign in to order', gu: 'ઓર્ડર માટે લોગિન કરો', hi: 'ऑर्डर के लिए लॉगिन करें' },
+  'signin.accountTitle': {
+    en: 'Sign in with your mobile number',
+    gu: 'તમારા મોબાઈલ નંબરથી લોગિન કરો',
+    hi: 'अपने मोबाइल नंबर से लॉगिन करें',
+  },
+  'signin.staffSignIn': { en: 'Staff sign in', gu: 'સ્ટાફ લોગિન', hi: 'स्टाफ़ लॉगिन' },
   'signin.lead': {
     en: 'We send a 6-digit code (OTP) by SMS. No password needed.',
     gu: 'SMS થી 6 અંકનો કોડ (OTP) મોકલીશું. પાસવર્ડ નથી જોઈતો.',
@@ -1050,6 +1056,16 @@ export const messages = {
     hi: 'बहुत बार कोशिश हुई। कुछ मिनट रुकें।',
   },
   'signin.wrongOtp': { en: 'That OTP is wrong or old. Try again.', gu: 'OTP ખોટો કે જૂનો છે. ફરી પ્રયત્ન કરો.', hi: 'OTP गलत या पुराना है। फिर कोशिश करें।' },
+  'signin.expiredOtp': {
+    en: 'That code has expired or was used up. Send a new code.',
+    gu: 'કોડની મુદત પૂરી થઈ ગઈ છે. નવો કોડ મોકલો.',
+    hi: 'कोड की समय सीमा समाप्त हो गई है। नया कोड भेजें।',
+  },
+  'signin.staffAccount': {
+    en: 'Staff accounts sign in with a username and password.',
+    gu: 'સ્ટાફ ખાતા યુઝરનેમ અને પાસવર્ડથી લોગિન કરે છે.',
+    hi: 'स्टाफ़ खाते यूज़रनेम और पासवर्ड से लॉगिन करते हैं।',
+  },
 
   // ---------- child photo consent ----------
   'photo.consent.listen': {

@@ -139,6 +139,7 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
 
             <Link
               to={accountEntry.to}
+              onClick={accountEntry.onClick}
               className="emerald-account-btn"
               aria-label={accountEntry.ariaLabel}
             >

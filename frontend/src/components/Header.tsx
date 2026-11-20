@@ -189,7 +189,7 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
                 <User width={20} height={20} strokeWidth={1.5} />
               </Link>
             ) : (
-              <Link to={accountEntry.to} className="action-signin-link">
+              <Link to={accountEntry.to} onClick={accountEntry.onClick} className="action-signin-link">
                 {accountEntry.label}
               </Link>
             )}
@@ -197,6 +197,7 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
             {/* A direct, always-visible profile entry for phone users. */}
             <Link
               to={accountEntry.to}
+              onClick={accountEntry.onClick}
               className="mobile-profile-btn"
               aria-label={accountEntry.ariaLabel}
               title={accountEntry.ariaLabel}
@@ -291,7 +292,14 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
               <Link to="/help" className="sheet-secondary-item" onClick={closeMenu}>
                 {t('nav.help')}
               </Link>
-              <Link to={accountEntry.to} className="sheet-secondary-item" onClick={closeMenu}>
+              <Link
+                to={accountEntry.to}
+                className="sheet-secondary-item"
+                onClick={(e) => {
+                  closeMenu();
+                  accountEntry.onClick?.(e);
+                }}
+              >
                 {accountEntry.label}
               </Link>
               <button
