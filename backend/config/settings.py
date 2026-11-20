@@ -228,6 +228,7 @@ CATALOG_THUMBNAIL_TEMPLATE = os.environ.get(
 )
 RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
+RAZORPAY_WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
 
 if (
     "test" in sys.argv
@@ -275,6 +276,14 @@ CELERY_BEAT_SCHEDULE = {
     "purge-delivered-child-photos": {
         "task": "orders.purge_delivered_child_photos",
         "schedule": crontab(hour=2, minute=15),
+    },
+    "reprocess-payment-events": {
+        "task": "orders.reprocess_payment_events",
+        "schedule": crontab(minute="*"),  # every minute
+    },
+    "sweep-expired-reservations": {
+        "task": "orders.sweep_expired_reservations",
+        "schedule": crontab(minute="*/5"),  # every 5 minutes
     },
 }
 
