@@ -611,6 +611,23 @@ export type PortalCity = {
   active: boolean;
 };
 
+export type ProductCityPrice = {
+  id: string;
+  product: string;
+  product_name: string;
+  product_images: string[];
+  school_name: string;
+  universal_selling_price: string;
+  universal_cost_price?: string;
+  city: string;
+  city_name: string;
+  selling_price: string;
+  cost_price?: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export const portalApi = {
   schools: (p: Record<string, string> = {}) => api<Page<CitySchool>>(`/schools/?${new URLSearchParams(p)}`),
   addSchool: (body: Partial<CitySchool>) => api<CitySchool>('/schools/', { method: 'POST', body: JSON.stringify(body) }),
@@ -636,4 +653,8 @@ export const portalApi = {
   stockBalances: (p: Record<string, string> = {}) => api<Page<StockBalance>>(`/stock-balances/?${new URLSearchParams(p)}`),
   addStockMovement: (body: { variant: string; quantity_change: number; reason: string; city?: string }) =>
     api<StockMovement>('/stock-movements/', { method: 'POST', body: JSON.stringify(body) }),
+  cityPrices: (p: Record<string, string> = {}) => api<Page<ProductCityPrice>>(`/city-prices/?${new URLSearchParams(p)}`),
+  setCityPrice: (body: { product: string; city: string; selling_price: string; cost_price?: string }) =>
+    api<ProductCityPrice>('/city-prices/', { method: 'POST', body: JSON.stringify(body) }),
+  deleteCityPrice: (id: string) => api<void>(`/city-prices/${id}/`, { method: 'DELETE' }),
 };
