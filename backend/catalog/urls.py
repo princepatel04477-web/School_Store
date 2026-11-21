@@ -21,6 +21,7 @@ from .views import (
     ProductCityPriceViewSet,
     ProductVariantViewSet,
     ProductViewSet,
+    ProductRequirementViewSet,
 )
 
 router = DefaultRouter()
@@ -28,6 +29,7 @@ router.register("categories", CategoryViewSet, basename="category")
 router.register("products", ProductViewSet, basename="product")
 router.register("variants", ProductVariantViewSet, basename="variant")
 router.register("city-prices", ProductCityPriceViewSet, basename="city-price")
+router.register("requirements", ProductRequirementViewSet, basename="requirement")
 router.register("size-chart-imports", SizeChartImportViewSet, basename="size-chart-import")
 router.register("size-charts", SizeChartViewSet, basename="size-chart")
 

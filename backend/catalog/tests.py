@@ -14,7 +14,7 @@ from inventory.services import apply_stock_movement
 from schools.models import City, Grade, School, Student
 
 from .catalogue import student_grade_id
-from .models import Category, Product, ProductVariant
+from .models import Category, Product, ProductVariant, ProductRequirement, is_product_required
 
 
 LOCMEM = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
@@ -588,6 +588,7 @@ class StudentCatalogueTests(TestCase):
                 "customisation_schema",
                 "sizes",
                 "stock_status",
+                "required",
             },
         )
         self.assertNotIn("description", card)
@@ -715,3 +716,202 @@ class StudentCatalogueTests(TestCase):
     def test_parent_cannot_shop_for_someone_elses_child(self):
         res = self.jwt_client(self.other_parent).get(self.catalogue_url(self.boy))
         self.assertEqual(res.status_code, 403)
+
+
+@override_settings(CACHES=LOCMEM)
+class ProductRequirementsAndCartValidationTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_data")
+        cls.dps = School.objects.get(code="DPS-SUR")
+        cls.surat = City.objects.get(code="SUR")
+        cls.category = Category.objects.get(slug="uniform")
+        cls.grade5 = Grade.objects.filter(name="Class 5").first() or Grade.objects.get(sort_order=8)
+        cls.grade9 = Grade.objects.filter(name="Class 9").first() or Grade.objects.get(sort_order=12)
+
+    def setUp(self):
+        cache.clear()
+
+    def test_is_product_required_base_flag(self):
+        prod_req = Product.objects.create(
+            category=self.category,
+            name="Mandatory Blazer",
+            cost_price=Decimal("800.00"),
+            selling_price=Decimal("1200.00"),
+            is_required=True,
+        )
+        prod_opt = Product.objects.create(
+            category=self.category,
+            name="Optional Sweater",
+            cost_price=Decimal("500.00"),
+            selling_price=Decimal("800.00"),
+            is_required=False,
+        )
+        self.assertTrue(is_product_required(prod_req))
+        self.assertFalse(is_product_required(prod_opt))
+
+    def test_is_product_required_grade_and_gender_rules(self):
+        skirt = Product.objects.create(
+            category=self.category,
+            name="Girls Primary Skirt",
+            cost_price=Decimal("300.00"),
+            selling_price=Decimal("500.00"),
+            gender=Product.Gender.GIRL,
+            is_required=False,
+        )
+        # Add requirement for girls in class 1 to 5
+        ProductRequirement.objects.create(
+            product=skirt,
+            school=self.dps,
+            gender=Product.Gender.GIRL,
+            class_from=1,
+            class_to=5,
+            required=True,
+            active=True,
+        )
+
+        # Girl in class 5 -> Required
+        self.assertTrue(
+            is_product_required(skirt, school_id=self.dps.id, grade=self.grade5, gender="girl")
+        )
+        # Boy in class 5 -> Not required
+        self.assertFalse(
+            is_product_required(skirt, school_id=self.dps.id, grade=self.grade5, gender="boy")
+        )
+        # Girl in class 9 -> Not required (out of class range)
+        self.assertFalse(
+            is_product_required(skirt, school_id=self.dps.id, grade=self.grade9, gender="girl")
+        )
+
+    def test_is_product_required_never_infers_from_school_or_customisation(self):
+        # Product owned by school with customisation schema, but is_required=False
+        badge_prod = Product.objects.create(
+            category=self.category,
+            school=self.dps,
+            name="School Lapel Pin",
+            cost_price=Decimal("80.00"),
+            selling_price=Decimal("150.00"),
+            is_required=False,
+            customisation_schema=[{"key": "house", "label": "House Name", "required": True}],
+        )
+        # Must NOT infer requirement from school ownership or schema
+        self.assertFalse(
+            is_product_required(badge_prod, school_id=self.dps.id, grade=self.grade5)
+        )
+
+    def test_public_catalog_returns_live_required_flag(self):
+        client = APIClient()
+        url = f"/api/public/products/?school={self.dps.id}&city={self.surat.id}&grade=Class 5&gender=boy"
+        res = client.get(url)
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        items = data.get("results", data)
+        self.assertGreater(len(items), 0)
+        # Ensure 'required' key is present in public cards
+        has_required = any(item.get("required") is True for item in items)
+        has_optional = any(item.get("required") is False for item in items)
+        self.assertTrue(has_required, "Expected at least one required uniform item in live seed data")
+        self.assertTrue(has_optional, "Expected at least one optional uniform item in live seed data")
+
+    def test_cart_validate_multi_items_and_cross_school_refusal(self):
+        client = APIClient()
+        other_school = School.objects.create(
+            name="Other Academy",
+            code="OTH-SUR",
+            city=self.surat,
+            active=True,
+        )
+        p1 = Product.objects.create(
+            category=self.category,
+            school=self.dps,
+            name="DPS Shirt",
+            cost_price=Decimal("250.00"),
+            selling_price=Decimal("450.00"),
+        )
+        v1 = ProductVariant.objects.create(product=p1, size="32", sku="DPS-SH-32")
+        apply_stock_movement(
+            variant=v1,
+            city_id=self.surat.id,
+            quantity_change=10,
+            reason="INITIAL_STOCK",
+        )
+
+        p2 = Product.objects.create(
+            category=self.category,
+            school=other_school,
+            name="Other School Blazer",
+            cost_price=Decimal("600.00"),
+            selling_price=Decimal("950.00"),
+        )
+        v2 = ProductVariant.objects.create(product=p2, size="36", sku="OTH-BL-36")
+
+        # Cart with items from different schools must be refused
+        payload = {
+            "school_id": str(self.dps.id),
+            "city_id": str(self.surat.id),
+            "items": [
+                {
+                    "product_id": str(p1.id),
+                    "variant_id": str(v1.id),
+                    "quantity": 1,
+                    "price_paise": 45000,
+                },
+                {
+                    "product_id": str(p2.id),
+                    "variant_id": str(v2.id),
+                    "quantity": 1,
+                    "price_paise": 95000,
+                },
+            ],
+        }
+        res = client.post("/api/cart/validate/", payload, format="json")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertFalse(data["valid"])
+        self.assertTrue(any("different school" in err for err in data["errors"]))
+
+    def test_cart_validate_detects_price_and_stock_changes(self):
+        client = APIClient()
+        p = Product.objects.create(
+            category=self.category,
+            school=self.dps,
+            name="KV Monogram Belt",
+            cost_price=Decimal("100.00"),
+            selling_price=Decimal("180.00"),
+        )
+        v = ProductVariant.objects.create(product=p, size="M", sku="KV-BLT-M")
+        # Apply 2 units of stock in Surat
+        apply_stock_movement(
+            variant=v,
+            city_id=self.surat.id,
+            quantity_change=2,
+            reason="INITIAL_STOCK",
+        )
+
+        # 1. Test price change detection (client thinks it's 15000 paise, server is 18000 paise)
+        # 2. Test insufficient stock (request 5 units when only 2 available)
+        payload = {
+            "school_id": str(self.dps.id),
+            "city_id": str(self.surat.id),
+            "items": [
+                {
+                    "product_id": str(p.id),
+                    "variant_id": str(v.id),
+                    "quantity": 5,
+                    "price_paise": 15000,
+                }
+            ],
+        }
+        res = client.post("/api/cart/validate/", payload, format="json")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertTrue(data["has_price_changes"])
+        self.assertEqual(len(data["price_changes"]), 1)
+        self.assertEqual(data["price_changes"][0]["client_price_paise"], 15000)
+        self.assertEqual(data["price_changes"][0]["server_price_paise"], 18000)
+
+        self.assertTrue(data["has_out_of_stock"])
+        self.assertEqual(len(data["out_of_stock"]), 1)
+        self.assertEqual(data["out_of_stock"][0]["available"], 2)
+        self.assertEqual(data["out_of_stock"][0]["requested"], 5)
+

@@ -356,6 +356,7 @@ class Command(BaseCommand):
                 "category": categories["uniform"],
                 "school": dps_surat,
                 "gender": Product.Gender.BOY,
+                "required": True,
                 "grades": [grades_by_name[str(i)] for i in range(1, 13)],
                 "description": "Breathable cotton-blend formal shirt with embroidered DPS crest.",
                 "cost_price": Decimal("280.00"),
@@ -383,6 +384,7 @@ class Command(BaseCommand):
                 "category": categories["uniform"],
                 "school": dps_surat,
                 "gender": Product.Gender.GIRL,
+                "required": True,
                 "grades": [grades_by_name[str(i)] for i in range(1, 9)],
                 "description": "Knee-length grey box-pleated skirt with a flat waistband, side button and zip.",
                 "cost_price": Decimal("360.00"),
@@ -398,6 +400,7 @@ class Command(BaseCommand):
                 "category": categories["uniform"],
                 "school": fhs_surat,
                 "gender": Product.Gender.UNISEX,
+                "required": True,
                 "grades": [grades_by_name[str(i)] for i in range(1, 13)],
                 "description": "Pique cotton polo t-shirt with Fountainhead logo.",
                 "cost_price": Decimal("260.00"),
@@ -453,6 +456,7 @@ class Command(BaseCommand):
                 "category": categories["school-shoes"],
                 "school": dps_surat,
                 "gender": Product.Gender.BOY,
+                "required": True,
                 "grades": [grades_by_name[str(i)] for i in range(5, 13)],
                 "description": "Official DPS formal black lace-up oxford school shoes with cushioned insole.",
                 "cost_price": Decimal("480.00"),
@@ -490,6 +494,7 @@ class Command(BaseCommand):
                 "product_type": Product.ProductType.SOCKS,
                 "school": dps_surat,
                 "gender": Product.Gender.UNISEX,
+                "required": True,
                 "grades": [grades_by_name[g] for g in grade_names],
                 "description": "Cushioned cotton crew socks with bottle green DPS school stripes.",
                 "cost_price": Decimal("110.00"),
@@ -539,6 +544,7 @@ class Command(BaseCommand):
                 "product_type": Product.ProductType.BELT,
                 "school": dps_surat,
                 "gender": Product.Gender.UNISEX,
+                "required": True,
                 "grades": [grades_by_name[str(i)] for i in range(1, 13)],
                 "description": "Premium black leatherette belt embossed with DPS school crest and brass buckle.",
                 "cost_price": Decimal("95.00"),
@@ -570,6 +576,7 @@ class Command(BaseCommand):
                 "product_type": Product.ProductType.TIE,
                 "school": dps_surat,
                 "gender": Product.Gender.UNISEX,
+                "required": True,
                 "grades": [grades_by_name[str(i)] for i in range(1, 13)],
                 "description": "Official bottle green DPS school tie with golden school crest and diagonal stripes.",
                 "cost_price": Decimal("65.00"),
@@ -680,6 +687,7 @@ class Command(BaseCommand):
 
         all_variants = []
         for p_spec in products_spec:
+            is_req = p_spec.get("required", False)
             prod, _ = Product.objects.update_or_create(
                 name=p_spec["name"],
                 school=p_spec["school"],
@@ -691,6 +699,7 @@ class Command(BaseCommand):
                     "selling_price": p_spec["selling_price"],
                     "gender": p_spec.get("gender", Product.Gender.UNISEX),
                     "needs_review": False,
+                    "is_required": is_req,
                     "customisation_schema": p_spec["customisation_schema"],
                     "images": [f"https://placehold.co/600x600?text={p_spec['name'][:18].replace(' ', '+')}"],
                     "active": True,
@@ -698,6 +707,17 @@ class Command(BaseCommand):
             )
             if "grades" in p_spec:
                 prod.grades.set(p_spec["grades"])
+            if is_req:
+                from catalog.models import ProductRequirement
+                ProductRequirement.objects.update_or_create(
+                    product=prod,
+                    school=prod.school,
+                    defaults={
+                        "required": True,
+                        "gender": prod.gender if prod.gender != Product.Gender.UNISEX else None,
+                        "active": True,
+                    },
+                )
             for size, sku, stock_qty in p_spec["variants"]:
                 variant, _ = ProductVariant.objects.update_or_create(
                     sku=sku,

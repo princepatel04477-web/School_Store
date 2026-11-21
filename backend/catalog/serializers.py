@@ -2,7 +2,36 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
 from .images import is_remote_image_url
-from .models import Category, Product, ProductVariant, ProductCityPrice
+from .models import Category, Product, ProductVariant, ProductCityPrice, ProductRequirement
+
+
+class ProductRequirementSerializer(serializers.ModelSerializer):
+    school_name = serializers.CharField(source="school.name", read_only=True, default=None)
+    grade_name = serializers.CharField(source="grade.name", read_only=True, default=None)
+    campus_name = serializers.CharField(source="campus.display_name", read_only=True, default=None)
+
+    class Meta:
+        model = ProductRequirement
+        fields = (
+            "id",
+            "product",
+            "school",
+            "school_name",
+            "grade",
+            "grade_name",
+            "class_from",
+            "class_to",
+            "campus",
+            "campus_name",
+            "gender",
+            "season",
+            "required",
+            "min_quantity",
+            "active",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "created_at", "updated_at")
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -77,6 +106,8 @@ class ProductSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
     needs_review = serializers.BooleanField(read_only=True)
+    is_required = serializers.BooleanField(required=False, default=False)
+    requirements = ProductRequirementSerializer(many=True, read_only=True)
     grades = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Product.grades.field.related_model.objects.all(),
@@ -101,6 +132,8 @@ class ProductSerializer(serializers.ModelSerializer):
             "gender",
             "product_type",
             "needs_review",
+            "is_required",
+            "requirements",
             "grades",
             "class_from",
             "class_to",
@@ -190,6 +223,12 @@ class ProductSerializer(serializers.ModelSerializer):
             instance.grades.set(grades)
         elif instance.class_from is not None and instance.class_to is not None:
             self._auto_populate_grades(instance)
+        if instance.is_required:
+            ProductRequirement.objects.get_or_create(
+                product=instance,
+                school=instance.school,
+                defaults={"required": True},
+            )
         return instance
 
     def update(self, instance, validated_data):
@@ -199,6 +238,18 @@ class ProductSerializer(serializers.ModelSerializer):
             instance.grades.set(grades)
         elif instance.class_from is not None and instance.class_to is not None:
             self._auto_populate_grades(instance)
+        if instance.is_required:
+            req = ProductRequirement.objects.filter(product=instance).first()
+            if req:
+                if not req.required:
+                    req.required = True
+                    req.save(update_fields=["required"])
+            else:
+                ProductRequirement.objects.create(
+                    product=instance,
+                    school=instance.school,
+                    required=True,
+                )
         return instance
 
     def _auto_populate_grades(self, instance):

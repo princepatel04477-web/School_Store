@@ -4,7 +4,7 @@ from pathlib import Path
 from PIL import Image, ImageOps
 
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -17,12 +17,13 @@ from common.pagination import BoundedCursorPagination
 from common.permissions import RoleScopedPermission
 from common.scoping import ScopedQuerysetMixin
 
-from .models import Category, Product, ProductVariant, ProductCityPrice
+from .models import Category, Product, ProductVariant, ProductCityPrice, ProductRequirement
 from .serializers import (
     CategorySerializer,
     ProductSerializer,
     ProductVariantSerializer,
     ProductCityPriceSerializer,
+    ProductRequirementSerializer,
 )
 
 
@@ -53,8 +54,15 @@ class ProductViewSet(
     cache_namespace = "catalog:products"
     queryset = (
         Product.objects.select_related("category", "school")
-        # `grades` is serialised for every product: prefetch it or each row costs an extra query
-        .prefetch_related("variants", "grades")
+        # `grades` and `requirements` are serialised for every product: prefetch them or each row costs an extra query
+        .prefetch_related(
+            "variants",
+            "grades",
+            Prefetch(
+                "requirements",
+                queryset=ProductRequirement.objects.select_related("school", "grade", "campus"),
+            ),
+        )
         .order_by("id")
     )
     serializer_class = ProductSerializer
@@ -295,14 +303,13 @@ class CartValidateView(APIView):
     """
     POST /api/cart/validate/ and /api/cart/add/
     Re-check on the server that the product/variant matches the selected school, class, and gender.
-    Reject mismatches with 400.
+    Also supports multi-item / full-set validation to revalidate prices and stock,
+    explaining any changes before final commitment and preventing silent crossing of schools or children.
     """
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
-        variant_id = request.data.get("variant") or request.data.get("variant_id")
-        product_id = request.data.get("product") or request.data.get("product_id")
         school_id = request.data.get("school") or request.data.get("school_id")
         class_param = (
             request.data.get("class")
@@ -320,11 +327,184 @@ class CartValidateView(APIView):
                     .first()
                 )
                 if student:
+                    if school_id and str(student.school_id) != str(school_id):
+                        raise ValidationError(
+                            {"school": "Selected student belongs to a different school."}
+                        )
                     school_id = school_id or student.school_id
                     class_param = class_param or student.grade or student.class_name
                     gender_param = gender_param or student.gender
-            except Exception:
+            except Exception as e:
+                if isinstance(e, ValidationError):
+                    raise
                 pass
+
+        items_payload = request.data.get("items")
+        if isinstance(items_payload, list) and items_payload:
+            school_id = school_id or request.data.get("school_id") or request.data.get("school")
+            target_city_id = request.data.get("city") or request.data.get("city_id")
+            if not target_city_id and school_id:
+                from schools.models import School
+                try:
+                    school_obj = School.objects.filter(pk=school_id).first()
+                    if school_obj:
+                        target_city_id = school_obj.city_id
+                except Exception:
+                    pass
+
+            from inventory.models import StockBalance
+
+            errors = []
+            validated_lines = []
+            price_changes = []
+            out_of_stock = []
+            total_paise = 0
+
+            for entry in items_payload:
+                v_id = entry.get("variant") or entry.get("variant_id")
+                p_id = entry.get("product") or entry.get("product_id")
+                qty = int(entry.get("quantity", 1))
+                client_price_paise = entry.get("price_paise")
+                if client_price_paise is None and entry.get("price") is not None:
+                    try:
+                        client_price_paise = int(round(float(entry.get("price")) * 100))
+                    except (ValueError, TypeError):
+                        client_price_paise = None
+
+                var_obj = None
+                prod_obj = None
+                if v_id:
+                    try:
+                        var_obj = (
+                            ProductVariant.objects.select_related("product", "product__school")
+                            .prefetch_related("product__grades")
+                            .filter(pk=v_id)
+                            .first()
+                        )
+                    except (ValueError, TypeError):
+                        errors.append(f"Invalid variant UUID {v_id}.")
+                        continue
+                    if not var_obj:
+                        errors.append(f"Variant {v_id} not found.")
+                        continue
+                    prod_obj = var_obj.product
+                elif p_id:
+                    try:
+                        prod_obj = (
+                            Product.objects.select_related("school")
+                            .prefetch_related("grades")
+                            .filter(pk=p_id)
+                            .first()
+                        )
+                    except (ValueError, TypeError):
+                        errors.append(f"Invalid product UUID {p_id}.")
+                        continue
+                    if not prod_obj:
+                        errors.append(f"Product {p_id} not found.")
+                        continue
+                else:
+                    errors.append("Each item must have a variant or product ID.")
+                    continue
+
+                # Cross-school check: item must be generic or match school
+                if prod_obj.school_id and school_id and str(prod_obj.school_id) != str(school_id):
+                    errors.append(
+                        f"Item '{prod_obj.name}' belongs to a different school and cannot be combined in this set."
+                    )
+
+                if class_param or gender_param:
+                    try:
+                        validate_product_match(
+                            product=prod_obj,
+                            school_id=school_id,
+                            class_name_or_grade=class_param,
+                            gender=gender_param,
+                        )
+                    except ValidationError as ve:
+                        errors.append(str(ve.detail if hasattr(ve, "detail") else ve))
+
+                # Server owns final price
+                server_unit_price = float(prod_obj.selling_price)
+                if target_city_id:
+                    cp = ProductCityPrice.objects.filter(
+                        product=prod_obj, city_id=target_city_id, active=True
+                    ).first()
+                    if cp:
+                        server_unit_price = float(cp.selling_price)
+
+                server_unit_paise = int(round(server_unit_price * 100))
+                line_total_paise = server_unit_paise * qty
+                total_paise += line_total_paise
+
+                if client_price_paise is not None and client_price_paise != server_unit_paise:
+                    price_changes.append({
+                        "product_id": str(prod_obj.id),
+                        "variant_id": str(var_obj.id) if var_obj else None,
+                        "name": prod_obj.name,
+                        "size": var_obj.size if var_obj else "",
+                        "client_price_paise": client_price_paise,
+                        "server_price_paise": server_unit_paise,
+                        "diff_paise": server_unit_paise - client_price_paise,
+                        "explanation": f"Price updated from ₹{client_price_paise/100:.2f} to ₹{server_unit_paise/100:.2f}.",
+                    })
+
+                item_stock_status = "IN_STOCK"
+                if var_obj and target_city_id:
+                    balance = StockBalance.objects.filter(
+                        variant=var_obj, city_id=target_city_id
+                    ).first()
+                    if not balance or balance.stock_quantity <= 0:
+                        item_stock_status = "OUT_OF_STOCK"
+                        out_of_stock.append({
+                            "product_id": str(prod_obj.id),
+                            "variant_id": str(var_obj.id),
+                            "name": prod_obj.name,
+                            "size": var_obj.size,
+                            "available": balance.stock_quantity if balance else 0,
+                            "requested": qty,
+                            "explanation": f"'{prod_obj.name}' ({var_obj.size}) is currently out of stock in your city.",
+                        })
+                    elif balance.stock_quantity < qty:
+                        item_stock_status = "LOW_STOCK"
+                        out_of_stock.append({
+                            "product_id": str(prod_obj.id),
+                            "variant_id": str(var_obj.id),
+                            "name": prod_obj.name,
+                            "size": var_obj.size,
+                            "available": balance.stock_quantity,
+                            "requested": qty,
+                            "explanation": f"Only {balance.stock_quantity} available for '{prod_obj.name}' ({var_obj.size}) in your city (requested {qty}).",
+                        })
+
+                validated_lines.append({
+                    "product_id": str(prod_obj.id),
+                    "variant_id": str(var_obj.id) if var_obj else None,
+                    "name": prod_obj.name,
+                    "size": var_obj.size if var_obj else "",
+                    "quantity": qty,
+                    "price_paise": server_unit_paise,
+                    "line_total_paise": line_total_paise,
+                    "stock_status": item_stock_status,
+                })
+
+            return Response({
+                "valid": len(out_of_stock) == 0 and len(errors) == 0,
+                "school_id": str(school_id) if school_id else None,
+                "class": str(class_param) if class_param else None,
+                "gender": str(gender_param) if gender_param else None,
+                "total_paise": total_paise,
+                "total": float(total_paise) / 100.0,
+                "lines": validated_lines,
+                "price_changes": price_changes,
+                "out_of_stock": out_of_stock,
+                "has_price_changes": len(price_changes) > 0,
+                "has_out_of_stock": len(out_of_stock) > 0,
+                "errors": errors,
+                "message": "Cart revalidated against live server prices and availability.",
+            })
+
+        variant_id = request.data.get("variant") or request.data.get("variant_id")
+        product_id = request.data.get("product") or request.data.get("product_id")
 
         if not variant_id and not product_id:
             raise ValidationError({"item": "Variant ID or Product ID is required."})
@@ -375,6 +555,29 @@ class CartValidateView(APIView):
                 "product_id": str(product.id),
             }
         )
+
+
+class ProductRequirementViewSet(viewsets.ModelViewSet):
+    queryset = ProductRequirement.objects.select_related(
+        "product", "school", "grade", "campus"
+    ).order_by("product__name", "school__name")
+    serializer_class = ProductRequirementSerializer
+    permission_classes = [RoleScopedPermission]
+    read_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER", "PARENT")
+    write_roles = ("BOSS", "ADMIN")
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        product_id = self.request.query_params.get("product")
+        school_id = self.request.query_params.get("school")
+        campus_id = self.request.query_params.get("campus") or self.request.query_params.get("branch")
+        if product_id:
+            qs = qs.filter(product_id=product_id)
+        if school_id:
+            qs = qs.filter(school_id=school_id)
+        if campus_id:
+            qs = qs.filter(campus_id=campus_id)
+        return qs
 
 
 class ProductCityPriceViewSet(viewsets.ModelViewSet):

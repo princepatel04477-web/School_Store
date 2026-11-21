@@ -115,6 +115,11 @@ class Product(UUIDModel):
         blank=True,
         help_text="JSON schema for optional/required order-line customisation data.",
     )
+    is_required = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Explicit requirement flag: True if required uniform item, False if optional.",
+    )
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -266,6 +271,210 @@ class ProductCityPrice(UUIDModel):
 
     def __str__(self) -> str:
         return f"{self.product.name} @ {self.city.name}: Rs {self.selling_price}"
+
+
+class ProductRequirement(UUIDModel):
+    class Season(models.TextChoices):
+        ALL = "ALL", "All Seasons"
+        SUMMER = "SUMMER", "Summer"
+        WINTER = "WINTER", "Winter"
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="requirements",
+    )
+    school = models.ForeignKey(
+        "schools.School",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="product_requirements",
+        help_text="School this requirement applies to. If null, applies to product's school or universally.",
+    )
+    grade = models.ForeignKey(
+        "schools.Grade",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="product_requirements",
+        help_text="Specific grade this requirement applies to.",
+    )
+    class_from = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Lowest class this requirement applies to.",
+    )
+    class_to = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Highest class this requirement applies to.",
+    )
+    campus = models.ForeignKey(
+        "schools.SchoolBranch",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="product_requirements",
+        help_text="Specific campus/branch where this requirement applies.",
+    )
+    gender = models.CharField(
+        max_length=10,
+        choices=Product.Gender.choices,
+        blank=True,
+        null=True,
+        help_text="Gender requirement override: boy, girl, unisex, or null for all.",
+    )
+    season = models.CharField(
+        max_length=20,
+        choices=Season.choices,
+        blank=True,
+        default="",
+        help_text="Season: e.g. SUMMER, WINTER, ALL, or blank.",
+    )
+    required = models.BooleanField(
+        default=True,
+        help_text="True if item is mandatory/required; False if explicitly optional.",
+    )
+    min_quantity = models.PositiveSmallIntegerField(
+        default=1,
+        help_text="Suggested or minimum quantity.",
+    )
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["product", "school", "grade"]
+        indexes = [
+            models.Index(fields=["product", "required"], name="idx_req_prod_req"),
+            models.Index(fields=["school", "required"], name="idx_req_school_req"),
+            models.Index(fields=["campus", "required"], name="idx_req_campus_req"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.school_id and self.product_id and self.product.school_id:
+            self.school_id = self.product.school_id
+        super().save(*args, **kwargs)
+        invalidate_catalog_cache()
+
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        invalidate_catalog_cache()
+
+    def __str__(self) -> str:
+        status = "Required" if self.required else "Optional"
+        scope = self.school.code if self.school else "ALL"
+        return f"{self.product.name} - {status} ({scope})"
+
+
+def is_product_required(
+    product: Product,
+    school_id=None,
+    grade=None,
+    gender=None,
+    campus_id=None,
+    season=None,
+) -> bool:
+    """
+    Evaluates whether a product is required for the given context
+    (school, grade/class, gender, campus, season).
+
+    Rules:
+    - Never infers 'required' from school ownership or required customisation fields.
+    - If explicit matching ProductRequirement records exist, the most specific matching rule determines required status.
+    - If no specific ProductRequirement exists, falls back to product.is_required.
+    """
+    reqs = getattr(product, "_prefetched_requirements", None)
+    if reqs is None:
+        if hasattr(product, "requirements"):
+            try:
+                reqs = list(product.requirements.all())
+            except Exception:
+                reqs = []
+        else:
+            reqs = []
+
+    if not reqs:
+        return bool(getattr(product, "is_required", False))
+
+    s_id = str(school_id) if school_id else None
+    c_id = str(campus_id) if campus_id else None
+
+    class_num = None
+    grade_obj_id = None
+    if grade:
+        if hasattr(grade, "id"):
+            grade_obj_id = str(grade.id)
+            grade_name = getattr(grade, "name", "")
+        else:
+            grade_name = str(grade)
+        import re
+        m = re.search(r"\d+", grade_name)
+        if m:
+            class_num = int(m.group())
+
+    norm_gender = str(gender).strip().lower() if gender else None
+    if norm_gender in ("boy", "male", "m"):
+        target_gender = Product.Gender.BOY
+    elif norm_gender in ("girl", "female", "f"):
+        target_gender = Product.Gender.GIRL
+    else:
+        target_gender = None
+
+    norm_season = str(season).strip().upper() if season else None
+
+    matching_rules = []
+    for r in reqs:
+        if not r.active:
+            continue
+        # School match
+        if r.school_id and s_id and str(r.school_id) != s_id:
+            continue
+        # Campus match
+        if r.campus_id and c_id and str(r.campus_id) != c_id:
+            continue
+        if r.campus_id and not c_id:
+            continue
+        # Gender match
+        if r.gender and target_gender:
+            if r.gender != Product.Gender.UNISEX and r.gender != target_gender:
+                continue
+        # Season match
+        if r.season and r.season != ProductRequirement.Season.ALL and norm_season:
+            if r.season.upper() != norm_season:
+                continue
+        # Grade / Class match
+        if r.grade_id and grade_obj_id:
+            if str(r.grade_id) != grade_obj_id:
+                continue
+        if class_num is not None:
+            if r.class_from is not None and class_num < r.class_from:
+                continue
+            if r.class_to is not None and class_num > r.class_to:
+                continue
+
+        score = 0
+        if r.campus_id:
+            score += 8
+        if r.grade_id:
+            score += 4
+        elif r.class_from is not None or r.class_to is not None:
+            score += 2
+        if r.gender and r.gender != Product.Gender.UNISEX:
+            score += 2
+        if r.season and r.season != ProductRequirement.Season.ALL:
+            score += 2
+        if r.school_id:
+            score += 1
+
+        matching_rules.append((score, r))
+
+    if matching_rules:
+        matching_rules.sort(key=lambda x: x[0], reverse=True)
+        return bool(matching_rules[0][1].required)
+
+    return bool(getattr(product, "is_required", False))
 
 
 def _range_ok(low: str, high: str) -> Q:

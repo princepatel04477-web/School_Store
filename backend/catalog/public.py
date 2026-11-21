@@ -24,7 +24,7 @@ from inventory.services import stock_flag
 from schools.models import School
 
 from .images import product_image, product_image_alt, product_thumbnail
-from .models import Product, ProductVariant
+from .models import Product, ProductVariant, is_product_required
 
 
 from schools.models import City, Grade, School, SchoolBranch
@@ -466,6 +466,16 @@ class PublicProductList(APIView):
         else:
             city_uuid = school.city_id
 
+        branch_param = request.query_params.get("branch") or request.query_params.get("campus")
+        branch_uuid = None
+        if branch_param:
+            try:
+                branch_uuid = UUID(str(branch_param))
+            except (TypeError, ValueError, AttributeError):
+                branch_uuid = None
+
+        season_param = request.query_params.get("season")
+
         # Performance: Cache key per exact filter combination
         cache_key = None
         try:
@@ -525,7 +535,7 @@ class PublicProductList(APIView):
             .filter(Q(gender=selected_gender) | Q(gender=Product.Gender.UNISEX))
             .distinct()
             .select_related("category", "school")
-            .prefetch_related(variants)
+            .prefetch_related(variants, "requirements")
             .order_by("id")
         )
 
@@ -562,6 +572,14 @@ class PublicProductList(APIView):
                 "needs_review": product.needs_review,
                 "school": product.school.name if product.school else None,
                 "price": city_price_map.get(product.id, float(product.selling_price)),
+                "required": is_product_required(
+                    product=product,
+                    school_id=school_uuid,
+                    grade=grade,
+                    gender=selected_gender,
+                    campus_id=branch_uuid,
+                    season=season_param,
+                ),
                 "thumbnail": product_thumbnail(product.images),
                 "image": product_image(product.images),
                 "image_alt": product_image_alt(product.images),

@@ -127,6 +127,7 @@ def build_school_catalogue(school_id, category=None) -> list[dict]:
             "price": str(product.selling_price),
             "thumbnail": product_thumbnail(product.images),
             "customisation_schema": product.customisation_schema,
+            "is_required": getattr(product, "is_required", False),
             # Targeting metadata (filtered out of API responses; used to
             # narrow the shared school cache down to one student).
             "school": str(product.school_id) if product.school_id else None,
