@@ -172,8 +172,9 @@ export function TermsPage() {
 
       <h2>Delivery and pickup</h2>
       <p>
-        We deliver to your address or to the school collection counter, whichever you choose at checkout. Dates
-        shown are estimates; we will message you if an order is delayed.
+        We deliver to your address or to the school collection counter, whichever you choose at checkout.
+        Dates shown are estimates. Order progress is updated by store and school staff as items are prepared.
+        For school pickup orders, items are ready to collect at the school office once marked ready.
       </p>
 
       <h2>Exchanges and refunds</h2>
@@ -207,7 +208,8 @@ export function RefundPage() {
 
       <h2>Cancellations</h2>
       <p>
-        Cancel any time before dispatch for a full refund. Personalised items (ID cards, name labels) cannot be
+        Orders cannot be cancelled directly through the parent portal once placed. Contact the school office
+        to request cancellations or changes before dispatch for a full refund. Personalised items (ID cards, name labels) cannot be
         cancelled once production starts.
       </p>
 

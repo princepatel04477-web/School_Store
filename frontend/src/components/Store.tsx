@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
-import { X } from './ui/icons';
+import { X, Check, AlertCircle } from './ui/icons';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api, Product, Order, CustomisationField } from '../api';
 import { CustomisationForm, photoPurposeForCategory } from './CustomisationForm';
 import { fitPayload, formatMeasure, type Fit } from '../data/fit';
+import { useLang } from '../i18n';
 
 const demo: Product[] = [
   {
@@ -532,24 +533,301 @@ export function Cart({
   );
 }
 
+export function formatOrderTimestamp(isoString?: string): string {
+  if (!isoString) return '';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return isoString;
+    return d.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return isoString;
+  }
+}
+
 export function Timeline({ order }: { order: Order }) {
-  const steps = ['PLACED', 'CONFIRMED', 'PACKED', 'DISPATCHED', 'DELIVERED'];
+  const { t } = useLang();
+  const isPickup = order.fulfillment_type === 'SCHOOL_PICKUP';
+
+  // Normal status progression ranks:
+  // 1: PLACED, PENDING
+  // 2: CONFIRMED
+  // 3: PROCESSING
+  // 4: PACKED
+  // 5: DISPATCHED, SHIPPED, READY_FOR_PICKUP
+  // 6: DELIVERED, COLLECTED
+  const statusRank: Record<string, number> = {
+    PLACED: 1,
+    PENDING: 1,
+    CONFIRMED: 2,
+    PROCESSING: 3,
+    PACKED: 4,
+    DISPATCHED: 5,
+    SHIPPED: 5,
+    READY_FOR_PICKUP: 5,
+    DELIVERED: 6,
+    COLLECTED: 6,
+  };
+
+  const currentRank = statusRank[order.status] ?? 0;
+  const isCancelled = order.status === 'CANCELLED';
+  const isReturned = order.status === 'RETURNED';
+  const isRefunded = order.status === 'REFUNDED';
+
+  // Look up events from order.status_events
+  const events = order.status_events || [];
+  const findEvent = (statuses: string[]) => {
+    const matches = events.filter((e) => statuses.includes(e.status));
+    return matches.length > 0 ? matches[matches.length - 1] : undefined;
+  };
+
+  const placedEvent = findEvent(['PLACED', 'PENDING']);
+  const confirmedEvent = findEvent(['CONFIRMED']);
+  const packingEvent = findEvent(['PACKED', 'PROCESSING']);
+  const dispatchedEvent = findEvent(
+    isPickup
+      ? ['READY_FOR_PICKUP', 'DISPATCHED', 'SHIPPED']
+      : ['DISPATCHED', 'SHIPPED']
+  );
+  const deliveredEvent = findEvent(
+    isPickup ? ['COLLECTED', 'DELIVERED'] : ['DELIVERED']
+  );
+  const cancelledEvent = findEvent(['CANCELLED']);
+  const returnedEvent = findEvent(['RETURNED']);
+  const refundedEvent = findEvent(['REFUNDED']);
+
+  // If order was cancelled/returned/refunded, determine the highest rank reached from events:
+  let maxCompletedRank = currentRank;
+  if (isCancelled || isReturned || isRefunded) {
+    if (deliveredEvent) maxCompletedRank = 6;
+    else if (dispatchedEvent) maxCompletedRank = 5;
+    else if (packingEvent) maxCompletedRank = 4;
+    else if (confirmedEvent) maxCompletedRank = 2;
+    else if (placedEvent || order.created_at) maxCompletedRank = 1;
+    else maxCompletedRank = 1;
+  }
+
+  // 5 Step definitions
+  const steps = [
+    {
+      id: 'placed',
+      num: 1,
+      label: t('timeline.stepPlaced'),
+      event: placedEvent,
+      fallbackTime: order.created_at,
+      isDone: maxCompletedRank >= 1,
+      isCurrent: !isCancelled && !isReturned && !isRefunded && currentRank === 1,
+      isDiscontinued: isCancelled && maxCompletedRank < 1,
+    },
+    {
+      id: 'confirmed',
+      num: 2,
+      label: t('timeline.stepConfirmed'),
+      event: confirmedEvent,
+      fallbackTime: undefined,
+      isDone: maxCompletedRank >= 2,
+      isCurrent: !isCancelled && !isReturned && !isRefunded && currentRank === 2,
+      isDiscontinued: isCancelled && maxCompletedRank < 2,
+    },
+    {
+      id: 'packing',
+      num: 3,
+      label: order.status === 'PROCESSING' ? t('timeline.stepProcessing') : t('timeline.stepPacked'),
+      event: packingEvent,
+      fallbackTime: undefined,
+      isDone: maxCompletedRank >= 4,
+      isCurrent: !isCancelled && !isReturned && !isRefunded && (currentRank === 3 || currentRank === 4),
+      isDiscontinued: isCancelled && maxCompletedRank < 3,
+    },
+    {
+      id: 'dispatched',
+      num: 4,
+      label: isPickup ? t('timeline.stepReadyPickup') : t('timeline.stepDispatched'),
+      event: dispatchedEvent,
+      fallbackTime: undefined,
+      isDone: maxCompletedRank >= 5,
+      isCurrent: !isCancelled && !isReturned && !isRefunded && currentRank === 5,
+      isDiscontinued: isCancelled && maxCompletedRank < 5,
+    },
+    {
+      id: 'delivered',
+      num: 5,
+      label: isPickup ? t('timeline.stepCollected') : t('timeline.stepDelivered'),
+      event: deliveredEvent,
+      fallbackTime: undefined,
+      isDone: maxCompletedRank >= 6,
+      isCurrent: !isCancelled && !isReturned && !isRefunded && currentRank === 6,
+      isDiscontinued: isCancelled && maxCompletedRank < 6,
+    },
+  ];
+
+  const lastUpdatedIso =
+    events.length > 0
+      ? events[events.length - 1].timestamp
+      : order.updated_at || order.created_at;
+
   return (
-    <div className="timeline">
-      {steps.map((s, i) => {
-        const orderIdx = steps.indexOf(order.status);
-        const isCurrent = order.status === s;
-        const isDone = orderIdx >= i;
-        return (
-          <div className={(isCurrent ? 'current ' : '') + (isDone ? 'done' : '')} key={s}>
-            <span>{i + 1}</span>
-            <div>
-              <b>{s[0] + s.slice(1).toLowerCase()}</b>
-              <small>{isCurrent ? 'In progress' : ' '}</small>
+    <div className="order-timeline-wrap" style={{ marginTop: 'var(--space-3)', borderTop: '1px solid var(--line)', paddingTop: 'var(--space-3)' }}>
+      {/* Fulfillment Type & Last updated */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', fontSize: '11px', color: 'var(--ink-soft)' }}>
+        <span style={{ fontWeight: 600, color: 'var(--ink)' }}>
+          {isPickup ? t('timeline.schoolPickup') : t('timeline.homeDelivery')}
+        </span>
+        {lastUpdatedIso && (
+          <span>{t('timeline.lastUpdated', { time: formatOrderTimestamp(lastUpdatedIso) })}</span>
+        )}
+      </div>
+
+      {/* Main 5-step timeline */}
+      <div className="timeline">
+        {steps.map((step) => {
+          const timestamp = formatOrderTimestamp(step.event?.timestamp || step.fallbackTime);
+          let stateClass = '';
+          if (step.isDone) stateClass = 'done';
+          else if (step.isCurrent) stateClass = 'current';
+          else if (step.isDiscontinued) stateClass = 'discontinued';
+          else stateClass = 'pending';
+
+          return (
+            <div className={stateClass} key={step.id}>
+              <span>{step.isDone ? <Check width={12} height={12} strokeWidth={2.5} /> : step.num}</span>
+              <div>
+                <b>{step.label}</b>
+                <small>
+                  {step.isCurrent
+                    ? t('timeline.inProgress')
+                    : step.isDone
+                    ? timestamp || t('timeline.completed')
+                    : step.isDiscontinued
+                    ? t('timeline.discontinued')
+                    : t('timeline.pending')}
+                </small>
+              </div>
             </div>
+          );
+        })}
+      </div>
+
+      {/* Exceptional State Card for CANCELLED */}
+      {isCancelled && (
+        <div
+          role="status"
+          style={{
+            marginTop: '12px',
+            padding: '10px 12px',
+            background: 'var(--paper-sunk)',
+            border: '1px solid var(--line)',
+            borderLeft: '4px solid var(--danger)',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--danger)', fontWeight: 600 }}>
+            <AlertCircle width={16} height={16} strokeWidth={2} />
+            <span>{t('status.cancelled')}</span>
           </div>
-        );
-      })}
+          <p style={{ margin: '4px 0 0', color: 'var(--ink-soft)' }}>
+            {t('timeline.cancelledNotice', {
+              date: formatOrderTimestamp(cancelledEvent?.timestamp || order.updated_at),
+            })}
+          </p>
+          {cancelledEvent?.note && (
+            <small style={{ marginTop: '4px', color: 'var(--ink-soft)', fontStyle: 'italic' }}>
+              {cancelledEvent.note}
+            </small>
+          )}
+        </div>
+      )}
+
+      {/* Exceptional State Card for RETURNED */}
+      {isReturned && (
+        <div
+          role="status"
+          style={{
+            marginTop: '12px',
+            padding: '10px 12px',
+            background: 'var(--paper-sunk)',
+            border: '1px solid var(--line)',
+            borderLeft: '4px solid var(--accent)',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent)', fontWeight: 600 }}>
+            <AlertCircle width={16} height={16} strokeWidth={2} />
+            <span>{t('status.returned')}</span>
+          </div>
+          <p style={{ margin: '4px 0 0', color: 'var(--ink-soft)' }}>
+            {t('timeline.returnedNotice', {
+              date: formatOrderTimestamp(returnedEvent?.timestamp || order.updated_at),
+            })}
+          </p>
+          {returnedEvent?.note && (
+            <small style={{ marginTop: '4px', color: 'var(--ink-soft)', fontStyle: 'italic' }}>
+              {returnedEvent.note}
+            </small>
+          )}
+        </div>
+      )}
+
+      {/* Exceptional State Card for REFUNDED */}
+      {isRefunded && (
+        <div
+          role="status"
+          style={{
+            marginTop: '12px',
+            padding: '10px 12px',
+            background: 'var(--paper-sunk)',
+            border: '1px solid var(--line)',
+            borderLeft: '4px solid var(--brand)',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--brand)', fontWeight: 600 }}>
+            <AlertCircle width={16} height={16} strokeWidth={2} />
+            <span>{t('status.refunded')}</span>
+          </div>
+          <p style={{ margin: '4px 0 0', color: 'var(--ink-soft)' }}>
+            {t('timeline.refundedNotice', {
+              date: formatOrderTimestamp(refundedEvent?.timestamp || order.updated_at),
+            })}
+          </p>
+          {refundedEvent?.note && (
+            <small style={{ marginTop: '4px', color: 'var(--ink-soft)', fontStyle: 'italic' }}>
+              {refundedEvent.note}
+            </small>
+          )}
+        </div>
+      )}
+
+      {/* Helpful Operational Notes */}
+      {!isCancelled && !isReturned && !isRefunded && (
+        <div style={{ marginTop: '10px', fontSize: '11px', color: 'var(--ink-soft)', display: 'grid', gap: '4px' }}>
+          {isPickup && (order.status === 'READY_FOR_PICKUP' || order.status === 'DISPATCHED' || order.status === 'SHIPPED') && (
+            <div style={{ background: 'var(--brand-tint)', color: 'var(--brand-deep)', padding: '6px 8px', borderRadius: 'var(--radius-sm)' }}>
+              {t('timeline.pickupNotice', { orderNumber: order.order_number })}
+            </div>
+          )}
+          {isPickup && (order.delivery_details?.pickup_location || order.delivery_details?.pickup_timings) && (
+            <div style={{ background: 'var(--paper-sunk)', padding: '6px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--line)', color: 'var(--ink)' }}>
+              {order.delivery_details.pickup_location && <div>{order.delivery_details.pickup_location}</div>}
+              {order.delivery_details.pickup_timings && <div style={{ color: 'var(--ink-soft)', marginTop: '2px' }}>{order.delivery_details.pickup_timings}</div>}
+            </div>
+          )}
+          {!isPickup && (order.status === 'DISPATCHED' || order.status === 'SHIPPED') && (
+            <div style={{ background: 'var(--paper-sunk)', padding: '6px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--line)' }}>
+              {t('timeline.courierNotice')}
+            </div>
+          )}
+          <span style={{ fontSize: '10px' }}>{t('timeline.staffProgressNotice')}</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -36,6 +36,8 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
 
     queryset = Order.objects.select_related(
         "student", "school", "city", "placed_by", "payer"
+    ).prefetch_related(
+        "status_events", "payment_attempts"
     ).order_by("-created_at")
     pagination_class = BoundedCursorPagination
     permission_classes = [RoleScopedPermission]
@@ -54,10 +56,10 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         if self.action == "retrieve":
-            qs = qs.prefetch_related("items__variant__product", "status_events", "payment_attempts", "payment_reviews")
+            qs = qs.prefetch_related("items__variant__product", "payment_reviews")
 
         status_param = self.request.query_params.get("status")
-        school_param = self.request.query_param = self.request.query_params.get("school")
+        school_param = self.request.query_params.get("school")
         city_param = self.request.query_params.get("city")
         student_param = self.request.query_params.get("student")
         date_from = self.request.query_params.get("date_from")

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Check, ShoppingBag, User } from '../components/ui/icons';
+import { AlertCircle, Check, ShoppingBag, User, RefreshCw } from '../components/ui/icons';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Link, Route, Routes } from 'react-router-dom';
 import { Shell } from '../App';
@@ -523,17 +523,79 @@ function Dashboard() {
   );
 }
 
+function getFulfilmentStatusLabel(status: string, fulfillmentType: string | undefined, t: (k: any) => string): string {
+  const isPickup = fulfillmentType === 'SCHOOL_PICKUP';
+  switch (status) {
+    case 'PLACED':
+    case 'PENDING':
+      return t('status.placed');
+    case 'CONFIRMED':
+      return t('status.confirmed');
+    case 'PROCESSING':
+      return t('status.processing');
+    case 'PACKED':
+      return t('status.packed');
+    case 'DISPATCHED':
+    case 'SHIPPED':
+      return isPickup ? t('status.readyForPickup') : t('status.dispatched');
+    case 'READY_FOR_PICKUP':
+      return t('status.readyForPickup');
+    case 'DELIVERED':
+      return isPickup ? t('status.collected') : t('status.delivered');
+    case 'COLLECTED':
+      return t('status.collected');
+    case 'CANCELLED':
+      return t('status.cancelled');
+    case 'RETURNED':
+      return t('status.returned');
+    case 'REFUNDED':
+      return t('status.refunded');
+    default:
+      return status;
+  }
+}
+
+function getPaymentStatusLabel(order: Order, t: (k: any) => string): string {
+  if (order.payment_method === 'COD') {
+    if (order.payment_status === 'PAID') return t('payment.paidCash');
+    return order.fulfillment_type === 'SCHOOL_PICKUP' ? t('payment.codPickup') : t('payment.cod');
+  }
+  switch (order.payment_status) {
+    case 'PAID':
+      return t('payment.paidOnline');
+    case 'PENDING':
+      return t('payment.pending');
+    case 'AUTHORIZED':
+      return t('payment.authorized');
+    case 'FAILED':
+      return t('payment.failed');
+    case 'REFUNDED':
+      return t('payment.refunded');
+    default:
+      return order.payment_status;
+  }
+}
+
 function Orders() {
   const { t } = useLang();
   const queryClient = useQueryClient();
   const {
     data,
     isLoading,
+    isFetching,
     isError,
     refetch,
   } = useQuery({
     queryKey: ['orders'],
     queryFn: () => api<any>('/orders/'),
+    refetchInterval: (query) => {
+      const ords: Order[] = (query.state.data?.results || query.state.data || []) as Order[];
+      const hasActive = ords.some((o) =>
+        !['DELIVERED', 'COLLECTED', 'CANCELLED', 'RETURNED'].includes(o.status) ||
+        o.payment_status === 'PENDING'
+      );
+      return hasActive ? 30000 : false;
+    },
   });
   const orders: Order[] = (data?.results || data || []) as Order[];
 
@@ -573,14 +635,27 @@ function Orders() {
 
   return (
     <>
-      <div className="section-row">
+      <div className="section-row" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <span className="eyebrow">YOUR PURCHASES</span>
           <h2>{t('parent.myOrders')}</h2>
         </div>
-        <Link className="text-button" to="/parent">
-          {t('parent.shopAgain')}
-        </Link>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <button
+            type="button"
+            className="btn btn-outline"
+            style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            disabled={isFetching}
+            onClick={() => void refetch()}
+            aria-label={t('parent.refreshOrders')}
+          >
+            <RefreshCw width={14} height={14} strokeWidth={2} className={isFetching ? 'spin' : ''} />
+            <span>{isFetching ? t('parent.refreshing') : t('parent.refreshOrders')}</span>
+          </button>
+          <Link className="text-button" to="/parent">
+            {t('parent.shopAgain')}
+          </Link>
+        </div>
       </div>
 
       {isLoading && !data ? (
@@ -652,20 +727,54 @@ function Orders() {
           {orders.length ? (
             orders.map((o) => (
               <article className="order-card" key={o.id}>
-                <div className="section-row">
+                <div className="section-row" style={{ margin: '0 0 12px 0' }}>
                   <div>
                     <b>{o.order_number}</b>
                     <small>
                       {new Date(o.created_at).toLocaleDateString('en-IN')}
                     </small>
                   </div>
-                  <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                    {o.payment_method === 'ONLINE' && (
-                      <span className="status" style={{ background: 'var(--paper-sunk)', color: 'var(--ink)' }}>
-                        {o.payment_status}
-                      </span>
-                    )}
-                    <span className="status">{o.status}</span>
+                  <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span
+                      className="status"
+                      style={{
+                        background:
+                          o.payment_status === 'PAID'
+                            ? 'var(--brand-tint)'
+                            : o.payment_status === 'FAILED'
+                            ? 'var(--paper-sunk)'
+                            : 'var(--paper-sunk)',
+                        color:
+                          o.payment_status === 'PAID'
+                            ? 'var(--brand-deep)'
+                            : o.payment_status === 'FAILED'
+                            ? 'var(--danger)'
+                            : 'var(--ink)',
+                        fontSize: '11px',
+                      }}
+                    >
+                      {getPaymentStatusLabel(o, t)}
+                    </span>
+                    <span
+                      className="status"
+                      style={{
+                        background:
+                          o.status === 'DELIVERED' || o.status === 'COLLECTED'
+                            ? 'var(--brand-tint)'
+                            : o.status === 'CANCELLED' || o.status === 'RETURNED'
+                            ? 'var(--paper-sunk)'
+                            : 'var(--paper-sunk)',
+                        color:
+                          o.status === 'DELIVERED' || o.status === 'COLLECTED'
+                            ? 'var(--brand-deep)'
+                            : o.status === 'CANCELLED' || o.status === 'RETURNED'
+                            ? 'var(--danger)'
+                            : 'var(--brand)',
+                        fontSize: '11px',
+                      }}
+                    >
+                      {getFulfilmentStatusLabel(o.status, o.fulfillment_type, t)}
+                    </span>
                   </div>
                 </div>
                 <p>
@@ -691,7 +800,7 @@ function Orders() {
                   </div>
                 )}
 
-                {o.can_pay_now && o.status !== 'CANCELLED' && (
+                {(o.can_pay_now || o.parent_actions?.pay_now?.permitted) && o.status !== 'CANCELLED' && (
                   <button
                     type="button"
                     className="btn btn-primary"
@@ -703,6 +812,10 @@ function Orders() {
                 )}
 
                 <Timeline order={o} />
+
+                <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid var(--line)', fontSize: '11px', color: 'var(--ink-soft)' }}>
+                  {t('parent.contactSchoolNotice')}
+                </div>
               </article>
             ))
           ) : (

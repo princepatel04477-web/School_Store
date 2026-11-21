@@ -1272,7 +1272,7 @@ export const messages = {
     hi: 'अभी कोई ऑर्डर नहीं है',
   },
   'parent.noOrdersSub': {
-    en: 'Your orders and live delivery timeline will appear here.',
+    en: 'Your orders and delivery timeline will appear here.',
     gu: 'તમારા ઓર્ડર અને ડિલિવરી ટાઇમલાઇન અહીં દેખાશે.',
     hi: 'आपके ऑर्डर और डिलीवरी टाइमलाइन यहाँ दिखाई देंगे।',
   },
@@ -1285,6 +1285,94 @@ export const messages = {
     en: 'Shop again',
     gu: 'ફરી ખરીદી કરો',
     hi: 'फिर से खरीदारी करें',
+  },
+  'parent.refreshOrders': {
+    en: 'Refresh orders',
+    gu: 'ઓર્ડર રિફ્રેશ કરો',
+    hi: 'ऑर्डर रीफ़्रेश करें',
+  },
+  'parent.refreshing': {
+    en: 'Refreshing...',
+    gu: 'રિફ્રેશ થઈ રહ્યું છે...',
+    hi: 'रीफ़्रेश हो रहा है...',
+  },
+  'parent.contactSchoolNotice': {
+    en: 'Need to make changes or cancel? Contact the school office with your order number.',
+    gu: 'ઓર્ડરમાં ફેરફાર કે રદ કરવા માટે તમારા ઓર્ડર નંબર સાથે શાળા ઑફિસનો સંપર્ક કરો.',
+    hi: 'ऑर्डर बदलने या रद्द करने के लिए अपने ऑर्डर नंबर के साथ स्कूल ऑफ़िस से संपर्क करें।',
+  },
+
+  // ---------- order tracking & status ----------
+  'status.placed': { en: 'Order placed', gu: 'ઓર્ડર મળ્યો', hi: 'ऑर्डर प्राप्त हुआ' },
+  'status.confirmed': { en: 'Confirmed', gu: 'મંજૂર થયેલ', hi: 'पुष्टि हो गई' },
+  'status.processing': { en: 'Processing', gu: 'તૈયારી ચાલુ છે', hi: 'तैयारी जारी है' },
+  'status.packed': { en: 'Packed', gu: 'પેક થઈ ગયું', hi: 'पैक हो गया' },
+  'status.dispatched': { en: 'Dispatched', gu: 'મોકલી દેવાયું', hi: 'भेज दिया गया' },
+  'status.readyForPickup': { en: 'Ready for pickup', gu: 'શાળાએથી લેવા તૈયાર', hi: 'स्कूल से लेने के लिए तैयार' },
+  'status.delivered': { en: 'Delivered', gu: 'પહોંચાડી દીધું', hi: 'डिलीवर हो गया' },
+  'status.collected': { en: 'Collected', gu: 'મેળવી લીધું', hi: 'प्राप्त कर लिया' },
+  'status.cancelled': { en: 'Cancelled', gu: 'રદ કરેલ', hi: 'रद्द किया गया' },
+  'status.returned': { en: 'Returned', gu: 'પરત કરેલ', hi: 'वापस किया गया' },
+  'status.refunded': { en: 'Refunded', gu: 'રિફંડ મળેલ', hi: 'रिफ़ंड किया गया' },
+
+  // ---------- payment statuses ----------
+  'payment.paidOnline': { en: 'Paid online', gu: 'ઓનલાઇન ચૂકવેલ', hi: 'ऑनलाइन भुगतान हुआ' },
+  'payment.pending': { en: 'Payment pending', gu: 'ચૂકવણી બાકી', hi: 'भुगतान बाकी' },
+  'payment.authorized': { en: 'Payment authorized', gu: 'મંજૂર થયેલ ચૂકવણી', hi: 'भुगतान अधिकृत' },
+  'payment.failed': { en: 'Payment failed', gu: 'ચૂકવણી નિષ્ફળ', hi: 'भुगतान विफल' },
+  'payment.refunded': { en: 'Payment refunded', gu: 'રકમ પરત', hi: 'भुगतान रिफ़ंड' },
+  'payment.cod': { en: 'Cash on delivery', gu: 'ડિલિવરી વખતે રોકડ', hi: 'कैश ऑन डिलीवरी' },
+  'payment.codPickup': { en: 'Pay at school pickup', gu: 'શાળાએ લેતી વખતે ચૂકવો', hi: 'स्कूल से लेते समय नकद दें' },
+  'payment.paidCash': { en: 'Paid (Cash)', gu: 'રોકડ ચૂકવેલ', hi: 'नकद भुगतान हुआ' },
+
+  // ---------- timeline steps & labels ----------
+  'timeline.stepPlaced': { en: 'Placed', gu: 'ઓર્ડર', hi: 'ऑर्डर' },
+  'timeline.stepConfirmed': { en: 'Confirmed', gu: 'મંજૂર', hi: 'पुष्टि' },
+  'timeline.stepProcessing': { en: 'Processing', gu: 'તૈયારી', hi: 'तैयारी' },
+  'timeline.stepPacked': { en: 'Packed', gu: 'પેકિંગ', hi: 'पैकिंग' },
+  'timeline.stepDispatched': { en: 'Dispatched', gu: 'રવાના', hi: 'रवाना' },
+  'timeline.stepReadyPickup': { en: 'Ready at school', gu: 'શાળાએ તૈયાર', hi: 'स्कूल में तैयार' },
+  'timeline.stepDelivered': { en: 'Delivered', gu: 'પહોંચ્યું', hi: 'डिलीवर' },
+  'timeline.stepCollected': { en: 'Collected', gu: 'મેળવ્યું', hi: 'प्राप्त' },
+  'timeline.inProgress': { en: 'In progress', gu: 'ચાલુ છે', hi: 'जारी है' },
+  'timeline.completed': { en: 'Completed', gu: 'પૂર્ણ', hi: 'पूर्ण' },
+  'timeline.upcoming': { en: 'Upcoming', gu: 'આગામી', hi: 'आगामी' },
+  'timeline.pending': { en: 'Pending', gu: 'બાકી', hi: 'बाकी' },
+  'timeline.discontinued': { en: 'Not reached', gu: 'રદ થવાથી અટકેલ', hi: 'रद्द होने से रुका' },
+
+  // ---------- timeline details & notices ----------
+  'timeline.homeDelivery': { en: 'Home delivery', gu: 'ઘર બેઠા ડિલિવરી', hi: 'घर पर डिलीवरी' },
+  'timeline.schoolPickup': { en: 'School pickup', gu: 'શાળામાંથી મેળવવું', hi: 'स्कूल से प्राप्त करना' },
+  'timeline.lastUpdated': { en: 'Last updated: {time}', gu: 'છેલ્લું અપડેટ: {time}', hi: 'अंतिम अपडेट: {time}' },
+  'timeline.staffProgressNotice': {
+    en: 'Status is updated by school and store staff as items are prepared.',
+    gu: 'વસ્તુઓ તૈયાર થાય તેમ શાળા અને સ્ટોર સ્ટાફ દ્વારા સ્ટેટસ અપડેટ કરવામાં આવે છે.',
+    hi: 'सामान तैयार होने पर स्कूल और स्टोर स्टाफ़ द्वारा स्थिति अपडेट की जाती है।',
+  },
+  'timeline.courierNotice': {
+    en: 'Dispatched by school store. Courier tracking is not integrated.',
+    gu: 'શાળા સ્ટોર દ્વારા મોકલાયું. કુરિયર ટ્રેકિંગ જોડાયેલ નથી.',
+    hi: 'स्कूल स्टोर द्वारा भेजा गया। कूरियर ट्रैकिंग जुड़ी नहीं है।',
+  },
+  'timeline.pickupNotice': {
+    en: 'Ready to collect from school uniform desk. Please show order #{orderNumber}.',
+    gu: 'શાળા યુનિફોર્મ ડેસ્ક પરથી લેવા તૈયાર. કૃપા કરીને ઓર્ડર #{orderNumber} બતાવો.',
+    hi: 'स्कूल यूनिफ़ॉर्म काउंटर से लेने के लिए तैयार। कृपया ऑर्डर #{orderNumber} दिखाएँ।',
+  },
+  'timeline.cancelledNotice': {
+    en: 'Order cancelled on {date}. Items were returned to school stock.',
+    gu: '{date} ના રોજ ઓર્ડર રદ કરવામાં આવ્યો હતો. વસ્તુઓ સ્ટોકમાં પાછી મૂકાઈ છે.',
+    hi: '{date} को ऑर्डर रद्द किया गया था। सामान स्कूल स्टॉक में वापस रख दिया गया है।',
+  },
+  'timeline.returnedNotice': {
+    en: 'Order returned on {date}.',
+    gu: '{date} ના રોજ ઓર્ડર પરત કરવામાં આવ્યો હતો.',
+    hi: '{date} को ऑर्डर वापस कर दिया गया था।',
+  },
+  'timeline.refundedNotice': {
+    en: 'Payment refunded on {date}.',
+    gu: '{date} ના રોજ રકમ પરત કરવામાં આવી હતી.',
+    hi: '{date} को भुगतान वापस कर दिया गया था।',
   },
 
   // ---------- footer ----------

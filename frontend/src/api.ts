@@ -50,22 +50,46 @@ export type OrderQuote = {
   reservation_minutes: number;
 };
 
+export type OrderStatusEvent = {
+  id?: string;
+  status: string;
+  status_display?: string;
+  timestamp?: string;
+  changed_at?: string;
+  note?: string;
+};
+
 export type Order = {
   id: string;
   order_number: string;
   student_name: string;
+  student_gr?: string;
+  school_name?: string;
+  school_code?: string;
+  city_name?: string;
+  placed_by_role?: string;
   status: string;
   payment_status: string;
   payment_method?: 'COD' | 'ONLINE';
-  fulfillment_type?: string;
+  fulfillment_type?: 'HOME_DELIVERY' | 'SCHOOL_PICKUP' | string;
+  subtotal?: number | string;
   total: number | string;
   created_at: string;
+  updated_at?: string;
   expires_at?: string;
   last_attempt_failed?: string | null;
   has_in_progress_attempt?: boolean;
   can_pay_now?: boolean;
+  parent_actions?: {
+    pay_now?: { permitted: boolean; reason?: string };
+    switch_to_cod?: { permitted: boolean; reason?: string };
+    cancel?: { permitted: boolean; reason?: string };
+  };
+  delivery_details?: Record<string, any>;
   razorpay_order_id?: string;
-  status_events?: { status: string; timestamp: string }[];
+  razorpay_payment_id?: string;
+  items?: any[];
+  status_events?: OrderStatusEvent[];
 };
 const API=import.meta.env.VITE_API_URL||'/api';
 let refreshing:Promise<string>|null=null;

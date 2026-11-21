@@ -145,20 +145,144 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class OrderStatusEventSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    changed_at = serializers.DateTimeField(source="timestamp", read_only=True)
+
     class Meta:
         model = OrderStatusEvent
-        fields = ("id", "status", "timestamp", "changed_by", "note")
+        fields = ("id", "status", "status_display", "timestamp", "changed_at", "changed_by", "note")
         read_only_fields = fields
 
 
-class OrderListSerializer(serializers.ModelSerializer):
-    """Lightweight order list payload without nested arrays."""
+def _get_prefetched_attempts(obj):
+    if hasattr(obj, "_prefetched_objects_cache") and "payment_attempts" in obj._prefetched_objects_cache:
+        return list(obj._prefetched_objects_cache["payment_attempts"])
+    return list(obj.payment_attempts.all())
+
+
+class OrderTrackingMixin:
+    def get_last_attempt_failed(self, obj):
+        attempts = _get_prefetched_attempts(obj)
+        if not attempts:
+            return None
+        last = sorted(attempts, key=lambda a: a.first_seen_at, reverse=True)[0]
+        if last.status == PaymentAttempt.Status.FAILED:
+            return last.error_reason or last.error_code or "Payment attempt failed"
+        return None
+
+    def get_has_in_progress_attempt(self, obj):
+        attempts = _get_prefetched_attempts(obj)
+        return any(a.status in (PaymentAttempt.Status.CREATED, PaymentAttempt.Status.AUTHORIZED) for a in attempts)
+
+    def get_can_pay_now(self, obj):
+        if obj.status in (Order.Status.CANCELLED, Order.Status.RETURNED, Order.Status.REFUNDED):
+            return False
+        if obj.payment_method != Order.PaymentMethod.ONLINE:
+            return False
+        if obj.payment_status == Order.PaymentStatus.PAID:
+            return False
+        if self.get_has_in_progress_attempt(obj):
+            return False
+        return True
+
+    def get_parent_actions(self, obj):
+        can_pay = self.get_can_pay_now(obj)
+        in_prog = self.get_has_in_progress_attempt(obj)
+        is_paid = obj.payment_status == Order.PaymentStatus.PAID
+        is_cod = obj.payment_method == Order.PaymentMethod.CASH_ON_DELIVERY
+        is_cancelled = obj.status == Order.Status.CANCELLED
+
+        pay_now_reason = ""
+        if can_pay:
+            pay_now_reason = "Order is awaiting online payment."
+        elif is_paid:
+            pay_now_reason = "Order is already paid."
+        elif is_cancelled:
+            pay_now_reason = "Order was cancelled. Please place a new order."
+        elif is_cod:
+            pay_now_reason = "Order is set to cash on delivery."
+        elif in_prog:
+            pay_now_reason = "Payment verification is currently in progress."
+
+        can_switch_cod = (
+            obj.payment_method == Order.PaymentMethod.ONLINE
+            and obj.payment_status == Order.PaymentStatus.PENDING
+            and not is_cancelled
+            and not in_prog
+        )
+        switch_cod_reason = ""
+        if can_switch_cod:
+            switch_cod_reason = "You may switch unpaid online order to cash on delivery."
+        elif is_cod:
+            switch_cod_reason = "Order is already cash on delivery."
+        elif is_paid:
+            switch_cod_reason = "Order is already paid online."
+        elif is_cancelled:
+            switch_cod_reason = "Cancelled orders cannot be switched."
+        elif in_prog:
+            switch_cod_reason = "Payment is currently in progress."
+
+        return {
+            "pay_now": {
+                "permitted": can_pay,
+                "allowed": can_pay,
+                "reason": pay_now_reason,
+            },
+            "switch_to_cod": {
+                "permitted": can_switch_cod,
+                "allowed": can_switch_cod,
+                "reason": switch_cod_reason,
+            },
+            "cancel": {
+                "permitted": False,
+                "allowed": False,
+                "reason": "Parents cannot cancel placed orders online. Please contact the school office.",
+            },
+        }
+
+    def get_delivery_details(self, obj):
+        details = dict(obj.delivery_details or {})
+        fulfillment_type = obj.fulfillment_type
+        if fulfillment_type == Order.FulfillmentType.SCHOOL_PICKUP:
+            school = getattr(obj, "school", None)
+            location = (school.address if school else "") or f"{getattr(school, 'name', 'School')} Campus Office"
+            instructions = (
+                getattr(school, "pickup_instructions", "")
+                if hasattr(school, "pickup_instructions")
+                else ""
+            ) or "Please collect during regular school hours (8:30 AM to 2:30 PM). Keep your order number handy."
+            details.setdefault("delivery_type", "SCHOOL_PICKUP")
+            details.setdefault("pickup_location", location)
+            details.setdefault("pickup_timings", "School office hours (Mon-Fri 8:30 AM - 2:30 PM)")
+            details.setdefault("pickup_instructions", instructions)
+            details.setdefault("courier_name", None)
+            details.setdefault("tracking_number", None)
+            details.setdefault("tracking_url", None)
+        else:
+            details.setdefault("delivery_type", "HOME_DELIVERY")
+            details.setdefault("pickup_location", None)
+            details.setdefault("pickup_timings", None)
+            details.setdefault("pickup_instructions", None)
+            details.setdefault("courier_name", details.get("courier_name"))
+            details.setdefault("tracking_number", details.get("tracking_number"))
+            details.setdefault("tracking_url", details.get("tracking_url"))
+        return details
+
+
+class OrderListSerializer(OrderTrackingMixin, serializers.ModelSerializer):
+    """Order list payload with scoped event tracking without request explosion."""
 
     student_name = serializers.CharField(source="student.name", read_only=True)
     student_gr = serializers.CharField(source="student.gr_number", read_only=True)
     school_name = serializers.CharField(source="school.name", read_only=True)
     school_code = serializers.CharField(source="school.code", read_only=True)
     city_name = serializers.CharField(source="city.name", read_only=True)
+    status_events = OrderStatusEventSerializer(many=True, read_only=True)
+    delivery_details = serializers.SerializerMethodField()
+    can_pay_now = serializers.SerializerMethodField()
+    has_in_progress_attempt = serializers.SerializerMethodField()
+    last_attempt_failed = serializers.SerializerMethodField()
+    parent_actions = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -177,12 +301,19 @@ class OrderListSerializer(serializers.ModelSerializer):
             "payment_method",
             "subtotal",
             "total",
+            "delivery_details",
             "created_at",
+            "updated_at",
+            "status_events",
+            "can_pay_now",
+            "has_in_progress_attempt",
+            "last_attempt_failed",
+            "parent_actions",
         )
         read_only_fields = fields
 
 
-class OrderDetailSerializer(serializers.ModelSerializer):
+class OrderDetailSerializer(OrderTrackingMixin, serializers.ModelSerializer):
     """Full order payload (single-object endpoint only)."""
 
     student_name = serializers.CharField(source="student.name", read_only=True)
@@ -194,7 +325,11 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     status_events = OrderStatusEventSerializer(many=True, read_only=True)
     payment_attempts = PaymentAttemptSerializer(many=True, read_only=True)
     payment_reviews = PaymentReviewSerializer(many=True, read_only=True)
+    delivery_details = serializers.SerializerMethodField()
+    can_pay_now = serializers.SerializerMethodField()
+    has_in_progress_attempt = serializers.SerializerMethodField()
     last_attempt_failed = serializers.SerializerMethodField()
+    parent_actions = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -227,16 +362,13 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "payment_attempts",
             "payment_reviews",
             "last_attempt_failed",
+            "has_in_progress_attempt",
+            "can_pay_now",
+            "parent_actions",
             "created_at",
             "updated_at",
         )
         read_only_fields = fields
-
-    def get_last_attempt_failed(self, obj):
-        last = obj.payment_attempts.order_by("-first_seen_at").first()
-        if last and last.status == PaymentAttempt.Status.FAILED:
-            return last.error_reason or last.error_code or "Payment attempt failed"
-        return None
 
 
 class OrderFitInputSerializer(serializers.Serializer):

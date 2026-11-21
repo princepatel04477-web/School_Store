@@ -286,7 +286,7 @@ describe('Parent Dashboard & Orders data loading states', () => {
         expect(screen.getByText(/no orders yet/i)).toBeDefined();
       });
 
-      expect(screen.getByText(/your orders and live delivery timeline will appear here/i)).toBeDefined();
+      expect(screen.getByText(/your orders and delivery timeline will appear here/i)).toBeDefined();
       expect(screen.getByRole('link', { name: /browse catalogue/i })).toBeDefined();
       expect(screen.queryByRole('alert')).toBeNull();
     });

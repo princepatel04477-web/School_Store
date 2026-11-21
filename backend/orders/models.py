@@ -14,7 +14,9 @@ class Order(UUIDModel):
         PACKED = "PACKED", "Packed"
         DISPATCHED = "DISPATCHED", "Dispatched"
         SHIPPED = "SHIPPED", "Shipped"  # legacy value retained for existing data
+        READY_FOR_PICKUP = "READY_FOR_PICKUP", "Ready for pickup"
         DELIVERED = "DELIVERED", "Delivered"
+        COLLECTED = "COLLECTED", "Collected"
         CANCELLED = "CANCELLED", "Cancelled"
         RETURNED = "RETURNED", "Returned"
         REFUNDED = "REFUNDED", "Refunded"  # legacy value retained for existing data
