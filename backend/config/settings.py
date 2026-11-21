@@ -311,6 +311,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "login": os.environ.get("LOGIN_THROTTLE_RATE", "5/min"),
         "otp": os.environ.get("OTP_THROTTLE_RATE", "5/min"),
+        "otp_verify": os.environ.get("OTP_VERIFY_THROTTLE_RATE", "20/min"),
         "student_claim_user": os.environ.get("STUDENT_CLAIM_USER_RATE", "10/hour"),
         "student_claim_ip": os.environ.get("STUDENT_CLAIM_IP_RATE", "30/hour"),
         "public_catalog": os.environ.get("PUBLIC_CATALOG_RATE", "120/min"),

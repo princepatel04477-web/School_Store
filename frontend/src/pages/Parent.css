@@ -1,0 +1,89 @@
+/* Parent account page (pages/Parent.tsx). Flat surfaces: 1px line borders, no shadows. */
+
+.parent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-4) 0;
+}
+
+.parent-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper-raised);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+}
+
+.parent-panel h3 {
+  margin: 0 0 var(--space-2);
+}
+
+.parent-panel p {
+  color: var(--ink-soft);
+  margin: 0 0 var(--space-4);
+}
+
+.parent-panel p:last-child {
+  margin-bottom: 0;
+}
+
+.parent-kid-skeleton {
+  cursor: default;
+}
+
+.parent-kid-skeleton-lines {
+  display: grid;
+  gap: var(--space-2);
+  flex: 1;
+}
+
+.child-profile {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin: var(--space-6) 0;
+}
+
+.child-profile-head {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.child-profile-head h3 {
+  margin: var(--space-1, 4px) 0 0;
+  font-size: 1.2rem;
+}
+
+.child-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-4);
+  margin: 0 0 var(--space-4);
+}
+
+.child-profile-grid dt {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.child-profile-grid dd {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.child-profile-note {
+  border-left: 3px solid var(--line);
+  padding: var(--space-2) var(--space-4);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+.parent-shop-head {
+  margin-top: var(--space-8);
+}

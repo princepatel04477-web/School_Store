@@ -73,9 +73,26 @@ export const homeFor = (role?: string) =>
     ? '/retailer'
     : '/school';
 
+/** Shown when the device is signed in but the server could not be reached to confirm it. */
+function SignedInOffline({ onRetry }: { onRetry: () => void }) {
+  const { t } = useLang();
+  return (
+    <div className="auth-offline" role="alert">
+      <h2>{t('parent.offlineTitle')}</h2>
+      <p>{t('parent.loadError')}</p>
+      <button type="button" className="btn btn-md btn-primary" onClick={onRetry}>
+        {t('parent.retry')}
+      </button>
+    </div>
+  );
+}
+
 function Guard({ children, roles }: { children: ReactNode; roles?: string[] }) {
-  const { user, loading } = useAuth();
+  const { user, loading, offline, retry } = useAuth();
   if (loading) return <div className="splash">Loading your store…</div>;
+  // Signed in on this device, but the server could not confirm it: keep the
+  // sign-in and offer Try again instead of sending the parent to a sign-in page.
+  if (!user && offline) return <SignedInOffline onRetry={retry} />;
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to={homeFor(user.role)} replace />;
   return <>{children}</>;

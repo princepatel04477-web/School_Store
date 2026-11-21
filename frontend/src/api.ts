@@ -32,7 +32,7 @@ export type Product={
   customisation_schema?:CustomisationField[] | {fields?: CustomisationField[]};
   variants:{id:string;size:string;stock_status:StockStatus|null}[];
 };
-export type Order={id:string;order_number:string;student_name:string;status:string;payment_status:string;total:number;created_at:string;status_events?:{status:string;timestamp:string}[]};
+export type Order={id:string;order_number:string;student?:string|null;student_name:string;status:string;payment_status:string;total:number;created_at:string;status_events?:{status:string;timestamp:string}[]};
 const API=import.meta.env.VITE_API_URL||'/api';
 
 /** Turns an API path into a full URL. Paths may be "/panel/..." or "/api/panel/...". */
@@ -102,11 +102,23 @@ export async function clearStoredTokens():Promise<void>{
   }
 }
 
+/** The refresh token was refused: the sign-in really is over. Network errors and server faults are not this. */
+export class SessionExpired extends Error{constructor(){super('session expired');this.name='SessionExpired';}}
+
+/**
+ * True only when the server refused the sign-in. A network error (no signal,
+ * server down) or a server fault (5xx) is not a refusal: the tokens are kept.
+ */
+export function isRefusedSession(err:unknown):boolean{
+  return err instanceof SessionExpired||(err instanceof ApiError&&err.status===401);
+}
+
 let refreshing:Promise<string>|null=null;
 async function refresh():Promise<string>{
   const token=await getStoredToken('refresh');
   const r=await fetch(toUrl('/auth/token/refresh/'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh:token})});
-  if(!r.ok) throw Error('session expired');
+  if(r.status===400||r.status===401) throw new SessionExpired();
+  if(!r.ok) throw new ApiError('Something went wrong',r.status);
   const d=await r.json();
   await setStoredTokens({access:d.access});
   return d.access;
@@ -125,8 +137,10 @@ export async function api<T>(path:string, init:RequestInit={},{retry=true}={}):P
     try{
       const token=await refreshing;
       return api<T>(path,{...init,headers:new Headers({...Object.fromEntries(headers),Authorization:`Bearer ${token}`})},{retry:false});
-    }catch{
-      await logout();
+    }catch(err){
+      // Only a refused refresh token ends the sign-in; an outage keeps it.
+      if(err instanceof SessionExpired) await logout();
+      else throw err;
     }
   }
   if(!res.ok){
@@ -167,13 +181,31 @@ export async function download(path:string, filename:string):Promise<void>{
   URL.revokeObjectURL(url);
 }
 
+let signedInRole:Role|null=null;
+/** auth.tsx tells us who is signed in, so signing out can pick the right page. */
+export function rememberSignedInRole(role:Role|null):void{signedInRole=role;}
+
+const STAFF_AREAS=['/boss','/city','/school','/teacher','/retailer','/login'];
+/** Parents go back to the store, staff to the staff sign-in page. */
+export function pageAfterSignOut(role:Role|null,currentPath:string):string{
+  if(role==='PARENT') return '/';
+  if(role) return '/login';
+  return STAFF_AREAS.some((area)=>currentPath===area||currentPath.startsWith(`${area}/`))?'/login':'/';
+}
+
+let loggingOut=false;
+/** Signs out once: a second call while the first redirect is under way would sign out twice and could pick the wrong page. */
 export async function logout():Promise<void>{
+  if(loggingOut) return;
+  loggingOut=true;
+  const role=signedInRole;
   try {
     const { unregisterDeviceToken } = await import('./native/push');
     await unregisterDeviceToken();
   } catch {}
   await clearStoredTokens();
-  window.location.href='/login';
+  signedInRole=null;
+  window.location.href=pageAfterSignOut(role,window.location.pathname);
 }
 export const auth={login:(username:string,password:string)=>api<{access:string;refresh:string;user:User}>('/auth/token/',{method:'POST',body:JSON.stringify({username,password})}),register:(body:unknown)=>api<{access:string;refresh:string;user:User}>('/auth/register/',{method:'POST',body:JSON.stringify(body)}),me:()=>api<User>('/auth/me/'),
   /** Parent sign-in by mobile number: send the code, then verify it. */
@@ -182,7 +214,7 @@ export const auth={login:(username:string,password:string)=>api<{access:string;r
 };
 
 /** A child on the school roster, as the parent sees it. */
-export type ParentChild={id:string;name:string;gr_number:string;grade_name?:string|null;class_name:string;section:string;gender:string;date_of_birth:string|null;school:string;school_name:string;school_code:string;active:boolean};
+export type ParentChild={id:string;name:string;gr_number:string;grade_name?:string|null;class_name:string;section:string;gender:string;date_of_birth:string|null;school:string;school_name:string;school_code:string;city?:string|null;city_name?:string|null;active:boolean};
 export const parentChildren={
   list:()=>api<{results:ParentChild[]}>('/students/'),
   /** Fallback when the school's list has no phone for this parent: GR number + date of birth. */
