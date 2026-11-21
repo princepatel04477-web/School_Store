@@ -257,7 +257,7 @@ class PublicCatalogTests(TestCase):
             "items": [
                 {"variant": str(girl_pinafore_var.id), "quantity": 1},
             ],
-            "fulfillment_type": "HOME_DELIVERY",
+            "fulfillment_type": "SCHOOL_PICKUP",
         }
         res_order = client.post("/api/orders/", order_payload, format="json")
         self.assertEqual(res_order.status_code, 400)
@@ -435,6 +435,7 @@ class PublicCatalogTests(TestCase):
         payload = {
             "idempotency_key": str(uuid.uuid4()),
             "student": str(boy.id),
+            "fulfillment_type": "SCHOOL_PICKUP",
             "items": [
                 {"variant": str(v_uniform.id), "quantity": 1},
                 {"variant": str(v_shoes.id), "quantity": 1},
@@ -482,6 +483,7 @@ class PublicCatalogTests(TestCase):
         payload = {
             "idempotency_key": str(uuid.uuid4()),
             "student": str(boy.id),
+            "fulfillment_type": "SCHOOL_PICKUP",
             "items": [
                 {"variant": str(v_uniform.id), "quantity": 1},
             ],

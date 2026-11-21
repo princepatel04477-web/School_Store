@@ -230,6 +230,10 @@ RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 RAZORPAY_WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
 
+DELIVERY_PROVIDER_URL = os.environ.get("DELIVERY_PROVIDER_URL", "")
+DELIVERY_PROVIDER_API_KEY = os.environ.get("DELIVERY_PROVIDER_API_KEY", "")
+DELIVERY_PROVIDER_NAME = os.environ.get("DELIVERY_PROVIDER_NAME", "Shiprocket")
+
 if "test" in sys.argv:
     if not RAZORPAY_KEY_ID:
         RAZORPAY_KEY_ID = "rzp_test_placeholder"

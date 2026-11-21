@@ -70,11 +70,12 @@ class PublicSchoolListView(APIView):
                 "code": s.code,
                 "city": str(s.city_id) if s.city_id else None,
                 "city_name": s.city.name if s.city_id else "",
+                "state_name": s.city.state if (s.city_id and s.city and s.city.state) else "",
                 "home_delivery": s.home_delivery_enabled,
                 "school_pickup": s.school_pickup_enabled,
             }
             for s in qs.only(
-                "id", "name", "code", "home_delivery_enabled", "school_pickup_enabled", "city__id", "city__name"
+                "id", "name", "code", "home_delivery_enabled", "school_pickup_enabled", "city__id", "city__name", "city__state"
             )
         ]
 

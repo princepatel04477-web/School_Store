@@ -12,6 +12,7 @@ from catalog.models import ProductVariant
 from inventory.models import StockBalance, StockMovement
 from schools.models import Student
 
+from .delivery import clean_delivery_details
 from .models import Order, OrderItem, OrderStatusEvent, PaymentAttempt, PaymentReview
 
 
@@ -480,6 +481,9 @@ class OrderCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"fulfillment_type": "This school does not offer school pickup."}
             )
+        attrs["delivery_details"] = clean_delivery_details(
+            attrs.get("delivery_details"), fulfillment_type
+        )
         if attrs.get("fit"):
             attrs["fit"] = _checked_fit(attrs["fit"], "fit")
         for item in attrs["items"]:
@@ -841,7 +845,31 @@ class OrderQuoteSerializer(serializers.Serializer):
     fit = OrderFitInputSerializer(required=False, allow_null=True)
 
     validate_student = OrderCreateSerializer.validate_student
-    validate = OrderCreateSerializer.validate
+
+    def validate(self, attrs):
+        student = attrs["student"]
+        school = student.school
+        fulfillment_type = attrs["fulfillment_type"]
+        if (
+            fulfillment_type == Order.FulfillmentType.HOME_DELIVERY
+            and not school.home_delivery_enabled
+        ):
+            raise serializers.ValidationError(
+                {"fulfillment_type": "This school does not offer home delivery."}
+            )
+        if (
+            fulfillment_type == Order.FulfillmentType.SCHOOL_PICKUP
+            and not school.school_pickup_enabled
+        ):
+            raise serializers.ValidationError(
+                {"fulfillment_type": "This school does not offer school pickup."}
+            )
+        if attrs.get("fit"):
+            attrs["fit"] = _checked_fit(attrs["fit"], "fit")
+        for item in attrs["items"]:
+            if item.get("fit"):
+                item["fit"] = _checked_fit(item["fit"], "items")
+        return attrs
 
     def get_quote(self):
         user = self.context["request"].user

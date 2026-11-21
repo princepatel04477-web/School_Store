@@ -88,6 +88,7 @@ class PaymentMethodTests(TestCase):
             {
                 "idempotency_key": str(uuid.uuid4()),
                 "student": str(self.student.id),
+                "fulfillment_type": "SCHOOL_PICKUP",
                 "payment_method": "BARTER",
                 "items": [{"variant": str(self.variant.id), "quantity": 1}],
             },

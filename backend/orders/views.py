@@ -11,6 +11,8 @@ from rest_framework.response import Response
 from common.pagination import BoundedCursorPagination
 from common.permissions import RoleScopedPermission
 from common.scoping import ScopedQuerysetMixin
+from rest_framework.views import APIView
+from .delivery import PINCODE_REGEX, pin_service
 from .models import Order, OrderStatusEvent, PaymentAttempt, PaymentReview
 from .payment import RazorpayGateway
 from .status import apply_provider_payment, can_transition_order, change_order_status, record_payment
@@ -372,3 +374,29 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         if user.role != "BOSS" and not getattr(user, "is_superuser", False):
             raise PermissionDenied("Only Boss may delete orders.")
         instance.delete()
+
+
+class PincodeLookupView(APIView):
+    """
+    Public lookup for PIN codes:
+    Separates format validation, geographical lookup, and courier serviceability.
+    Delivery is never promised based solely on PIN validity.
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        pincode = (request.query_params.get("pincode") or "").strip()
+        format_valid = bool(PINCODE_REGEX.match(pincode))
+        geography = pin_service.lookup_geography(pincode)
+        serviceability = pin_service.check_serviceability(pincode)
+        return Response(
+            {
+                "pincode": pincode,
+                "format_valid": format_valid,
+                "geography": geography,
+                "serviceability": serviceability,
+            },
+            status=status.HTTP_200_OK,
+        )
+

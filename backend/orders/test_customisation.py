@@ -405,6 +405,7 @@ class CustomisationEndToEndTests(TestCase):
             {
                 "idempotency_key": "idem-1",
                 "student": str(self.student.id),
+                "fulfillment_type": "SCHOOL_PICKUP",
                 "items": [
                     {
                         "variant": str(self.notebook_variant.id),
@@ -439,6 +440,7 @@ class CustomisationEndToEndTests(TestCase):
             {
                 "idempotency_key": "idem-notebook-order",
                 "student": str(self.student.id),
+                "fulfillment_type": "SCHOOL_PICKUP",
                 "items": [
                     {
                         "variant": str(self.notebook_variant.id),
@@ -485,6 +487,7 @@ class CustomisationEndToEndTests(TestCase):
             {
                 "idempotency_key": "idem-idcard-order",
                 "student": str(self.student.id),
+                "fulfillment_type": "SCHOOL_PICKUP",
                 "items": [
                     {
                         "variant": str(self.idcard_variant.id),

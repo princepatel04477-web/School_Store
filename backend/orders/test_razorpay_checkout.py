@@ -166,11 +166,20 @@ class QuoteAndCreateTests(RazorpayTestBase):
         self.assertEqual(self.stock(), stock_before)
 
         # Place order with expected_total_paise
+        valid_delivery = {
+            "recipient_name": "Ramesh Patel",
+            "phone": "9876543210",
+            "address": "101 Sunrise Apt, Vesu Road",
+            "city": "Surat",
+            "state": "Gujarat",
+            "pincode": "395007",
+        }
         order_payload = {
             "idempotency_key": str(uuid.uuid4()),
             "student": str(self.student.id),
             "fulfillment_type": "HOME_DELIVERY",
             "payment_method": "ONLINE",
+            "delivery_details": valid_delivery,
             "expected_total_paise": data["total_paise"],
             "items": [{"variant": str(self.variant.id), "quantity": 2}],
         }
@@ -187,6 +196,14 @@ class QuoteAndCreateTests(RazorpayTestBase):
             "student": str(self.student.id),
             "fulfillment_type": "HOME_DELIVERY",
             "payment_method": "ONLINE",
+            "delivery_details": {
+                "recipient_name": "Ramesh Patel",
+                "phone": "9876543210",
+                "address": "101 Sunrise Apt, Vesu Road",
+                "city": "Surat",
+                "state": "Gujarat",
+                "pincode": "395007",
+            },
             "expected_total_paise": 50000,  # Real total is 45000
             "items": [{"variant": str(self.variant.id), "quantity": 1}],
         }
@@ -203,6 +220,14 @@ class QuoteAndCreateTests(RazorpayTestBase):
             "student": str(self.student.id),
             "fulfillment_type": "HOME_DELIVERY",
             "payment_method": "ONLINE",
+            "delivery_details": {
+                "recipient_name": "Ramesh Patel",
+                "phone": "9876543210",
+                "address": "101 Sunrise Apt, Vesu Road",
+                "city": "Surat",
+                "state": "Gujarat",
+                "pincode": "395007",
+            },
             "items": [{"variant": str(self.variant.id), "quantity": 1}],
         }
         with override_settings(RAZORPAY_KEY_ID="", RAZORPAY_KEY_SECRET="", DEBUG=False):
@@ -218,6 +243,14 @@ class QuoteAndCreateTests(RazorpayTestBase):
             "student": str(self.student.id),
             "fulfillment_type": "HOME_DELIVERY",
             "payment_method": "ONLINE",
+            "delivery_details": {
+                "recipient_name": "Ramesh Patel",
+                "phone": "9876543210",
+                "address": "101 Sunrise Apt, Vesu Road",
+                "city": "Surat",
+                "state": "Gujarat",
+                "pincode": "395007",
+            },
             "items": [{"variant": str(self.variant.id), "quantity": 1}],
         }
         stock_before = self.stock()
