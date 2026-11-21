@@ -63,9 +63,11 @@ def payment_view(order, now=None, *, check_deferred=False):
         state = "NOT_PAID"
 
     can_pay = state == "NOT_PAID" and not cancelled and hold >= now + MINIMUM_HOLD
+    # Cash on delivery is handed over at the door, so a delivered order has nothing left to pay.
+    settled = cancelled or (state == "COD_DUE" and order.status == Order.Status.DELIVERED)
     return {
         "state": state,
-        "amount_due_paise": amount if state in ("COD_DUE", "CHECKING", "NOT_PAID") and not cancelled else 0,
+        "amount_due_paise": amount if state in ("COD_DUE", "CHECKING", "NOT_PAID") and not settled else 0,
         "amount_paid_paise": capture.amount_paise if capture else 0,
         "currency": "INR",
         "hold_expires_at": hold if not capture and not cancelled else None,

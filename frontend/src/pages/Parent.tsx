@@ -10,6 +10,7 @@ import { api, deleteChildPhotos, Order, Product, orderApi, type PaymentView } fr
 import { checkingPayment, paymentRefusal, runOrderPayment } from '../services/orderPayment';
 import { settlePendingOrder } from '../services/placeOrder';
 import { storeState } from '../store/storeState';
+import { formatINR } from '../utils/formatINR';
 import { PaymentStatus } from '../components/PaymentStatus';
 import { useLang } from '../i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -491,7 +492,9 @@ function Orders() {
               </div>
               <span className="status">{o.status}</span>
             </div>
-            <p>{o.student_name}</p>
+            <p>
+              {o.student_name} · <strong>{formatINR(Math.round(Number(o.total) * 100))}</strong>
+            </p>
             <PaymentStatus payment={visiblePayment(o)} orderNumber={o.order_number}
               disabled={busy || Boolean(cooldowns[o.id])}
               onRefresh={() => void act(o, 'refresh')} onPay={() => void act(o, 'pay')}
