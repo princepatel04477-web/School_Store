@@ -12,5 +12,8 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": true
   },
-  "vars": { "ORIGIN": "https://school-store.aqualite.workers.dev" }
+  "vars": { "ORIGIN": "https://school-store.aqualite.workers.dev" },
+  // The preview now lives on the same account as the live Worker (aqualite), where a
+  // Worker cannot fetch another Worker's workers.dev address; this binding reaches it directly.
+  "services": [{ "binding": "LIVE", "service": "school-store" }]
 }
