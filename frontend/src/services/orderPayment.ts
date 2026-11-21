@@ -47,6 +47,7 @@ export async function runOrderPayment(orderId: string, onStatus: (view: PaymentV
         key: info.key_id, order_id: info.razorpay_order_id,
         amount: info.amount_paise, currency: info.currency, name: 'School Store',
         description: info.store_order_number, prefill: info.prefill, timeout,
+        retry: { enabled: false },
         modal: { ondismiss: () => { void finish(); } },
         handler: response => { void finish(() => orderApi.verifyPayment(orderId, response)); },
       });

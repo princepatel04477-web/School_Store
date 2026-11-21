@@ -4,7 +4,7 @@ from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
 from orders.models import Order, PaymentEvent, PaymentReview
-from orders.payment_view import HOLD_DURATION, payment_view
+from orders.payment_view import HOLD_DURATION, matching_captures, payment_view
 
 
 def with_payment_events(qs):
@@ -21,7 +21,8 @@ def reconciliation_candidates(qs, now):
         Exists(open_reviews)
         | Q(payment_event_retry=True)
         | Q(payment_check_ok=False, payment_check_failed_since__lte=now - timedelta(minutes=10))
-        | (Q(payment_method=Order.PaymentMethod.ONLINE) & ~Q(status=Order.Status.CANCELLED) & expired)
+        | (Q(payment_method=Order.PaymentMethod.ONLINE) & ~Q(status=Order.Status.CANCELLED)
+           & expired & ~Exists(matching_captures()))
     )
 
 

@@ -774,7 +774,8 @@ function CityOrdersView() {
                         <span className={`badge s-${o.status.toLowerCase()}`}>{o.status}</span>
                       </td>
                       <td>
-                        <span className={`badge s-${o.payment_status.toLowerCase()}`}>{o.payment_status}</span>
+                        <span className={`badge s-${o.payment_status.toLowerCase()}`}>{o.payment_view.state.replace(/_/g, ' ')}</span>
+                        <small className="gr">{o.payment_method}</small>
                       </td>
                       <td className="r mono"><b>{money(o.total)}</b></td>
                       <td className="r actions">

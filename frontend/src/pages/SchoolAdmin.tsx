@@ -393,7 +393,10 @@ function OrderRow({ order }: { order: PanelOrder }) {
       </td>
       <td className="r">{num(order.units)}</td>
       <td className="r">{money2(order.amount)}</td>
-      <td><span className={`badge s-${order.status.toLowerCase()}`}>{order.status.replace('_', ' ').toLowerCase()}</span></td>
+      <td>
+        <span className={`badge s-${order.status.toLowerCase()}`}>{order.status.replace('_', ' ').toLowerCase()}</span>
+        <small className="gr">{order.payment_method} | {order.payment_view.state.replace(/_/g, ' ')}</small>
+      </td>
       <td>
         {order.placed_by_name || '-'}
         <small className="gr">{order.placed_by_role_label}</small>

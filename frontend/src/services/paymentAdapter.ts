@@ -38,6 +38,7 @@ export interface RazorpayOptions {
   description?: string;
   order_id: string;
   timeout?: number;
+  retry?: { enabled: boolean };
   prefill?: {
     name?: string;
     contact?: string;

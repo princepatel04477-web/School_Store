@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.db.models import OuterRef
 from django.utils import timezone
 
 from .models import Order, PaymentAttempt, PaymentReview
@@ -12,7 +13,15 @@ MINIMUM_HOLD = timedelta(minutes=2)
 CHECK_FRESHNESS = timedelta(seconds=60)
 
 
-def payment_view(order, now=None):
+def matching_captures():
+    return PaymentAttempt.objects.filter(
+        order_id=OuterRef("pk"), status=PaymentAttempt.Status.CAPTURED,
+        razorpay_payment_id=OuterRef("razorpay_payment_id"),
+        amount_paise=OuterRef("total") * 100, currency="INR",
+    ).exclude(razorpay_payment_id="")
+
+
+def payment_view(order, now=None, *, check_deferred=False):
     now = now or timezone.now()
     online = order.payment_method == Order.PaymentMethod.ONLINE
     cancelled = order.status == Order.Status.CANCELLED
@@ -46,7 +55,7 @@ def payment_view(order, now=None):
         state = "COD_DUE"
     elif cancelled:
         state = "RELEASED" if order.cancel_reason == "PAYMENT_EXPIRED" else "NOT_PAID"
-    elif (in_progress or unsettled or order.payment_check_ok is False
+    elif (in_progress or unsettled or check_deferred or order.payment_check_ok is False
           or (order.razorpay_order_id and (stale or order.payment_check_ok is not True))
           or order.payment_status == Order.PaymentStatus.PAID or hold <= now):
         state = "CHECKING"
@@ -115,7 +124,8 @@ def reconcile_order(order_id, user):
         checked = cache.add(f"rate_limit_reconcile_{order.id}", "1", timeout=5)
         if checked and (order.payment_method == Order.PaymentMethod.ONLINE or order.razorpay_order_id):
             checked = check_provider(order, PaymentAttempt.Source.RECONCILE, user)
-        view = payment_view(order)
-        if not checked and view["state"] == "NOT_PAID" and view["hold_expires_at"]:
-            view.update(state="CHECKING", can_refresh=True, can_pay_now=False, can_switch_to_cod=False)
-        return {"checked": checked, "retry_after_seconds": 5, "payment_view": view}
+        return {
+            "checked": checked,
+            "retry_after_seconds": 5,
+            "payment_view": payment_view(order, check_deferred=not checked),
+        }

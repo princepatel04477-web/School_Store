@@ -11,9 +11,9 @@ from common.permissions import RoleScopedPermission
 from common.scoping import ScopedQuerysetMixin
 from .models import Order, OrderStatusEvent, PaymentAttempt
 from .payment import RazorpayGateway
-from .payment_view import MINIMUM_HOLD, check_provider, payment_view, reconcile_order
+from .payment_view import MINIMUM_HOLD, check_provider, matching_captures, payment_view, reconcile_order
 from django.utils import timezone
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists
 from .status import apply_provider_payment, can_transition_order, change_order_status
 from .serializers import (
     OrderCreateSerializer,
@@ -56,12 +56,7 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             if self.request.query_params.get("payment_attention") == "1":
                 qs = qs.filter(
                     parent_id=self.request.user.pk, payment_method=Order.PaymentMethod.ONLINE,
-                ).exclude(status=Order.Status.CANCELLED).exclude(Exists(
-                    PaymentAttempt.objects.filter(
-                        order_id=OuterRef("pk"), status=PaymentAttempt.Status.CAPTURED,
-                        razorpay_payment_id=OuterRef("razorpay_payment_id"), currency="INR",
-                    )
-                ))
+                ).exclude(status=Order.Status.CANCELLED).exclude(Exists(matching_captures()))
         if self.action == "retrieve":
             qs = qs.prefetch_related("items__variant__product", "status_events", "payment_attempts", "payment_reviews")
 

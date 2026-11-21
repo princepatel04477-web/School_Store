@@ -376,6 +376,8 @@ export type CityOrderDetail={
   city:string;
   city_name:string;
   status:string;
+  payment_view: PaymentView;
+  payment_method: 'COD' | 'ONLINE';
   payment_status:string;
   fulfillment_type:string;
   subtotal:Money;
