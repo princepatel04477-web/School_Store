@@ -221,11 +221,7 @@ class ParentTrackingTestCase(TestCase):
                 timestamp=timezone.now(),
             )
             if i % 2 == 0:
-                # Add shipment with valid S10 consignment
-                # EE000000005IN, EE000000014IN, etc.
-                serial_part = f"{i:08d}"
-                # calculate check digit for test:
-                # let's just make valid consignment numbers or skip shipment on some
+                # Add shipment for even-indexed order (India Post article number)
                 pass
 
         # Total 30 orders now. With page_size=50, all 30 orders are fetched in one page.

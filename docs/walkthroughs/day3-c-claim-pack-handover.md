@@ -223,3 +223,104 @@ Desktop (1280x800):
 
 Mobile (390x844):
 ![School Pickup Row Mobile](screenshots/day3c-pickup-to-dispatch-390.png)
+
+---
+
+## Task D: Fix Dispatch Defects Found in Task C Review
+
+### 1. Failing-First Regression Tests
+
+The following named regression tests were added in `backend/orders/test_fulfilment.py` under `TaskDDefectRegressionTests`. Each test failed first on the baseline Task C code (`e6f70de`) and then passed after the defects were fixed:
+
+1. **`test_c1_dispatch_article_number_longer_than_40_returns_400`**
+   - **Baseline failure:** HTTP 500 with unhandled `django.core.exceptions.ValidationError: {'consignment_number': ['Ensure this value has at most 40 characters (it has 41).']}`.
+   - **Fix:** Validated request payload using `DispatchSerializer` (`max_length=40`, trimmed, not blank). Mapped `django.core.exceptions.ValidationError` to 400 in `handle_fulfilment_exception` with `{code, detail}` response format (`VALIDATION_ERROR`).
+
+2. **`test_c2_dispatch_bad_booked_at_string_ignored_no_500`**
+   - **Baseline failure:** HTTP 500 with unhandled `django.core.exceptions.ValidationError: {'booked_at': ['“not-a-date” value has an invalid format.']}`.
+   - **Fix:** Removed `booked_at` completely from `DispatchSerializer` and `dispatch_order` service signature. Handover time is strictly server `timezone.now()`. Invalid client strings are ignored and cause no error.
+
+3. **`test_c3_dispatch_client_booked_at_cannot_backdate_handover`**
+   - **Baseline failure:** Assertion failure (`AssertionError: 2020 not greater than or equal to 2026`). Handover time was backdated to 2020 when client supplied `"booked_at": "2020-01-01T00:00:00Z"`.
+   - **Fix:** Removed `booked_at` parameter from `dispatch_order` signature; handover time is always `timezone.now()`, ignoring client values.
+
+4. **`test_c4_receipt_confirmed_strict_boolean_true_required`**
+   - **Baseline failure:** Assertion failure (`AssertionError: 200 != 400 : Expected 400 for receipt_confirmed=string_false, got 200`) because `bool("false")` evaluated to `True`.
+   - **Fix:** Implemented `StrictReceiptConfirmedField` rejecting non-booleans, `null`, missing, and `False`. The values `"false"`, `"true"`, `"1"`, `0`, `null`, missing, and `False` return 400 with code `RECEIPT_NOT_CONFIRMED`. Only JSON boolean `true` is accepted.
+
+5. **`test_c5_correct_article_number_case_or_spacing_change`**
+   - **Baseline failure:** Assertion failure (`AssertionError: False is not true`). Changing case or spacing (`"rb 123"` to `"RB 123"`, or `"RB123"`) was silently ignored as a no-op because normalized `article_key` matched.
+   - **Fix:** In `correct_article_number`, compared trimmed text for no-op test (`cleaned_number == shipment.consignment_number`), and used `article_key` only for checking duplicates across *other* parcels (`exclude(id=shipment.id)`). Validated with `CorrectArticleNumberSerializer` (`max_length=40`, not blank). Creates `ShipmentCorrection` and updates both `consignment_number` and `article_key`.
+
+6. **`test_c7_claim_order_repeat_by_packer_returns_200`**
+   - **Baseline failure:** Assertion failure (`AssertionError: 409 != 200`). Repeat claim by the user who already packed the order returned 409 `ORDER_NOT_CLAIMABLE`.
+   - **Fix:** Allowed harmless repeat claims by the user who packed or claimed the order when in `PACKED` status, returning 200 with `changed=False`.
+
+7. **C8 comment cleanup:**
+   - In `backend/orders/test_parent_tracking.py:224`, replaced stale "valid S10 consignment" comment with India Post article number comment.
+
+8. **Frontend validation:**
+   - Added `maxLength={40}` to both the dispatch article number input and the correction modal article number input in `frontend/src/components/admin/FulfilmentQueue.tsx`.
+   - Made sure `correctNumberMutation.onError` displays the server 400 message (`data.detail`).
+   - Added unit test in `FulfilmentQueue.test.tsx` verifying component renders cleanly with `maxLength` attributes.
+
+---
+
+### 2. Full Test Suite Results
+
+#### Backend SQLite Full Suite
+```bash
+$ cd backend && USE_SQLITE=1 .venv/bin/python manage.py test
+Found 370 test(s).
+Creating test database for alias 'default'...
+...
+Ran 370 tests in 137.249s
+
+OK (skipped=22)
+```
+- 22 skipped tests are PostgreSQL-specific concurrency tests across apps.
+
+#### Backend Orders Suite on PostgreSQL (Port 54329)
+```bash
+$ USE_POSTGRES_FOR_TESTS=1 POSTGRES_HOST=127.0.0.1 POSTGRES_PORT=54329 POSTGRES_USER=postgres POSTGRES_DB=school_store .venv/bin/python manage.py test orders
+Found 103 test(s).
+Creating test database for alias 'default'...
+...
+Ran 103 tests in 63.915s
+
+OK
+```
+- All 103 tests in the `orders` suite passed on PostgreSQL with 0 skipped.
+
+#### Frontend Checks (Vitest, TSC, Build)
+```bash
+$ cd frontend && npx vitest run
+ Test Files  18 passed (18)
+      Tests  166 passed (166)
+   Start at  16:17:17
+   Duration  1.71s
+
+$ npx tsc --noEmit
+(clean - 0 errors)
+
+$ npm run build
+vite v5.4.21 building for production...
+✓ built in 2.59s
+```
+
+---
+
+### 3. Git Diff Stat against `e6f70de`
+
+```text
+ backend/orders/fulfilment.py                       |  38 +++-
+ backend/orders/fulfilment_views.py                 | 127 ++++++++++++-
+ backend/orders/test_fulfilment.py                  | 206 +++++++++++++++++++++
+ backend/orders/test_parent_tracking.py             |   6 +-
+ docs/day3-review-report.md                         |  37 ++++
+ docs/walkthroughs/day3-c-claim-pack-handover.md    | 101 ++++++++++
+ .../src/components/admin/FulfilmentQueue.test.tsx  |  60 ++++++
+ frontend/src/components/admin/FulfilmentQueue.tsx  |   7 +-
+ 8 files changed, 557 insertions(+), 25 deletions(-)
+```
+

@@ -228,8 +228,9 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
       });
     },
     onError: (err: unknown) => {
-      const errorObj = err as { detail?: string; message?: string };
-      setCorrectionError(errorObj.detail || errorObj.message || 'Failed to correct article number.');
+      const errorObj = err as { detail?: string; message?: string; data?: { detail?: string; message?: string } };
+      const serverMessage = errorObj.data?.detail || errorObj.detail || errorObj.message || 'Failed to correct article number.';
+      setCorrectionError(serverMessage);
     },
   });
 
@@ -803,6 +804,7 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
                                 autoComplete="off"
                                 spellCheck={false}
                                 placeholder="Article number"
+                                maxLength={40}
                                 value={dState.number}
                                 onChange={(e) =>
                                   setDispatchField(order.id, {
@@ -1158,6 +1160,7 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
                   type="text"
                   autoComplete="off"
                   spellCheck={false}
+                  maxLength={40}
                   value={correctionNewNumber}
                   onChange={(e) => setCorrectionNewNumber(e.target.value)}
                   style={{ minHeight: '40px', width: '100%', fontFamily: 'var(--font-mono)' }}

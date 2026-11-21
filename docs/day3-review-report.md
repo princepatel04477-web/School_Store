@@ -71,3 +71,40 @@ cd ss_day3_work/backend && USE_SQLITE=1 .venv/bin/python manage.py test
 cd ../frontend && npx vitest run && npm run build
 ```
 Bug A1: POST `/api/fulfilment/pack/` as an ADMIN with `{"order_ids": ["not-a-uuid"]}`.
+
+---
+
+# Task C review (`e6f70de`, claim, pack, postal handover)
+
+Built by Antigravity on Gemini 3.8 Flash from `docs/antigravity-prompts/day3-c-claim-pack-handover.md`.
+
+## Verified by me (clean worktree)
+
+| Check | Result |
+|---|---|
+| Backend full suite, SQLite | 364 tests OK (22 skipped) |
+| Backend `orders` suite, local PostgreSQL | 97 tests OK, 0 skipped, so the 4 thread concurrency tests ran |
+| `makemigrations --check` | no changes |
+| Vitest / tsc / build | 165 pass / clean / built |
+| Spec scenarios (prepaid, COD, blocked, simultaneous claim, repeats, duplicate number, out of scope, pickup) | each has a named passing test; concurrency ones are real threads on Postgres |
+| Postal format check | removed, none left in backend or frontend |
+| Stock | pack writes nothing to stock; no Day 2 function edited |
+
+Not verified: screenshots (not opened), the Postgres run covered `orders` only, `0016_shipment.py` was edited in place (fine while Day 3 is unmerged).
+
+## Defects found (all reproduced with a throwaway test)
+
+| ID | Sev | Where | Problem | Fix |
+|---|---|---|---|---|
+| C1 | High | `fulfilment_views.py` `dispatch_shipment`, `fulfilment.py` `dispatch_order` | An article number longer than 40 characters returns HTTP 500 (`full_clean` raises a Django `ValidationError` that is not mapped). | Validate request bodies with serializers (max_length 40, non blank) and map Django `ValidationError` to 400. |
+| C2 | High | same | A bad `booked_at` string returns 500. | Remove `booked_at` from the request entirely. |
+| C3 | High | same | The client can set `booked_at`, so handover time can be backdated (reproduced: 2020 date accepted). The spec says the system records handover time. | Ignore any client value; use `timezone.now()` on the server. |
+| C4 | Medium | `dispatch_shipment` | `bool(request.data.get("receipt_confirmed"))`: the string `"false"` counts as confirmed (reproduced: handover succeeded). | Use a `BooleanField` serializer and require `true`. |
+| C5 | Medium | `fulfilment.py` `correct_article_number` | A correction that only changes case or spacing (`rb 123` to `RB 123`) is treated as "same value" and silently ignored, so the stored number cannot be fixed to match the receipt exactly. | Compare the trimmed text, not the key, for the no-op test; use the key only for the duplicate test. |
+| C6 | Low | `fulfilment_views.py` | Every action wraps its body in `except Exception` and re-raises unknown errors, and reads request fields by hand. Use serializers like the other endpoints. |
+| C7 | Low | `fulfilment.py` | `claim_order` on an already PACKED order by the person who packed it returns 409 `ORDER_NOT_CLAIMABLE` instead of a harmless repeat. |
+| C8 | Low | `test_parent_tracking.py:224` | Comment still says "valid S10 consignment". |
+
+## Still awaiting Day 2
+
+Real rule callable (assumed `orders.payment_rules.packing_decision`), final blocked reason codes, whether COD needs a confirmation step, refund or cancel of a claimed order, and renumbering migration `0016` after Day 2 merges.

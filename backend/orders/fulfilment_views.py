@@ -7,6 +7,7 @@ Registered under /api/fulfilment/. BOSS and ADMIN only, city-scoped.
 from typing import Any
 import uuid
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError
 from django.db.models import Count
 from rest_framework import serializers, status, viewsets
@@ -54,6 +55,21 @@ def handle_fulfilment_exception(exc: Exception) -> Response:
         if exc.reason is not None:
             payload["reason"] = exc.reason
         return Response(payload, status=exc.status_code)
+    if isinstance(exc, DjangoValidationError):
+        if hasattr(exc, "message_dict"):
+            first_msgs = next(iter(exc.message_dict.values()), [])
+            detail = first_msgs[0] if first_msgs else str(exc)
+        elif hasattr(exc, "messages") and exc.messages:
+            detail = exc.messages[0]
+        else:
+            detail = str(exc)
+        return Response(
+            {
+                "code": "VALIDATION_ERROR",
+                "detail": detail,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     if isinstance(exc, IntegrityError):
         return Response(
             {
@@ -63,6 +79,97 @@ def handle_fulfilment_exception(exc: Exception) -> Response:
             status=status.HTTP_409_CONFLICT,
         )
     raise exc
+
+
+def get_serializer_error_response(serializer: serializers.Serializer) -> Response:
+    """Extract first error into {code, detail} structure with HTTP 400."""
+    for field_name, errors in serializer.errors.items():
+        if isinstance(errors, list) and errors:
+            first_err = errors[0]
+            err_code = getattr(first_err, "code", None)
+            detail = str(first_err)
+            if err_code == "RECEIPT_NOT_CONFIRMED" or field_name == "receipt_confirmed":
+                return Response(
+                    {
+                        "code": "RECEIPT_NOT_CONFIRMED",
+                        "detail": "You must confirm you checked the number against the India Post receipt.",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if field_name == "article_number":
+                if err_code in ("blank", "required"):
+                    return Response(
+                        {
+                            "code": "BLANK_ARTICLE_NUMBER",
+                            "detail": "Article number cannot be blank.",
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                return Response(
+                    {"code": "VALIDATION_ERROR", "detail": detail},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            code_str = str(err_code).upper() if err_code else "VALIDATION_ERROR"
+            return Response(
+                {"code": code_str, "detail": detail},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    return Response(
+        {"code": "VALIDATION_ERROR", "detail": "Invalid input."},
+        status=status.HTTP_400_BAD_REQUEST,
+    )
+
+
+class StrictReceiptConfirmedField(serializers.Field):
+    """Boolean field requiring JSON boolean true strictly; rejects non-booleans, false, null, missing."""
+
+    default_error_messages = {
+        "invalid": "You must confirm you checked the number against the India Post receipt.",
+        "required": "You must confirm you checked the number against the India Post receipt.",
+        "null": "You must confirm you checked the number against the India Post receipt.",
+    }
+
+    def to_internal_value(self, data):
+        if data is not True:
+            raise serializers.ValidationError(
+                self.error_messages["invalid"],
+                code="RECEIPT_NOT_CONFIRMED",
+            )
+        return True
+
+    def run_validation(self, data=serializers.empty):
+        if data is serializers.empty or data is None or data is not True:
+            raise serializers.ValidationError(
+                self.error_messages["invalid"],
+                code="RECEIPT_NOT_CONFIRMED",
+            )
+        return True
+
+
+class DispatchSerializer(serializers.Serializer):
+    article_number = serializers.CharField(
+        required=True,
+        allow_blank=False,
+        max_length=40,
+        trim_whitespace=True,
+    )
+    receipt_confirmed = StrictReceiptConfirmedField(required=True)
+
+
+class CorrectArticleNumberSerializer(serializers.Serializer):
+    article_number = serializers.CharField(
+        required=True,
+        allow_blank=False,
+        max_length=40,
+        trim_whitespace=True,
+    )
+    reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=500,
+        trim_whitespace=True,
+        default="",
+    )
 
 
 class OrderIdsSerializer(serializers.Serializer):
@@ -378,15 +485,14 @@ class FulfilmentViewSet(ScopedQuerysetMixin, viewsets.GenericViewSet):
     def dispatch_shipment(self, request, pk=None):
         try:
             order = self._get_scoped_order(pk)
-            article_number = request.data.get("article_number", "")
-            receipt_confirmed = bool(request.data.get("receipt_confirmed", False))
-            booked_at = request.data.get("booked_at")
+            ser = DispatchSerializer(data=request.data)
+            if not ser.is_valid():
+                return get_serializer_error_response(ser)
             result = dispatch_order(
                 order_id=order.id,
                 user=request.user,
-                article_number=article_number,
-                receipt_confirmed=receipt_confirmed,
-                booked_at=booked_at,
+                article_number=ser.validated_data["article_number"],
+                receipt_confirmed=ser.validated_data["receipt_confirmed"],
             )
             return Response(result, status=status.HTTP_200_OK)
         except Exception as exc:
@@ -396,13 +502,14 @@ class FulfilmentViewSet(ScopedQuerysetMixin, viewsets.GenericViewSet):
     def correct_number(self, request, pk=None):
         try:
             order = self._get_scoped_order(pk)
-            article_number = request.data.get("article_number", "")
-            reason = request.data.get("reason", "")
+            ser = CorrectArticleNumberSerializer(data=request.data)
+            if not ser.is_valid():
+                return get_serializer_error_response(ser)
             result = correct_article_number(
                 order_id=order.id,
                 user=request.user,
-                article_number=article_number,
-                reason=reason,
+                article_number=ser.validated_data["article_number"],
+                reason=ser.validated_data.get("reason", ""),
             )
             return Response(result, status=status.HTTP_200_OK)
         except Exception as exc:

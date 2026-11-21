@@ -988,3 +988,209 @@ class FulfilmentConcurrencyTests(TransactionTestCase):
         self.assertEqual(sorted(statuses), ["ERR", "OK"])
         err_res = next(r for r in results if r[0] == "ERR")
         self.assertEqual(err_res[2], "ARTICLE_NUMBER_IN_USE")
+
+
+class TaskDDefectRegressionTests(FulfilmentBaseTestCase):
+    """Regression tests for Task D defects C1 through C5, and C7."""
+
+    def test_c1_dispatch_article_number_longer_than_40_returns_400(self):
+        """C1: Article number longer than 40 chars returns 400 with {code, detail}, not 500."""
+        order = self.make_order(order_number="ORD-C1", status=Order.Status.PACKED)
+        api = self.api_for_user(self.admin_a)
+        long_article = "A" * 41
+        res = api.post(
+            f"/api/fulfilment/{order.id}/dispatch/",
+            {"article_number": long_article, "receipt_confirmed": True},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("code", res.data)
+        self.assertIn("detail", res.data)
+
+    def test_c2_dispatch_bad_booked_at_string_ignored_no_500(self):
+        """C2: Bad booked_at string has no effect, causes no 500, handover time is timezone.now()."""
+        api = self.api_for_user(self.admin_a)
+        order = self.make_order(order_number="ORD-C2-INV", status=Order.Status.PACKED)
+        res = api.post(
+            f"/api/fulfilment/{order.id}/dispatch/",
+            {"article_number": "ART-C2-INV", "receipt_confirmed": True, "booked_at": "not-a-date"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        order.refresh_from_db()
+        self.assertGreaterEqual(order.shipment.booked_at.year, 2026)
+
+    def test_c3_dispatch_client_booked_at_cannot_backdate_handover(self):
+        """C3: booked_at cannot be set by client (e.g. 2020 date); handover time is always server timezone.now()."""
+        api = self.api_for_user(self.admin_a)
+        order = self.make_order(order_number="ORD-C3-2020", status=Order.Status.PACKED)
+        res = api.post(
+            f"/api/fulfilment/{order.id}/dispatch/",
+            {"article_number": "ART-C3-2020", "receipt_confirmed": True, "booked_at": "2020-01-01T00:00:00Z"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        order.refresh_from_db()
+        self.assertGreaterEqual(order.shipment.booked_at.year, 2026)
+
+        # Service signature must not have booked_at
+        import inspect
+        from orders.fulfilment import dispatch_order
+        sig = inspect.signature(dispatch_order)
+        self.assertNotIn("booked_at", sig.parameters)
+
+    def test_c4_receipt_confirmed_strict_boolean_true_required(self):
+        """C4: receipt_confirmed must be JSON boolean true; strings, numbers, null, missing return 400 RECEIPT_NOT_CONFIRMED."""
+        api = self.api_for_user(self.admin_a)
+
+        # Values that must be rejected with 400 RECEIPT_NOT_CONFIRMED
+        invalid_values = [
+            ("false", "string_false"),
+            ("true", "string_true"),
+            ("1", "string_1"),
+            (0, "int_0"),
+            (None, "json_null"),
+        ]
+
+        for val, desc in invalid_values:
+            order = self.make_order(order_number=f"ORD-C4-{desc}", status=Order.Status.PACKED)
+            res = api.post(
+                f"/api/fulfilment/{order.id}/dispatch/",
+                {"article_number": f"ART-C4-{desc}", "receipt_confirmed": val},
+                format="json",
+            )
+            self.assertEqual(
+                res.status_code,
+                status.HTTP_400_BAD_REQUEST,
+                f"Expected 400 for receipt_confirmed={desc}, got {res.status_code}",
+            )
+            self.assertEqual(
+                res.data.get("code"),
+                "RECEIPT_NOT_CONFIRMED",
+                f"Expected code RECEIPT_NOT_CONFIRMED for {desc}, got {res.data.get('code')}",
+            )
+
+        # Missing field
+        order_missing = self.make_order(order_number="ORD-C4-MISSING", status=Order.Status.PACKED)
+        res_m = api.post(
+            f"/api/fulfilment/{order_missing.id}/dispatch/",
+            {"article_number": "ART-C4-MISSING"},
+            format="json",
+        )
+        self.assertEqual(res_m.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res_m.data.get("code"), "RECEIPT_NOT_CONFIRMED")
+
+        # Boolean False
+        order_false = self.make_order(order_number="ORD-C4-BOOLFALSE", status=Order.Status.PACKED)
+        res_f = api.post(
+            f"/api/fulfilment/{order_false.id}/dispatch/",
+            {"article_number": "ART-C4-BOOLFALSE", "receipt_confirmed": False},
+            format="json",
+        )
+        self.assertEqual(res_f.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res_f.data.get("code"), "RECEIPT_NOT_CONFIRMED")
+
+        # Boolean True succeeds
+        order_true = self.make_order(order_number="ORD-C4-BOOLTRUE", status=Order.Status.PACKED)
+        res_t = api.post(
+            f"/api/fulfilment/{order_true.id}/dispatch/",
+            {"article_number": "ART-C4-BOOLTRUE", "receipt_confirmed": True},
+            format="json",
+        )
+        self.assertEqual(res_t.status_code, status.HTTP_200_OK)
+
+    def test_c5_correct_article_number_case_or_spacing_change(self):
+        """C5: correct-article-number lets staff fix case or spacing, creates ShipmentCorrection, and updates consignment_number."""
+        order = self.make_order(order_number="ORD-C5", status=Order.Status.PACKED)
+        api = self.api_for_user(self.admin_a)
+
+        # Initial dispatch with 'rb 123'
+        res_d = api.post(
+            f"/api/fulfilment/{order.id}/dispatch/",
+            {"article_number": "rb 123", "receipt_confirmed": True},
+            format="json",
+        )
+        self.assertEqual(res_d.status_code, status.HTTP_200_OK)
+
+        # 1. Change case only: 'rb 123' -> 'RB 123'
+        res_c1 = api.post(
+            f"/api/fulfilment/{order.id}/correct-article-number/",
+            {"article_number": "RB 123", "reason": "Fix uppercase"},
+            format="json",
+        )
+        self.assertEqual(res_c1.status_code, status.HTTP_200_OK)
+        self.assertTrue(res_c1.data["changed"])
+        self.assertEqual(res_c1.data["consignment_number"], "RB 123")
+
+        order.refresh_from_db()
+        self.assertEqual(order.shipment.consignment_number, "RB 123")
+        self.assertEqual(order.shipment.corrections.count(), 1)
+        corr = order.shipment.corrections.first()
+        self.assertEqual(corr.previous_number, "rb 123")
+        self.assertEqual(corr.new_number, "RB 123")
+        self.assertEqual(corr.changed_by, self.admin_a)
+
+        # 2. Change spacing only: 'RB 123' -> 'RB123'
+        res_c2 = api.post(
+            f"/api/fulfilment/{order.id}/correct-article-number/",
+            {"article_number": "RB123", "reason": "Remove space"},
+            format="json",
+        )
+        self.assertEqual(res_c2.status_code, status.HTTP_200_OK)
+        self.assertTrue(res_c2.data["changed"])
+        self.assertEqual(res_c2.data["consignment_number"], "RB123")
+
+        # 3. Exact same trimmed text is a no-op
+        res_noop = api.post(
+            f"/api/fulfilment/{order.id}/correct-article-number/",
+            {"article_number": "  RB123  "},
+            format="json",
+        )
+        self.assertEqual(res_noop.status_code, status.HTTP_200_OK)
+        self.assertFalse(res_noop.data["changed"])
+
+        # 4. Max length 40 validation and blank validation on correct-article-number
+        res_long = api.post(
+            f"/api/fulfilment/{order.id}/correct-article-number/",
+            {"article_number": "X" * 41},
+            format="json",
+        )
+        self.assertEqual(res_long.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("code", res_long.data)
+        self.assertIn("detail", res_long.data)
+
+        res_blank = api.post(
+            f"/api/fulfilment/{order.id}/correct-article-number/",
+            {"article_number": "   "},
+            format="json",
+        )
+        self.assertEqual(res_blank.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("code", res_blank.data)
+        self.assertIn("detail", res_blank.data)
+
+    @patch("orders.fulfilment_gate.get_packing_decision")
+    def test_c7_claim_order_repeat_by_packer_returns_200(self, mock_gate):
+        """C7: Repeat claim by the person who already packed the order returns changed=False with 200 instead of 409."""
+        mock_gate.return_value = PackingDecision(allowed=True, reason=None, message="OK")
+        order = self.make_order(order_number="ORD-C7", status=Order.Status.CONFIRMED)
+        api = self.api_for_user(self.admin_a)
+
+        # Claim and pack order
+        api.post(f"/api/fulfilment/{order.id}/claim/")
+        item_id = order.items.first().id
+        res_p = api.post(f"/api/fulfilment/{order.id}/pack/", {"confirmed_item_ids": [str(item_id)]}, format="json")
+        self.assertEqual(res_p.status_code, status.HTTP_200_OK)
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PACKED)
+
+        # Repeat claim by same user should return 200 with changed=False
+        res_repeat = api.post(f"/api/fulfilment/{order.id}/claim/")
+        self.assertEqual(res_repeat.status_code, status.HTTP_200_OK)
+        self.assertFalse(res_repeat.data["changed"])
+
+        # Claim by another user on PACKED order still returns 409
+        api_other = self.api_for_user(self.admin_a2)
+        res_other = api_other.post(f"/api/fulfilment/{order.id}/claim/")
+        self.assertEqual(res_other.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(res_other.data["code"], "ORDER_NOT_CLAIMABLE")
+

@@ -64,6 +64,20 @@ def claim_order(order_id: Any, user: Any) -> dict[str, Any]:
     """
     with transaction.atomic():
         order = Order.objects.select_for_update().get(pk=order_id)
+        packing = OrderPacking.objects.filter(order=order).first()
+        if (
+            order.status == S.PACKED
+            and packing
+            and (packing.packed_by_id == user.id or packing.claimed_by_id == user.id)
+        ):
+            return {
+                "changed": False,
+                "order_id": str(order.id),
+                "claimed_by": str(user.id),
+                "claimed_by_name": user.get_full_name() or user.username,
+                "claimed_at": packing.claimed_at,
+            }
+
         if order.status not in (S.CONFIRMED, S.PROCESSING):
             raise FulfilmentError(
                 code="ORDER_NOT_CLAIMABLE",
@@ -322,13 +336,12 @@ def dispatch_order(
     user: Any,
     article_number: str,
     receipt_confirmed: bool = False,
-    booked_at: Any = None,
 ) -> dict[str, Any]:
     """Dispatch a home delivery order with carrier India Post.
 
     HOME_DELIVERY only (pickup gets 400 NOT_HOME_DELIVERY).
     Status must be PACKED.
-    Article number non-blank, receipt_confirmed must be True.
+    Article number non-blank, max length 40, receipt_confirmed must be True.
     Number not already used by another parcel (409 ARTICLE_NUMBER_IN_USE, case, spaces and hyphens ignored).
     The same number again on the same order is a repeat (changed=False, nothing written).
     A different number on an already handed over order is 409 ALREADY_HANDED_OVER.
@@ -349,6 +362,12 @@ def dispatch_order(
             raise FulfilmentError(
                 code="BLANK_ARTICLE_NUMBER",
                 detail="Article number cannot be blank.",
+                status_code=400,
+            )
+        if len(cleaned_number) > 40:
+            raise FulfilmentError(
+                code="VALIDATION_ERROR",
+                detail="Ensure this field has no more than 40 characters.",
                 status_code=400,
             )
         new_key = normalize_article_key(cleaned_number)
@@ -392,7 +411,7 @@ def dispatch_order(
                 status_code=409,
             )
 
-        handover_time = booked_at or timezone.now()
+        handover_time = timezone.now()
         try:
             shipment = Shipment(
                 order=order,
@@ -488,14 +507,17 @@ def correct_article_number(
                 detail="Article number cannot be blank.",
                 status_code=400,
             )
+        if len(cleaned_number) > 40:
+            raise FulfilmentError(
+                code="VALIDATION_ERROR",
+                detail="Ensure this field has no more than 40 characters.",
+                status_code=400,
+            )
 
         new_key = normalize_article_key(cleaned_number)
 
-        # Same value again is a no-op
-        if (
-            cleaned_number == shipment.consignment_number
-            or new_key == shipment.article_key
-        ):
+        # Same value again is a no-op (exact trimmed text comparison)
+        if cleaned_number == shipment.consignment_number:
             return {
                 "changed": False,
                 "order_id": str(order.id),
