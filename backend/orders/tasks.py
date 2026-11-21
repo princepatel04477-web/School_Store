@@ -10,6 +10,7 @@ from inventory.models import StockBalance, StockMovement
 
 from .models import Order, OrderStatusEvent, PaymentAttempt, PaymentEvent, PaymentReview
 from .payment import RazorpayGateway
+from .payment_view import HOLD_DURATION, check_provider
 from .status import apply_provider_payment
 
 
@@ -63,40 +64,23 @@ def release_expired_reservation(order_id):
         ):
             return False
 
-        # Only process if 15-minute hold has elapsed
-        if order.created_at > timezone.now() - timedelta(minutes=15):
+        now = timezone.now()
+        if (order.hold_expires_at or order.created_at + HOLD_DURATION) > now:
             return False
-
-        gateway = RazorpayGateway()
-
-        # While holding the lock, fetch this Razorpay order's payments from Razorpay (5s timeout)
-        if order.razorpay_order_id and gateway.is_usable():
-            try:
-                payments = gateway.fetch_order_payments(order.razorpay_order_id)
-                for p in payments:
-                    apply_provider_payment(order, p, PaymentAttempt.Source.EXPIRY_CHECK)
-            except Exception:
-                # Razorpay unreachable or timed out: the result is unknown. Release nothing.
-                # After 2 hours unknown, open one RECONCILE_STUCK review item.
-                if order.created_at <= timezone.now() - timedelta(hours=2):
-                    PaymentReview.objects.get_or_create(
-                        order=order,
-                        reason=PaymentReview.Reason.RECONCILE_STUCK,
-                        payment_id="",
-                    )
-                return False
-
-        order.refresh_from_db()
+        if not check_provider(order, PaymentAttempt.Source.EXPIRY_CHECK):
+            if order.created_at <= now - timedelta(hours=2):
+                PaymentReview.objects.get_or_create(order=order, reason=PaymentReview.Reason.RECONCILE_STUCK)
+            return False
         if order.payment_status == Order.PaymentStatus.PAID:
-            # Captured and matching: the order is PAID. Release nothing.
             return False
-
-        # Check if authorized or attempt still in progress
-        has_in_progress = order.payment_attempts.filter(
-            status__in=[PaymentAttempt.Status.AUTHORIZED, PaymentAttempt.Status.CREATED]
-        ).exists()
-        if has_in_progress:
-            # Keep the hold and check again later. Release nothing.
+        if order.payment_attempts.filter(
+            status__in=[
+                PaymentAttempt.Status.AUTHORIZED, PaymentAttempt.Status.CREATED,
+                PaymentAttempt.Status.CAPTURED, PaymentAttempt.Status.REFUNDED,
+            ],
+        ).exists():
+            order.hold_expires_at = now + timedelta(minutes=5)
+            order.save(update_fields=["hold_expires_at", "updated_at"])
             return False
 
         # No attempts, or only failed ones: release stock exactly as today
@@ -125,7 +109,8 @@ def release_expired_reservation(order_id):
             )
         StockMovement.objects.bulk_create(movements)
         order.status = Order.Status.CANCELLED
-        order.save(update_fields=["status", "updated_at"])
+        order.cancel_reason = "PAYMENT_EXPIRED"
+        order.save(update_fields=["status", "cancel_reason", "updated_at"])
         OrderStatusEvent.objects.create(
             order=order,
             status=order.status,
@@ -142,8 +127,8 @@ def sweep_expired_reservations():
         Order.objects.filter(
             payment_method=Order.PaymentMethod.ONLINE,
             status__in=[Order.Status.PLACED, Order.Status.PENDING],
-            created_at__lte=cutoff,
         )
+        .filter(Q(hold_expires_at__lte=timezone.now()) | Q(hold_expires_at__isnull=True, created_at__lte=cutoff))
         .exclude(payment_status=Order.PaymentStatus.PAID)
         .values_list("id", flat=True)
     )

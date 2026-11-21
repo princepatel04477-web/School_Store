@@ -31,7 +31,8 @@ from accounts.models import User
 from common.models import ImportJob
 from common.pagination import BoundedCursorPagination, BoundedPageNumberPagination
 from common.permissions import RoleScopedPermission
-from orders.models import Order
+from orders.models import Order, PaymentEvent
+from orders.payment_view import reconcile_order
 from schools.models import Student
 from schools.serializers import (
     StudentImportJobSerializer,
@@ -75,6 +76,7 @@ from .services import (
     summary_totals,
 )
 from .tasks import build_export
+from .payments import reconciliation_candidates, reconciliation_reasons, with_payment_events
 
 # --------------------------------------------------------------------------- #
 # Shared mixins
@@ -219,7 +221,36 @@ class PanelOrdersView(SchoolScopedMixin, mixins.ListModelMixin, viewsets.Generic
 
     def get_queryset(self):
         filters = OrderFilters.from_params(self.request.query_params)
-        return panel_orders_qs(self.get_school(), filters)
+        return with_payment_events(panel_orders_qs(self.get_school(), filters))
+
+    @action(detail=True, methods=["post"], url_path="reconcile-payment")
+    def reconcile_payment(self, request, pk=None):
+        order = Order.objects.filter(school__in=schools_for_user(request.user), pk=pk).first()
+        if order is None:
+            raise NotFound()
+        return Response(reconcile_order(order.pk, request.user))
+
+
+class PaymentsToCheckView(SchoolScopedMixin, APIView):
+    def get(self, request):
+        schools = schools_for_user(request.user)
+        if request.query_params.get("school"):
+            schools = schools.filter(pk=self.get_school().pk)
+        qs = with_payment_events(Order.objects.filter(school__in=schools))
+        candidates = reconciliation_candidates(qs, timezone.now()).select_related(
+            "student", "placed_by",
+        ).prefetch_related("payment_attempts", "payment_reviews", "items__variant__product", "items__category")
+        orders = [order for order in candidates if reconciliation_reasons(order)]
+        events = []
+        if request.user.role == "BOSS":
+            events = list(PaymentEvent.objects.filter(state=PaymentEvent.State.UNMATCHED).values(
+                "event_id", "event_type", "state", "tries",
+            ))
+        return Response({
+            "count": len(orders) + len(events),
+            "results": PanelOrderSerializer(orders, many=True, context={"request": request}).data,
+            "unmatched_events": events,
+        })
 
 
 # --------------------------------------------------------------------------- #
@@ -369,7 +400,7 @@ class PanelStudentViewSet(SchoolScopedMixin, viewsets.ModelViewSet):
                 "category": params.get("category") or "",
             }
         )
-        queryset = student_orders_qs(student, filters)
+        queryset = with_payment_events(student_orders_qs(student, filters))
 
         # Bounded aggregate: one child's orders over one index range.
         totals = queryset.aggregate(

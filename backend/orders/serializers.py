@@ -1,3 +1,5 @@
+from django.utils import timezone
+from .payment_view import HOLD_DURATION, payment_view
 import uuid
 from decimal import Decimal
 from typing import NamedTuple
@@ -159,6 +161,11 @@ class OrderListSerializer(serializers.ModelSerializer):
     school_code = serializers.CharField(source="school.code", read_only=True)
     city_name = serializers.CharField(source="city.name", read_only=True)
 
+    payment_view = serializers.SerializerMethodField()
+
+    def get_payment_view(self, obj):
+        return payment_view(obj)
+
     class Meta:
         model = Order
         fields = (
@@ -171,6 +178,7 @@ class OrderListSerializer(serializers.ModelSerializer):
             "city_name",
             "placed_by_role",
             "status",
+            "payment_view",
             "payment_status",
             "fulfillment_type",
             "payment_method",
@@ -195,6 +203,11 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     payment_reviews = PaymentReviewSerializer(many=True, read_only=True)
     last_attempt_failed = serializers.SerializerMethodField()
 
+    payment_view = serializers.SerializerMethodField()
+
+    def get_payment_view(self, obj):
+        return payment_view(obj)
+
     class Meta:
         model = Order
         fields = (
@@ -213,6 +226,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "city",
             "city_name",
             "status",
+            "payment_view",
             "payment_status",
             "fulfillment_type",
             "payment_method",
@@ -532,6 +546,10 @@ class OrderCreateSerializer(serializers.Serializer):
                     city_id=city_id,
                     fulfillment_type=fulfillment_type,
                     payment_method=validated_data["payment_method"],
+                    hold_expires_at=(
+                        timezone.now() + HOLD_DURATION
+                        if validated_data["payment_method"] == Order.PaymentMethod.ONLINE else None
+                    ),
                     status=Order.Status.PLACED,
                     payment_status=Order.PaymentStatus.PENDING,
                     subtotal=subtotal,

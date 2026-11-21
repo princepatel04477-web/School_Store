@@ -1,7 +1,5 @@
 import json
-from decimal import Decimal
 from django.db import transaction
-from django.core.cache import cache
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -11,9 +9,12 @@ from rest_framework.response import Response
 from common.pagination import BoundedCursorPagination
 from common.permissions import RoleScopedPermission
 from common.scoping import ScopedQuerysetMixin
-from .models import Order, OrderStatusEvent, PaymentAttempt, PaymentReview
+from .models import Order, OrderStatusEvent, PaymentAttempt
 from .payment import RazorpayGateway
-from .status import apply_provider_payment, can_transition_order, change_order_status, record_payment
+from .payment_view import MINIMUM_HOLD, check_provider, payment_view, reconcile_order
+from django.utils import timezone
+from django.db.models import Exists, OuterRef
+from .status import apply_provider_payment, can_transition_order, change_order_status
 from .serializers import (
     OrderCreateSerializer,
     OrderDetailSerializer,
@@ -50,6 +51,17 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        if self.action == "list":
+            qs = qs.prefetch_related("payment_attempts")
+            if self.request.query_params.get("payment_attention") == "1":
+                qs = qs.filter(
+                    parent_id=self.request.user.pk, payment_method=Order.PaymentMethod.ONLINE,
+                ).exclude(status=Order.Status.CANCELLED).exclude(Exists(
+                    PaymentAttempt.objects.filter(
+                        order_id=OuterRef("pk"), status=PaymentAttempt.Status.CAPTURED,
+                        razorpay_payment_id=OuterRef("razorpay_payment_id"), currency="INR",
+                    )
+                ))
         if self.action == "retrieve":
             qs = qs.prefetch_related("items__variant__product", "status_events", "payment_attempts", "payment_reviews")
 
@@ -117,26 +129,51 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             and order.payer_id != request.user.id
         ):
             raise PermissionDenied("Only the assigned payer may start payment.")
-        if order.payment_status == Order.PaymentStatus.PAID:
-            raise ValidationError({"detail": "This order is already paid."})
-        if order.status == Order.Status.CANCELLED:
-            raise ValidationError({"detail": "This order was cancelled. Please place it again."})
-        if order.payment_method == Order.PaymentMethod.CASH_ON_DELIVERY:
-            raise ValidationError({"detail": "This order is paid in cash on delivery."})
-        gateway = RazorpayGateway()
         with transaction.atomic():
+            payer = order.payer
             order = Order.objects.select_for_update().get(pk=order.pk)
-            # Reuse one Razorpay order per store order: a retry must not create a
-            # second gateway order whose webhook would not match this row.
-            if not order.razorpay_order_id:
-                order.razorpay_order_id = gateway.create_order(order)["id"]
-                order.save(update_fields=["razorpay_order_id", "updated_at"])
-        return Response({
-            "order_id": order.razorpay_order_id,
-            "amount": int(Decimal(order.total) * 100),
-            "currency": "INR",
-            "key_id": gateway.key_id,
-        })
+            if order.payment_method == Order.PaymentMethod.ONLINE and order.razorpay_order_id:
+                if not check_provider(order, PaymentAttempt.Source.RECONCILE, request.user):
+                    return Response({"code": "payment_check_failed", "payment_view": payment_view(order)}, status=503)
+            now = timezone.now()
+            view = payment_view(order, now)
+            if view["receipt"] or order.payment_status == Order.PaymentStatus.PAID:
+                code = "already_paid"
+            elif view["in_progress"]:
+                code = "payment_in_progress"
+            elif not view["hold_expires_at"]:
+                code = "payment_unavailable"
+            elif view["hold_expires_at"] < now + MINIMUM_HOLD:
+                code = "hold_too_short"
+            elif not view["can_pay_now"]:
+                code = "payment_unavailable"
+            else:
+                gateway = RazorpayGateway()
+                if not order.razorpay_order_id:
+                    try:
+                        order.razorpay_order_id = gateway.create_order(order)["id"]
+                    except Exception:
+                        order.payment_checked_at = now
+                        order.payment_check_ok = False
+                        order.payment_check_failed_since = order.payment_check_failed_since or now
+                        order.save(update_fields=[
+                            "payment_checked_at", "payment_check_ok", "payment_check_failed_since", "updated_at",
+                        ])
+                        return Response({"code": "payment_check_failed", "payment_view": payment_view(order)}, status=503)
+                    order.save(update_fields=["razorpay_order_id", "updated_at"])
+                return Response({
+                    "key_id": gateway.key_id,
+                    "razorpay_order_id": order.razorpay_order_id,
+                    "amount_paise": view["amount_due_paise"],
+                    "currency": "INR",
+                    "store_order_number": order.order_number,
+                    "hold_expires_at": view["hold_expires_at"],
+                    "prefill": {
+                        "name": payer.get_full_name() if payer else "",
+                        "contact": payer.phone if payer else "",
+                    },
+                })
+            return Response({"code": code, "payment_view": view}, status=409)
 
     @action(detail=True, methods=["post"], url_path="verify-payment")
     def verify_payment(self, request, pk=None):
@@ -206,39 +243,7 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         ):
             raise PermissionDenied("Only the assigned payer may reconcile payment.")
 
-        rate_limit_key = f"rate_limit_reconcile_{order.id}"
-        # Rate limit: at most 1 call per 5s per order
-        is_allowed = cache.add(rate_limit_key, "1", timeout=5)
-
-        if is_allowed and order.razorpay_order_id:
-            gateway = RazorpayGateway()
-            try:
-                payments = gateway.fetch_order_payments(order.razorpay_order_id)
-                for p in payments:
-                    apply_provider_payment(
-                        order,
-                        p,
-                        PaymentAttempt.Source.RECONCILE,
-                        changed_by=request.user,
-                    )
-            except Exception:
-                pass
-
-        order.refresh_from_db()
-        in_prog = order.payment_attempts.filter(
-            status__in=[PaymentAttempt.Status.CREATED, PaymentAttempt.Status.AUTHORIZED]
-        ).exists()
-        last_failed = order.payment_attempts.filter(
-            status=PaymentAttempt.Status.FAILED
-        ).order_by("-first_seen_at").first()
-
-        return Response({
-            "payment_status": order.payment_status,
-            "status": order.status,
-            "in_progress": in_prog,
-            "last_attempt_failed": bool(last_failed and order.payment_status != Order.PaymentStatus.PAID),
-            "error_reason": last_failed.error_reason if last_failed else "",
-        })
+        return Response(reconcile_order(order.pk, request.user))
 
     @action(detail=True, methods=["post"], url_path="switch-to-cod")
     def switch_to_cod(self, request, pk=None):
@@ -249,52 +254,23 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             and order.payer_id != request.user.id
         ):
             raise PermissionDenied("Only the assigned payer may switch payment method.")
-        if order.status == Order.Status.CANCELLED:
-            raise ValidationError({"detail": "This order was cancelled. Please place it again."})
-        if order.payment_status != Order.PaymentStatus.PENDING:
-            raise ValidationError({"detail": f"Cannot switch to COD when payment status is {order.payment_status}."})
-        if order.payment_method == Order.PaymentMethod.CASH_ON_DELIVERY:
-            return Response({"status": "ok", "payment_method": "COD"})
-
-        gateway = RazorpayGateway()
         with transaction.atomic():
             order = Order.objects.select_for_update().get(pk=order.pk)
-            if order.status == Order.Status.CANCELLED or order.payment_status != Order.PaymentStatus.PENDING:
-                raise ValidationError({"detail": "Order state changed. Cannot switch to COD."})
-
-            if order.razorpay_order_id and gateway.is_usable():
-                try:
-                    payments = gateway.fetch_order_payments(order.razorpay_order_id)
-                    for p in payments:
-                        apply_provider_payment(
-                            order,
-                            p,
-                            PaymentAttempt.Source.RECONCILE,
-                            changed_by=request.user,
-                        )
-                except Exception:
-                    raise ValidationError({"detail": "Unable to contact payment provider. Please try again."})
-
-            order.refresh_from_db()
-            has_active = order.payment_attempts.filter(
-                status__in=[
-                    PaymentAttempt.Status.CAPTURED,
-                    PaymentAttempt.Status.AUTHORIZED,
-                    PaymentAttempt.Status.CREATED,
-                ]
-            ).exists()
-            if has_active or order.payment_status == Order.PaymentStatus.PAID:
-                raise ValidationError({"detail": "A payment is already authorized, captured or in progress. Cannot switch to COD."})
-
+            if order.payment_method == Order.PaymentMethod.CASH_ON_DELIVERY:
+                return Response({"payment_method": "COD", "payment_view": payment_view(order)})
+            if not check_provider(order, PaymentAttempt.Source.RECONCILE, request.user):
+                return Response({"code": "payment_check_failed", "payment_view": payment_view(order)}, status=503)
+            view = payment_view(order)
+            if not view["can_switch_to_cod"]:
+                return Response({"code": "cod_unavailable", "payment_view": view}, status=409)
             order.payment_method = Order.PaymentMethod.CASH_ON_DELIVERY
-            order.save(update_fields=["payment_method", "updated_at"])
+            order.hold_expires_at = None
+            order.save(update_fields=["payment_method", "hold_expires_at", "updated_at"])
             OrderStatusEvent.objects.create(
-                order=order,
-                status=order.status,
-                changed_by=request.user,
+                order=order, status=order.status, changed_by=request.user,
                 note="Payment method changed to Cash on Delivery.",
             )
-        return Response({"status": "ok", "payment_method": "COD"})
+            return Response({"payment_method": "COD", "payment_view": payment_view(order)})
 
     def _change_status(self, request, queryset):
         user = request.user

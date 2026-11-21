@@ -109,6 +109,11 @@ class Order(UUIDModel):
         choices=PaymentMethod.choices,
         default=PaymentMethod.ONLINE,
     )
+    hold_expires_at = models.DateTimeField(null=True, blank=True)
+    payment_checked_at = models.DateTimeField(null=True, blank=True)
+    payment_check_ok = models.BooleanField(null=True, blank=True)
+    payment_check_failed_since = models.DateTimeField(null=True, blank=True)
+    cancel_reason = models.CharField(max_length=24, blank=True, default="")
     razorpay_order_id = models.CharField(max_length=80, blank=True, default="")
     razorpay_payment_id = models.CharField(max_length=80, blank=True, default="")
     razorpay_signature = models.CharField(max_length=200, blank=True, default="")

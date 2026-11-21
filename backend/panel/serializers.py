@@ -3,6 +3,8 @@ from rest_framework import serializers
 
 from accounts.models import User
 from orders.models import Order
+from orders.payment_view import payment_view
+from .payments import reconciliation_reasons
 
 from .models import ExportJob
 from .services import ITEM_PREVIEW_LIMIT, OrderFilters
@@ -53,6 +55,19 @@ class PanelOrderSerializer(serializers.ModelSerializer):
         source="total", max_digits=12, decimal_places=2, read_only=True
     )
 
+    payment_view = serializers.SerializerMethodField()
+    reconciliation_reasons = serializers.SerializerMethodField()
+    needs_reconciliation = serializers.SerializerMethodField()
+
+    def get_payment_view(self, obj):
+        return payment_view(obj)
+
+    def get_reconciliation_reasons(self, obj):
+        return reconciliation_reasons(obj)
+
+    def get_needs_reconciliation(self, obj):
+        return bool(self.get_reconciliation_reasons(obj))
+
     class Meta:
         model = Order
         fields = (
@@ -69,6 +84,10 @@ class PanelOrderSerializer(serializers.ModelSerializer):
             "amount",
             "status",
             "payment_status",
+            "payment_method",
+            "payment_view",
+            "needs_reconciliation",
+            "reconciliation_reasons",
             "fulfillment_type",
             "created_at",
             "placed_by",

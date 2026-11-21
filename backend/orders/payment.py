@@ -1,6 +1,5 @@
 import hashlib
 import hmac
-import json
 from decimal import Decimal
 from django.conf import settings
 
@@ -24,7 +23,7 @@ class RazorpayGateway:
 
     def create_order(self, order):
         if not self.key_id or not self.secret:
-            return {"id": f"local_{order.id}", "amount": int(order.total * 100), "currency": "INR"}
+            raise RuntimeError("Payment provider is unavailable")
         import requests
         resp = requests.post(
             "https://api.razorpay.com/v1/orders",
@@ -43,13 +42,7 @@ class RazorpayGateway:
     def fetch_payment(self, payment_id: str) -> dict:
         """Fetch payment entity from Razorpay (5s timeout)."""
         if not (self.key_id and self.secret):
-            return {
-                "id": payment_id,
-                "status": "captured",
-                "amount": 0,
-                "currency": "INR",
-                "method": "test",
-            }
+            raise RuntimeError("Payment provider is unavailable")
         import requests
         resp = requests.get(
             f"https://api.razorpay.com/v1/payments/{payment_id}",
@@ -62,7 +55,7 @@ class RazorpayGateway:
     def fetch_order_payments(self, razorpay_order_id: str) -> list[dict]:
         """Fetch all payments for a Razorpay order from Razorpay (5s timeout)."""
         if not razorpay_order_id or not (self.key_id and self.secret):
-            return []
+            raise RuntimeError("Payment provider is unavailable")
         import requests
         resp = requests.get(
             f"https://api.razorpay.com/v1/orders/{razorpay_order_id}/payments",
@@ -71,7 +64,9 @@ class RazorpayGateway:
         )
         resp.raise_for_status()
         data = resp.json()
-        return data.get("items", []) if isinstance(data, dict) else []
+        if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+            raise ValueError("Invalid payment provider response")
+        return data["items"]
 
     def _can_verify(self) -> bool:
         # Without a secret every HMAC is forgeable (the key is ""), so refuse

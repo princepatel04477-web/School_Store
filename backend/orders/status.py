@@ -10,7 +10,9 @@ One code path for payment processing and status transitions:
 
 from collections import defaultdict
 from decimal import Decimal
+from datetime import datetime, timezone as utc_timezone
 
+from django.utils import timezone
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.db.models.functions import Now
@@ -133,6 +135,13 @@ def apply_provider_payment(
 
     with transaction.atomic():
         order = Order.objects.select_for_update().get(pk=order_pk)
+        if not payment_id:
+            return None
+        if p_order_id and p_order_id != order.razorpay_order_id:
+            PaymentReview.objects.get_or_create(
+                order=order, reason=PaymentReview.Reason.AMOUNT_MISMATCH, payment_id=payment_id,
+            )
+            return None
         if not p_order_id:
             p_order_id = order.razorpay_order_id or ""
 
@@ -161,6 +170,13 @@ def apply_provider_payment(
                 attempt.last_source = source
                 attempt.save()
         else:
+            first_seen = timezone.now()
+            provider_created_at = payment_entity.get("created_at")
+            if isinstance(provider_created_at, (int, float)):
+                try:
+                    first_seen = min(first_seen, datetime.fromtimestamp(provider_created_at, utc_timezone.utc))
+                except (OverflowError, OSError, ValueError):
+                    pass
             attempt = PaymentAttempt.objects.create(
                 order=order,
                 razorpay_payment_id=payment_id,
@@ -171,6 +187,7 @@ def apply_provider_payment(
                 error_code=error_code,
                 error_reason=error_reason,
                 last_source=source,
+                first_seen_at=first_seen,
             )
 
         # 2. Check matching criteria
