@@ -13,6 +13,7 @@ type Entry = { en: string; gu: string; hi: string };
 export const messages = {
   // ---------- common ----------
   'common.close': { en: 'Close', gu: 'બંધ કરો', hi: 'बंद करें' },
+  'common.cancel': { en: 'Cancel', gu: 'રદ કરો', hi: 'रद्द करें' },
   'welcome.message': {
     en: 'Welcome to SchoolStore',
     gu: 'SchoolStore માં આપનું સ્વાગત છે',
@@ -430,6 +431,31 @@ export const messages = {
   'flow.keepBag': { en: 'Keep my bag', gu: 'બેગ રાખો', hi: 'बैग रखें' },
   'flow.clearAndChange': { en: 'Empty bag and change', gu: 'બેગ ખાલી કરી બદલો', hi: 'बैग ख़ाली करके बदलें' },
 
+  // ---------- checklist ----------
+  'checklist.title': { en: 'Uniform checklist', gu: 'યુનિફોર્મ ચેકલિસ્ટ', hi: 'यूनिफ़ॉर्म चेकलिस्ट' },
+  'checklist.progress': {
+    en: '{count} of {total} required items in bag',
+    gu: 'જરૂરી {total} માંથી {count} વસ્તુ બેગમાં છે',
+    hi: 'ज़रूरी {total} में से {count} चीज़ें बैग में हैं',
+  },
+  'checklist.complete': {
+    en: 'All required items added to your bag',
+    gu: 'બધી જરૂરી વસ્તુઓ બેગમાં ઉમેરાઈ ગઈ છે',
+    hi: 'सभी ज़रूरी चीज़ें बैग में जोड़ दी गई हैं',
+  },
+  'checklist.inBag': { en: 'In bag', gu: 'બેગમાં છે', hi: 'बैग में है' },
+  'checklist.missing': { en: 'Missing', gu: 'બાકી છે', hi: 'बाकी है' },
+  'checklist.unavailable': {
+    en: 'Out of stock in your city',
+    gu: 'તમારા શહેરમાં સ્ટોક નથી',
+    hi: 'आपके शहर में स्टॉक ख़त्म है',
+  },
+  'checklist.addRemaining': {
+    en: 'Add remaining required items',
+    gu: 'બાકીની જરૂરી વસ્તુઓ ઉમેરો',
+    hi: 'बाकी ज़रूरी चीज़ें जोड़ें',
+  },
+
   // ---------- full set ----------
   'set.bannerTitle': { en: 'Order the full uniform set', gu: 'આખો યુનિફોર્મ સેટ મંગાવો', hi: 'पूरा यूनिफ़ॉर्म सेट मँगाएँ' },
   'set.bannerSub': {
@@ -457,6 +483,65 @@ export const messages = {
     en: 'Choose a size for {count} more items (marked in red).',
     gu: 'હજુ {count} વસ્તુની સાઈઝ પસંદ કરો (લાલ નિશાનીવાળી).',
     hi: 'अभी {count} चीज़ों का साइज़ चुनें (लाल निशान वाली)।',
+  },
+  'set.qty': { en: 'Qty', gu: 'જથ્થો', hi: 'मात्रा' },
+  'set.quantity': { en: 'Quantity', gu: 'જથ્થો', hi: 'मात्रा' },
+  'set.outOfStock': {
+    en: 'Out of stock in your city',
+    gu: 'તમારા શહેરમાં સ્ટોક ઉપલબ્ધ નથી',
+    hi: 'आपके शहर में स्टॉक उपलब्ध नहीं है',
+  },
+  'set.requiredBadge': { en: 'Required', gu: 'જરૂરી', hi: 'अनिवार्य' },
+  'set.optionalBadge': { en: 'Optional', gu: 'વૈકલ્પિક', hi: 'ऐच्छिक' },
+  'set.requiredOmitted': {
+    en: 'Required item not selected',
+    gu: 'જરૂરી વસ્તુ પસંદ કરેલ નથી',
+    hi: 'अनिवार्य वस्तु का चयन नहीं किया गया',
+  },
+  'set.omittedModalTitle': {
+    en: 'Some required items are omitted',
+    gu: 'કેટલીક જરૂરી વસ્તુઓ છોડી દીધી છે',
+    hi: 'कुछ अनिवार्य वस्तुएं छोड़ दी गई हैं',
+  },
+  'set.omittedModalBody': {
+    en: 'You have deselected {count} required item(s). If you already have these uniforms from an older sibling or previous year, you do not need to repurchase them. Would you like to proceed?',
+    gu: 'તમે {count} જરૂરી વસ્તુ(ઓ) પસંદ કરી નથી. જો તમારી પાસે મોટા ભાઈ-બહેન અથવા પાછલા વર્ષથી આ યુનિફોર્મ હોય, તો તમારે ફરીથી ખરીદવાની જરૂર નથી. શું તમે આગળ વધવા માંગો છો?',
+    hi: 'आपने {count} अनिवार्य वस्तु(एं) नहीं चुनी हैं। यदि आपके पास बड़े भाई-बहन या पिछले साल की ये यूनिफ़ॉर्म पहले से हैं, तो आपको दोबारा खरीदने की आवश्यकता नहीं है। क्या आप आगे बढ़ना चाहते हैं?',
+  },
+  'set.proceedWithout': {
+    en: 'Proceed and add to bag',
+    gu: 'આગળ વધો અને બેગમાં ઉમેરો',
+    hi: 'आगे बढ़ें और बैग में जोड़ें',
+  },
+  'set.reviewItems': {
+    en: 'Review items',
+    gu: 'વસ્તુઓની સમીક્ષા કરો',
+    hi: 'वस्तुओं की समीक्षा करें',
+  },
+  'set.schoolMismatchTitle': {
+    en: 'Different school in your bag',
+    gu: 'તમારી બેગમાં અલગ શાળાની વસ્તુઓ છે',
+    hi: 'आपके बैग में दूसरे स्कूल का सामान है',
+  },
+  'set.schoolMismatchBody': {
+    en: 'Your bag already has items from {bagSchool}. A single order cannot mix items from different schools. Would you like to clear your bag and add the full set for {newSchool}?',
+    gu: 'તમારી બેગમાં પહેલાથી જ {bagSchool} ની વસ્તુઓ છે. એક ઓર્ડરમાં અલગ અલગ શાળાઓની વસ્તુઓ ભેગી કરી શકાતી નથી. શું તમે તમારી બેગ ખાલી કરીને {newSchool} માટે આખો સેટ ઉમેરવા માંગો છો?',
+    hi: 'आपके बैग में पहले से ही {bagSchool} का सामान है। एक ऑर्डर में अलग-अलग स्कूलों का सामान नहीं मिलाया जा सकता। क्या आप अपना बैग खाली करके {newSchool} के लिए पूरा सेट जोड़ना चाहते हैं?',
+  },
+  'set.clearAndAdd': {
+    en: 'Clear bag and add set',
+    gu: 'બેગ ખાલી કરો અને સેટ ઉમેરો',
+    hi: 'बैग खाली करें और सेट जोड़ें',
+  },
+  'set.priceChangedTitle': {
+    en: 'Notice: Prices or stock updated',
+    gu: 'સૂચના: કિંમતો અથવા સ્ટોક અપડેટ થયા',
+    hi: 'सूचना: कीमतें या स्टॉक अपडेट हुए',
+  },
+  'set.validating': {
+    en: 'Checking live prices and stock...',
+    gu: 'લાઈવ કિંમતો અને સ્ટોક તપાસી રહ્યા છીએ...',
+    hi: 'लाइव कीमतों और स्टॉक की जाँच कर रहे हैं...',
   },
 
   // ---------- size check (height and weight) ----------

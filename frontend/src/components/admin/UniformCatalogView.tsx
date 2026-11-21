@@ -40,6 +40,7 @@ export function UniformCatalogView() {
   const [costPrice, setCostPrice] = useState<string>('0.00');
   const [sellingPrice, setSellingPrice] = useState<string>('');
   const [active, setActive] = useState(true);
+  const [isRequired, setIsRequired] = useState(false);
 
   // Photo Upload State
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -97,6 +98,7 @@ export function UniformCatalogView() {
     setCostPrice('0.00');
     setSellingPrice('');
     setActive(true);
+    setIsRequired(false);
     setPhotoFile(null);
     setPhotoPreview(null);
     setPhotoError('');
@@ -118,6 +120,7 @@ export function UniformCatalogView() {
     setCostPrice(p.cost_price != null ? String(p.cost_price) : '0.00');
     setSellingPrice(String(p.selling_price));
     setActive(p.active);
+    setIsRequired(Boolean(p.is_required));
     setPhotoFile(null);
     setPhotoPreview(p.images && p.images.length > 0 ? p.images[0] : null);
     setPhotoError('');
@@ -181,6 +184,7 @@ export function UniformCatalogView() {
         cost_price: costPrice || '0.00',
         selling_price: sellingPrice,
         active,
+        is_required: isRequired,
       };
 
       if (editingProduct) {
@@ -413,6 +417,7 @@ export function UniformCatalogView() {
                   <th>Item</th>
                   <th>School</th>
                   <th>Category / Subtype</th>
+                  <th>Requirement</th>
                   <th>Gender</th>
                   <th>Classes</th>
                   <th>Selling Price</th>
@@ -485,6 +490,39 @@ export function UniformCatalogView() {
                             }}
                           >
                             {p.product_type}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        {p.is_required ? (
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              padding: '2px 8px',
+                              borderRadius: 'var(--radius-sm)',
+                              background: 'var(--brand-tint, #edf6ef)',
+                              color: 'var(--brand, #275b4c)',
+                              border: '1px solid var(--brand)',
+                              display: 'inline-block',
+                            }}
+                          >
+                            Required
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              padding: '2px 8px',
+                              borderRadius: 'var(--radius-sm)',
+                              background: 'var(--paper-sunk)',
+                              color: 'var(--ink-soft)',
+                              border: '1px solid var(--line)',
+                              display: 'inline-block',
+                            }}
+                          >
+                            Optional
                           </span>
                         )}
                       </td>
@@ -720,6 +758,21 @@ export function UniformCatalogView() {
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Material specs, washing instructions..."
                   />
+                </div>
+
+                <div className="portal-form-group" style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600 }}>
+                    <input
+                      type="checkbox"
+                      checked={isRequired}
+                      onChange={(e) => setIsRequired(e.target.checked)}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <span>Required uniform item</span>
+                  </label>
+                  <span style={{ fontSize: '12px', color: 'var(--ink-soft)', display: 'block', marginTop: '4px' }}>
+                    Mark this item as required for the selected school and class range.
+                  </span>
                 </div>
 
                 {/* Photo Upload Section */}

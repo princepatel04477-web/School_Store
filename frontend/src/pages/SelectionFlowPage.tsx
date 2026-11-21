@@ -107,7 +107,8 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     activeSchool?.id,
     activeClass?.name,
     activeGender,
-    activeBranch?.cityId || activeSchool?.cityId
+    activeBranch?.cityId || activeSchool?.cityId,
+    activeBranch?.branchId
   );
   const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
 
@@ -423,6 +424,24 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const optionalProducts = useMemo(() => {
     return step4Products.filter((p) => !p.required);
   }, [step4Products]);
+
+  const allRequiredProducts = useMemo(
+    () => products.filter((p) => Boolean(p.required)),
+    [products]
+  );
+
+  const isInBag = (p: CardProduct) => cart.some((item) => item.productId === p.id);
+  const isUnavailable = (p: CardProduct) => p.sizes.length > 0 && !p.sizes.some((s) => s.inStock);
+  const isMissing = (p: CardProduct) => !isInBag(p) && !isUnavailable(p);
+
+  const requiredInBagCount = useMemo(
+    () => allRequiredProducts.filter((p) => cart.some((item) => item.productId === p.id)).length,
+    [allRequiredProducts, cart]
+  );
+  const requiredTotalCount = allRequiredProducts.length;
+  const isChecklistComplete = requiredTotalCount > 0 && requiredInBagCount === requiredTotalCount;
+  const checklistPercent =
+    requiredTotalCount > 0 ? Math.round((requiredInBagCount / requiredTotalCount) * 100) : 0;
 
   return (
     <div className="selection-flow-page container" id="main">
@@ -744,6 +763,74 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   </div>
                 )}
 
+                {/* Parent Uniform Checklist */}
+                {allRequiredProducts.length > 0 && (
+                  <div className="parent-checklist-card" aria-label={t('checklist.title')}>
+                    <div className="checklist-head">
+                      <div className="checklist-title-wrap">
+                        <h2 className="checklist-title">{t('checklist.title')}</h2>
+                        <span
+                          className={`checklist-progress-text ${isChecklistComplete ? 'is-complete' : ''}`}
+                        >
+                          {isChecklistComplete
+                            ? t('checklist.complete')
+                            : t('checklist.progress', { count: requiredInBagCount, total: requiredTotalCount })}
+                        </span>
+                      </div>
+                      {!isChecklistComplete && allRequiredProducts.some(isMissing) && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => setFullSetOpen(true)}
+                        >
+                          {t('checklist.addRemaining')}
+                        </button>
+                      )}
+                    </div>
+
+                    <div
+                      className="checklist-progress-bar"
+                      role="progressbar"
+                      aria-valuenow={checklistPercent}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    >
+                      <div className="checklist-progress-fill" style={{ width: `${checklistPercent}%` }} />
+                    </div>
+
+                    <div className="checklist-items-grid">
+                      {allRequiredProducts.map((p) => {
+                        const inBag = isInBag(p);
+                        const unavail = isUnavailable(p);
+                        return (
+                          <div key={p.id} className="checklist-item-row">
+                            <span className="checklist-item-name">{p.name}</span>
+                            {inBag ? (
+                              <span className="checklist-badge is-in-bag">
+                                <Check width={12} height={12} strokeWidth={2} />
+                                {t('checklist.inBag')}
+                              </span>
+                            ) : unavail ? (
+                              <span className="checklist-badge is-unavailable">
+                                {t('checklist.unavailable')}
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                className="checklist-badge is-missing"
+                                onClick={() => setActiveProductForSheet(p)}
+                                style={{ cursor: 'pointer', border: '1px solid var(--line)' }}
+                              >
+                                {t('checklist.missing')}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Sticky Category Tabs */}
                 <div ref={tabsTopRef} aria-hidden="true" />
                 <div className="category-tabs-sticky" role="tablist" aria-label={t('home.shopByCategory')}>
@@ -910,8 +997,11 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
           open={fullSetOpen}
           onClose={() => setFullSetOpen(false)}
           products={fullSetProducts}
-          schoolName={activeSchool.name}
+          schoolName={schoolLabel || activeSchool.name}
+          schoolId={activeSchool.id}
+          cityId={activeBranch?.cityId || activeSchool.cityId}
           className={activeClass?.name}
+          studentId={childId ?? undefined}
           onAdded={onOpenBag}
           fits={fits}
         />

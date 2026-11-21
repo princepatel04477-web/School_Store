@@ -522,3 +522,118 @@ button.school-select-card {
   color: var(--ink);
   margin-bottom: var(--space-2);
 }
+
+/* Parent Uniform Checklist */
+.parent-checklist-card {
+  background-color: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-6);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.checklist-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.checklist-title-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.checklist-title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  margin: 0;
+  color: var(--ink);
+}
+
+.checklist-progress-text {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--brand);
+}
+
+.checklist-progress-text.is-complete {
+  color: var(--brand);
+}
+
+.checklist-progress-bar {
+  width: 100%;
+  height: 6px;
+  background-color: var(--paper-sunk);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.checklist-progress-fill {
+  height: 100%;
+  background-color: var(--brand);
+  transition: width 0.3s ease;
+}
+
+.checklist-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-2);
+}
+
+.checklist-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+}
+
+.checklist-item-name {
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.checklist-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.checklist-badge.is-in-bag {
+  background-color: var(--brand-tint, #edf6ef);
+  color: var(--brand, #275b4c);
+  border: 1px solid var(--brand);
+}
+
+.checklist-badge.is-missing {
+  background-color: var(--paper-sunk);
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+}
+
+.checklist-badge.is-unavailable {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.checklist-cta-btn {
+  margin-top: var(--space-1);
+  justify-self: start;
+}

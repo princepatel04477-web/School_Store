@@ -12,8 +12,11 @@ export interface CartItem {
   size: string;
   quantity: number;
   image?: string;
+  schoolId?: string;
   schoolName?: string;
   className?: string;
+  studentId?: string;
+  studentName?: string;
   customisationData?: Record<string, any>;
   /** The child's measurement this line was sized from (shirts and trousers). */
   measurement?: Fit;
@@ -32,6 +35,8 @@ export interface StoredSelection {
   gradeId?: string;
   gradeName?: string;
   gender?: 'boy' | 'girl' | null;
+  studentId?: string;
+  studentName?: string;
 }
 
 const CART_STORAGE_KEY = 'schoolstore_cart';
@@ -75,11 +80,14 @@ export const storeState = {
   addItem: (newItem: Omit<CartItem, 'id'>) => {
     // Every line says which child it is for, however it was added, so the bag can group them.
     const item = {
+      schoolId: selectionState?.schoolId,
       schoolName: selectionState?.schoolName,
       className: selectionState?.gradeName,
+      studentId: selectionState?.studentId,
+      studentName: selectionState?.studentName,
       ...newItem,
     };
-    const id = `${item.productId}_${item.variantId}_${JSON.stringify(item.customisationData || {})}`;
+    const id = `${item.productId}_${item.variantId}_${item.schoolId || ''}_${item.studentId || ''}_${JSON.stringify(item.customisationData || {})}`;
     const existingIndex = cartState.findIndex((c) => c.id === id);
     if (existingIndex > -1) {
       cartState = cartState.map((c, i) =>

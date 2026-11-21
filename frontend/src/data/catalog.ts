@@ -54,6 +54,7 @@ type PublicProduct = {
   image_alt?: string | null;
   customisation_schema: CustomisationField[] | { fields?: CustomisationField[] } | null;
   variants: PublicVariant[];
+  required?: boolean;
 };
 type Page<T> = { next: string | null; results: T[] };
 
@@ -106,6 +107,7 @@ function toProduct(product: PublicProduct): StoreProduct {
     imageAlt: product.image_alt || undefined,
     needsDetails: needsDetails(product.customisation_schema),
     official: Boolean(product.school),
+    required: Boolean(product.required),
   };
 }
 
@@ -201,15 +203,19 @@ export function useStoreProducts(
   className?: string,
   gender?: 'boy' | 'girl' | null,
   /** The branch's city, for stock. Without it the server uses the school's own city. */
-  cityId?: string
+  cityId?: string,
+  branchId?: string,
+  season?: string
 ) {
   return useQuery({
-    queryKey: ['store', 'products', schoolId, className, gender, cityId ?? ''],
+    queryKey: ['store', 'products', schoolId, className, gender, cityId ?? '', branchId ?? '', season ?? ''],
     enabled: Boolean(schoolId && className && gender),
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const params = new URLSearchParams({ school: schoolId!, class: className!, gender: gender! });
       if (cityId) params.set('city', cityId);
+      if (branchId) params.set('branch', branchId);
+      if (season) params.set('season', season);
       const products: PublicProduct[] = [];
       let path: string | null = `/public/products/?${params}`;
       // The list is paged; a school's class list is small, so a few pages at most.

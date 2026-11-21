@@ -294,6 +294,70 @@ export const orderApi = {
   getAfterSalesRequests: (orderId: string) =>
     api<{ requests: AfterSaleRequest[]; refunds: OrderRefund[] }>(`/orders/${orderId}/after-sales-requests/`),
 };
+
+export type CartValidationItem = {
+  variant?: string;
+  variant_id?: string;
+  product?: string;
+  product_id?: string;
+  quantity?: number;
+  price_paise?: number;
+  price?: number;
+};
+
+export type CartValidationResponse = {
+  valid: boolean;
+  school_id?: string;
+  class?: string;
+  gender?: string;
+  total_paise?: number;
+  total?: number;
+  lines?: {
+    product_id: string;
+    variant_id: string | null;
+    name: string;
+    size: string;
+    quantity: number;
+    price_paise: number;
+    line_total_paise: number;
+    stock_status: string;
+  }[];
+  price_changes: {
+    product_id: string;
+    variant_id: string | null;
+    name: string;
+    size: string;
+    client_price_paise: number;
+    server_price_paise: number;
+    diff_paise: number;
+    explanation: string;
+  }[];
+  out_of_stock: {
+    product_id: string;
+    variant_id: string;
+    name: string;
+    size: string;
+    available: number;
+    requested: number;
+    explanation: string;
+  }[];
+  has_price_changes: boolean;
+  has_out_of_stock: boolean;
+  message: string;
+};
+
+export const cartApi = {
+  validate: (body: {
+    school?: string;
+    school_id?: string;
+    class?: string;
+    gender?: string;
+    city?: string;
+    city_id?: string;
+    student?: string;
+    items: CartValidationItem[];
+  }) => api<CartValidationResponse>('/cart/validate/', { method: 'POST', body: JSON.stringify(body) }),
+};
 export const queryKey={catalog:['catalog'],orders:['orders'],students:['students']};
 
 /** Request a presigned URL to upload a private file directly to object storage. */
@@ -820,6 +884,8 @@ export type PortalProduct = {
   gender: 'boy' | 'girl' | 'unisex';
   product_type?: 'SOCKS' | 'BELT' | 'TIE' | string | null;
   needs_review?: boolean;
+  is_required?: boolean;
+  requirements?: any[];
   grades?: string[];
   class_from?: number | null;
   class_to?: number | null;
