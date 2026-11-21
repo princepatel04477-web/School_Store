@@ -527,3 +527,202 @@ class PaymentReview(UUIDModel):
     def __str__(self) -> str:
         return f"Review {self.reason} (payment: {self.payment_id}) for order {self.order_id}"
 
+
+class OrderAfterSaleRequest(UUIDModel):
+    """
+    Parent request for cancellation, size exchange, or damaged/incorrect item.
+    Tracks replacement item reservation, physical inspection, restocking, and audit trail.
+    """
+
+    class RequestType(models.TextChoices):
+        CANCEL = "CANCEL", "Cancellation"
+        EXCHANGE = "EXCHANGE", "Size Exchange"
+        RETURN = "RETURN", "Return for Refund"
+        REPLACE = "REPLACE", "Replacement for Defect/Damage"
+
+    class Status(models.TextChoices):
+        REQUESTED = "REQUESTED", "Requested"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+        INSPECTED = "INSPECTED", "Inspected"
+        COMPLETED = "COMPLETED", "Completed"
+        CANCELLED = "CANCELLED", "Cancelled"
+
+    class Reason(models.TextChoices):
+        # Size exchange
+        TOO_SMALL = "TOO_SMALL", "Too small"
+        TOO_BIG = "TOO_BIG", "Too big"
+        # Fault / wrong item
+        DAMAGED = "DAMAGED", "Damaged item"
+        DEFECTIVE = "DEFECTIVE", "Defective fabric/stitching"
+        WRONG_ITEM = "WRONG_ITEM", "Wrong item delivered"
+        # Cancellation
+        CHANGE_OF_MIND = "CHANGE_OF_MIND", "Change of mind"
+        ORDERED_BY_MISTAKE = "ORDERED_BY_MISTAKE", "Ordered by mistake"
+        DELIVERY_DELAY = "DELIVERY_DELAY", "Delivery delay"
+        OTHER = "OTHER", "Other"
+
+    class RestockCondition(models.TextChoices):
+        RESTOCKABLE = "RESTOCKABLE", "Restockable"
+        DAMAGED_DISCARD = "DAMAGED_DISCARD", "Damaged / Discard"
+        UNINSPECTED = "UNINSPECTED", "Uninspected"
+
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="after_sales_requests",
+    )
+    order_item = models.ForeignKey(
+        OrderItem,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="after_sales_requests",
+        help_text="Target order line. Null if full order cancellation.",
+    )
+    request_type = models.CharField(max_length=24, choices=RequestType.choices)
+    status = models.CharField(max_length=24, choices=Status.choices, default=Status.REQUESTED)
+    reason = models.CharField(max_length=32, choices=Reason.choices)
+    reason_details = models.TextField(blank=True, default="")
+    photo_key = models.CharField(max_length=255, blank=True, default="")
+    from_size = models.CharField(max_length=50, blank=True, default="")
+    target_size = models.CharField(max_length=50, blank=True, default="")
+    target_variant = models.ForeignKey(
+        "catalog.ProductVariant",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    quantity = models.PositiveIntegerField(default=1)
+    charge_paise = models.BigIntegerField(default=0)
+    is_stock_reserved = models.BooleanField(default=False)
+    is_item_restocked = models.BooleanField(default=False)
+    restock_condition = models.CharField(
+        max_length=24,
+        choices=RestockCondition.choices,
+        default=RestockCondition.UNINSPECTED,
+        blank=True,
+    )
+    exchange_record = models.ForeignKey(
+        OrderItemExchange,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="after_sale_requests",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_after_sales_requests",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_after_sales_requests",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    staff_notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["order", "created_at"], name="idx_asreq_order_created"),
+            models.Index(fields=["status", "created_at"], name="idx_asreq_status_created"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.request_type} ({self.status}) for order {self.order.order_number}"
+
+
+class OrderRefund(UUIDModel):
+    """
+    Durable record of a financial refund or COD repayment.
+    Separated from order/return status: a status change alone never marks funds refunded.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        PROCESSING = "PROCESSING", "Processing"
+        SUCCEEDED = "SUCCEEDED", "Succeeded"
+        FAILED = "FAILED", "Failed"
+        RETRY = "RETRY", "Needs Retry"
+
+    class RepaymentChannel(models.TextChoices):
+        ORIGINAL_PAYMENT = "ORIGINAL_PAYMENT", "Original Payment (Razorpay)"
+        CASH = "CASH", "Cash at School Office"
+        NOT_APPLICABLE = "NOT_APPLICABLE", "Not Applicable (Unpaid)"
+
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="refunds",
+    )
+    request = models.ForeignKey(
+        OrderAfterSaleRequest,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="refunds",
+    )
+    order_item = models.ForeignKey(
+        OrderItem,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="refunds",
+    )
+    payment_attempt = models.ForeignKey(
+        PaymentAttempt,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="refunds",
+    )
+    amount_paise = models.BigIntegerField()
+    currency = models.CharField(max_length=10, default="INR")
+    payment_method = models.CharField(
+        max_length=12,
+        choices=Order.PaymentMethod.choices,
+    )
+    repayment_channel = models.CharField(
+        max_length=24,
+        choices=RepaymentChannel.choices,
+        default=RepaymentChannel.ORIGINAL_PAYMENT,
+    )
+    status = models.CharField(
+        max_length=24,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    idempotency_key = models.CharField(max_length=128, unique=True, default=uuid.uuid4)
+    razorpay_refund_id = models.CharField(max_length=100, blank=True, default="")
+    razorpay_payment_id = models.CharField(max_length=100, blank=True, default="")
+    failure_reason = models.TextField(blank=True, default="")
+    processed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="processed_refunds",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["order", "created_at"], name="idx_ordrefund_order_created"),
+            models.Index(fields=["status", "created_at"], name="idx_ordrefund_status_created"),
+            models.Index(fields=["razorpay_refund_id"], name="idx_ordrefund_rzp_ref_id"),
+        ]
+
+    def __str__(self) -> str:
+        return f"Refund {self.id} (₹{self.amount_paise / 100:.2f}) - {self.status}"
+
+
