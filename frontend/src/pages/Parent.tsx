@@ -383,7 +383,7 @@ function Orders() {
     enabled: Boolean(focusedId && data && !data.results.some(order => order.id === focusedId)),
   });
   const orders = useMemo(() => focused.data
-    ? [focused.data, ...(data?.results ?? [])]
+    ? [focused.data, ...(data?.results ?? []).filter(order => order.id !== focused.data?.id)]
     : (data?.results ?? []), [data, focused.data]);
   useEffect(() => {
     if (focusedId) document.getElementById(`order-${focusedId}`)?.scrollIntoView();
@@ -393,6 +393,14 @@ function Orders() {
   const [busy, setBusy] = useState(false);
   const active = useRef(false);
   const autoChecked = useRef(new Set<string>());
+  const visiblePayment = (order: Order) => {
+    const latest = order.payment_view;
+    const previous = views[order.id];
+    if (!previous || (latest.state !== 'CHECKING' && latest.state !== 'NOT_PAID')) return latest;
+    if (latest.last_checked_at && previous.last_checked_at &&
+        Date.parse(latest.last_checked_at) > Date.parse(previous.last_checked_at)) return latest;
+    return previous;
+  };
   const update = (id: string, view: PaymentView) => setViews(previous => ({ ...previous, [id]: view }));
 
   async function refresh(order: Order) {
@@ -436,7 +444,7 @@ function Orders() {
       if (action === 'pay') await runOrderPayment(order.id, view => update(order.id, view));
       if (action === 'cod') update(order.id, (await orderApi.switchToCod(order.id)).payment_view);
     } catch (error) {
-      update(order.id, paymentRefusal(error) ?? checkingPayment(views[order.id] ?? order.payment_view));
+      update(order.id, paymentRefusal(error) ?? checkingPayment(visiblePayment(order)));
     } finally {
       if (action !== 'refresh') {
         void queryClient.invalidateQueries({ queryKey: ['orders'] });
@@ -476,7 +484,7 @@ function Orders() {
               <span className="status">{o.status}</span>
             </div>
             <p>{o.student_name}</p>
-            <PaymentStatus payment={views[o.id] ?? o.payment_view} orderNumber={o.order_number}
+            <PaymentStatus payment={visiblePayment(o)} orderNumber={o.order_number}
               disabled={busy || Boolean(cooldowns[o.id])}
               onRefresh={() => void act(o, 'refresh')} onPay={() => void act(o, 'pay')}
               onCod={() => void act(o, 'cod')} />

@@ -13,7 +13,7 @@ import { PaymentStatus } from '../components/PaymentStatus';
 import { useAuth } from '../auth';
 import { useLang } from '../i18n';
 import { classLabel } from '../i18n/labels';
-import { ApiError, orderApi, type ParentChild, type PaymentView, type OrderQuote } from '../api';
+import { api, ApiError, orderApi, type Order, type ParentChild, type PaymentView, type OrderQuote } from '../api';
 import { ParentSignInSheet } from '../components/parent/ParentSignInSheet';
 import { scrollPageTo } from '../motion/SmoothScroll';
 import '../components/cart/bagCheckout.css';
@@ -217,6 +217,33 @@ export function CheckoutPage() {
     }
   };
 
+  const pendingOrderId = payment?.state === 'CHECKING' && !paymentBusy ? onlineOrder?.id : undefined;
+  useEffect(() => {
+    if (!pendingOrderId) return;
+    let stopped = false;
+    let timer: number | undefined;
+    const stopAt = Date.now() + 120_000;
+    async function poll() {
+      try {
+        const order = await api<Order>(`/orders/${pendingOrderId}/`);
+        if (stopped) return;
+        const view = order.payment_view;
+        if (view.receipt || view.state === 'RELEASED' || view.state === 'COD_DUE') {
+          applyPayment(view);
+          return;
+        }
+      } catch {
+        // Keep the last payment status visible until a check can confirm a result.
+      }
+      if (!stopped && Date.now() < stopAt) timer = window.setTimeout(poll, 3_000);
+    }
+    timer = window.setTimeout(poll, 3_000);
+    return () => {
+      stopped = true;
+      window.clearTimeout(timer);
+    };
+  }, [pendingOrderId]);
+
   const effectiveTotalPaise = quote ? quote.total_paise : totalPaise;
 
   const handlePlaceOrder = async () => {
@@ -308,12 +335,11 @@ export function CheckoutPage() {
   if (placed) {
     const placedTotal = formatINR(Math.round(parseFloat(placed.total) * 100));
     const collect = placed.fulfillment_type === 'SCHOOL_PICKUP';
-    const isOnline = placed.payment_method === 'ONLINE';
     return (
       <div className="order-confirmed-wrap container">
         <div className="order-confirmed-card">
           <h1 className="confirmed-heading">
-            {isOnline ? t('co.paymentSuccess', { n: placed.order_number }) : t('co.placed.title')}
+            {t('co.placed.title')}
           </h1>
           <div className="order-num-label">{t('co.placed.number', { n: placed.order_number })}</div>
 
@@ -321,9 +347,7 @@ export function CheckoutPage() {
             <div className="confirmed-step-row">
               <span className="step-circle">1</span>
               <span>
-                {isOnline
-                  ? t('co.placed.online', { n: placed.order_number })
-                  : t('co.placed.saved', { name: placed.student_name || studentName })}
+                {t('co.placed.saved', { name: placed.student_name || studentName })}
               </span>
             </div>
             <div className="confirmed-step-row">
