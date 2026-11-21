@@ -225,7 +225,7 @@ export function BranchPicker({
         </div>
       ) : stage === 'state' ? (
         /* States: a grid of landmarks with big names, A to Z */
-        <Stagger className="state-grid" staggerDelay={0.04}>
+        <Stagger key="state" className="state-grid" staggerDelay={0.04}>
           {shownStates.map((s) => (
             <button
               type="button"
@@ -243,7 +243,7 @@ export function BranchPicker({
         </Stagger>
       ) : stage === 'city' ? (
         /* Cities and schools: ruled lists, not a stack of boxes */
-        <Stagger className="pick-rows" staggerDelay={0.03}>
+        <Stagger key={`city-${state}`} className="pick-rows" staggerDelay={0.03}>
           {shownCities.map((c) => (
             <button
               type="button"
@@ -260,7 +260,7 @@ export function BranchPicker({
           ))}
         </Stagger>
       ) : (
-        <Stagger className="pick-rows" staggerDelay={0.03}>
+        <Stagger key={`branch-${cityId}`} className="pick-rows" staggerDelay={0.03}>
           {shownBranches.map((b) => (
             <button
               type="button"
