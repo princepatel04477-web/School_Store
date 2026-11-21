@@ -66,6 +66,9 @@ export function SchoolManagerView() {
     queryFn: () => portalApi.schools(queryParams),
   });
   const schools = schoolsData?.results ?? [];
+  // A store server from before this feature sends no classes and would ignore them,
+  // so the picker only shows once the server sends them.
+  const serverHasClasses = schools.some((sch) => Array.isArray(sch.grades));
 
   const openCreateModal = () => {
     setEditingSchool(null);
@@ -116,7 +119,7 @@ export function SchoolManagerView() {
         active,
         address: address.trim(),
         commission_rate: commissionRate.trim() ? commissionRate.trim() : null,
-        grades: [...grades].sort((a, b) => CLASS_ORDER.indexOf(a) - CLASS_ORDER.indexOf(b)),
+        ...(serverHasClasses ? { grades: [...grades].sort((a, b) => CLASS_ORDER.indexOf(a) - CLASS_ORDER.indexOf(b)) } : {}),
       };
 
       if (editingSchool) {
@@ -239,7 +242,7 @@ export function SchoolManagerView() {
                   <th>School Name</th>
                   <th>Code</th>
                   <th>City</th>
-                  <th>Classes</th>
+                  {serverHasClasses && <th>Classes</th>}
                   <th>Fulfillment Options</th>
                   <th>Status</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
@@ -294,7 +297,7 @@ export function SchoolManagerView() {
                       <code style={{ fontSize: '12px', fontWeight: 600 }}>{sch.code}</code>
                     </td>
                     <td>{sch.city_name || '-'}</td>
-                    <td className="portal-classes-cell">{classesSummary(sch.grades)}</td>
+                    {serverHasClasses && <td className="portal-classes-cell">{classesSummary(sch.grades)}</td>}
                     <td>
                       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                         {sch.home_delivery_enabled && (
@@ -437,6 +440,7 @@ export function SchoolManagerView() {
                   </div>
                 </div>
 
+                {serverHasClasses && (
                 <fieldset className="portal-form-group portal-classes-field">
                   <legend className="portal-form-label">Classes this school has</legend>
                   <p className="portal-classes-hint">
@@ -467,6 +471,7 @@ export function SchoolManagerView() {
                     </div>
                   ))}
                 </fieldset>
+                )}
 
                 <div className="portal-form-group">
                   <label className="portal-form-label">Logo URL</label>
