@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { isNativeApp, getRemoteMediaPipePath } from './nativePlatform';
+import { Capacitor } from '@capacitor/core';
+import { isNativeApp, getRemoteMediaPipePath, getShareOrigin, REMOTE_ASSET_BASE } from './nativePlatform';
 import { toUrl, getStoredToken, setStoredTokens, clearStoredTokens } from '../api';
 import { openExternalUrl } from './externalLinks';
 
@@ -35,6 +36,17 @@ describe('native utilities', () => {
   it('getRemoteMediaPipePath prefixes relative path with remote CDN origin', () => {
     const p = getRemoteMediaPipePath('/mediapipe/wasm');
     expect(p).toBe('https://school-store.aqualite.workers.dev/mediapipe/wasm');
+  });
+
+  it('getShareOrigin returns window.location.origin on web and REMOTE_ASSET_BASE on native app', () => {
+    // Web environment:
+    const origin = getShareOrigin();
+    expect(origin).toBe(typeof window !== 'undefined' && window.location?.origin ? window.location.origin : REMOTE_ASSET_BASE);
+
+    // Mock Capacitor.isNativePlatform to true
+    const spy = vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true);
+    expect(getShareOrigin()).toBe(REMOTE_ASSET_BASE);
+    spy.mockRestore();
   });
 
   it('toUrl correctly formats API URLs', () => {

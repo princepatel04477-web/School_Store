@@ -5,35 +5,10 @@ import {
   type FulfilmentQueueOrder,
   type CitySchool,
   type Page,
+  type PackingListResponse,
 } from '../../api';
 import { Skeleton } from '../ui/Skeleton';
 import { TailorSheetButton } from './TailorSheetCard';
-
-/**
- * Validates an India Post S10 format consignment number (pure helper for client check & Vitest).
- * Format: 2 letters, 8 serial digits, 1 check digit, 2 letters (e.g. EE123456785IN).
- * Weights: 8, 6, 4, 2, 3, 5, 9, 7.
- * Remainder: 11 - (sum % 11); 10 becomes 0, 11 becomes 5.
- */
-export function validateConsignmentFormat(val: string): boolean {
-  if (!val) return false;
-  const clean = val.trim().toUpperCase();
-  if (!/^[A-Z]{2}\d{9}[A-Z]{2}$/.test(clean)) {
-    return false;
-  }
-  const serial = clean.slice(2, 10);
-  const checkDigit = parseInt(clean[10], 10);
-  const weights = [8, 6, 4, 2, 3, 5, 9, 7];
-  let sum = 0;
-  for (let i = 0; i < 8; i++) {
-    sum += parseInt(serial[i], 10) * weights[i];
-  }
-  const rem = sum % 11;
-  let expected = 11 - rem;
-  if (expected === 10) expected = 0;
-  else if (expected === 11) expected = 5;
-  return checkDigit === expected;
-}
 
 export type QueueStage = 'to_pack' | 'to_dispatch' | 'dispatched';
 
@@ -47,18 +22,30 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
   const [selectedSchool, setSelectedSchool] = useState<string>('');
   const [selectedFulfillmentType, setSelectedFulfillmentType] = useState<string>('');
 
-  // Selected orders for bulk packing
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // Active packing order (modal)
+  const [activePackingOrderId, setActivePackingOrderId] = useState<string | null>(null);
+  const [confirmedLineIds, setConfirmedLineIds] = useState<Set<string>>(new Set());
   const [packNote, setPackNote] = useState<string>('');
-  const [packFeedback, setPackFeedback] = useState<{
-    packed: number;
-    blocked: number;
-    message?: string;
-  } | null>(null);
+  const [issueNoteInput, setIssueNoteInput] = useState<string>('');
+  const [showIssueInput, setShowIssueInput] = useState<boolean>(false);
+  const [packingModalError, setPackingModalError] = useState<string | null>(null);
 
-  // Per-order dispatch consignment inputs: { [orderId]: string }
-  const [consignmentInputs, setConsignmentInputs] = useState<Record<string, string>>({});
-  const [dispatchErrors, setDispatchErrors] = useState<Record<string, string>>({});
+  // Active correction order (modal)
+  const [correctingOrderId, setCorrectingOrderId] = useState<string | null>(null);
+  const [correctionNewNumber, setCorrectionNewNumber] = useState<string>('');
+  const [correctionReason, setCorrectionReason] = useState<string>('');
+  const [correctionError, setCorrectionError] = useState<string | null>(null);
+
+  // Dispatch state per order: { [orderId]: { step: 1 | 2; number: string; receiptConfirmed: boolean; error?: string } }
+  const [dispatchStates, setDispatchStates] = useState<
+    Record<string, { step: 1 | 2; number: string; receiptConfirmed: boolean; error?: string }>
+  >({});
+
+  // Global feedback banner
+  const [feedbackBanner, setFeedbackBanner] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   // Global 503 notice when packing rule is not merged
   const [ruleNotWiredNotice, setRuleNotWiredNotice] = useState<string | null>(initialNotice);
@@ -87,6 +74,17 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
     queryFn: () => cityAdmin.fulfilmentQueue(queryParams),
   });
 
+  // Packing list query for active packing modal
+  const {
+    data: packingListData,
+    isLoading: isPackingListLoading,
+    refetch: refetchPackingList,
+  } = useQuery<PackingListResponse>({
+    queryKey: ['packing-list', activePackingOrderId],
+    queryFn: () => cityAdmin.packingList(activePackingOrderId!),
+    enabled: Boolean(activePackingOrderId),
+  });
+
   const queryError = error as { status?: number; code?: string; detail?: string; message?: string } | null;
   const isRuleNotWired =
     Boolean(ruleNotWiredNotice) ||
@@ -96,20 +94,13 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
     ruleNotWiredNotice ||
     (isRuleNotWired ? (queryError?.detail || 'Packing is not available yet. Payment checks are not connected.') : null);
 
-  // Pack mutation
-  const packMutation = useMutation({
-    mutationFn: () => cityAdmin.pack(selectedIds, packNote),
-    onSuccess: (data) => {
-      const packedCount = data.packed_ids?.length || 0;
-      const blockedCount = data.blocked?.length || 0;
-      setPackFeedback({
-        packed: packedCount,
-        blocked: blockedCount,
-        message: `Successfully packed ${packedCount} order(s). ${blockedCount > 0 ? `${blockedCount} blocked.` : ''}`,
-      });
-      setSelectedIds([]);
-      setPackNote('');
+  // Claim mutation
+  const claimMutation = useMutation({
+    mutationFn: (orderId: string) => cityAdmin.claimOrder(orderId),
+    onSuccess: (_, orderId) => {
       queryClient.invalidateQueries({ queryKey: ['fulfilment-queue'] });
+      // Open packing modal automatically on claim
+      openPackingModal(orderId);
     },
     onError: (err: unknown) => {
       const errorObj = err as { status?: number; code?: string; detail?: string; message?: string };
@@ -118,42 +109,127 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
           errorObj.detail || 'Packing is not available yet. Payment checks are not connected.'
         );
       } else {
-        setPackFeedback({
-          packed: 0,
-          blocked: 0,
-          message: errorObj.detail || errorObj.message || 'Packing failed. Please try again.',
+        setFeedbackBanner({
+          type: 'error',
+          message: errorObj.detail || errorObj.message || 'Failed to claim order.',
         });
       }
     },
   });
 
+  // Release claim mutation
+  const releaseClaimMutation = useMutation({
+    mutationFn: (orderId: string) => cityAdmin.releaseClaim(orderId),
+    onSuccess: () => {
+      closePackingModal();
+      queryClient.invalidateQueries({ queryKey: ['fulfilment-queue'] });
+      setFeedbackBanner({
+        type: 'success',
+        message: 'Order claim released.',
+      });
+    },
+    onError: (err: unknown) => {
+      const errorObj = err as { detail?: string; message?: string };
+      setPackingModalError(errorObj.detail || errorObj.message || 'Failed to release claim.');
+    },
+  });
+
+  // Report issue mutation
+  const reportIssueMutation = useMutation({
+    mutationFn: ({ orderId, note }: { orderId: string; note: string }) =>
+      cityAdmin.reportIssue(orderId, note),
+    onSuccess: () => {
+      setShowIssueInput(false);
+      setIssueNoteInput('');
+      setPackingModalError(null);
+      refetchPackingList();
+      queryClient.invalidateQueries({ queryKey: ['fulfilment-queue'] });
+    },
+    onError: (err: unknown) => {
+      const errorObj = err as { detail?: string; message?: string };
+      setPackingModalError(errorObj.detail || errorObj.message || 'Failed to report issue.');
+    },
+  });
+
+  // Clear issue mutation
+  const clearIssueMutation = useMutation({
+    mutationFn: (orderId: string) => cityAdmin.clearIssue(orderId),
+    onSuccess: () => {
+      setPackingModalError(null);
+      refetchPackingList();
+      queryClient.invalidateQueries({ queryKey: ['fulfilment-queue'] });
+    },
+    onError: (err: unknown) => {
+      const errorObj = err as { detail?: string; message?: string };
+      setPackingModalError(errorObj.detail || errorObj.message || 'Failed to clear issue.');
+    },
+  });
+
+  // Pack order mutation
+  const packMutation = useMutation({
+    mutationFn: ({ orderId, itemIds, note }: { orderId: string; itemIds: string[]; note?: string }) =>
+      cityAdmin.packOrder(orderId, itemIds, note),
+    onSuccess: () => {
+      closePackingModal();
+      queryClient.invalidateQueries({ queryKey: ['fulfilment-queue'] });
+      setFeedbackBanner({
+        type: 'success',
+        message: 'Order successfully packed and readied for dispatch.',
+      });
+    },
+    onError: (err: unknown) => {
+      const errorObj = err as { detail?: string; message?: string; reason?: string };
+      setPackingModalError(errorObj.detail || errorObj.message || 'Failed to pack order.');
+    },
+  });
+
   // Dispatch mutation
   const dispatchMutation = useMutation({
-    mutationFn: ({ orderId, consignment }: { orderId: string; consignment: string }) =>
-      cityAdmin.dispatch(orderId, consignment),
+    mutationFn: ({ orderId, articleNumber, receiptConfirmed }: { orderId: string; articleNumber: string; receiptConfirmed: boolean }) =>
+      cityAdmin.dispatch(orderId, articleNumber, receiptConfirmed),
     onSuccess: (_, vars) => {
-      setDispatchErrors((prev) => {
-        const next = { ...prev };
-        delete next[vars.orderId];
-        return next;
-      });
-      setConsignmentInputs((prev) => {
+      setDispatchStates((prev) => {
         const next = { ...prev };
         delete next[vars.orderId];
         return next;
       });
       queryClient.invalidateQueries({ queryKey: ['fulfilment-queue'] });
+      setFeedbackBanner({
+        type: 'success',
+        message: 'Order dispatched via India Post.',
+      });
     },
     onError: (err: unknown, vars) => {
-      const errorObj = err as { consignment_number?: string[]; detail?: string; message?: string };
-      const msg =
-        (Array.isArray(errorObj?.consignment_number)
-          ? errorObj.consignment_number[0]
-          : null) ||
-        errorObj?.detail ||
-        errorObj?.message ||
-        'Dispatch failed. Please check the consignment number.';
-      setDispatchErrors((prev) => ({ ...prev, [vars.orderId]: msg }));
+      const errorObj = err as { detail?: string; message?: string; code?: string };
+      const msg = errorObj.detail || errorObj.message || 'Dispatch failed.';
+      setDispatchStates((prev) => ({
+        ...prev,
+        [vars.orderId]: {
+          ...(prev[vars.orderId] || { step: 2, number: vars.articleNumber, receiptConfirmed: vars.receiptConfirmed }),
+          error: msg,
+        },
+      }));
+    },
+  });
+
+  // Correct article number mutation
+  const correctNumberMutation = useMutation({
+    mutationFn: ({ orderId, articleNumber, reason }: { orderId: string; articleNumber: string; reason?: string }) =>
+      cityAdmin.correctArticleNumber(orderId, articleNumber, reason),
+    onSuccess: () => {
+      setCorrectingOrderId(null);
+      setCorrectionNewNumber('');
+      setCorrectionReason('');
+      setCorrectionError(null);
+      queryClient.invalidateQueries({ queryKey: ['fulfilment-queue'] });
+      setFeedbackBanner({
+        type: 'success',
+        message: 'Article number corrected.',
+      });
+    },
+    onError: (err: unknown) => {
+      const errorObj = err as { detail?: string; message?: string };
+      setCorrectionError(errorObj.detail || errorObj.message || 'Failed to correct article number.');
     },
   });
 
@@ -162,6 +238,10 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
     mutationFn: (orderId: string) => cityAdmin.readyForPickup([orderId]),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fulfilment-queue'] });
+      setFeedbackBanner({
+        type: 'success',
+        message: 'Order marked ready at the school counter.',
+      });
     },
   });
 
@@ -170,48 +250,63 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
     mutationFn: (orderId: string) => cityAdmin.markDelivered([orderId]),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fulfilment-queue'] });
+      setFeedbackBanner({
+        type: 'success',
+        message: 'Order marked delivered.',
+      });
     },
   });
 
   const orders = queueData?.results || [];
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      const selectable = orders
-        .filter((o) => o.can_pack !== false)
-        .map((o) => o.id);
-      setSelectedIds(selectable);
-    } else {
-      setSelectedIds([]);
-    }
+  const openPackingModal = (orderId: string) => {
+    setActivePackingOrderId(orderId);
+    setConfirmedLineIds(new Set());
+    setPackNote('');
+    setIssueNoteInput('');
+    setShowIssueInput(false);
+    setPackingModalError(null);
   };
 
-  const handleSelectOne = (id: string, checked: boolean) => {
-    if (checked) {
-      setSelectedIds((prev) => [...prev, id]);
-    } else {
-      setSelectedIds((prev) => prev.filter((i) => i !== id));
-    }
+  const closePackingModal = () => {
+    setActivePackingOrderId(null);
+    setConfirmedLineIds(new Set());
+    setPackingModalError(null);
   };
 
-  const handleDispatchSubmit = (orderId: string) => {
-    const rawVal = consignmentInputs[orderId] || '';
-    const clean = rawVal.trim().toUpperCase();
-    if (!clean) {
-      setDispatchErrors((prev) => ({
-        ...prev,
-        [orderId]: 'Enter a consignment number.',
-      }));
-      return;
-    }
-    if (!validateConsignmentFormat(clean)) {
-      setDispatchErrors((prev) => ({
-        ...prev,
-        [orderId]: 'Invalid format or check digit. Expected e.g. EE123456785IN.',
-      }));
-      return;
-    }
-    dispatchMutation.mutate({ orderId, consignment: clean });
+  const handleToggleLineConfirm = (lineId: string) => {
+    setConfirmedLineIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(lineId)) {
+        next.delete(lineId);
+      } else {
+        next.add(lineId);
+      }
+      return next;
+    });
+  };
+
+  const getDispatchState = (orderId: string) => {
+    return (
+      dispatchStates[orderId] || {
+        step: 1,
+        number: '',
+        receiptConfirmed: false,
+      }
+    );
+  };
+
+  const setDispatchField = (
+    orderId: string,
+    field: Partial<{ step: 1 | 2; number: string; receiptConfirmed: boolean; error?: string }>
+  ) => {
+    setDispatchStates((prev) => ({
+      ...prev,
+      [orderId]: {
+        ...(prev[orderId] || { step: 1, number: '', receiptConfirmed: false }),
+        ...field,
+      },
+    }));
   };
 
   return (
@@ -219,9 +314,9 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
       <div className="page-head">
         <div>
           <div className="eyebrow">ORDER FULFILMENT</div>
-          <h1>Packing &amp; Dispatch</h1>
+          <h1>Staff Claim, Pack &amp; Handover</h1>
           <p className="muted">
-            Pack verified orders and dispatch home deliveries via India Post.
+            Claim and pack verified orders, then record India Post postal handover.
           </p>
         </div>
 
@@ -233,8 +328,7 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
             className={stage === 'to_pack' ? 'primary' : 'secondary'}
             onClick={() => {
               setStage('to_pack');
-              setSelectedIds([]);
-              setPackFeedback(null);
+              setFeedbackBanner(null);
             }}
           >
             To pack
@@ -245,8 +339,7 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
             className={stage === 'to_dispatch' ? 'primary' : 'secondary'}
             onClick={() => {
               setStage('to_dispatch');
-              setSelectedIds([]);
-              setPackFeedback(null);
+              setFeedbackBanner(null);
             }}
           >
             To dispatch
@@ -257,8 +350,7 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
             className={stage === 'dispatched' ? 'primary' : 'secondary'}
             onClick={() => {
               setStage('dispatched');
-              setSelectedIds([]);
-              setPackFeedback(null);
+              setFeedbackBanner(null);
             }}
           >
             Sent
@@ -276,13 +368,13 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
         </div>
       )}
 
-      {/* Feedback banner for pack actions */}
-      {packFeedback && (
+      {/* Feedback banner */}
+      {feedbackBanner && (
         <div
-          className={`feedback-banner ${packFeedback.packed > 0 ? 'notice' : 'error'}`}
+          className={`feedback-banner ${feedbackBanner.type === 'success' ? 'notice' : 'error'}`}
           style={{ marginBottom: '16px', padding: '12px 16px' }}
         >
-          {packFeedback.message}
+          {feedbackBanner.message}
         </div>
       )}
 
@@ -316,35 +408,6 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
             <option value="SCHOOL_PICKUP">School Pickup</option>
           </select>
         </label>
-
-        {stage === 'to_pack' && (
-          <div className="pack-action-bar" style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-            <label style={{ margin: 0 }}>
-              <span>Pack Note (optional)</span>
-              <input
-                type="text"
-                placeholder="e.g. Packed in standard carton"
-                value={packNote}
-                onChange={(e) => setPackNote(e.target.value)}
-                style={{ height: '38px', minWidth: '200px' }}
-              />
-            </label>
-            <button
-              className="primary"
-              disabled={
-                selectedIds.length === 0 ||
-                packMutation.isPending ||
-                Boolean(effectiveRuleNotice)
-              }
-              onClick={() => packMutation.mutate()}
-              style={{ minHeight: '38px' }}
-            >
-              {packMutation.isPending
-                ? 'Packing…'
-                : `Pack Selected (${selectedIds.length})`}
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Loading state: Skeleton rows */}
@@ -381,9 +444,9 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
           </h3>
           <p className="muted" style={{ margin: '8px 0 0' }}>
             {stage === 'to_pack'
-              ? 'Confirmed orders that are ready to be packed will appear here.'
+              ? 'Confirmed orders ready to be claimed and packed will appear here.'
               : stage === 'to_dispatch'
-              ? 'Packed orders awaiting India Post consignment or school counter pickup.'
+              ? 'Packed orders awaiting India Post postal handover or counter pickup.'
               : 'Orders dispatched with tracking numbers or marked ready.'}
           </p>
         </div>
@@ -392,33 +455,19 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
       {/* Content: Orders list (Desktop table + Mobile cards) */}
       {!isLoading && !isError && orders.length > 0 && (
         <div className="card">
-          {/* Desktop table (hidden below 640px via CSS) */}
+          {/* Desktop table */}
           <div className="table-scroll fulfilment-table">
             <table className="data">
               <thead>
                 <tr>
-                  {stage === 'to_pack' && (
-                    <th style={{ width: '40px' }}>
-                      <input
-                        type="checkbox"
-                        aria-label="Select all eligible orders"
-                        checked={
-                          selectedIds.length > 0 &&
-                          selectedIds.length ===
-                            orders.filter((o) => o.can_pack !== false).length
-                        }
-                        onChange={(e) => handleSelectAll(e.target.checked)}
-                      />
-                    </th>
-                  )}
                   <th>Order #</th>
                   <th>School</th>
                   <th>Student</th>
                   <th className="r">Items</th>
                   <th>Payment</th>
                   <th>Delivery</th>
-                  {stage === 'to_pack' && <th>Gate Status</th>}
-                  {stage === 'to_dispatch' && <th>Consignment / Dispatch</th>}
+                  {stage === 'to_pack' && <th>Eligibility / Claim</th>}
+                  {stage === 'to_dispatch' && <th>Handover Action</th>}
                   {stage === 'dispatched' && <th>Tracking &amp; Actions</th>}
                   <th>Tailor Sheet</th>
                 </tr>
@@ -426,9 +475,8 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
               <tbody>
                 {orders.map((order) => {
                   const isBlocked = stage === 'to_pack' && order.can_pack === false;
-                  const isSelected = selectedIds.includes(order.id);
                   const isHome = order.fulfillment_type === 'HOME_DELIVERY';
-                  const dispErr = dispatchErrors[order.id];
+                  const dState = getDispatchState(order.id);
 
                   return (
                     <tr
@@ -436,19 +484,6 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
                       className={isBlocked ? 'row-blocked' : ''}
                       data-testid={`queue-row-${order.id}`}
                     >
-                      {stage === 'to_pack' && (
-                        <td>
-                          <input
-                            type="checkbox"
-                            aria-label={`Select order ${order.order_number}`}
-                            disabled={isBlocked || Boolean(ruleNotWiredNotice)}
-                            checked={isSelected}
-                            onChange={(e) =>
-                              handleSelectOne(order.id, e.target.checked)
-                            }
-                          />
-                        </td>
-                      )}
                       <td className="mono">
                         <b>{order.order_number}</b>
                       </td>
@@ -472,7 +507,7 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
                         </span>
                       </td>
 
-                      {/* To Pack: Gate Status */}
+                      {/* To Pack: Eligibility & Claim */}
                       {stage === 'to_pack' && (
                         <td>
                           {isBlocked ? (
@@ -481,46 +516,146 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
                               <span className="blocked-message">{order.blocked_message}</span>
                             </div>
                           ) : (
-                            <span className="badge s-approved">Ready to pack</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {order.claimed_by_name ? (
+                                <div>
+                                  {order.claimed_by_me ? (
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                      <span className="badge s-approved">Claimed by you</span>
+                                      <button
+                                        type="button"
+                                        className="primary"
+                                        style={{ minHeight: '36px' }}
+                                        onClick={() => openPackingModal(order.id)}
+                                      >
+                                        Pack order
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <span className="muted" style={{ fontSize: '13px' }}>
+                                      Claimed by {order.claimed_by_name}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="secondary"
+                                  disabled={Boolean(effectiveRuleNotice) || isBlocked}
+                                  onClick={() => claimMutation.mutate(order.id)}
+                                  style={{ minHeight: '36px' }}
+                                >
+                                  Claim
+                                </button>
+                              )}
+                              {order.issue_note && (
+                                <span className="field-error" style={{ fontSize: '12px' }}>
+                                  Issue: {order.issue_note}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </td>
                       )}
 
-                      {/* To Dispatch: India Post input or pickup button */}
+                      {/* To Dispatch: India Post handover or pickup */}
                       {stage === 'to_dispatch' && (
                         <td>
                           {isHome ? (
                             <div className="dispatch-action-cell">
-                              <label className="consignment-label">
-                                <span className="sr-only">Consignment number</span>
-                                <input
-                                  type="text"
-                                  inputMode="text"
-                                  autoCapitalize="characters"
-                                  placeholder="EE123456785IN"
-                                  value={consignmentInputs[order.id] || ''}
-                                  onChange={(e) => {
-                                    const val = e.target.value.toUpperCase();
-                                    setConsignmentInputs((prev) => ({
-                                      ...prev,
-                                      [order.id]: val,
-                                    }));
-                                  }}
-                                  className={`consignment-input ${dispErr ? 'has-error' : ''}`}
-                                />
-                              </label>
-                              <button
-                                className="primary dispatch-btn"
-                                onClick={() => handleDispatchSubmit(order.id)}
-                                disabled={dispatchMutation.isPending}
-                              >
-                                Dispatch
-                              </button>
-                              {dispErr && <div className="field-error">{dispErr}</div>}
+                              {dState.step === 1 ? (
+                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                  <label className="consignment-label" style={{ margin: 0 }}>
+                                    <span className="sr-only">Article number</span>
+                                    <input
+                                      type="text"
+                                      autoComplete="off"
+                                      spellCheck={false}
+                                      placeholder="Article number"
+                                      value={dState.number}
+                                      onChange={(e) =>
+                                        setDispatchField(order.id, {
+                                          number: e.target.value,
+                                          error: undefined,
+                                        })
+                                      }
+                                      className={`consignment-input ${dState.error ? 'has-error' : ''}`}
+                                    />
+                                  </label>
+                                  <button
+                                    type="button"
+                                    className="primary"
+                                    style={{ minHeight: '38px' }}
+                                    disabled={!dState.number.trim()}
+                                    onClick={() => {
+                                      if (!dState.number.trim()) {
+                                        setDispatchField(order.id, {
+                                          error: 'Article number cannot be blank.',
+                                        });
+                                        return;
+                                      }
+                                      setDispatchField(order.id, { step: 2 });
+                                    }}
+                                  >
+                                    Review
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="handover-review-box">
+                                  <div style={{ fontSize: '13px' }}>
+                                    Article number: <b className="mono">{dState.number}</b>
+                                  </div>
+                                  <label className="receipt-checkbox-label">
+                                    <input
+                                      type="checkbox"
+                                      checked={dState.receiptConfirmed}
+                                      onChange={(e) =>
+                                        setDispatchField(order.id, {
+                                          receiptConfirmed: e.target.checked,
+                                        })
+                                      }
+                                    />
+                                    <span>I checked this against the India Post receipt</span>
+                                  </label>
+                                  <div style={{ display: 'flex', gap: '6px' }}>
+                                    <button
+                                      type="button"
+                                      className="primary touch-btn"
+                                      disabled={!dState.receiptConfirmed || dispatchMutation.isPending}
+                                      onClick={() =>
+                                        dispatchMutation.mutate({
+                                          orderId: order.id,
+                                          articleNumber: dState.number,
+                                          receiptConfirmed: dState.receiptConfirmed,
+                                        })
+                                      }
+                                    >
+                                      Confirm handover
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="secondary"
+                                      onClick={() =>
+                                        setDispatchField(order.id, {
+                                          step: 1,
+                                          receiptConfirmed: false,
+                                        })
+                                      }
+                                    >
+                                      Edit
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                              {dState.error && (
+                                <div className="field-error">{dState.error}</div>
+                              )}
                             </div>
                           ) : (
                             <button
+                              type="button"
                               className="secondary pickup-btn"
+                              style={{ minHeight: '44px' }}
                               onClick={() => readyPickupMutation.mutate(order.id)}
                               disabled={readyPickupMutation.isPending}
                             >
@@ -530,29 +665,48 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
                         </td>
                       )}
 
-                      {/* Sent: Tracking number & Deliver button */}
+                      {/* Sent: Tracking number, Handover info, Correction & Deliver button */}
                       {stage === 'dispatched' && (
                         <td>
                           <div className="sent-cell">
                             {order.consignment_number ? (
-                              <div className="tracking-info mono">
+                              <div className="tracking-info mono" style={{ fontSize: '13px' }}>
                                 <b>{order.consignment_number}</b>
                                 {order.dispatched_at && (
                                   <small className="muted d-block">
-                                    {new Date(order.dispatched_at).toLocaleDateString()}
+                                    {new Date(order.dispatched_at).toLocaleString()}
                                   </small>
                                 )}
                               </div>
                             ) : (
-                              <span className="muted">Counter Pickup</span>
+                              <span className="muted" style={{ fontSize: '13px' }}>Counter Pickup</span>
                             )}
-                            <button
-                              className="secondary deliver-btn"
-                              onClick={() => deliveredMutation.mutate(order.id)}
-                              disabled={deliveredMutation.isPending}
-                            >
-                              Mark delivered
-                            </button>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              {order.consignment_number && (
+                                <button
+                                  type="button"
+                                  className="secondary"
+                                  style={{ minHeight: '36px' }}
+                                  onClick={() => {
+                                    setCorrectingOrderId(order.id);
+                                    setCorrectionNewNumber(order.consignment_number || '');
+                                    setCorrectionReason('');
+                                    setCorrectionError(null);
+                                  }}
+                                >
+                                  Correct number
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                className="secondary deliver-btn"
+                                style={{ minHeight: '36px' }}
+                                onClick={() => deliveredMutation.mutate(order.id)}
+                                disabled={deliveredMutation.isPending}
+                              >
+                                Mark delivered
+                              </button>
+                            </div>
                           </div>
                         </td>
                       )}
@@ -567,31 +721,20 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
             </table>
           </div>
 
-          {/* Mobile cards view (displayed below 640px via CSS) */}
+          {/* Mobile cards view (<640px) */}
           <div className="fulfilment-cards">
             {orders.map((order) => {
               const isBlocked = stage === 'to_pack' && order.can_pack === false;
-              const isSelected = selectedIds.includes(order.id);
               const isHome = order.fulfillment_type === 'HOME_DELIVERY';
-              const dispErr = dispatchErrors[order.id];
+              const dState = getDispatchState(order.id);
 
               return (
                 <div
                   key={order.id}
                   className={`fulfilment-card ${isBlocked ? 'card-blocked' : ''}`}
+                  data-testid={`queue-card-${order.id}`}
                 >
                   <div className="card-top">
-                    {stage === 'to_pack' && (
-                      <input
-                        type="checkbox"
-                        aria-label={`Select order ${order.order_number}`}
-                        disabled={isBlocked || Boolean(ruleNotWiredNotice)}
-                        checked={isSelected}
-                        onChange={(e) =>
-                          handleSelectOne(order.id, e.target.checked)
-                        }
-                      />
-                    )}
                     <span className="mono bold">{order.order_number}</span>
                     <span className={`badge s-${order.payment_status.toLowerCase()}`}>
                       {order.payment_status}
@@ -613,36 +756,129 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
                       </div>
                     )}
 
+                    {stage === 'to_pack' && !isBlocked && (
+                      <div style={{ marginTop: '8px' }}>
+                        {order.claimed_by_name ? (
+                          order.claimed_by_me ? (
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              <span className="badge s-approved">Claimed by you</span>
+                              <button
+                                type="button"
+                                className="primary touch-btn"
+                                onClick={() => openPackingModal(order.id)}
+                              >
+                                Pack order
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="muted" style={{ fontSize: '13px' }}>
+                              Claimed by {order.claimed_by_name}
+                            </span>
+                          )
+                        ) : (
+                          <button
+                            type="button"
+                            className="secondary touch-btn"
+                            disabled={Boolean(effectiveRuleNotice) || isBlocked}
+                            onClick={() => claimMutation.mutate(order.id)}
+                          >
+                            Claim
+                          </button>
+                        )}
+                        {order.issue_note && (
+                          <div className="field-error" style={{ marginTop: '4px' }}>
+                            Issue: {order.issue_note}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {stage === 'to_dispatch' && (
                       <div className="card-dispatch-actions">
                         {isHome ? (
-                          <>
-                            <input
-                              type="text"
-                              inputMode="text"
-                              autoCapitalize="characters"
-                              placeholder="EE123456785IN"
-                              value={consignmentInputs[order.id] || ''}
-                              onChange={(e) => {
-                                const val = e.target.value.toUpperCase();
-                                setConsignmentInputs((prev) => ({
-                                  ...prev,
-                                  [order.id]: val,
-                                }));
-                              }}
-                              className={`consignment-input ${dispErr ? 'has-error' : ''}`}
-                            />
-                            {dispErr && <div className="field-error">{dispErr}</div>}
-                            <button
-                              className="primary touch-btn"
-                              onClick={() => handleDispatchSubmit(order.id)}
-                              disabled={dispatchMutation.isPending}
-                            >
-                              Dispatch India Post
-                            </button>
-                          </>
+                          dState.step === 1 ? (
+                            <>
+                              <input
+                                type="text"
+                                autoComplete="off"
+                                spellCheck={false}
+                                placeholder="Article number"
+                                value={dState.number}
+                                onChange={(e) =>
+                                  setDispatchField(order.id, {
+                                    number: e.target.value,
+                                    error: undefined,
+                                  })
+                                }
+                                className={`consignment-input ${dState.error ? 'has-error' : ''}`}
+                              />
+                              <button
+                                type="button"
+                                className="primary touch-btn"
+                                disabled={!dState.number.trim()}
+                                onClick={() => {
+                                  if (!dState.number.trim()) {
+                                    setDispatchField(order.id, {
+                                      error: 'Article number cannot be blank.',
+                                    });
+                                    return;
+                                  }
+                                  setDispatchField(order.id, { step: 2 });
+                                }}
+                              >
+                                Review handover
+                              </button>
+                            </>
+                          ) : (
+                            <div className="handover-review-box">
+                              <div style={{ fontSize: '13px' }}>
+                                Article number: <b className="mono">{dState.number}</b>
+                              </div>
+                              <label className="receipt-checkbox-label">
+                                <input
+                                  type="checkbox"
+                                  checked={dState.receiptConfirmed}
+                                  onChange={(e) =>
+                                    setDispatchField(order.id, {
+                                      receiptConfirmed: e.target.checked,
+                                    })
+                                  }
+                                />
+                                <span>I checked this against the India Post receipt</span>
+                              </label>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  className="primary touch-btn"
+                                  disabled={!dState.receiptConfirmed || dispatchMutation.isPending}
+                                  onClick={() =>
+                                    dispatchMutation.mutate({
+                                      orderId: order.id,
+                                      articleNumber: dState.number,
+                                      receiptConfirmed: dState.receiptConfirmed,
+                                    })
+                                  }
+                                >
+                                  Confirm handover
+                                </button>
+                                <button
+                                  type="button"
+                                  className="secondary"
+                                  onClick={() =>
+                                    setDispatchField(order.id, {
+                                      step: 1,
+                                      receiptConfirmed: false,
+                                    })
+                                  }
+                                >
+                                  Edit
+                                </button>
+                              </div>
+                            </div>
+                          )
                         ) : (
                           <button
+                            type="button"
                             className="secondary touch-btn"
                             onClick={() => readyPickupMutation.mutate(order.id)}
                             disabled={readyPickupMutation.isPending}
@@ -650,21 +886,45 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
                             Ready for pickup
                           </button>
                         )}
+                        {dState.error && (
+                          <div className="field-error">{dState.error}</div>
+                        )}
                       </div>
                     )}
 
                     {stage === 'dispatched' && (
                       <div className="card-sent-actions">
-                        {order.consignment_number && (
-                          <div className="mono">Tracking: <b>{order.consignment_number}</b></div>
+                        {order.consignment_number ? (
+                          <div className="mono" style={{ fontSize: '13px' }}>
+                            Article: <b>{order.consignment_number}</b>
+                          </div>
+                        ) : (
+                          <span className="muted" style={{ fontSize: '13px' }}>Counter Pickup</span>
                         )}
-                        <button
-                          className="secondary touch-btn"
-                          onClick={() => deliveredMutation.mutate(order.id)}
-                          disabled={deliveredMutation.isPending}
-                        >
-                          Mark delivered
-                        </button>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {order.consignment_number && (
+                            <button
+                              type="button"
+                              className="secondary touch-btn"
+                              onClick={() => {
+                                setCorrectingOrderId(order.id);
+                                setCorrectionNewNumber(order.consignment_number || '');
+                                setCorrectionReason('');
+                                setCorrectionError(null);
+                              }}
+                            >
+                              Correct number
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="secondary touch-btn"
+                            onClick={() => deliveredMutation.mutate(order.id)}
+                            disabled={deliveredMutation.isPending}
+                          >
+                            Mark delivered
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -675,6 +935,272 @@ export function FulfilmentQueue({ initialNotice = null }: FulfilmentQueueProps =
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Packing Modal */}
+      {activePackingOrderId && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Packing screen">
+          <div className="modal-panel">
+            <div className="modal-header">
+              <h2>Packing Order {packingListData?.order_number || ''}</h2>
+              <button
+                type="button"
+                className="secondary"
+                onClick={closePackingModal}
+                style={{ minHeight: '36px' }}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {packingModalError && (
+                <div className="field-error" role="alert" style={{ padding: '8px', background: 'var(--bad-tint)', borderRadius: '4px' }}>
+                  {packingModalError}
+                </div>
+              )}
+
+              {packingListData?.issue_note && (
+                <div className="notice" role="alert" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <b>Open problem:</b> {packingListData.issue_note}
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary"
+                    style={{ minHeight: '36px' }}
+                    onClick={() => clearIssueMutation.mutate(activePackingOrderId)}
+                  >
+                    Clear problem
+                  </button>
+                </div>
+              )}
+
+              {isPackingListLoading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <Skeleton height="40px" borderRadius="4px" />
+                  <Skeleton height="40px" borderRadius="4px" />
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <p style={{ fontSize: '13px', margin: 0 }} className="muted">
+                    Tick every item line to confirm packed goods.
+                  </p>
+                  {packingListData?.lines?.map((line, idx) => {
+                    const isChecked = confirmedLineIds.has(line.id);
+                    return (
+                      <div
+                        key={line.id}
+                        className={`packing-line ${isChecked ? 'confirmed' : ''}`}
+                      >
+                        <div className="packing-line-check">
+                          <input
+                            type="checkbox"
+                            aria-label={`Confirm line ${idx + 1}`}
+                            checked={isChecked}
+                            onChange={() => handleToggleLineConfirm(line.id)}
+                          />
+                        </div>
+                        <div className="packing-line-info">
+                          <div className="packing-line-title">
+                            {line.product_name}
+                          </div>
+                          <div className="packing-line-meta">
+                            SKU: {line.sku} | Size: <b>{line.size}</b>
+                          </div>
+                          {line.personalisation && Object.keys(line.personalisation).length > 0 && (
+                            <div className="packing-line-personalisation">
+                              Customised
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <span
+                            className={`quantity-tag ${line.multiple ? 'multiple' : ''}`}
+                          >
+                            x{line.quantity}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Optional Pack Note */}
+              <div style={{ marginTop: '8px' }}>
+                <label>
+                  <span>Packing note (optional)</span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Packed in standard polybag"
+                    value={packNote}
+                    onChange={(e) => setPackNote(e.target.value)}
+                    style={{ minHeight: '38px', width: '100%' }}
+                  />
+                </label>
+              </div>
+
+              {/* Report Problem Section */}
+              <div style={{ borderTop: '1px solid var(--line)', paddingTop: '12px', marginTop: '8px' }}>
+                {!showIssueInput ? (
+                  <button
+                    type="button"
+                    className="secondary"
+                    style={{ minHeight: '38px' }}
+                    onClick={() => setShowIssueInput(true)}
+                  >
+                    Report a problem
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label>
+                      <span>Describe problem (missing item, damaged size)</span>
+                      <input
+                        type="text"
+                        placeholder="e.g. Size M missing in rack"
+                        value={issueNoteInput}
+                        onChange={(e) => setIssueNoteInput(e.target.value)}
+                        style={{ minHeight: '38px', width: '100%' }}
+                      />
+                    </label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        className="primary"
+                        style={{ minHeight: '38px' }}
+                        disabled={!issueNoteInput.trim() || reportIssueMutation.isPending}
+                        onClick={() =>
+                          reportIssueMutation.mutate({
+                            orderId: activePackingOrderId,
+                            note: issueNoteInput.trim(),
+                          })
+                        }
+                      >
+                        Submit problem
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        style={{ minHeight: '38px' }}
+                        onClick={() => setShowIssueInput(false)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="secondary"
+                style={{ minHeight: '44px', marginRight: 'auto' }}
+                onClick={() => releaseClaimMutation.mutate(activePackingOrderId)}
+                disabled={releaseClaimMutation.isPending}
+              >
+                Release claim
+              </button>
+              <button
+                type="button"
+                className="primary"
+                style={{ minHeight: '44px' }}
+                disabled={
+                  !packingListData?.lines?.length ||
+                  confirmedLineIds.size !== packingListData.lines.length ||
+                  Boolean(packingListData?.issue_note) ||
+                  packMutation.isPending
+                }
+                onClick={() =>
+                  packMutation.mutate({
+                    orderId: activePackingOrderId,
+                    itemIds: Array.from(confirmedLineIds),
+                    note: packNote,
+                  })
+                }
+              >
+                {packMutation.isPending ? 'Packing…' : 'Mark packed'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Correct Article Number Modal */}
+      {correctingOrderId && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Correct article number">
+          <div className="modal-panel" style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <h2>Correct Article Number</h2>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setCorrectingOrderId(null)}
+                style={{ minHeight: '36px' }}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {correctionError && (
+                <div className="field-error" role="alert" style={{ padding: '8px', background: 'var(--bad-tint)', borderRadius: '4px' }}>
+                  {correctionError}
+                </div>
+              )}
+              <label>
+                <span>New India Post article number</span>
+                <input
+                  type="text"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={correctionNewNumber}
+                  onChange={(e) => setCorrectionNewNumber(e.target.value)}
+                  style={{ minHeight: '40px', width: '100%', fontFamily: 'var(--font-mono)' }}
+                />
+              </label>
+
+              <label>
+                <span>Reason for change</span>
+                <input
+                  type="text"
+                  placeholder="e.g. Typo in receipt number"
+                  value={correctionReason}
+                  onChange={(e) => setCorrectionReason(e.target.value)}
+                  style={{ minHeight: '40px', width: '100%' }}
+                />
+              </label>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="secondary"
+                style={{ minHeight: '44px' }}
+                onClick={() => setCorrectingOrderId(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="primary"
+                style={{ minHeight: '44px' }}
+                disabled={!correctionNewNumber.trim() || correctNumberMutation.isPending}
+                onClick={() =>
+                  correctNumberMutation.mutate({
+                    orderId: correctingOrderId,
+                    articleNumber: correctionNewNumber.trim(),
+                    reason: correctionReason,
+                  })
+                }
+              >
+                Save correction
+              </button>
+            </div>
           </div>
         </div>
       )}

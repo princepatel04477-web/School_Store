@@ -10,6 +10,7 @@ import { ParentSignInSheet } from '../../components/parent/ParentSignInSheet';
 import { PullToRefresh } from '../../components/native/PullToRefresh';
 import { OrderCardsSkeleton } from '../../components/ui/Skeleton';
 import { shareOrderDetails } from '../../native/share';
+import { getShareOrigin } from '../../native/nativePlatform';
 import { useLang } from '../../i18n';
 import './nativePages.css';
 
@@ -54,10 +55,7 @@ export function OrdersTab() {
     );
   }
 
-  const origin =
-    typeof window !== 'undefined' && window.location?.origin
-      ? window.location.origin
-      : 'https://school-store.aqualite.workers.dev';
+  const origin = getShareOrigin();
 
   return (
     <PullToRefresh onRefresh={() => refetch()}>

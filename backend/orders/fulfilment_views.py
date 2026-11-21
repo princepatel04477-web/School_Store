@@ -4,6 +4,9 @@ Fulfilment endpoints for the City Admin packing queue.
 Registered under /api/fulfilment/. BOSS and ADMIN only, city-scoped.
 """
 
+from typing import Any
+import uuid
+
 from django.db import IntegrityError
 from django.db.models import Count
 from rest_framework import serializers, status, viewsets
@@ -12,17 +15,62 @@ from rest_framework.response import Response
 
 from common.pagination import BoundedCursorPagination
 from common.permissions import RoleScopedPermission
-from common.scoping import ScopedQuerysetMixin, apply_user_scope
+from common.scoping import ScopedQuerysetMixin
 
+from . import fulfilment_gate
 from .fulfilment import (
+    FulfilmentError,
     PackingRuleNotWired,
+    claim_order,
+    clear_issue,
+    correct_article_number,
     dispatch_order,
     mark_delivered,
     mark_ready_for_pickup,
-    pack_orders,
+    pack_order,
+    release_claim,
+    report_issue,
 )
 from .fulfilment_gate import get_packing_decision
-from .models import Order
+from .models import Order, OrderItem
+from .serializers import OrderItemSerializer
+
+
+def handle_fulfilment_exception(exc: Exception) -> Response:
+    """Map fulfilment exceptions to unified JSON error responses."""
+    if isinstance(exc, PackingRuleNotWired):
+        return Response(
+            {
+                "code": "PACKING_RULE_NOT_WIRED",
+                "detail": str(exc),
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    if isinstance(exc, FulfilmentError):
+        payload: dict[str, Any] = {
+            "code": exc.code,
+            "detail": exc.detail,
+        }
+        if exc.reason is not None:
+            payload["reason"] = exc.reason
+        return Response(payload, status=exc.status_code)
+    if isinstance(exc, IntegrityError):
+        return Response(
+            {
+                "code": "ARTICLE_NUMBER_IN_USE",
+                "detail": "This article number is already in use by another parcel.",
+            },
+            status=status.HTTP_409_CONFLICT,
+        )
+    raise exc
+
+
+class OrderIdsSerializer(serializers.Serializer):
+    order_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        allow_empty=False,
+        max_length=200,
+    )
 
 
 class FulfilmentQueueSerializer(serializers.ModelSerializer):
@@ -31,11 +79,22 @@ class FulfilmentQueueSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.name", read_only=True)
     student_gr = serializers.CharField(source="student.gr_number", read_only=True)
     items_count = serializers.IntegerField(read_only=True)
-    # Gate fields: set dynamically for to_pack stage.
+
     can_pack = serializers.BooleanField(read_only=True, default=None)
-    blocked_reason = serializers.CharField(read_only=True, default=None, allow_null=True)
-    blocked_message = serializers.CharField(read_only=True, default=None, allow_null=True)
-    # Shipment fields for dispatched stage.
+    blocked_reason = serializers.CharField(
+        read_only=True, default=None, allow_null=True
+    )
+    blocked_message = serializers.CharField(
+        read_only=True, default=None, allow_null=True
+    )
+
+    claimed_by_name = serializers.SerializerMethodField()
+    claimed_by_me = serializers.SerializerMethodField()
+    claimed_at = serializers.SerializerMethodField()
+    packed_by_name = serializers.SerializerMethodField()
+    packed_at = serializers.SerializerMethodField()
+    issue_note = serializers.SerializerMethodField()
+
     consignment_number = serializers.SerializerMethodField()
     dispatched_at = serializers.SerializerMethodField()
 
@@ -58,30 +117,80 @@ class FulfilmentQueueSerializer(serializers.ModelSerializer):
             "can_pack",
             "blocked_reason",
             "blocked_message",
+            "claimed_by_name",
+            "claimed_by_me",
+            "claimed_at",
+            "packed_by_name",
+            "packed_at",
+            "issue_note",
             "consignment_number",
             "dispatched_at",
         )
         read_only_fields = fields
 
-    def get_consignment_number(self, obj):
+    def _get_packing(self, obj):
         try:
-            shipment = getattr(obj, "shipment", None)
-            return shipment.consignment_number if shipment else None
+            return getattr(obj, "packing", None)
         except Exception:
             return None
 
-    def get_dispatched_at(self, obj):
+    def _get_shipment(self, obj):
         try:
-            shipment = getattr(obj, "shipment", None)
-            return shipment.booked_at if shipment else None
+            return getattr(obj, "shipment", None)
         except Exception:
             return None
+
+    def get_claimed_by_name(self, obj):
+        packing = self._get_packing(obj)
+        if packing and packing.claimed_by:
+            return packing.claimed_by.get_full_name() or packing.claimed_by.username
+        return None
+
+    def get_claimed_by_me(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user:
+            return False
+        packing = self._get_packing(obj)
+        return bool(packing and packing.claimed_by_id == request.user.id)
+
+    def get_claimed_at(self, obj):
+        packing = self._get_packing(obj)
+        return packing.claimed_at if packing else None
+
+    def get_packed_by_name(self, obj):
+        packing = self._get_packing(obj)
+        if packing and packing.packed_by:
+            return packing.packed_by.get_full_name() or packing.packed_by.username
+        return None
+
+    def get_packed_at(self, obj):
+        packing = self._get_packing(obj)
+        return packing.packed_at if packing else None
+
+    def get_issue_note(self, obj):
+        packing = self._get_packing(obj)
+        return packing.issue_note if packing else ""
+
+    def get_consignment_number(self, obj):
+        shipment = self._get_shipment(obj)
+        return shipment.consignment_number if shipment else None
+
+    def get_dispatched_at(self, obj):
+        shipment = self._get_shipment(obj)
+        return shipment.booked_at if shipment else None
 
 
 class FulfilmentViewSet(ScopedQuerysetMixin, viewsets.GenericViewSet):
+    # Joins only on the read-only queryset for flat query count
     queryset = Order.objects.select_related(
-        "school", "student", "shipment"
+        "school",
+        "student",
+        "shipment",
+        "packing",
+        "packing__claimed_by",
+        "packing__packed_by",
     ).order_by("-created_at")
+
     pagination_class = BoundedCursorPagination
     permission_classes = [RoleScopedPermission]
     read_roles = ("BOSS", "ADMIN")
@@ -91,6 +200,16 @@ class FulfilmentViewSet(ScopedQuerysetMixin, viewsets.GenericViewSet):
     scope_city_field = "city_id"
     scope_school_field = None
     scope_parent_field = None
+
+    def _get_scoped_order(self, pk):
+        try:
+            return self.get_queryset().get(pk=pk)
+        except (Order.DoesNotExist, ValueError):
+            raise FulfilmentError(
+                code="NOT_FOUND",
+                detail="Order not found.",
+                status_code=404,
+            )
 
     def _scoped_ids(self, order_ids):
         """Return the subset of order_ids visible to this user."""
@@ -114,11 +233,16 @@ class FulfilmentViewSet(ScopedQuerysetMixin, viewsets.GenericViewSet):
             qs = qs.filter(fulfillment_type=ft)
 
         if stage == "to_pack":
-            qs = qs.filter(status__in=[Order.Status.CONFIRMED, Order.Status.PROCESSING])
+            qs = qs.filter(
+                status__in=[Order.Status.CONFIRMED, Order.Status.PROCESSING]
+            )
         elif stage == "to_dispatch":
             qs = qs.filter(status=Order.Status.PACKED)
         elif stage == "dispatched":
-            qs = qs.filter(status=Order.Status.DISPATCHED)
+            # Includes legacy SHIPPED orders (Defect A5)
+            qs = qs.filter(
+                status__in=[Order.Status.DISPATCHED, Order.Status.SHIPPED]
+            )
         else:
             return Response(
                 {"stage": ["Must be to_pack, to_dispatch, or dispatched."]},
@@ -129,10 +253,10 @@ class FulfilmentViewSet(ScopedQuerysetMixin, viewsets.GenericViewSet):
         if page is None:
             page = list(qs[:50])
 
-        # Compute gate decisions for to_pack rows on this page only.
+        # Compute gate decisions for to_pack rows on this page only
         if stage == "to_pack":
             for order in page:
-                decision = get_packing_decision(order)
+                decision = fulfilment_gate.get_packing_decision(order)
                 order.can_pack = decision.allowed
                 order.blocked_reason = decision.reason
                 order.blocked_message = decision.message
@@ -145,131 +269,183 @@ class FulfilmentViewSet(ScopedQuerysetMixin, viewsets.GenericViewSet):
         serializer = self.get_serializer(page, many=True)
         return self.get_paginated_response(serializer.data)
 
-    @action(detail=False, methods=["post"], url_path="pack")
-    def pack(self, request):
-        order_ids = request.data.get("order_ids", [])
-        if not order_ids or not isinstance(order_ids, list):
-            return Response(
-                {"order_ids": ["A non-empty list of order IDs is required."]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if len(order_ids) > 200:
-            return Response(
-                {"order_ids": ["At most 200 orders per request."]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        scoped = self._scoped_ids(order_ids)
-        skipped = [str(oid) for oid in order_ids if str(oid) not in {str(s) for s in scoped}]
-        note = (request.data.get("note") or "").strip()
-
+    @action(detail=True, methods=["get"], url_path="packing-list")
+    def packing_list(self, request, pk=None):
         try:
-            result = pack_orders(
-                Order.objects.filter(id__in=scoped),
+            order = self._get_scoped_order(pk)
+        except Exception as exc:
+            return handle_fulfilment_exception(exc)
+
+        # Lines list with product name, sku, size, quantity, multiple, personalisation
+        # Never include a child's measurements
+        items = (
+            order.items.select_related("variant", "variant__product")
+            .all()
+            .order_by("id")
+        )
+        dummy_serializer = OrderItemSerializer()
+
+        lines = []
+        for item in items:
+            product = item.variant.product
+            customisation = dummy_serializer.get_customisation_display(item)
+            lines.append(
+                {
+                    "id": str(item.id),
+                    "product_name": product.name,
+                    "sku": item.variant.sku,
+                    "size": item.current_size,
+                    "quantity": item.quantity,
+                    "multiple": item.quantity > 1,
+                    "personalisation": customisation,
+                }
+            )
+
+        packing = getattr(order, "packing", None)
+        return Response(
+            {
+                "order_id": str(order.id),
+                "order_number": order.order_number,
+                "status": order.status,
+                "is_claimed_by_me": bool(
+                    packing and packing.claimed_by_id == request.user.id
+                ),
+                "claimed_by_name": (
+                    packing.claimed_by.get_full_name()
+                    or packing.claimed_by.username
+                    if packing and packing.claimed_by
+                    else None
+                ),
+                "issue_note": packing.issue_note if packing else "",
+                "lines": lines,
+            }
+        )
+
+    @action(detail=True, methods=["post"], url_path="claim")
+    def claim(self, request, pk=None):
+        try:
+            order = self._get_scoped_order(pk)
+            result = claim_order(order.id, request.user)
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as exc:
+            return handle_fulfilment_exception(exc)
+
+    @action(detail=True, methods=["post"], url_path="release")
+    def release(self, request, pk=None):
+        try:
+            order = self._get_scoped_order(pk)
+            result = release_claim(order.id, request.user)
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as exc:
+            return handle_fulfilment_exception(exc)
+
+    @action(detail=True, methods=["post"], url_path="issue")
+    def issue(self, request, pk=None):
+        try:
+            order = self._get_scoped_order(pk)
+            note = request.data.get("note", "")
+            result = report_issue(order.id, request.user, note)
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as exc:
+            return handle_fulfilment_exception(exc)
+
+    @action(detail=True, methods=["post"], url_path="issue/clear")
+    def clear_issue(self, request, pk=None):
+        try:
+            order = self._get_scoped_order(pk)
+            result = clear_issue(order.id, request.user)
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as exc:
+            return handle_fulfilment_exception(exc)
+
+    @action(detail=True, methods=["post"], url_path="pack")
+    def pack(self, request, pk=None):
+        try:
+            order = self._get_scoped_order(pk)
+            confirmed_item_ids = request.data.get("confirmed_item_ids", [])
+            note = (request.data.get("note") or "").strip()
+            result = pack_order(
+                order.id,
                 request.user,
+                confirmed_item_ids=confirmed_item_ids,
                 note=note,
             )
-        except PackingRuleNotWired as exc:
-            return Response(
-                {
-                    "code": "PACKING_RULE_NOT_WIRED",
-                    "detail": str(exc),
-                },
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-
-        return Response({
-            "packed_ids": result.packed_ids,
-            "blocked": result.blocked,
-            "skipped_ids": skipped,
-        })
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as exc:
+            return handle_fulfilment_exception(exc)
 
     @action(detail=True, methods=["post"], url_path="dispatch")
     def dispatch_shipment(self, request, pk=None):
-        # Check the order is in scope.
         try:
-            order = self.get_queryset().get(pk=pk)
-        except Order.DoesNotExist:
-            return Response(
-                {"detail": "Not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        consignment_number = request.data.get("consignment_number", "")
-        booked_at = request.data.get("booked_at")
-
-        try:
-            shipment = dispatch_order(
+            order = self._get_scoped_order(pk)
+            article_number = request.data.get("article_number", "")
+            receipt_confirmed = bool(request.data.get("receipt_confirmed", False))
+            booked_at = request.data.get("booked_at")
+            result = dispatch_order(
                 order_id=order.id,
                 user=request.user,
-                consignment_number=consignment_number,
+                article_number=article_number,
+                receipt_confirmed=receipt_confirmed,
                 booked_at=booked_at,
             )
-        except IntegrityError:
-            return Response(
-                {"consignment_number": ["This consignment number is already in use."]},
-                status=status.HTTP_409_CONFLICT,
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as exc:
+            return handle_fulfilment_exception(exc)
+
+    @action(detail=True, methods=["post"], url_path="correct-article-number")
+    def correct_number(self, request, pk=None):
+        try:
+            order = self._get_scoped_order(pk)
+            article_number = request.data.get("article_number", "")
+            reason = request.data.get("reason", "")
+            result = correct_article_number(
+                order_id=order.id,
+                user=request.user,
+                article_number=article_number,
+                reason=reason,
             )
-        except (ValueError, Exception) as exc:
-            from django.core.exceptions import ValidationError as DjangoValidationError
-
-            if isinstance(exc, DjangoValidationError):
-                msg_dict = exc.message_dict if hasattr(exc, "message_dict") else {}
-                if "consignment_number" in msg_dict:
-                    msgs = " ".join(str(m) for m in msg_dict["consignment_number"])
-                    if "already exists" in msgs.lower():
-                        return Response(
-                            {"consignment_number": ["This consignment number is already in use."]},
-                            status=status.HTTP_409_CONFLICT,
-                        )
-                return Response(
-                    {"detail": msg_dict if msg_dict else str(exc)},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if isinstance(exc, ValueError):
-                return Response(
-                    {"detail": str(exc)},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            raise
-
-        return Response({
-            "order_id": str(order.id),
-            "consignment_number": shipment.consignment_number,
-            "carrier": shipment.carrier,
-            "booked_at": shipment.booked_at,
-        })
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as exc:
+            return handle_fulfilment_exception(exc)
 
     @action(detail=False, methods=["post"], url_path="ready-for-pickup")
     def ready_for_pickup(self, request):
-        order_ids = request.data.get("order_ids", [])
-        if not order_ids or not isinstance(order_ids, list):
-            return Response(
-                {"order_ids": ["A non-empty list of order IDs is required."]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        ser = OrderIdsSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        order_ids = ser.validated_data["order_ids"]
         scoped = self._scoped_ids(order_ids)
-        skipped = [str(oid) for oid in order_ids if str(oid) not in {str(s) for s in scoped}]
+        skipped = [
+            str(oid)
+            for oid in order_ids
+            if str(oid) not in {str(s) for s in scoped}
+        ]
         changed = mark_ready_for_pickup(list(scoped), request.user)
-        return Response({
-            "updated_ids": changed,
-            "skipped_ids": skipped,
-        })
+        return Response(
+            {
+                "updated_ids": changed,
+                "skipped_ids": skipped,
+            }
+        )
 
     @action(detail=False, methods=["post"], url_path="delivered")
     def delivered(self, request):
-        order_ids = request.data.get("order_ids", [])
-        if not order_ids or not isinstance(order_ids, list):
-            return Response(
-                {"order_ids": ["A non-empty list of order IDs is required."]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        ser = OrderIdsSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        order_ids = ser.validated_data["order_ids"]
         scoped = self._scoped_ids(order_ids)
-        skipped = [str(oid) for oid in order_ids if str(oid) not in {str(s) for s in scoped}]
+        skipped = [
+            str(oid)
+            for oid in order_ids
+            if str(oid) not in {str(s) for s in scoped}
+        ]
         changed = mark_delivered(list(scoped), request.user)
-        return Response({
-            "updated_ids": changed,
-            "skipped_ids": skipped,
-        })
+        return Response(
+            {
+                "updated_ids": changed,
+                "skipped_ids": skipped,
+            }
+        )

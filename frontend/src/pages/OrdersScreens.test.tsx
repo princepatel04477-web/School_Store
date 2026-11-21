@@ -13,10 +13,10 @@ let mockUseQueryError = false;
 
 // Mock @tanstack/react-query useQuery to allow simulating error state
 vi.mock('@tanstack/react-query', async () => {
-  const actual = await vi.importActual('@tanstack/react-query');
+  const actual = await vi.importActual<{ useQuery: (options: unknown) => unknown }>('@tanstack/react-query');
   return {
     ...actual,
-    useQuery: (options: any) => {
+    useQuery: (options: unknown) => {
       if (mockUseQueryError) {
         return {
           data: undefined,
@@ -26,7 +26,7 @@ vi.mock('@tanstack/react-query', async () => {
           refetch: vi.fn(),
         };
       }
-      return (actual as any).useQuery(options);
+      return actual.useQuery(options);
     },
   };
 });

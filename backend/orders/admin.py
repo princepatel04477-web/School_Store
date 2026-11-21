@@ -1,7 +1,16 @@
 from django.contrib import admin
 from django.db.models import Exists, OuterRef
 
-from .models import Order, OrderItem, OrderItemExchange, OrderStatusEvent, PhotoConsent, Shipment
+from .models import (
+    Order,
+    OrderItem,
+    OrderItemExchange,
+    OrderPacking,
+    OrderStatusEvent,
+    PhotoConsent,
+    Shipment,
+    ShipmentCorrection,
+)
 
 
 class OrderItemInline(admin.TabularInline):
@@ -16,6 +25,13 @@ class OrderStatusEventInline(admin.TabularInline):
     extra = 0
     raw_id_fields = ("changed_by",)
     readonly_fields = ("id", "timestamp")
+
+
+class OrderPackingInline(admin.StackedInline):
+    model = OrderPacking
+    extra = 0
+    raw_id_fields = ("claimed_by", "packed_by", "issue_reported_by")
+    readonly_fields = ("id", "claimed_at", "packed_at", "issue_reported_at")
 
 
 class ShipmentInline(admin.StackedInline):
@@ -48,7 +64,7 @@ class OrderAdmin(admin.ModelAdmin):
     raw_id_fields = ("placed_by", "payer", "student", "school", "branch", "city")
     list_select_related = ("student", "school", "branch", "city", "placed_by", "payer")
     show_full_result_count = False
-    inlines = [OrderItemInline, OrderStatusEventInline, ShipmentInline]
+    inlines = [OrderItemInline, OrderStatusEventInline, OrderPackingInline, ShipmentInline]
 
 
 FIT_FIELDS = (
@@ -181,11 +197,19 @@ class OrderStatusEventAdmin(admin.ModelAdmin):
     show_full_result_count = False
 
 
+class ShipmentCorrectionInline(admin.TabularInline):
+    model = ShipmentCorrection
+    extra = 0
+    raw_id_fields = ("changed_by",)
+    readonly_fields = ("id", "previous_number", "new_number", "changed_at")
+
+
 @admin.register(Shipment)
 class ShipmentAdmin(admin.ModelAdmin):
-    list_display = ("consignment_number", "carrier", "order", "booked_at", "created_by", "created_at")
-    search_fields = ("consignment_number", "order__order_number")
-    readonly_fields = ("id", "created_at")
+    list_display = ("consignment_number", "article_key", "carrier", "order", "booked_at", "created_by", "created_at")
+    search_fields = ("consignment_number", "article_key", "order__order_number")
+    readonly_fields = ("id", "article_key", "created_at")
     raw_id_fields = ("order", "created_by")
     list_select_related = ("order", "created_by")
     show_full_result_count = False
+    inlines = [ShipmentCorrectionInline]

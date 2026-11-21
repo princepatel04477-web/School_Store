@@ -454,31 +454,55 @@ class DeviceToken(UUIDModel):
         return f"{self.user} ({self.platform}): {self.token[:12]}..."
 
 
-# ---- S10 (India Post international) check digit validation ----
+def normalize_article_key(number: str) -> str:
+    """Upper-cased with spaces and hyphens removed, used only to catch reuse."""
+    if not number:
+        return ""
+    return re.sub(r"[\s\-]+", "", number).upper()
 
-S10_PATTERN = re.compile(r"^[A-Z]{2}\d{9}[A-Z]{2}$")
-S10_WEIGHTS = (8, 6, 4, 2, 3, 5, 9, 7)
 
+class OrderPacking(UUIDModel):
+    """Packing and claim status for an order."""
 
-def validate_s10_check_digit(number: str) -> bool:
-    """Validate a 13-character S10 consignment number.
+    order = models.OneToOneField(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="packing",
+    )
+    claimed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="claimed_packings",
+    )
+    claimed_at = models.DateTimeField(null=True, blank=True)
+    packed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="packed_packings",
+    )
+    packed_at = models.DateTimeField(null=True, blank=True)
+    issue_note = models.TextField(blank=True, default="")
+    issue_reported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reported_packing_issues",
+    )
+    issue_reported_at = models.DateTimeField(null=True, blank=True)
 
-    Format: 2 letters, 8 serial digits, 1 check digit, 2 country letters.
-    The check digit is calculated from the 8 serial digits using weights
-    8,6,4,2,3,5,9,7; 11 minus (sum mod 11); 10 becomes 0, 11 becomes 5.
-    """
-    if not S10_PATTERN.match(number):
-        return False
-    serial = number[2:10]
-    check = int(number[10])
-    total = sum(int(d) * w for d, w in zip(serial, S10_WEIGHTS))
-    remainder = total % 11
-    expected = 11 - remainder
-    if expected == 10:
-        expected = 0
-    elif expected == 11:
-        expected = 5
-    return check == expected
+    class Meta:
+        indexes = [
+            models.Index(fields=["order"], name="idx_orderpacking_order"),
+            models.Index(fields=["claimed_by"], name="idx_orderpacking_claimed_by"),
+        ]
+
+    def __str__(self) -> str:
+        return f"Packing for {self.order_id}"
 
 
 class Shipment(UUIDModel):
@@ -497,7 +521,8 @@ class Shipment(UUIDModel):
         choices=Carrier.choices,
         default=Carrier.INDIA_POST,
     )
-    consignment_number = models.CharField(max_length=13, unique=True)
+    consignment_number = models.CharField(max_length=40)
+    article_key = models.CharField(max_length=40, unique=True, editable=False)
     booked_at = models.DateTimeField(default=timezone.now)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -514,25 +539,55 @@ class Shipment(UUIDModel):
                 fields=["consignment_number"],
                 name="idx_shipment_consignment",
             ),
+            models.Index(
+                fields=["article_key"],
+                name="idx_shipment_article_key",
+            ),
         ]
 
     def clean(self):
-        self.consignment_number = (self.consignment_number or "").upper().strip()
-        if not S10_PATTERN.match(self.consignment_number):
-            raise ValidationError(
-                {
-                    "consignment_number": "Must be 13 characters: 2 letters, 9 digits, 2 letters (e.g. EE123456789IN)."
-                }
-            )
-        if not validate_s10_check_digit(self.consignment_number):
-            raise ValidationError(
-                {"consignment_number": "Invalid S10 check digit."}
-            )
+        super().clean()
+        self.consignment_number = (self.consignment_number or "").strip()
+        if not self.consignment_number:
+            raise ValidationError({"consignment_number": "Consignment number cannot be blank."})
+        self.article_key = normalize_article_key(self.consignment_number)
 
     def save(self, *args, **kwargs):
-        self.consignment_number = (self.consignment_number or "").upper().strip()
+        if self.consignment_number:
+            self.consignment_number = self.consignment_number.strip()
+            self.article_key = normalize_article_key(self.consignment_number)
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return f"{self.carrier} {self.consignment_number} for {self.order_id}"
+
+
+class ShipmentCorrection(UUIDModel):
+    """Audit record when staff correct a typo in an article number."""
+
+    shipment = models.ForeignKey(
+        Shipment,
+        on_delete=models.CASCADE,
+        related_name="corrections",
+    )
+    previous_number = models.CharField(max_length=40)
+    new_number = models.CharField(max_length=40)
+    reason = models.TextField(blank=True, default="")
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="shipment_corrections",
+    )
+    changed_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-changed_at"]
+        indexes = [
+            models.Index(fields=["shipment", "changed_at"], name="idx_shipment_corr_changed"),
+        ]
+
+    def __str__(self) -> str:
+        return f"Correction for {self.shipment_id}: {self.previous_number} -> {self.new_number}"
 
