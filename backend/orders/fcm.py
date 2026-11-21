@@ -50,7 +50,16 @@ def format_notification(order: Order, status_or_event: str) -> tuple[str, str]:
             body = f"Order {order.order_number} is ready for pickup at {school_name}."
         else:
             title = "Order Dispatched"
-            body = f"Order {order.order_number} has been dispatched for delivery."
+            shipment = getattr(order, "shipment", None)
+            if shipment is None:
+                try:
+                    shipment = order.shipment
+                except Exception:
+                    shipment = None
+            if shipment and shipment.consignment_number:
+                body = f"Order {order.order_number} was sent by India Post. Tracking number {shipment.consignment_number}."
+            else:
+                body = f"Order {order.order_number} has been dispatched for delivery."
     elif st in (Order.Status.PACKED, "PACKED"):
         title = "Order Packed"
         body = f"Order {order.order_number} is packed and being readied."

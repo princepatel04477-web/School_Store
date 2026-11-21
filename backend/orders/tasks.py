@@ -122,8 +122,8 @@ def send_post_delivery_fit_prompts():
 
     delivered_events = OrderStatusEvent.objects.filter(
         status=Order.Status.DELIVERED,
-        created_at__gte=window_start,
-        created_at__lte=window_end,
+        timestamp__gte=window_start,
+        timestamp__lte=window_end,
     ).select_related("order", "order__parent")
 
     count = 0

@@ -1,7 +1,11 @@
+import re
 import uuid
+
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+
 from common.models import UUIDModel
 
 
@@ -448,4 +452,87 @@ class DeviceToken(UUIDModel):
 
     def __str__(self) -> str:
         return f"{self.user} ({self.platform}): {self.token[:12]}..."
+
+
+# ---- S10 (India Post international) check digit validation ----
+
+S10_PATTERN = re.compile(r"^[A-Z]{2}\d{9}[A-Z]{2}$")
+S10_WEIGHTS = (8, 6, 4, 2, 3, 5, 9, 7)
+
+
+def validate_s10_check_digit(number: str) -> bool:
+    """Validate a 13-character S10 consignment number.
+
+    Format: 2 letters, 8 serial digits, 1 check digit, 2 country letters.
+    The check digit is calculated from the 8 serial digits using weights
+    8,6,4,2,3,5,9,7; 11 minus (sum mod 11); 10 becomes 0, 11 becomes 5.
+    """
+    if not S10_PATTERN.match(number):
+        return False
+    serial = number[2:10]
+    check = int(number[10])
+    total = sum(int(d) * w for d, w in zip(serial, S10_WEIGHTS))
+    remainder = total % 11
+    expected = 11 - remainder
+    if expected == 10:
+        expected = 0
+    elif expected == 11:
+        expected = 5
+    return check == expected
+
+
+class Shipment(UUIDModel):
+    """India Post shipment for a home-delivery order."""
+
+    class Carrier(models.TextChoices):
+        INDIA_POST = "INDIA_POST", "India Post"
+
+    order = models.OneToOneField(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="shipment",
+    )
+    carrier = models.CharField(
+        max_length=20,
+        choices=Carrier.choices,
+        default=Carrier.INDIA_POST,
+    )
+    consignment_number = models.CharField(max_length=13, unique=True)
+    booked_at = models.DateTimeField(default=timezone.now)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_shipments",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["consignment_number"],
+                name="idx_shipment_consignment",
+            ),
+        ]
+
+    def clean(self):
+        self.consignment_number = (self.consignment_number or "").upper().strip()
+        if not S10_PATTERN.match(self.consignment_number):
+            raise ValidationError(
+                {
+                    "consignment_number": "Must be 13 characters: 2 letters, 9 digits, 2 letters (e.g. EE123456789IN)."
+                }
+            )
+        if not validate_s10_check_digit(self.consignment_number):
+            raise ValidationError(
+                {"consignment_number": "Invalid S10 check digit."}
+            )
+
+    def save(self, *args, **kwargs):
+        self.consignment_number = (self.consignment_number or "").upper().strip()
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"{self.carrier} {self.consignment_number} for {self.order_id}"
 

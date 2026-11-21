@@ -153,6 +153,13 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         )
         return Response({"status": "paid"})
 
+    _FULFILMENT_ONLY = {
+        Order.Status.PROCESSING,
+        Order.Status.PACKED,
+        Order.Status.DISPATCHED,
+        Order.Status.DELIVERED,
+    }
+
     def _change_status(self, request, queryset):
         user = request.user
         if user.role in ("PARENT", "TEACHER"):
@@ -160,6 +167,8 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         new_status = request.data.get("status")
         if not new_status or new_status not in Order.Status.values:
             raise ValidationError({"status": [f"Invalid status '{new_status}'."]})
+        if new_status in self._FULFILMENT_ONLY:
+            raise ValidationError({"status": ["Use the fulfilment actions for this step."]})
         note = (request.data.get("note") or "").strip()
         return new_status, change_order_status(queryset, new_status, user, note)
 

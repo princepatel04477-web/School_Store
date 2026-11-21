@@ -524,6 +524,50 @@ export const cityAdmin={
   users:(p:Record<string,string>={})=>api<Page<User>>(`/accounts/users/?${new URLSearchParams(p)}`),
   createSchoolAdmin:(body:{username:string;password:string;school:string;email?:string;first_name?:string;last_name?:string;phone?:string})=>api<User>('/accounts/users/',{method:'POST',body:JSON.stringify(body)}),
   resetPassword:(userId:string,password:string)=>api<{detail:string}>(`/accounts/users/${userId}/reset-password/`,{method:'POST',body:JSON.stringify({password})}),
+  fulfilmentQueue:(p:Record<string,string>={})=>api<Page<FulfilmentQueueOrder>>(`/fulfilment/queue/?${new URLSearchParams(p)}`),
+  pack:(order_ids:string[],note?:string)=>api<FulfilmentPackResult>('/fulfilment/pack/',{method:'POST',body:JSON.stringify({order_ids,note})}),
+  dispatch:(id:string,consignment_number:string,booked_at?:string)=>api<FulfilmentDispatchResult>(`/fulfilment/${id}/dispatch/`,{method:'POST',body:JSON.stringify({consignment_number,booked_at})}),
+  readyForPickup:(order_ids:string[])=>api<FulfilmentActionBatchResult>('/fulfilment/ready-for-pickup/',{method:'POST',body:JSON.stringify({order_ids})}),
+  markDelivered:(order_ids:string[])=>api<FulfilmentActionBatchResult>('/fulfilment/delivered/',{method:'POST',body:JSON.stringify({order_ids})}),
+};
+
+export type FulfilmentQueueOrder = {
+  id: string;
+  order_number: string;
+  school_name: string;
+  school_code: string;
+  student_name: string;
+  student_gr: string;
+  fulfillment_type: 'HOME_DELIVERY' | 'SCHOOL_PICKUP';
+  payment_status: string;
+  payment_method: string;
+  status: string;
+  items_count: number;
+  total: Money;
+  created_at: string;
+  can_pack: boolean | null;
+  blocked_reason: string | null;
+  blocked_message: string | null;
+  consignment_number: string | null;
+  dispatched_at: string | null;
+};
+
+export type FulfilmentPackResult = {
+  packed_ids: string[];
+  blocked: { order_id: string; reason: string; message: string }[];
+  skipped_ids?: string[];
+};
+
+export type FulfilmentDispatchResult = {
+  order_id: string;
+  consignment_number: string;
+  carrier: string;
+  booked_at: string;
+};
+
+export type FulfilmentActionBatchResult = {
+  updated_ids: string[];
+  skipped_ids?: string[];
 };
 
 /* ------------------------------------------------------------------ *

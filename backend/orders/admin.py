@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db.models import Exists, OuterRef
 
-from .models import Order, OrderItem, OrderItemExchange, OrderStatusEvent, PhotoConsent
+from .models import Order, OrderItem, OrderItemExchange, OrderStatusEvent, PhotoConsent, Shipment
 
 
 class OrderItemInline(admin.TabularInline):
@@ -16,6 +16,13 @@ class OrderStatusEventInline(admin.TabularInline):
     extra = 0
     raw_id_fields = ("changed_by",)
     readonly_fields = ("id", "timestamp")
+
+
+class ShipmentInline(admin.StackedInline):
+    model = Shipment
+    extra = 0
+    raw_id_fields = ("created_by",)
+    readonly_fields = ("id", "created_at")
 
 
 @admin.register(Order)
@@ -41,7 +48,7 @@ class OrderAdmin(admin.ModelAdmin):
     raw_id_fields = ("placed_by", "payer", "student", "school", "branch", "city")
     list_select_related = ("student", "school", "branch", "city", "placed_by", "payer")
     show_full_result_count = False
-    inlines = [OrderItemInline, OrderStatusEventInline]
+    inlines = [OrderItemInline, OrderStatusEventInline, ShipmentInline]
 
 
 FIT_FIELDS = (
@@ -171,4 +178,14 @@ class OrderStatusEventAdmin(admin.ModelAdmin):
     readonly_fields = ("id", "timestamp")
     raw_id_fields = ("order", "changed_by")
     list_select_related = ("order", "changed_by")
+    show_full_result_count = False
+
+
+@admin.register(Shipment)
+class ShipmentAdmin(admin.ModelAdmin):
+    list_display = ("consignment_number", "carrier", "order", "booked_at", "created_by", "created_at")
+    search_fields = ("consignment_number", "order__order_number")
+    readonly_fields = ("id", "created_at")
+    raw_id_fields = ("order", "created_by")
+    list_select_related = ("order", "created_by")
     show_full_result_count = False

@@ -927,3 +927,132 @@
     width: 100%;
   }
 }
+
+/* ================== Fulfilment Queue ================== */
+.admin .fulfilment-queue {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin .fulfilment-queue .tab-group {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.admin .fulfilment-queue .tab-group button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.admin .fulfilment-queue .filters select,
+.admin .fulfilment-queue .filters input {
+  min-height: 44px;
+}
+
+.admin .fulfilment-queue .row-blocked {
+  background-color: var(--bad-tint);
+  opacity: 0.85;
+}
+
+.admin .fulfilment-queue .gate-blocked {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin .fulfilment-queue .blocked-message {
+  font-size: var(--text-xs);
+  color: var(--danger);
+}
+
+.admin .fulfilment-queue .dispatch-action-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin .fulfilment-queue .consignment-input {
+  min-height: 38px;
+  min-width: 150px;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+}
+
+.admin .fulfilment-queue .consignment-input.has-error {
+  border-color: var(--danger);
+}
+
+.admin .fulfilment-queue .field-error {
+  color: var(--danger);
+  font-size: var(--text-xs);
+}
+
+.admin .fulfilment-queue .sent-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.admin .fulfilment-queue .touch-btn {
+  min-height: 44px;
+  min-width: 44px;
+  width: 100%;
+}
+
+.admin .fulfilment-queue .fulfilment-cards {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .admin .fulfilment-queue .fulfilment-table {
+    display: none;
+  }
+
+  .admin .fulfilment-queue .fulfilment-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-3);
+  }
+
+  .admin .fulfilment-queue .fulfilment-card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background-color: var(--paper-raised);
+    padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .admin .fulfilment-queue .fulfilment-card.card-blocked {
+    background-color: var(--bad-tint);
+  }
+
+  .admin .fulfilment-queue .card-top {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: var(--space-2);
+  }
+
+  .admin .fulfilment-queue .card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: var(--text-sm);
+  }
+
+  .admin .fulfilment-queue .card-dispatch-actions,
+  .admin .fulfilment-queue .card-sent-actions {
+    margin-top: var(--space-2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+}
+

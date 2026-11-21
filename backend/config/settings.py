@@ -456,4 +456,10 @@ PLAY_STORE_URL = os.environ.get(
 # --------------------------------------------------------------------------- #
 FCM_CREDENTIALS_FILE = os.environ.get("FCM_CREDENTIALS_FILE", "")
 
+# --------------------------------------------------------------------------- #
+# Day 3 Fulfilment packing fixture (dev only: "allow" or a blocked code)
+# --------------------------------------------------------------------------- #
+FULFILMENT_PACKING_FIXTURE = os.environ.get("FULFILMENT_PACKING_FIXTURE", "")
+
+
 
