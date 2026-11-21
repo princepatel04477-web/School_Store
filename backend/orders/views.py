@@ -344,7 +344,11 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         from .after_sales import review_after_sale_request
         from .serializers import OrderAfterSaleRequestSerializer
 
-        req_obj = OrderAfterSaleRequest.objects.filter(pk=req_id).first()
+        # Scope to orders this staff member can see: a school admin must not act
+        # on another school's requests by guessing an id.
+        req_obj = OrderAfterSaleRequest.objects.filter(
+            pk=req_id, order__in=self.scope_queryset(Order.objects.all())
+        ).first()
         if not req_obj:
             raise ValidationError({"request_id": ["After-sales request not found."]})
 
@@ -363,7 +367,9 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         from .after_sales import process_order_refund
         from .serializers import OrderRefundSerializer
 
-        refund = OrderRefund.objects.filter(pk=refund_id).first()
+        refund = OrderRefund.objects.filter(
+            pk=refund_id, order__in=self.scope_queryset(Order.objects.all())
+        ).first()
         if not refund:
             raise ValidationError({"refund_id": ["Refund record not found."]})
 

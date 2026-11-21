@@ -84,13 +84,11 @@ class RazorpayGateway:
         if amount_paise <= 0:
             raise ValueError("Refund amount must be positive.")
 
-        if (
-            not (self.key_id and self.secret)
-            or "placeholder" in str(self.key_id)
-            or "placeholder" in str(self.secret)
-            or str(payment_id).startswith("pay_fake")
-            or getattr(settings, "TESTING", False)
-        ):
+        if not self._has_real_keys():
+            # Never pretend money went back in production: without keys a
+            # refund fails unless simulation is explicitly on (local dev/tests).
+            if not getattr(settings, "RAZORPAY_SIMULATE_REFUNDS", False):
+                raise RuntimeError("Razorpay is not configured; the refund was not sent.")
             import uuid
             from django.utils import timezone
             return {
@@ -121,6 +119,36 @@ class RazorpayGateway:
         )
         resp.raise_for_status()
         return resp.json()
+
+    def find_refund_by_note(self, payment_id: str, refund_id: str) -> dict | None:
+        """Return the Razorpay refund for this payment tagged with our refund id, if one exists.
+
+        Used before retrying a refund whose first attempt failed or timed out, so a
+        retry never sends the money back twice.
+        """
+        if not self._has_real_keys() or not payment_id:
+            return None
+        import requests
+        resp = requests.get(
+            f"https://api.razorpay.com/v1/payments/{payment_id}/refunds",
+            auth=(self.key_id, self.secret),
+            params={"count": 100},
+            timeout=5,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        for item in data.get("items", []) if isinstance(data, dict) else []:
+            notes = item.get("notes") or {}
+            if isinstance(notes, dict) and str(notes.get("refund_id", "")) == str(refund_id):
+                return item
+        return None
+
+    def _has_real_keys(self) -> bool:
+        return bool(
+            self.key_id and self.secret
+            and "placeholder" not in str(self.key_id)
+            and "placeholder" not in str(self.secret)
+        )
 
     def _can_verify(self) -> bool:
         # Without a secret every HMAC is forgeable (the key is ""), so refuse

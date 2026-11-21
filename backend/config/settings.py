@@ -229,6 +229,10 @@ CATALOG_THUMBNAIL_TEMPLATE = os.environ.get(
 RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 RAZORPAY_WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
+# Without real keys, refunds fail loudly unless this is on (local dev only).
+RAZORPAY_SIMULATE_REFUNDS = os.environ.get(
+    "RAZORPAY_SIMULATE_REFUNDS", "1" if DEBUG else "0"
+) == "1"
 
 DELIVERY_PROVIDER_URL = os.environ.get("DELIVERY_PROVIDER_URL", "")
 DELIVERY_PROVIDER_API_KEY = os.environ.get("DELIVERY_PROVIDER_API_KEY", "")
@@ -241,6 +245,7 @@ if "test" in sys.argv:
         RAZORPAY_KEY_SECRET = "placeholder_secret"
     if not RAZORPAY_WEBHOOK_SECRET:
         RAZORPAY_WEBHOOK_SECRET = "placeholder_webhook_secret"
+    RAZORPAY_SIMULATE_REFUNDS = True
 
 if (
     "test" in sys.argv

@@ -422,3 +422,69 @@ class AfterSalesTestCase(TestCase):
 
         # Total query count must remain bounded and identical between 3 and 5 orders
         self.assertEqual(len(ctx_3.captured_queries), len(ctx_5.captured_queries))
+
+    # --- Supervisor review fixes ---
+
+    def _approved_return(self):
+        order, item = self._create_order(status=Order.Status.DELIVERED, payment_status=Order.PaymentStatus.PAID)
+        OrderStatusEvent.objects.create(order=order, status=Order.Status.DELIVERED, timestamp=timezone.now())
+        req = create_after_sale_request(order, self.parent, {
+            "order_item": str(item.id),
+            "request_type": OrderAfterSaleRequest.RequestType.RETURN,
+            "reason": OrderAfterSaleRequest.Reason.DEFECTIVE,
+            "reason_details": "Torn seam.",
+        })
+        return order, req
+
+    def test_approving_twice_does_not_create_a_second_refund(self):
+        from rest_framework.exceptions import ValidationError as DRFValidationError
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        _, req = self._approved_return()
+        review_after_sale_request(req, self.staff_user, action="APPROVE")
+        with self.assertRaises((DRFValidationError, DjangoValidationError)):
+            review_after_sale_request(req, self.staff_user, action="APPROVE")
+        self.assertEqual(OrderRefund.objects.filter(request=req).count(), 1)
+
+    def test_school_admin_cannot_review_another_schools_request(self):
+        other_school = School.objects.create(name="Other School", code="OTH", city=self.city)
+        outsider = User.objects.create_user(
+            username="sa_other", role=User.Role.SCHOOL_ADMIN, school=other_school, city=self.city
+        )
+        _, req = self._approved_return()
+        self.client.force_authenticate(user=outsider)
+        resp = self.client.post(
+            "/api/orders/review-after-sale/", {"request_id": str(req.id), "action": "APPROVE"}, format="json"
+        )
+        self.assertEqual(resp.status_code, 400)
+        req.refresh_from_db()
+        self.assertEqual(req.status, OrderAfterSaleRequest.Status.REQUESTED)
+        self.assertFalse(OrderRefund.objects.filter(request=req).exists())
+
+    def test_refund_without_keys_fails_instead_of_pretending(self):
+        from django.test import override_settings
+        _, req = self._approved_return()
+        with override_settings(RAZORPAY_KEY_ID="", RAZORPAY_KEY_SECRET="", RAZORPAY_SIMULATE_REFUNDS=False):
+            review_after_sale_request(req, self.staff_user, action="APPROVE")
+        refund = OrderRefund.objects.get(request=req)
+        self.assertEqual(refund.status, OrderRefund.Status.FAILED)
+        self.assertIn("not configured", refund.failure_reason)
+        req.order.refresh_from_db()
+        self.assertNotEqual(req.order.payment_status, Order.PaymentStatus.REFUNDED)
+
+    def test_retry_adopts_refund_razorpay_already_made(self):
+        from unittest import mock
+        from orders.payment import RazorpayGateway
+        _, req = self._approved_return()
+        with mock.patch.object(RazorpayGateway, "create_refund", side_effect=TimeoutError("read timed out")):
+            review_after_sale_request(req, self.staff_user, action="APPROVE")
+        refund = OrderRefund.objects.get(request=req)
+        self.assertEqual(refund.status, OrderRefund.Status.FAILED)
+        existing = {"id": "rfnd_existing123", "status": "processed", "notes": {"refund_id": str(refund.id)}}
+        with mock.patch.object(RazorpayGateway, "find_refund_by_note", return_value=existing) as found, \
+                mock.patch.object(RazorpayGateway, "create_refund") as create:
+            process_order_refund(refund, actor=self.staff_user)
+        found.assert_called_once()
+        create.assert_not_called()
+        refund.refresh_from_db()
+        self.assertEqual(refund.status, OrderRefund.Status.SUCCEEDED)
+        self.assertEqual(refund.razorpay_refund_id, "rfnd_existing123")

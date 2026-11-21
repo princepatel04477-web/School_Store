@@ -103,3 +103,14 @@ We implemented and verified an end-to-end after-sales and refund system:
 1. **Second/Subsequent Size Exchange Fee**: Current policy states the first size exchange is free. The code records `first_exchange_free: true/false` and `charge_paise: 0`. If the school administration decides to levy a shipping/handling fee for subsequent exchanges, the fee amount should be configured in school billing settings rather than hardcoded.
 2. **Damaged Item Photo Uploads**: The request model and API support `photo_key` strings. When photo uploads are enabled via Cloudflare R2 / S3 presigned URLs, parents can attach photos during defect submission.
 3. **Live Razorpay Credentials**: Verification used the built-in simulated test-mode provider refund engine. Production execution requires valid live Razorpay credentials (`RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`).
+
+## Supervisor review (Claude, 2026-11-21)
+
+Fixed after review:
+
+1. Staff `review-after-sale` and `process-refund` looked requests and refunds up by id only, so a school admin could act on another school's order. Both now scope to the orders the user can see. Test: `test_school_admin_cannot_review_another_schools_request` (SIMULATED).
+2. `create_refund` returned a fake "processed" refund whenever keys were missing, including in production. It now raises unless `RAZORPAY_SIMULATE_REFUNDS` is on (default on only when `DJANGO_DEBUG=1`, and in tests). Test: `test_refund_without_keys_fails_instead_of_pretending` (SIMULATED).
+3. Approving the same request twice created a second refund. Review actions are now only allowed from valid states. Test: `test_approving_twice_does_not_create_a_second_refund` (SIMULATED).
+4. A retry after a timeout could refund twice at Razorpay. A retry now first looks for a Razorpay refund tagged with our refund id (`find_refund_by_note`) and adopts it. Test: `test_retry_adopts_refund_razorpay_already_made` (SIMULATED, provider mocked). The real Razorpay refunds list call is UNVERIFIED until test keys are added.
+
+Rerun by the supervisor: Django `orders catalog panel inventory accounts schools common` 406 tests OK (skipped=23); `makemigrations --check` no changes; vitest 17 files, 144 tests passed; `npm run build` OK.

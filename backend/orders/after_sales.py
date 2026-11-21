@@ -606,6 +606,20 @@ def review_after_sale_request(
         req = OrderAfterSaleRequest.objects.select_for_update().get(pk=request_obj.pk)
         order = req.order
 
+        # Each action is only valid from certain states, so a repeated click or a
+        # replayed request cannot create a second refund or move stock twice.
+        S = OrderAfterSaleRequest.Status
+        allowed_from = {
+            "APPROVE": {S.REQUESTED},
+            "REJECT": {S.REQUESTED},
+            "INSPECT": {S.REQUESTED, S.APPROVED},
+            "COMPLETE": {S.APPROVED, S.INSPECTED},
+        }
+        if action in allowed_from and req.status not in allowed_from[action]:
+            raise ValidationError(
+                {"action": [f"Cannot {action.lower()} a request that is {req.get_status_display().lower()}."]}
+            )
+
         if action == "APPROVE":
             req.status = OrderAfterSaleRequest.Status.APPROVED
             req.reviewed_by = staff_user
@@ -769,12 +783,18 @@ def process_order_refund(refund_obj: OrderRefund, actor=None) -> OrderRefund:
 
             gateway = RazorpayGateway()
             try:
-                resp = gateway.create_refund(
-                    payment_id=payment_id,
-                    amount_paise=refund.amount_paise,
-                    receipt=str(refund.id),
-                    notes={"store_order_id": str(order.id), "refund_id": str(refund.id)},
-                )
+                # A retry after a failure or timeout may follow a refund Razorpay did
+                # create: adopt it instead of sending the money a second time.
+                resp = None
+                if refund.status == OrderRefund.Status.FAILED or refund.failure_reason:
+                    resp = gateway.find_refund_by_note(payment_id, refund.id)
+                if resp is None:
+                    resp = gateway.create_refund(
+                        payment_id=payment_id,
+                        amount_paise=refund.amount_paise,
+                        receipt=str(refund.id),
+                        notes={"store_order_id": str(order.id), "refund_id": str(refund.id)},
+                    )
                 refund.status = OrderRefund.Status.SUCCEEDED
                 refund.razorpay_refund_id = resp.get("id", "")
                 refund.razorpay_payment_id = payment_id
