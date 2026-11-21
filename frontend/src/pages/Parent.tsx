@@ -7,6 +7,7 @@ import { ListenButton } from '../components/ListenButton';
 import { SelectionFlow } from '../components/SelectionFlow';
 import { Cart, Timeline, type CartItem } from '../components/Store';
 import { ParentSignInSheet } from '../components/parent/ParentSignInSheet';
+import { AfterSalesModal } from '../components/parent/AfterSalesModal';
 import { api, deleteChildPhotos, Order, Product, orderApi } from '../api';
 import { loadRazorpay, openRazorpayCheckout } from '../services/paymentAdapter';
 import { useLang } from '../i18n';
@@ -579,6 +580,10 @@ function getPaymentStatusLabel(order: Order, t: (k: any) => string): string {
 function Orders() {
   const { t } = useLang();
   const queryClient = useQueryClient();
+  const [activeModalOrder, setActiveModalOrder] = useState<Order | null>(null);
+  const [modalType, setModalType] = useState<'CANCEL' | 'EXCHANGE' | 'RETURN' | 'REPLACE'>('EXCHANGE');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const {
     data,
     isLoading,
@@ -781,6 +786,27 @@ function Orders() {
                   {o.student_name} · <strong>₹{o.total}</strong>
                 </p>
 
+                {o.after_sales_summary?.has_active_request && (
+                  <div
+                    style={{
+                      margin: 'var(--space-3) 0',
+                      padding: 'var(--space-3)',
+                      background: 'var(--paper-sunk)',
+                      border: '1px solid var(--line)',
+                      borderRadius: 'var(--radius-sm)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                        {t('aftersales.activeRequest')}: {o.after_sales_summary.active_request_type_display || o.after_sales_summary.active_request_type}
+                      </span>
+                      <span className="status" style={{ background: 'var(--paper)', fontSize: '11px' }}>
+                        {o.after_sales_summary.active_request_status_display || o.after_sales_summary.active_request_status}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {o.status === 'CANCELLED' && (
                   <div style={{ margin: 'var(--space-3) 0', padding: 'var(--space-3)', background: 'var(--paper-sunk)', borderRadius: 'var(--radius-sm)' }}>
                     <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--ink-soft)' }}>
@@ -800,16 +826,60 @@ function Orders() {
                   </div>
                 )}
 
-                {(o.can_pay_now || o.parent_actions?.pay_now?.permitted) && o.status !== 'CANCELLED' && (
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    style={{ marginTop: 'var(--space-3)' }}
-                    onClick={() => handlePayNow(o)}
-                  >
-                    {t('co.payNow')}
-                  </button>
-                )}
+                {/* Parent actions row */}
+                <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginTop: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                  {(o.can_pay_now || o.parent_actions?.pay_now?.permitted) && o.status !== 'CANCELLED' && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => handlePayNow(o)}
+                    >
+                      {t('co.payNow')}
+                    </button>
+                  )}
+
+                  {o.parent_actions?.cancel?.permitted && !o.after_sales_summary?.has_active_request && (
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => {
+                        setActiveModalOrder(o);
+                        setModalType('CANCEL');
+                        setIsModalOpen(true);
+                      }}
+                    >
+                      {t('aftersales.cancelOrder')}
+                    </button>
+                  )}
+
+                  {o.parent_actions?.exchange?.permitted && !o.after_sales_summary?.has_active_request && (
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => {
+                        setActiveModalOrder(o);
+                        setModalType('EXCHANGE');
+                        setIsModalOpen(true);
+                      }}
+                    >
+                      {t('aftersales.requestExchange')}
+                    </button>
+                  )}
+
+                  {o.parent_actions?.return_or_report?.permitted && !o.after_sales_summary?.has_active_request && (
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => {
+                        setActiveModalOrder(o);
+                        setModalType('RETURN');
+                        setIsModalOpen(true);
+                      }}
+                    >
+                      {t('aftersales.reportIssue')}
+                    </button>
+                  )}
+                </div>
 
                 <Timeline order={o} />
 
@@ -831,6 +901,21 @@ function Orders() {
             </div>
           )}
         </>
+      )}
+
+      {activeModalOrder && (
+        <AfterSalesModal
+          order={activeModalOrder}
+          initialType={modalType}
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setActiveModalOrder(null);
+          }}
+          onSuccess={() => {
+            void queryClient.invalidateQueries({ queryKey: ['orders'] });
+          }}
+        />
       )}
     </>
   );

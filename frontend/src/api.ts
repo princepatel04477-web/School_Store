@@ -84,7 +84,20 @@ export type Order = {
     pay_now?: { permitted: boolean; reason?: string };
     switch_to_cod?: { permitted: boolean; reason?: string };
     cancel?: { permitted: boolean; reason?: string };
+    exchange?: { permitted: boolean; reason?: string };
+    return_or_report?: { permitted: boolean; reason?: string };
   };
+  after_sales_summary?: {
+    has_active_request: boolean;
+    active_request_id?: string | null;
+    active_request_type?: string | null;
+    active_request_status?: string | null;
+    active_request_type_display?: string | null;
+    active_request_status_display?: string | null;
+    total_requests_count?: number;
+  };
+  after_sales_requests?: AfterSaleRequest[];
+  refunds?: OrderRefund[];
   delivery_details?: Record<string, any>;
   razorpay_order_id?: string;
   razorpay_payment_id?: string;
@@ -163,6 +176,98 @@ export type PincodeLookupResponse = {
   };
 };
 
+export type AfterSaleRequest = {
+  id: string;
+  order: string;
+  order_item?: string | null;
+  product_name?: string;
+  item_sku?: string;
+  request_type: 'CANCEL' | 'EXCHANGE' | 'RETURN' | 'REPLACE';
+  request_type_display?: string;
+  status: 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'INSPECTED' | 'COMPLETED' | 'CANCELLED';
+  status_display?: string;
+  reason: string;
+  reason_display?: string;
+  reason_details?: string;
+  photo_key?: string;
+  from_size?: string;
+  target_size?: string;
+  target_variant?: string | null;
+  target_sku?: string;
+  quantity: number;
+  charge_paise: number;
+  is_stock_reserved: boolean;
+  is_item_restocked: boolean;
+  restock_condition?: string;
+  staff_notes?: string;
+  created_at: string;
+  updated_at?: string;
+  reviewed_at?: string | null;
+};
+
+export type OrderRefund = {
+  id: string;
+  order: string;
+  request?: string | null;
+  order_item?: string | null;
+  amount_paise: number;
+  currency: string;
+  payment_method: string;
+  repayment_channel: string;
+  repayment_channel_display?: string;
+  status: 'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED' | 'RETRY';
+  status_display?: string;
+  razorpay_refund_id?: string;
+  razorpay_payment_id?: string;
+  failure_reason?: string;
+  notes?: string;
+  created_at: string;
+  processed_at?: string | null;
+};
+
+export type ReplacementSizeOption = {
+  variant_id: string;
+  size: string;
+  sku: string;
+  stock_flag: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
+  available: boolean;
+};
+
+export type ItemAfterSalesEligibility = {
+  item_id: string;
+  product_name: string;
+  variant_sku: string;
+  current_size: string;
+  quantity: number;
+  unit_price: string;
+  is_customised: boolean;
+  has_active_request: boolean;
+  active_request_id?: string | null;
+  can_cancel: boolean;
+  cancel_reason?: string;
+  can_exchange: boolean;
+  exchange_reason?: string;
+  replacement_sizes: ReplacementSizeOption[];
+  can_return: boolean;
+  return_reason?: string;
+};
+
+export type OrderAfterSalesEligibility = {
+  order_id: string;
+  order_number: string;
+  status: string;
+  payment_status: string;
+  payment_method: string;
+  is_delivered: boolean;
+  within_7_days: boolean;
+  days_since_delivery?: number | null;
+  first_exchange_free: boolean;
+  can_cancel_order: boolean;
+  cancel_order_reason?: string;
+  items: ItemAfterSalesEligibility[];
+  total_refunded_paise: number;
+};
+
 export const orderApi = {
   quote: (body: unknown) => api<OrderQuote>('/orders/quote/', { method: 'POST', body: JSON.stringify(body) }),
   payment: (orderId: string) => api<PaymentStartResponse>(`/orders/${orderId}/payment/`, { method: 'POST' }),
@@ -172,6 +277,22 @@ export const orderApi = {
   switchToCod: (orderId: string) => api<SwitchToCodResponse>(`/orders/${orderId}/switch-to-cod/`, { method: 'POST' }),
   pincodeLookup: (pincode: string) =>
     api<PincodeLookupResponse>(`/orders/pincode-lookup/?pincode=${encodeURIComponent(pincode)}`),
+  getAfterSalesEligibility: (orderId: string) =>
+    api<OrderAfterSalesEligibility>(`/orders/${orderId}/after-sales-eligibility/`),
+  requestAfterSale: (
+    orderId: string,
+    data: {
+      order_item?: string | null;
+      request_type: 'CANCEL' | 'EXCHANGE' | 'RETURN' | 'REPLACE';
+      reason: string;
+      reason_details?: string;
+      target_size?: string;
+      target_variant?: string;
+      photo_key?: string;
+    }
+  ) => api<AfterSaleRequest>(`/orders/${orderId}/request-after-sale/`, { method: 'POST', body: JSON.stringify(data) }),
+  getAfterSalesRequests: (orderId: string) =>
+    api<{ requests: AfterSaleRequest[]; refunds: OrderRefund[] }>(`/orders/${orderId}/after-sales-requests/`),
 };
 export const queryKey={catalog:['catalog'],orders:['orders'],students:['students']};
 

@@ -199,28 +199,34 @@ export function RefundPage() {
     <LegalPage title="Refund Policy">
       <h2>Wrong size</h2>
       <p>
-        Exchange unworn items with tags within 7 days of delivery, at home or at the school counter. The first size
-        exchange on an order is free.
+        Exchange unworn items with tags within 7 days of delivery or school pickup directly from your account. The first size
+        exchange on an order is free. Replacement sizes are reserved immediately from school inventory upon request.
       </p>
 
       <h2>Damaged or wrong item</h2>
-      <p>Tell us within 7 days with a photo. We replace it or refund it in full, including delivery.</p>
+      <p>
+        Tell us within 7 days through your order history with details and optional photo. We offer replacement from available
+        inventory or a full refund.
+      </p>
 
       <h2>Cancellations</h2>
       <p>
-        Orders cannot be cancelled directly through the parent portal once placed. Contact the school office
-        to request cancellations or changes before dispatch for a full refund. Personalised items (ID cards, name labels) cannot be
-        cancelled once production starts.
+        Eligible orders and items can be cancelled directly through the parent portal before dispatch for a full refund.
+        Personalised items (ID cards, photo notebooks, name labels) cannot be cancelled once custom production has begun.
       </p>
 
       <h2>Orders released due to payment timeout</h2>
       <p>
         If your payment arrives after an order's 15-minute reservation has expired and the order was cancelled, the payment
-        is automatically flagged and refunded in full to your original payment method within 7 working days.
+        is automatically flagged and refunded in full to your original payment method within 5 to 7 working days.
       </p>
 
       <h2>How refunds are paid</h2>
-      <p>To the original payment method, within 7 working days of approval.</p>
+      <p>
+        For online payments, refunds are processed through Razorpay back to the original payment method within 5 to 7
+        working days of approval. For cash on delivery orders, repayments are provided in cash at the school uniform desk
+        after item inspection.
+      </p>
     </LegalPage>
   );
 }
