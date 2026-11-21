@@ -58,18 +58,33 @@ export const homeFor = (role?: string, cityId?: string | null) =>
     ? '/retailer'
     : '/school';
 
+/** Shown when the device is signed in but the server could not be reached to confirm it. */
+function SignedInOffline({ onRetry }: { onRetry: () => void }) {
+  const { t } = useLang();
+  return (
+    <div className="auth-offline" role="alert">
+      <h2>{t('parent.offlineTitle')}</h2>
+      <p>{t('parent.loadError')}</p>
+      <button type="button" className="btn btn-primary" onClick={onRetry}>
+        {t('parent.retry')}
+      </button>
+    </div>
+  );
+}
+
 export function Guard({ children, roles }: { children: ReactNode; roles?: string[] }) {
-  const { user, loading } = useAuth();
+  const { user, loading, offline, retry } = useAuth();
   const location = useLocation();
   const { openSheet } = useAccountSheet();
 
   useEffect(() => {
-    if (!loading && !user && roles?.includes('PARENT')) {
+    if (!loading && !user && !offline && roles?.includes('PARENT')) {
       openSheet(location.pathname + location.search);
     }
-  }, [loading, user, roles, location.pathname, location.search, openSheet]);
+  }, [loading, user, offline, roles, location.pathname, location.search, openSheet]);
 
   if (loading) return <div className="splash">Loading your store…</div>;
+  if (!user && offline) return <SignedInOffline onRetry={retry} />;
   if (!user) {
     if (roles?.includes('PARENT')) {
       return <Navigate to="/" replace />;

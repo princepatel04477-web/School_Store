@@ -107,3 +107,8 @@ table.data small.gr{display:block;color:var(--muted);font-size:10px;margin-top:2
 /* Login banner: base.css greys every <p>; the banner line must stay light on green */
 .login-art p{color:inherit}
 .login-card a.link-button{text-align:center}
+
+/* Signed in on this device, but the server could not confirm it (see Guard in App.tsx). */
+.auth-offline{max-width:480px;width:calc(100% - 2 * var(--space-4));margin:var(--space-8) auto;padding:var(--space-6) var(--space-4);text-align:center;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--paper-raised)}
+.auth-offline h2{margin:0 0 var(--space-2)}
+.auth-offline p{color:var(--ink-soft);margin:0 0 var(--space-4)}

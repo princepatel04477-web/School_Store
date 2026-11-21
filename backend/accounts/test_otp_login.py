@@ -162,3 +162,24 @@ class OTPLoginBackendTests(TestCase):
         # 6th request is throttled
         res = self._send(phone)
         self.assertEqual(res.status_code, 429)
+
+    def test_typing_mistakes_do_not_use_up_the_send_limit(self):
+        # Review 2026-11-21: one send + 4 wrong codes used to return 429, because
+        # send and verify shared one 5/min allowance.
+        phone = "9876500030"
+        self.assertEqual(self._send(phone).status_code, 200)
+        code = cache.get(f"otp:{phone}")
+        for wrong in ("000000", "111111", "222222", "333333"):
+            res = self._verify(phone, wrong)
+            self.assertEqual(res.status_code, 400)
+            self.assertEqual(res.data["code"], "otp_wrong")
+        # The right code still works, and a resend is still allowed afterwards
+        self.assertEqual(self._verify(phone, code).status_code, 200)
+        self.assertEqual(self._send(phone).status_code, 200)
+
+    def test_verify_has_its_own_limit(self):
+        phone = "9876500031"
+        self._send(phone)
+        statuses = [self._verify(phone, "000000").status_code for _ in range(21)]
+        self.assertEqual(statuses[:20], [400] * 20)
+        self.assertEqual(statuses[20], 429)

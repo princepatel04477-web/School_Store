@@ -136,8 +136,14 @@ describe('Prompt 3: Parent Landing Page & Class Normalization', () => {
       await waitFor(() => {
         expect(screen.getByText('Order in progress')).toBeTruthy();
         expect(screen.getByText('Order #ORD-999')).toBeTruthy();
-        expect(screen.getByText('PROCESSING')).toBeTruthy();
-        expect(screen.getByText('View in My Orders')).toBeTruthy();
+        // Readable labels, not raw status codes
+        expect(screen.getByText('Processing')).toBeTruthy();
+        expect(screen.getByText('Paid')).toBeTruthy();
+        // The card opens this order's detail
+        expect(screen.getByText('View in My Orders').closest('a')?.getAttribute('href')).toBe('/parent/orders/ord-1');
+        // A parent can reach their orders and sign out from the account page
+        expect(screen.getByRole('link', { name: 'My orders' }).getAttribute('href')).toBe('/parent/orders');
+        expect(screen.getByRole('button', { name: /Sign out/ })).toBeTruthy();
       });
     });
 

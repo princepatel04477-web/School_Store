@@ -34,7 +34,7 @@
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   font-weight: 600;
-  color: var(--ink-muted);
+  color: var(--ink-soft);
   text-transform: uppercase;
   margin-bottom: var(--space-1);
   display: block;
@@ -107,7 +107,7 @@
 
 .parent-order-date {
   font-size: 0.75rem;
-  color: var(--ink-muted);
+  color: var(--ink-soft);
 }
 
 .parent-order-badges {
@@ -144,7 +144,7 @@
   justify-content: space-between;
   align-items: center;
   font-size: 0.875rem;
-  color: var(--ink-muted);
+  color: var(--ink-soft);
 }
 
 .parent-order-student {
@@ -217,7 +217,7 @@
 .parent-empty-icon {
   width: 48px;
   height: 48px;
-  color: var(--ink-muted);
+  color: var(--ink-soft);
   stroke-width: 1.5;
 }
 
@@ -230,7 +230,7 @@
 
 .parent-orders-empty p {
   font-size: 0.9375rem;
-  color: var(--ink-muted);
+  color: var(--ink-soft);
   max-width: 360px;
   margin: 0;
   line-height: 1.4;
@@ -328,19 +328,20 @@
   justify-content: center;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--ink-muted);
+  color: var(--ink-soft);
   margin-bottom: var(--space-1);
 }
 
 .parent-timeline-step.done .step-marker {
-  background: var(--brand, #059669);
-  border-color: var(--brand, #059669);
-  color: #ffffff;
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--paper-raised);
 }
 
 .parent-timeline-step.current .step-marker {
-  border-color: var(--brand, #059669);
-  color: var(--brand, #059669);
+  /* Filled like the done steps (white number), plus a ring to mark where the order is now */
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
   font-weight: 700;
 }
 
@@ -354,7 +355,7 @@
 .step-title {
   font-size: 0.6875rem;
   font-weight: 600;
-  color: var(--ink-muted);
+  color: var(--ink-soft);
 }
 
 .parent-timeline-step.done .step-title,
@@ -362,10 +363,11 @@
   color: var(--ink);
 }
 
-.step-badge {
+/* Prefixed: a global .step-badge (checkout) draws a filled circle. */
+.parent-step-badge {
   font-size: 0.625rem;
   font-weight: 700;
-  color: var(--brand, #059669);
+  color: var(--brand);
   text-transform: uppercase;
 }
 
@@ -389,29 +391,27 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--ink-muted);
+  background: var(--ink-soft);
 }
 
 .terminal-cancelled .terminal-dot {
-  background: #ef4444;
+  background: var(--danger);
 }
 
 .terminal-cancelled {
-  border-color: #fca5a5;
-  background: #fef2f2;
-  color: #991b1b;
+  color: var(--danger);
+  background: var(--paper-raised);
 }
 
 .terminal-returned .terminal-dot,
 .terminal-refunded .terminal-dot {
-  background: #f59e0b;
+  background: var(--accent-text);
 }
 
 .terminal-returned,
 .terminal-refunded {
-  border-color: #fcd34d;
-  background: #fffbeb;
-  color: #92400e;
+  color: var(--accent-text);
+  background: var(--paper-raised);
 }
 
 /* Order Detail View */
@@ -430,7 +430,7 @@
   gap: var(--space-2);
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--ink-muted);
+  color: var(--ink-soft);
   text-decoration: none;
   margin-bottom: var(--space-4);
   transition: color 0.15s ease;
@@ -469,7 +469,7 @@
 }
 
 .parent-detail-label {
-  color: var(--ink-muted);
+  color: var(--ink-soft);
   font-weight: 500;
 }
 
@@ -506,7 +506,7 @@
 
 .detail-item-meta {
   font-size: 0.75rem;
-  color: var(--ink-muted);
+  color: var(--ink-soft);
 }
 
 .detail-item-total {
@@ -537,11 +537,11 @@
 
 .status-history-time {
   font-size: 0.75rem;
-  color: var(--ink-muted);
+  color: var(--ink-soft);
 }
 
 .status-history-note {
   font-size: 0.75rem;
-  color: var(--ink-muted);
+  color: var(--ink-soft);
   font-style: italic;
 }

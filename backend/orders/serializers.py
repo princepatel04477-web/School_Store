@@ -130,6 +130,9 @@ class OrderListSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "order_number",
+            # The child's id (a column on the order, no join) so the parent's
+            # account page can match an order to the child it is for.
+            "student",
             "student_name",
             "student_gr",
             "school_code",

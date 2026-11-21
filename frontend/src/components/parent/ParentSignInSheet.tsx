@@ -89,8 +89,10 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName, mode = 'o
     } else {
       setStep('phone');
     }
+    // Runs when the sheet opens, not when the sign-in itself sets `user`:
+    // verify() moves on by itself, and a second run would load the children twice.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, mode, user]);
+  }, [open, mode]);
 
   useEffect(() => {
     if (resendIn <= 0) return;

@@ -144,7 +144,7 @@ export function ParentOrders() {
       {!isLoading && isError && (
         <div className="parent-orders-error" role="alert">
           <h3>{t('orders.errorTitle')}</h3>
-          <p>{t('err.offline')}</p>
+          <p>{t('parent.loadError')}</p>
           <button
             type="button"
             className="parent-orders-retry-btn"
@@ -289,7 +289,7 @@ export function ParentOrderDetail() {
         </Link>
         <div className="parent-orders-error" role="alert">
           <h3>{t('orders.errorTitle')}</h3>
-          <p>{t('err.offline')}</p>
+          <p>{t('parent.loadError')}</p>
           <button
             type="button"
             className="parent-orders-retry-btn"
@@ -422,19 +422,19 @@ export function ParentOrderDetail() {
           <h2>{t('orders.deliveryDetails')}</h2>
           {order.delivery_details.recipient_name && (
             <div className="parent-detail-section-row">
-              <span className="parent-detail-label">Recipient</span>
+              <span className="parent-detail-label">{t('orders.recipient')}</span>
               <span className="parent-detail-val">{order.delivery_details.recipient_name}</span>
             </div>
           )}
           {order.delivery_details.phone && (
             <div className="parent-detail-section-row">
-              <span className="parent-detail-label">Phone</span>
+              <span className="parent-detail-label">{t('orders.phone')}</span>
               <span className="parent-detail-val">{order.delivery_details.phone}</span>
             </div>
           )}
           {order.delivery_details.address && (
             <div className="parent-detail-section-row">
-              <span className="parent-detail-label">Address</span>
+              <span className="parent-detail-label">{t('orders.address')}</span>
               <span className="parent-detail-val">
                 {[
                   order.delivery_details.address,

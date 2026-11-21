@@ -17,9 +17,20 @@ export interface AccountEntry {
  * and click handler (opens the mobile OTP sign-in sheet when signed out).
  */
 export function useAccountEntry(): AccountEntry {
-  const { user, loading } = useAuth();
+  const { user, loading, offline } = useAuth();
   const { t } = useLang();
   const { openSheet } = useAccountSheet();
+
+  // Signed in on this device but the server could not confirm it yet: keep
+  // pointing at the account (which offers Retry) instead of asking for an OTP.
+  if (!user && offline) {
+    return {
+      label: t('nav.myAccount'),
+      ariaLabel: t('nav.myAccount'),
+      to: '/parent',
+      isSignedIn: true,
+    };
+  }
 
   if (loading || !user) {
     return {

@@ -29,7 +29,19 @@ class LoginRateThrottle(AnonRateThrottle):
 
 
 class OTPRateThrottle(AnonRateThrottle):
+    """Sending codes (each one is a paid SMS): per client address."""
+
     scope = "otp"
+
+
+class OTPVerifyRateThrottle(AnonRateThrottle):
+    """
+    Checking codes has its own, larger allowance so a parent's typing mistakes
+    do not use up the send limit. Guessing stays bounded: a code is burned after
+    OTP_MAX_ATTEMPTS wrong tries for that number, and a new one needs a send.
+    """
+
+    scope = "otp_verify"
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -92,7 +104,7 @@ class OTPLoginView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [OTPRateThrottle]
+    throttle_classes = [OTPVerifyRateThrottle]
 
     def post(self, request):
         phone = normalize_in_mobile(request.data.get("phone"))

@@ -8,6 +8,9 @@ import { useLang } from '../../i18n';
 import { mapRosterClassToSeedClass } from './classNormalizer';
 import { ParentSignInSheet } from './ParentSignInSheet';
 import { Skeleton } from '../ui/Skeleton';
+import { SignOut } from '../ui/icons';
+import { useAuth } from '../../auth';
+import { fulfilmentLabel, paymentLabel } from './orderLabels';
 import './ParentLanding.css';
 
 /**
@@ -21,6 +24,7 @@ export function ParentLanding() {
   const queryClient = useQueryClient();
   const { t } = useLang();
   const { setSelection } = useStoreState();
+  const { signOut } = useAuth();
   const { data: schools = [] } = useStoreSchools();
 
   // 1. Fetch children and orders
@@ -120,7 +124,7 @@ export function ParentLanding() {
       <div className="parent-landing">
         <div className="parent-error-card" role="alert">
           <h2>{t('parent.errorTitle')}</h2>
-          <p>{t('err.offline')}</p>
+          <p>{t('parent.loadError')}</p>
           <button
             type="button"
             className="parent-retry-btn"
@@ -160,7 +164,8 @@ export function ParentLanding() {
       schoolId: activeSchool.id,
       schoolName: activeSchool.name,
       schoolCode: activeSchool.code,
-      cityName: activeSchool.city,
+      // The campus city: a chain's head office may be in another city.
+      cityName: child.city_name || activeSchool.city,
       cityId: child.city || undefined,
       branchId: child.branch || undefined,
       branchName: child.branch_name || undefined,
@@ -186,8 +191,17 @@ export function ParentLanding() {
   return (
     <div className="parent-landing">
       <div className="parent-landing-header">
-        <span className="eyebrow">PARENT ACCOUNT</span>
+        <span className="eyebrow">{t('nav.myAccount')}</span>
         <h1>{selectedChild ? selectedChild.name : t('nav.myAccount')}</h1>
+        <div className="parent-account-links">
+          <Link to="/parent/orders" className="parent-account-link">
+            {t('parent.myOrders')}
+          </Link>
+          <button type="button" className="parent-account-link" onClick={signOut}>
+            <SignOut width={16} height={16} strokeWidth={1.75} aria-hidden="true" />
+            {t('parent.signOut')}
+          </button>
+        </div>
       </div>
 
       {/* Child switcher row when there are 2 or more children */}
@@ -229,15 +243,17 @@ export function ParentLanding() {
           <div className="active-order-details">
             <div className="order-detail-col">
               <span className="label">{t('parent.fulfilment')}</span>
-              <span className="value">{activeOrderForChild.status}</span>
+              <span className="value">{fulfilmentLabel(activeOrderForChild.status, t)}</span>
             </div>
             <div className="order-detail-col">
               <span className="label">{t('parent.payment')}</span>
-              <span className="value">{activeOrderForChild.payment_status}</span>
+              <span className="value">
+                {paymentLabel(activeOrderForChild.payment_status, activeOrderForChild.payment_method, t)}
+              </span>
             </div>
           </div>
 
-          <Link to="/parent/orders" className="active-order-link">
+          <Link to={`/parent/orders/${activeOrderForChild.id}`} className="active-order-link">
             {t('parent.viewOrder')}
           </Link>
         </div>
@@ -294,15 +310,15 @@ export function ParentLanding() {
           <div className="child-details-grid">
             <div className="child-detail-item">
               <span className="label">{t('parent.grNumber')}</span>
-              <span className="value">{selectedChild.gr_number || '—'}</span>
+              <span className="value">{selectedChild.gr_number || '-'}</span>
             </div>
             <div className="child-detail-item">
               <span className="label">{t('parent.class')}</span>
-              <span className="value">{selectedChild.grade_name || selectedChild.class_name || '—'}</span>
+              <span className="value">{selectedChild.grade_name || selectedChild.class_name || '-'}</span>
             </div>
             <div className="child-detail-item">
               <span className="label">{t('parent.section')}</span>
-              <span className="value">{selectedChild.section || '—'}</span>
+              <span className="value">{selectedChild.section || '-'}</span>
             </div>
             <div className="child-detail-item">
               <span className="label">{t('parent.gender')}</span>
@@ -311,12 +327,12 @@ export function ParentLanding() {
                   ? 'Boy'
                   : selectedChild.gender === 'FEMALE'
                   ? 'Girl'
-                  : selectedChild.gender || '—'}
+                  : selectedChild.gender || '-'}
               </span>
             </div>
             <div className="child-detail-item">
               <span className="label">{t('parent.school')}</span>
-              <span className="value">{selectedChild.school_name || '—'}</span>
+              <span className="value">{selectedChild.school_name || '-'}</span>
             </div>
             {selectedChild.branch_name && (
               <div className="child-detail-item">

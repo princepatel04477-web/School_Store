@@ -1083,6 +1083,17 @@ export const messages = {
   'parent.branch': { en: 'Campus', gu: 'કેમ્પસ', hi: 'परिसर' },
   'parent.errorTitle': { en: 'Could not load your account', gu: 'તમારું ખાતું લોડ થઈ શક્યું નથી', hi: 'आपका खाता लोड नहीं हो सका' },
   'parent.retry': { en: 'Try again', gu: 'ફરી પ્રયાસ કરો', hi: 'पुनः प्रयास करें' },
+  'parent.loadError': {
+    en: 'We could not reach the store. Check your connection and try again.',
+    gu: 'સ્ટોર સુધી પહોંચી શક્યા નહીં. તમારું ઇન્ટરનેટ તપાસો અને ફરી પ્રયાસ કરો.',
+    hi: 'स्टोर तक नहीं पहुँच पाए। अपना इंटरनेट जाँचें और फिर कोशिश करें।',
+  },
+  'parent.offlineTitle': { en: 'You are still signed in', gu: 'તમે હજી લોગિન છો', hi: 'आप अभी भी लॉगिन हैं' },
+  'parent.signOut': { en: 'Sign out', gu: 'લોગઆઉટ', hi: 'लॉगआउट' },
+  'parent.myOrders': { en: 'My orders', gu: 'મારા ઓર્ડર', hi: 'मेरे ऑर्डर' },
+  'orders.recipient': { en: 'Name', gu: 'નામ', hi: 'नाम' },
+  'orders.phone': { en: 'Mobile', gu: 'મોબાઇલ', hi: 'मोबाइल' },
+  'orders.address': { en: 'Address', gu: 'સરનામું', hi: 'पता' },
   'parent.schoolInactive': {
     en: 'This school is not active in the store yet. Please choose your school.',
     gu: 'આ શાળા હજી સ્ટોરમાં સક્રિય નથી. કૃપા કરીને તમારી શાળા પસંદ કરો.',

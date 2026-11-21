@@ -65,7 +65,10 @@ export function ParentTimeline({ status }: ParentTimelineProps) {
             </div>
             <div className="step-content">
               <span className="step-title">{fulfilmentLabel(stepKey, t)}</span>
-              {isCurrent && <span className="step-badge">{t('parent.activeOrder')}</span>}
+              {/* A delivered order is finished, not "in progress". */}
+              {isCurrent && normalizedStatus !== 'DELIVERED' && (
+                <span className="parent-step-badge">{t('parent.activeOrder')}</span>
+              )}
             </div>
           </div>
         );

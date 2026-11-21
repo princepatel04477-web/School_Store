@@ -158,6 +158,8 @@ class ParentOrderAccessServerTests(TestCase):
         self.assertIn(self.order_a.order_number, order_numbers)
         self.assertNotIn(self.order_b.order_number, order_numbers)
         self.assertEqual(len(results), 1)
+        # The list says which child each order is for (the account page matches on it)
+        self.assertEqual(str(results[0]["student"]), str(self.child_a.id))
 
         # 2. GET /api/orders/?student=<B's child> -> empty
         res = client_a.get(f"/api/orders/?student={self.child_b.id}")
