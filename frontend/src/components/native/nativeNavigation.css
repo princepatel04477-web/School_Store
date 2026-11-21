@@ -212,3 +212,10 @@
   85% { opacity: 1; transform: translate(-50%, 0); }
   100% { opacity: 0; transform: translate(-50%, 8px); }
 }
+
+/* Tablets in the app: the kids take the height left under the headline, less the bottom tabs. */
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  .is-native-shell .emerald-hero:not(.is-compact) .emerald-kids-img {
+    height: clamp(320px, calc(100dvh - 390px - var(--native-tab-height) - var(--sab, 0px)), 640px);
+  }
+}

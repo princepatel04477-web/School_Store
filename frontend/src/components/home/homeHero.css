@@ -1208,3 +1208,32 @@
     margin-bottom: clamp(16px, 3vh, 40px);
   }
 }
+
+/* Phones and narrow windows: the kids fill the space between the headline and the
+   bottom of the screen instead of stopping at a fixed 360px with empty green above.
+   The stage is a size container, so the picture is as tall as the stage allows and
+   never wider than the screen less its 16px side margins (the drawing is 541 x 682,
+   so height <= width x 1.26). */
+@media (max-width: 767.98px) {
+  .emerald-right-col {
+    container-type: size;
+  }
+
+  .emerald-hero:not(.is-compact) .emerald-kids-img {
+    height: min(96cqh, calc((100vw - 32px) * 1.26));
+    max-width: none;
+  }
+
+  .emerald-hero:not(.is-compact) .emerald-ground-shadow {
+    width: min(48cqh, calc((100vw - 32px) * 0.63));
+  }
+}
+
+/* Tablets: the kids take the height left under the header and headline (about 390px)
+   instead of stopping at 440px with empty green below them. */
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  .emerald-hero:not(.is-compact) .emerald-kids-img {
+    height: clamp(320px, calc(100dvh - 390px), 640px);
+    max-width: none;
+  }
+}
