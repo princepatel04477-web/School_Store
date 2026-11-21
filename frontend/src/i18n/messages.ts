@@ -11,6 +11,28 @@
 type Entry = { en: string; gu: string; hi: string };
 
 export const messages = {
+  'recovery.checking': { en: "Checking payment", gu: "ચુકવણીની તપાસ", hi: "भुगतान की जाँच" },
+  'recovery.checkingBody': { en: "We are checking whether your payment of {amount} for order {n} went through. Please do not pay again.", gu: "અમે તપાસી રહ્યા છીએ કે ઓર્ડર {n} માટે તમારી {amount} ની ચુકવણી થઈ છે કે નહીં. ફરીથી ચૂકવશો નહીં.", hi: "हम जाँच रहे हैं कि ऑर्डर {n} के लिए आपका {amount} का भुगतान हुआ या नहीं। दोबारा भुगतान न करें।" },
+  'recovery.outage': { en: "We could not reach the payment service. Your order is safe. Please refresh in a minute.", gu: "ચુકવણી સેવા સાથે સંપર્ક થઈ શક્યો નહીં. તમારો ઓર્ડર સુરક્ષિત છે. એક મિનિટ પછી ફરી તપાસો.", hi: "भुगतान सेवा से संपर्क नहीं हो सका। आपका ऑर्डर सुरक्षित है। एक मिनट बाद फिर जाँचें।" },
+  'recovery.refresh': { en: "Refresh status", gu: "સ્થિતિ ફરી તપાસો", hi: "स्थिति फिर जाँचें" },
+  'recovery.checked': { en: "Last checked {time}", gu: "છેલ્લી તપાસ {time}", hi: "पिछली जाँच {time}" },
+  'recovery.unpaid': { en: "Payment not received for order {n}. {amount} is held for you until {time}.", gu: "ઓર્ડર {n} ની ચુકવણી મળી નથી. {time} સુધી {amount} નો ઓર્ડર તમારા માટે રાખ્યો છે.", hi: "ऑर्डर {n} का भुगतान नहीं मिला। {amount} का ऑर्डर आपके लिए {time} तक रखा गया है।" },
+  'recovery.failure': { en: "Your last payment did not go through: {reason}.", gu: "તમારી છેલ્લી ચુકવણી થઈ નથી: {reason}.", hi: "आपका पिछला भुगतान नहीं हुआ: {reason}।" },
+  'recovery.pay': { en: "Pay {amount}", gu: "{amount} ચૂકવો", hi: "{amount} चुकाएँ" },
+  'recovery.codInstead': { en: "Pay cash on delivery instead", gu: "ડિલિવરી વખતે રોકડ ચૂકવો", hi: "डिलीवरी पर नकद दें" },
+  'recovery.received': { en: "Payment received.", gu: "ચુકવણી મળી ગઈ.", hi: "भुगतान मिल गया।" },
+  'recovery.receipt': { en: "Order {n}, {amount} paid on {time} via {method}. Payment reference ending {ref}.", gu: "ઓર્ડર {n}, {time} એ {method} દ્વારા {amount} ચૂકવ્યા. ચુકવણી સંદર્ભના છેલ્લા અંક {ref}.", hi: "ऑर्डर {n}, {time} को {method} से {amount} चुकाए। भुगतान संदर्भ के अंतिम अंक {ref}।" },
+  'recovery.refund': { en: "We received {amount} after this order was released. It will be refunded to the original payment method within 7 working days.", gu: "ઓર્ડર રદ થયા પછી અમને {amount} મળ્યા. મૂળ ચુકવણી પદ્ધતિથી 7 કાર્યદિવસમાં રકમ પરત મળશે.", hi: "ऑर्डर रद्द होने के बाद हमें {amount} मिले। मूल भुगतान माध्यम पर 7 कार्यदिवस में राशि लौटाई जाएगी।" },
+  'recovery.noCash': { en: "Paid online: {amount}. Do not pay cash on delivery.", gu: "ઓનલાઇન ચૂકવ્યા: {amount}. ડિલિવરી વખતે રોકડ આપશો નહીં.", hi: "ऑनलाइन भुगतान हुआ: {amount}। डिलीवरी पर नकद न दें।" },
+  'recovery.codDue': { en: "Cash on delivery. Pay {amount} when the order arrives.", gu: "ડિલિવરી વખતે રોકડ. ઓર્ડર આવે ત્યારે {amount} ચૂકવો.", hi: "डिलीवरी पर नकद। ऑर्डर आने पर {amount} दें।" },
+  'recovery.attention': { en: "Order {n} is waiting for payment.", gu: "ઓર્ડર {n} ચુકવણીની રાહ જોઈ રહ્યો છે.", hi: "ऑर्डर {n} का भुगतान बाकी है।" },
+  'recovery.view': { en: "View order", gu: "ઓર્ડર જુઓ", hi: "ऑर्डर देखें" },
+  'recovery.progress': { en: "A payment is still in progress. Check your UPI app.", gu: "ચુકવણી ચાલુ છે. તમારી UPI એપ તપાસો.", hi: "भुगतान अभी जारी है। अपना UPI ऐप देखें।" },
+  'recovery.ordersError': { en: "Could not load orders.", gu: "ઓર્ડર લોડ થઈ શક્યા નહીં.", hi: "ऑर्डर लोड नहीं हो सके।" },
+  'recovery.unavailable': { en: "Payment is unavailable for this order.", gu: "આ ઓર્ડર માટે ચુકવણી ઉપલબ્ધ નથી.", hi: "इस ऑर्डर के लिए भुगतान उपलब्ध नहीं है।" },
+  'recovery.methodCard': { en: "card", gu: "કાર્ડ", hi: "कार्ड" },
+  'recovery.methodBank': { en: "netbanking", gu: "નેટબેન્કિંગ", hi: "नेटबैंकिंग" },
+  'recovery.methodUnknown': { en: "online payment", gu: "ઓનલાઇન ચુકવણી", hi: "ऑनलाइन भुगतान" },
   // ---------- common ----------
   'common.close': { en: 'Close', gu: 'બંધ કરો', hi: 'बंद करें' },
   'welcome.message': {

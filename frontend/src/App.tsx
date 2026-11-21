@@ -1,3 +1,4 @@
+import { PaymentReturnNotice } from './components/PaymentReturnNotice';
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, Route, Routes, Link, useLocation } from 'react-router-dom';
 import { useAuth } from './auth';
@@ -123,10 +124,13 @@ export default function App() {
               <Route
                 path="/"
                 element={
+                  <>
+                  <PaymentReturnNotice />
                   <HomePage
                     onOpenBag={() => setBagOpen(true)}
                     onOpenLanguage={() => setLangOpen(true)}
                   />
+                  </>
                 }
               />
               <Route

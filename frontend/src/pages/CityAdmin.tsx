@@ -1,3 +1,4 @@
+import { PaymentsToCheck } from '../components/PaymentsToCheck';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { X, BarChart, Package, Receipt, SchoolBuilding, Ruler } from '../components/ui/icons';
 import { PanelShell, type PanelNavItem } from '../components/admin/PanelShell';
@@ -547,6 +548,7 @@ function VariantMovementHistoryModal({
  * 3. Orders View (Requirement 3, 4, 7: Filters, Polling every 30s, Cursor Pagination, Bulk status, Detail view)
  * ------------------------------------------------------------------ */
 function CityOrdersView() {
+  const [showPayments, setShowPayments] = useState(false);
   const queryClient = useQueryClient();
   const [selectedSchool, setSelectedSchool] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
@@ -632,6 +634,8 @@ function CityOrdersView() {
 
   return (
     <div>
+      <PaymentsToCheck school={selectedSchool || undefined} open={showPayments} onToggle={() => setShowPayments(value => !value)} />
+      {!showPayments && <>
       <div className="page-head">
         <div>
           <div className="eyebrow">ORDERS &amp; FULFILLMENT</div>
@@ -821,6 +825,7 @@ function CityOrdersView() {
           }}
         />
       )}
+      </>}
     </div>
   );
 }

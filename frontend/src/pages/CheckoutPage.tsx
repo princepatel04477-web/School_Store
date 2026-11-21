@@ -8,11 +8,12 @@ import { useStoreSchools } from '../data/catalog';
 import { fitPayload } from '../data/fit';
 import { buildOrderMessage, whatsappOrderUrl } from '../services/whatsappOrder';
 import { orderErrorMessage, prepareOrder, submitOrder, clearPendingOrder, type PlacedOrder } from '../services/placeOrder';
-import { loadRazorpay, openRazorpayCheckout } from '../services/paymentAdapter';
+import { checkingPayment, paymentRefusal, runOrderPayment } from '../services/orderPayment';
+import { PaymentStatus } from '../components/PaymentStatus';
 import { useAuth } from '../auth';
 import { useLang } from '../i18n';
 import { classLabel } from '../i18n/labels';
-import { api, ApiError, orderApi, type ParentChild, type Order, type OrderQuote } from '../api';
+import { ApiError, orderApi, type ParentChild, type PaymentView, type OrderQuote } from '../api';
 import { ParentSignInSheet } from '../components/parent/ParentSignInSheet';
 import { scrollPageTo } from '../motion/SmoothScroll';
 import '../components/cart/bagCheckout.css';
@@ -60,21 +61,13 @@ export function CheckoutPage() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<'ONLINE' | 'COD'>('ONLINE');
   const [priceNotice, setPriceNotice] = useState('');
-  const [paymentStep, setPaymentStep] = useState<'idle' | 'checking' | 'confirming' | 'failed' | 'done'>('idle');
-  const [inProgressWarning, setInProgressWarning] = useState(false);
   const [onlineOrder, setOnlineOrder] = useState<PlacedOrder | null>(null);
-  const [lastAttemptReason, setLastAttemptReason] = useState('');
-  const [willTextMessage, setWillTextMessage] = useState(false);
-  const reconcileLastCallRef = useRef<number>(0);
-  const pollingIntervalRef = useRef<any>(null);
-  const pollingTimeoutRef = useRef<any>(null);
-
-  useEffect(() => {
-    return () => {
-      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-      if (pollingTimeoutRef.current) clearTimeout(pollingTimeoutRef.current);
-    };
-  }, []);
+  const [payment, setPayment] = useState<PaymentView | null>(null);
+  const [paymentBusy, setPaymentBusy] = useState(false);
+  const refreshLock = useRef(false);
+  const refreshTimer = useRef<number | undefined>(undefined);
+  const [refreshCoolingDown, setRefreshCoolingDown] = useState(false);
+  useEffect(() => () => window.clearTimeout(refreshTimer.current), []);
 
   // WhatsApp hand-off
   const [reference] = useState(() => `SS-${Date.now().toString(36).toUpperCase()}`);
@@ -184,188 +177,43 @@ export function CheckoutPage() {
     }
   }, [activeStep, mode, child, fetchQuote]);
 
-  const stopPolling = () => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-    if (pollingTimeoutRef.current) {
-      clearTimeout(pollingTimeoutRef.current);
-      pollingTimeoutRef.current = null;
+  const applyPayment = (view: PaymentView) => {
+    setPayment(view);
+    if (view.receipt) {
+      clearPendingOrder();
+      clearCart();
     }
   };
 
-  const startPolling = (orderId: string) => {
-    setPaymentStep('confirming');
-    setWillTextMessage(false);
-    stopPolling();
-
-    pollingIntervalRef.current = setInterval(async () => {
-      try {
-        const order = await api<Order>(`/orders/${orderId}/`);
-        if (order.payment_status === 'PAID' || order.status === 'CONFIRMED') {
-          stopPolling();
-          setPaymentStep('done');
-          clearPendingOrder();
-          clearCart();
-          setPlaced({
-            id: order.id,
-            order_number: order.order_number,
-            total: String(order.total),
-            student_name: order.student_name,
-            fulfillment_type: order.fulfillment_type || 'HOME_DELIVERY',
-            status: order.status,
-            payment_status: order.payment_status,
-            payment_method: order.payment_method,
-          });
-          scrollPageTo(0);
-        }
-      } catch {
-        // Keep polling until timeout
-      }
-    }, 3000);
-
-    pollingTimeoutRef.current = setTimeout(() => {
-      stopPolling();
-      setWillTextMessage(true);
-    }, 120000);
-  };
-
-  const handlePaymentSuccess = async (order: PlacedOrder, response: any) => {
-    setPaymentStep('confirming');
-    setOrderError('');
+  const refreshPayment = async (order: PlacedOrder) => {
+    if (refreshLock.current) return;
+    refreshLock.current = true;
+    setPaymentBusy(true);
     try {
-      const res = await orderApi.verifyPayment(order.id, {
-        razorpay_order_id: response.razorpay_order_id,
-        razorpay_payment_id: response.razorpay_payment_id,
-        razorpay_signature: response.razorpay_signature,
-      });
-      if (res.status === 'paid') {
-        setPaymentStep('done');
-        clearPendingOrder();
-        clearCart();
-        setPlaced({
-          ...order,
-          status: 'CONFIRMED',
-          payment_status: 'PAID',
-        });
-        scrollPageTo(0);
-        return;
-      }
-    } catch {
-      // Verify failed or returned confirming: fall through to poll
+      const result = await orderApi.reconcilePayment(order.id);
+      applyPayment(result.payment_view);
+      setRefreshCoolingDown(true);
+      refreshTimer.current = window.setTimeout(() => {
+        refreshLock.current = false;
+        setRefreshCoolingDown(false);
+      }, result.retry_after_seconds * 1000);
+    } catch (error) {
+      applyPayment(paymentRefusal(error) ?? checkingPayment(payment ?? order.payment_view));
+      refreshLock.current = false;
+    } finally {
+      setPaymentBusy(false);
     }
-    startPolling(order.id);
-  };
-
-  const handleReconcile = async (orderId: string) => {
-    const now = Date.now();
-    if (now - reconcileLastCallRef.current < 5000) {
-      return;
-    }
-    reconcileLastCallRef.current = now;
-    setPaymentStep('checking');
-    setOrderError('');
-    try {
-      const res = await orderApi.reconcilePayment(orderId);
-      if (res.payment_status === 'PAID' || res.status === 'CONFIRMED') {
-        stopPolling();
-        setPaymentStep('done');
-        clearPendingOrder();
-        clearCart();
-        if (onlineOrder) {
-          setPlaced({
-            ...onlineOrder,
-            status: 'CONFIRMED',
-            payment_status: 'PAID',
-          });
-        }
-        scrollPageTo(0);
-        return;
-      }
-      if (res.has_in_progress_attempt) {
-        setPaymentStep('checking');
-        setInProgressWarning(true);
-        return;
-      }
-      setInProgressWarning(false);
-      setPaymentStep('failed');
-      if (res.last_attempt_failed) {
-        setLastAttemptReason(t('co.tryAgain'));
-      }
-    } catch {
-      setPaymentStep('failed');
-      setInProgressWarning(false);
-    }
-  };
-
-  const handleCheckoutDismissed = (orderId: string) => {
-    setPaymentStep('checking');
-    handleReconcile(orderId);
-  };
-
-  const handlePaymentFailure = (errorResponse: any) => {
-    setPaymentStep('failed');
-    setInProgressWarning(false);
-    const desc = errorResponse?.error?.description || errorResponse?.description || '';
-    setLastAttemptReason(desc);
   };
 
   const initiateOnlinePayment = async (order: PlacedOrder) => {
-    setOrderError('');
+    setPayment(order.payment_view);
+    setPaymentBusy(true);
     try {
-      const paymentInfo = await orderApi.payment(order.id);
-      const loaded = await loadRazorpay();
-      if (!loaded) {
-        setOrderError('Could not load payment gateway. Please check your connection.');
-        return;
-      }
-      openRazorpayCheckout({
-        key: paymentInfo.key_id,
-        order_id: paymentInfo.razorpay_order_id,
-        amount: paymentInfo.amount_paise,
-        currency: paymentInfo.currency,
-        name: 'School Store',
-        description: `Order #${paymentInfo.store_order_number || order.order_number}`,
-        prefill: paymentInfo.prefill,
-        timeout: 840,
-        modal: {
-          ondismiss: () => {
-            handleCheckoutDismissed(order.id);
-          },
-        },
-        handler: async (response) => {
-          await handlePaymentSuccess(order, response);
-        },
-        onPaymentFailed: (errRes) => {
-          handlePaymentFailure(errRes);
-        },
-      });
+      await runOrderPayment(order.id, applyPayment);
     } catch (error) {
-      setOrderError(t(orderErrorMessage(error)));
-    }
-  };
-
-  const handleSwitchToCod = async () => {
-    if (!onlineOrder) return;
-    setPlacing(true);
-    setOrderError('');
-    try {
-      const res = await orderApi.switchToCod(onlineOrder.id);
-      stopPolling();
-      clearPendingOrder();
-      clearCart();
-      setPlaced({
-        ...onlineOrder,
-        payment_method: 'COD',
-        payment_status: 'PENDING',
-        status: res.status || 'PLACED',
-      });
-      scrollPageTo(0);
-    } catch (error) {
-      setOrderError(t(orderErrorMessage(error)));
+      applyPayment(paymentRefusal(error) ?? checkingPayment(order.payment_view));
     } finally {
-      setPlacing(false);
+      setPaymentBusy(false);
     }
   };
 
@@ -442,6 +290,19 @@ export function CheckoutPage() {
     totalPaise: effectiveTotalPaise,
   });
   const whatsappUrl = whatsappAvailable ? whatsappOrderUrl(siteConfig.whatsappNumber, orderMessage) : '';
+
+  if (onlineOrder && payment) {
+    return <div className="order-confirmed-wrap container">
+      <div className="order-confirmed-card">
+        {paymentBusy ? <div className="checkout-skeleton payment-orders-skeleton" aria-busy="true" /> :
+          <PaymentStatus payment={payment} orderNumber={onlineOrder.order_number}
+            disabled={refreshCoolingDown} onRefresh={() => void refreshPayment(onlineOrder)} />}
+        <Link to={`/parent/orders#order-${onlineOrder.id}`} className="btn btn-primary">
+          {t('co.placed.myOrders')}
+        </Link>
+      </div>
+    </div>;
+  }
 
   // The server saved the order.
   if (placed) {
@@ -895,7 +756,6 @@ export function CheckoutPage() {
                           value="ONLINE"
                           checked={selectedMethod === 'ONLINE'}
                           onChange={() => setSelectedMethod('ONLINE')}
-                          disabled={paymentStep === 'checking' || paymentStep === 'confirming'}
                         />
                         <div>
                           <strong>{t('co.method.online')}</strong>
@@ -910,7 +770,6 @@ export function CheckoutPage() {
                         value="COD"
                         checked={selectedMethod === 'COD'}
                         onChange={() => setSelectedMethod('COD')}
-                        disabled={paymentStep === 'checking' || paymentStep === 'confirming'}
                       />
                       <div>
                         <strong>{t('co.method.cod')}</strong>
@@ -920,60 +779,7 @@ export function CheckoutPage() {
                   </div>
                 )}
 
-                {paymentStep === 'checking' && (
-                  <div className="checkout-status-card" role="status">
-                    <h3>{t('co.checkingPayment')}</h3>
-                    {inProgressWarning ? (
-                      <>
-                        <p>{t('co.paymentInProgress')}</p>
-                        <button
-                          type="button"
-                          className="btn btn-outline"
-                          onClick={() => onlineOrder && handleReconcile(onlineOrder.id)}
-                        >
-                          {t('co.checkAgain')}
-                        </button>
-                      </>
-                    ) : (
-                      <p>{t('co.checkingPayment')}</p>
-                    )}
-                  </div>
-                )}
-
-                {paymentStep === 'confirming' && (
-                  <div className="checkout-status-card" role="status">
-                    <h3>{t('co.confirmingPayment')}</h3>
-                    {willTextMessage && <p>{t('co.willText')}</p>}
-                  </div>
-                )}
-
-                {paymentStep === 'failed' && (
-                  <div className="checkout-status-card" role="status">
-                    {lastAttemptReason && <p>{lastAttemptReason}</p>}
-                    <div className="checkout-action-row">
-                      {!inProgressWarning && (
-                        <>
-                          <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={() => onlineOrder && initiateOnlinePayment(onlineOrder)}
-                          >
-                            {t('co.tryAgain')}
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-outline"
-                            onClick={handleSwitchToCod}
-                          >
-                            {t('co.switchToCod')}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {paymentStep === 'idle' && (
+                {!onlineOrder && (
                   <>
                     {mode === 'account' ? (
                       <>

@@ -50,6 +50,24 @@ export type OrderQuote = {
   reservation_minutes: number;
 };
 
+export type PaymentView = {
+  state: 'PAID' | 'CHECKING' | 'NOT_PAID' | 'RELEASED' | 'REFUND_DUE' | 'COD_DUE' | 'PAID_DO_NOT_COLLECT';
+  amount_due_paise: number;
+  amount_paid_paise: number;
+  currency: 'INR';
+  hold_expires_at: string | null;
+  last_checked_at: string | null;
+  last_check_ok: boolean | null;
+  in_progress: boolean;
+  last_failure_reason: string | null;
+  can_pay_now: boolean;
+  can_switch_to_cod: boolean;
+  can_refresh: boolean;
+  receipt: { order_number: string; amount_paise: number; paid_at: string; method: string; payment_ref_last4: string } | null;
+};
+
+export type PaymentReconcileResponse = { checked: boolean; retry_after_seconds: number; payment_view: PaymentView };
+
 export type Order = {
   id: string;
   order_number: string;
@@ -60,10 +78,7 @@ export type Order = {
   fulfillment_type?: string;
   total: number | string;
   created_at: string;
-  expires_at?: string;
-  last_attempt_failed?: string | null;
-  has_in_progress_attempt?: boolean;
-  can_pay_now?: boolean;
+  payment_view: PaymentView;
   razorpay_order_id?: string;
   status_events?: { status: string; timestamp: string }[];
 };
@@ -100,35 +115,21 @@ export type PaymentStartResponse = {
   key_id: string;
   razorpay_order_id: string;
   amount_paise: number;
-  amount: number;
-  currency: string;
-  store_order_number?: string;
-  prefill?: {
-    name?: string;
-    contact?: string;
-    email?: string;
-  };
+  currency: 'INR';
+  store_order_number: string;
+  hold_expires_at: string;
+  prefill: { name: string; contact: string };
 };
 
-export type VerifyPaymentResponse = {
-  status: 'paid' | 'confirming' | 'failed';
-  payment_status: string;
-  order_status: string;
-};
-
-export type SwitchToCodResponse = {
-  detail: string;
-  order_number: string;
-  payment_method: 'COD';
-  status?: string;
-};
+type VerifyPaymentResponse = { payment_view: PaymentView };
+type SwitchToCodResponse = { payment_method: 'COD'; payment_view: PaymentView };
 
 export const orderApi = {
   quote: (body: unknown) => api<OrderQuote>('/orders/quote/', { method: 'POST', body: JSON.stringify(body) }),
   payment: (orderId: string) => api<PaymentStartResponse>(`/orders/${orderId}/payment/`, { method: 'POST' }),
   verifyPayment: (orderId: string, data: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) =>
     api<VerifyPaymentResponse>(`/orders/${orderId}/verify-payment/`, { method: 'POST', body: JSON.stringify(data) }),
-  reconcilePayment: (orderId: string) => api<Order>(`/orders/${orderId}/reconcile-payment/`, { method: 'POST' }),
+  reconcilePayment: (orderId: string) => api<PaymentReconcileResponse>(`/orders/${orderId}/reconcile-payment/`, { method: 'POST' }),
   switchToCod: (orderId: string) => api<SwitchToCodResponse>(`/orders/${orderId}/switch-to-cod/`, { method: 'POST' }),
 };
 export const queryKey={catalog:['catalog'],orders:['orders'],students:['students']};
@@ -225,7 +226,7 @@ export type PanelOrderItem={
   has_customisation?:boolean;
   customisation_summary?:string;
 };
-export type PanelOrder={id:string;order_number:string;student:string;student_name:string;student_gr:string;student_class:string;student_section:string;items:PanelOrderItem[];item_count:number;units:number;amount:Money;status:string;payment_status:string;fulfillment_type:string;created_at:string;placed_by:string|null;placed_by_name:string;placed_by_role:string;placed_by_role_label:string};
+export type PanelOrder={id:string;order_number:string;student:string;student_name:string;student_gr:string;student_class:string;student_section:string;items:PanelOrderItem[];item_count:number;units:number;amount:Money;status:string;payment_view: PaymentView; payment_method: 'COD' | 'ONLINE'; needs_reconciliation: boolean; reconciliation_reasons: string[]; payment_status:string;fulfillment_type:string;created_at:string;placed_by:string|null;placed_by_name:string;placed_by_role:string;placed_by_role_label:string};
 export type PanelStudent={id:string;name:string;gr_number:string;class_name:string;section:string;gender:string;date_of_birth:string|null;school:string;school_name:string;school_code:string;parent:string|null;parent_name:string;parent_phone:string;approval_status:'PENDING'|'APPROVED';source:string;active:boolean;created_at:string};
 export type PanelTeacher={id:string;username:string;email:string;first_name:string;last_name:string;phone:string;role:Role;school:string;school_name:string;is_active:boolean;must_change_password:boolean;created_at:string;temporary_password?:string};
 export type ExportJob={id:string;job_type:'ORDERS'|'STUDENTS'|'TAILOR_SHEET';job_type_display:string;status:'QUEUED'|'RUNNING'|'READY'|'FAILED'|'EXPIRED';status_display:string;progress:number;school:string;school_code:string;requested_by_name:string|null;filters:Record<string,string>;filename:string;row_count:number;result:Record<string,unknown>;error_message:string;download_url:string|null;created_at:string;completed_at:string|null;expires_at:string|null};

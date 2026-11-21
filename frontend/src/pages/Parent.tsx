@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { PaymentReturnNotice } from '../components/PaymentReturnNotice';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check } from '../components/ui/icons';
-import { Link, Route, Routes } from 'react-router-dom';
+import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import { Shell } from '../App';
 import { ListenButton } from '../components/ListenButton';
 import { SelectionFlow } from '../components/SelectionFlow';
 import { Cart, Timeline, type CartItem } from '../components/Store';
-import { api, deleteChildPhotos, Order, Product, orderApi } from '../api';
-import { loadRazorpay, openRazorpayCheckout } from '../services/paymentAdapter';
+import { api, deleteChildPhotos, Order, Product, orderApi, type PaymentView } from '../api';
+import { checkingPayment, paymentRefusal, runOrderPayment } from '../services/orderPayment';
+import { PaymentStatus } from '../components/PaymentStatus';
 import { useLang } from '../i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import '../components/photoConsent.css';
@@ -320,6 +322,7 @@ function Dashboard() {
         </section>
       )}
 
+      <PaymentReturnNotice />
       {/* Category Tabs: Step-by-step Selection flow applies to Uniform, Shoes, Accessories */}
       <div className="section-row" style={{ marginTop: '2rem' }}>
         <div>
@@ -368,45 +371,81 @@ function Dashboard() {
 function Orders() {
   const { t } = useLang();
   const queryClient = useQueryClient();
-  const { data } = useQuery({
+  const { data, isPending, isError } = useQuery({
     queryKey: ['orders'],
-    queryFn: () => api<any>('/orders/').catch(() => []),
+    queryFn: () => api<{ results: Order[] }>('/orders/'),
   });
-  const orders: Order[] = (data?.results || data || []) as Order[];
+  const { hash } = useLocation();
+  const focusedId = hash.startsWith('#order-') ? hash.slice(7) : '';
+  const focused = useQuery({
+    queryKey: ['orders', focusedId],
+    queryFn: () => api<Order>(`/orders/${encodeURIComponent(focusedId)}/`),
+    enabled: Boolean(focusedId && data && !data.results.some(order => order.id === focusedId)),
+  });
+  const orders = useMemo(() => focused.data
+    ? [focused.data, ...(data?.results ?? [])]
+    : (data?.results ?? []), [data, focused.data]);
+  useEffect(() => {
+    if (focusedId) document.getElementById(`order-${focusedId}`)?.scrollIntoView();
+  }, [orders, focusedId]);
+  const [views, setViews] = useState<Record<string, PaymentView>>({});
+  const [cooldowns, setCooldowns] = useState<Record<string, number>>({});
+  const [busy, setBusy] = useState(false);
+  const active = useRef(false);
+  const autoChecked = useRef(new Set<string>());
+  const update = (id: string, view: PaymentView) => setViews(previous => ({ ...previous, [id]: view }));
 
-  const handlePayNow = async (order: Order) => {
+  async function refresh(order: Order) {
     try {
-      const paymentInfo = await orderApi.payment(order.id);
-      const loaded = await loadRazorpay();
-      if (!loaded) return;
-      openRazorpayCheckout({
-        key: paymentInfo.key_id,
-        order_id: paymentInfo.razorpay_order_id,
-        amount: paymentInfo.amount_paise,
-        currency: paymentInfo.currency,
-        name: 'School Store',
-        description: `Order #${paymentInfo.store_order_number || order.order_number}`,
-        prefill: paymentInfo.prefill,
-        timeout: 840,
-        modal: {
-          ondismiss: async () => {
-            await orderApi.reconcilePayment(order.id).catch(() => {});
-            queryClient.invalidateQueries({ queryKey: ['orders'] });
-          },
-        },
-        handler: async (response) => {
-          await orderApi.verifyPayment(order.id, {
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-          }).catch(() => {});
-          queryClient.invalidateQueries({ queryKey: ['orders'] });
-        },
-      });
-    } catch {
-      // Payment start failed
+      const result = await orderApi.reconcilePayment(order.id);
+      update(order.id, result.payment_view);
+      const until = Date.now() + result.retry_after_seconds * 1000;
+      setCooldowns(previous => ({ ...previous, [order.id]: until }));
+      window.setTimeout(() => setCooldowns(previous => previous[order.id] === until
+        ? { ...previous, [order.id]: 0 } : previous), result.retry_after_seconds * 1000);
+    } catch (error) {
+      update(order.id, paymentRefusal(error) ?? checkingPayment(order.payment_view));
     }
-  };
+  }
+
+  useEffect(() => {
+    if (busy) return;
+    const pending = orders.filter(order =>
+      order.payment_view.state === 'CHECKING' && !autoChecked.current.has(order.id));
+    if (!pending.length || active.current) return;
+    active.current = true;
+    setBusy(true);
+    for (const order of pending) autoChecked.current.add(order.id);
+    void (async () => {
+      try {
+        // Render the original server state before checking its provider status.
+        for (const order of pending) await refresh(order);
+      } finally {
+        active.current = false;
+        setBusy(false);
+      }
+    })();
+  }, [orders, busy]);
+
+  async function act(order: Order, action: 'pay' | 'cod' | 'refresh') {
+    if (active.current) return;
+    active.current = true;
+    setBusy(true);
+    try {
+      if (action === 'refresh') await refresh(order);
+      if (action === 'pay') await runOrderPayment(order.id, view => update(order.id, view));
+      if (action === 'cod') update(order.id, (await orderApi.switchToCod(order.id)).payment_view);
+    } catch (error) {
+      update(order.id, paymentRefusal(error) ?? checkingPayment(views[order.id] ?? order.payment_view));
+    } finally {
+      if (action !== 'refresh') {
+        void queryClient.invalidateQueries({ queryKey: ['orders'] });
+        void queryClient.invalidateQueries({ queryKey: ['payment-attention'] });
+      }
+      active.current = false;
+      setBusy(false);
+    }
+  }
 
   return (
     <>
@@ -420,9 +459,13 @@ function Orders() {
         </Link>
       </div>
 
-      {orders.length ? (
+      {isPending ? (
+        <div className="checkout-skeleton payment-orders-skeleton" aria-busy="true" />
+      ) : isError ? (
+        <p role="alert">{t('recovery.ordersError')}</p>
+      ) : orders.length ? (
         orders.map((o) => (
-          <article className="order-card" key={o.id}>
+          <article className="order-card" key={o.id} id={`order-${o.id}`}>
             <div className="section-row">
               <div>
                 <b>{o.order_number}</b>
@@ -430,48 +473,13 @@ function Orders() {
                   {new Date(o.created_at).toLocaleDateString('en-IN')}
                 </small>
               </div>
-              <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                {o.payment_method === 'ONLINE' && (
-                  <span className="status" style={{ background: 'var(--paper-sunk)', color: 'var(--ink)' }}>
-                    {o.payment_status}
-                  </span>
-                )}
-                <span className="status">{o.status}</span>
-              </div>
+              <span className="status">{o.status}</span>
             </div>
-            <p>
-              {o.student_name} · <strong>₹{o.total}</strong>
-            </p>
-
-            {o.status === 'CANCELLED' && (
-              <div style={{ margin: 'var(--space-3) 0', padding: 'var(--space-3)', background: 'var(--paper-sunk)', borderRadius: 'var(--radius-sm)' }}>
-                <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--ink-soft)' }}>
-                  {t('co.orderReleased')}
-                </p>
-                <Link to="/parent" className="btn btn-outline" style={{ marginTop: 'var(--space-2)', display: 'inline-block' }}>
-                  {t('co.placeOrderAgain')}
-                </Link>
-              </div>
-            )}
-
-            {o.has_in_progress_attempt && o.status !== 'CANCELLED' && (
-              <div style={{ margin: 'var(--space-3) 0', padding: 'var(--space-3)', background: 'var(--paper-sunk)', borderRadius: 'var(--radius-sm)' }}>
-                <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--ink)' }}>
-                  {t('co.paymentInProgress')}
-                </p>
-              </div>
-            )}
-
-            {o.can_pay_now && o.status !== 'CANCELLED' && (
-              <button
-                type="button"
-                className="btn btn-primary"
-                style={{ marginTop: 'var(--space-3)' }}
-                onClick={() => handlePayNow(o)}
-              >
-                {t('co.payNow')}
-              </button>
-            )}
+            <p>{o.student_name}</p>
+            <PaymentStatus payment={views[o.id] ?? o.payment_view} orderNumber={o.order_number}
+              disabled={busy || Boolean(cooldowns[o.id])}
+              onRefresh={() => void act(o, 'refresh')} onPay={() => void act(o, 'pay')}
+              onCod={() => void act(o, 'cod')} />
 
             <Timeline order={o} />
           </article>

@@ -1,3 +1,4 @@
+import { PaymentsToCheck } from '../components/PaymentsToCheck';
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -270,6 +271,7 @@ function CommissionCard({ commission }: { commission: Commission }) {
  * 2. Orders table
  * ------------------------------------------------------------------ */
 function Orders() {
+  const [showPayments, setShowPayments] = useState(false);
   const { schoolId } = useSchool();
   const { data: filters } = useQuery({ queryKey: ['panel-filters', schoolId], queryFn: () => panel.filters(schoolId!), enabled: !!schoolId });
   const [f, setF] = useState<Record<string, string>>({});
@@ -287,6 +289,8 @@ function Orders() {
 
   return (
     <>
+      <PaymentsToCheck school={schoolId || undefined} open={showPayments} onToggle={() => setShowPayments(value => !value)} />
+      {!showPayments && <>
       <div className="page-head">
         <div>
           <div className="eyebrow">ORDERS</div>
@@ -358,6 +362,7 @@ function Orders() {
           rows.length > 0 && <span className="fine">Showing all {rows.length} loaded row{rows.length === 1 ? '' : 's'} for these filters.</span>
         )}
       </div>
+      </>}
     </>
   );
 }

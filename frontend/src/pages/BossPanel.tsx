@@ -1,3 +1,4 @@
+import { PaymentsToCheck } from '../components/PaymentsToCheck';
 import { useEffect, useMemo, useState } from 'react';
 import { X, Overview, BarChart as BarChartIcon, Users, SchoolBuilding, Eye, Ruler, ShoppingBag, ShieldCheck, Package } from '../components/ui/icons';
 import { PanelShell, type PanelNavItem } from '../components/admin/PanelShell';
@@ -23,6 +24,7 @@ const NAV: PanelNavItem[] = [
   { to: 'analytics', label: 'Detailed Charts', icon: BarChartIcon },
   { to: 'management', label: 'Staff & Cities', icon: Users },
   { to: 'schools', label: 'School Commissions', icon: SchoolBuilding },
+  { to: 'payments', label: 'Payments to check', icon: ShoppingBag },
   { to: 'view-as', label: 'View As (Audit)', icon: Eye },
   { to: 'size-charts', label: 'Size Charts', icon: Ruler },
   { to: 'school-requests', label: 'School Requests', icon: ShieldCheck },
@@ -57,6 +59,7 @@ export default function BossPanel() {
         <Route path="analytics" element={<BossAnalyticsChartsView />} />
         <Route path="management" element={<BossStaffManagementView />} />
         <Route path="schools" element={<BossSchoolsCommissionView />} />
+        <Route path="payments" element={<BossPayments />} />
         <Route path="view-as" element={<BossViewAsView />} />
         <Route path="size-charts" element={<BossSizeChartsView />} />
         <Route path="school-requests" element={<SchoolRequestsReview />} />
@@ -64,6 +67,12 @@ export default function BossPanel() {
       </Routes>
     </PanelShell>
   );
+}
+
+
+function BossPayments() {
+  const [open, setOpen] = useState(true);
+  return <PaymentsToCheck open={open} onToggle={() => setOpen(value => !value)} />;
 }
 
 

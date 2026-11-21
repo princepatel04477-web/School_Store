@@ -1,3 +1,4 @@
+import type { PaymentView } from '../api';
 import { api, ApiError } from '../api';
 import type { MessageKey } from '../i18n';
 import type { fitPayload } from '../data/fit';
@@ -29,6 +30,7 @@ export interface PlacedOrder {
   total: string;
   student_name?: string;
   fulfillment_type: string;
+  payment_view: PaymentView;
   payment_method?: 'COD' | 'ONLINE';
   payment_status?: string;
   status?: string;
