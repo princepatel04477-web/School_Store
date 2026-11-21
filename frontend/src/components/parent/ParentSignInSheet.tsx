@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X } from '../ui/icons';
 import { ApiError, auth as authApi, parentChildren, type ParentChild } from '../../api';
@@ -14,10 +15,12 @@ type Step = 'phone' | 'otp' | 'children' | 'find';
 export interface ParentSignInSheetProps {
   open: boolean;
   onClose: () => void;
-  /** Called with the chosen child, or null if the parent skipped that step. */
+  /** Called with the chosen child, or null if the parent skipped that step / in account mode. */
   onDone: (child: ParentChild | null) => void;
   /** School the parent picked in the shop, used to pre-select it in the find form. */
   schoolName?: string;
+  /** Mode: 'order' (default, selects child) or 'account' (done immediately after verify). */
+  mode?: 'order' | 'account';
 }
 
 const RESEND_SECONDS = 30;
@@ -29,7 +32,7 @@ function classLabel(child: ParentChild, t: T) {
   return [cls, child.section && t('co.section', { s: child.section })].filter(Boolean).join(' · ');
 }
 
-/** The server's reasons, in the parent's language. */
+/** The server's reasons for OTP send failure, in the parent's language. */
 function sendError(err: unknown): MessageKey {
   if (!(err instanceof ApiError)) return 'err.offline';
   if (err.data.code === 'sms_unavailable') return 'signin.smsOff';
@@ -39,13 +42,22 @@ function sendError(err: unknown): MessageKey {
   return 'signin.sendFailed';
 }
 
+/** The server's reasons for OTP verify failure, in the parent's language. */
+function verifyError(err: unknown): MessageKey {
+  if (!(err instanceof ApiError)) return 'err.offline';
+  if (err.status === 429) return 'signin.tooMany';
+  const serverCode = (err.data as any)?.code;
+  if (serverCode === 'otp_wrong') return 'signin.wrongOtp';
+  if (serverCode === 'otp_expired') return 'signin.expiredOtp';
+  if (serverCode === 'staff_account') return 'signin.staffAccount';
+  return 'signin.wrongOtp';
+}
+
 /**
  * Parent sign-in in as few fields as possible:
- * mobile number -> OTP -> tap your child. Children come from the school's list
- * (no typing). Only when the school's list has no phone for this parent do we
- * ask for two things: GR number and date of birth.
+ * mobile number -> OTP -> tap your child (or straight to account in 'account' mode).
  */
-export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentSignInSheetProps) {
+export function ParentSignInSheet({ open, onClose, onDone, schoolName, mode = 'order' }: ParentSignInSheetProps) {
   const { user, signInWithOtp } = useAuth();
   const { t } = useLang();
   const [step, setStep] = useState<Step>('phone');
@@ -61,18 +73,26 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
   const [grNumber, setGrNumber] = useState('');
   const [dob, setDob] = useState('');
   const otpRef = useRef<HTMLInputElement>(null);
+  const verifyingRef = useRef(false);
 
   // Already signed in: go straight to the children
   useEffect(() => {
     if (!open) return;
     setError('');
+    setOtp('');
     if (user?.role === 'PARENT') {
-      void loadChildren();
+      if (mode === 'account') {
+        onDone(null);
+      } else {
+        void loadChildren();
+      }
     } else {
       setStep('phone');
     }
+    // Runs when the sheet opens, not when the sign-in itself sets `user`:
+    // verify() moves on by itself, and a second run would load the children twice.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, mode]);
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -116,19 +136,24 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
   }
 
   async function verify(code: string) {
-    if (code.length !== 6 || busy) return;
+    if (code.length !== 6 || busy || verifyingRef.current) return;
+    verifyingRef.current = true;
     setBusy(true);
     setError('');
     try {
       await signInWithOtp(digits, code);
-      await loadChildren();
+      if (mode === 'account') {
+        onDone(null);
+      } else {
+        await loadChildren();
+      }
     } catch (err) {
-      setError(
-        t(!(err instanceof ApiError) ? 'err.offline' : err.status === 429 ? 'signin.tooMany' : 'signin.wrongOtp')
-      );
+      setError(t(verifyError(err)));
       setOtp('');
+      window.setTimeout(() => otpRef.current?.focus(), 50);
     } finally {
       setBusy(false);
+      verifyingRef.current = false;
     }
   }
 
@@ -186,12 +211,12 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
   const title = useMemo(
     () =>
       ({
-        phone: t('signin.title'),
+        phone: mode === 'account' ? t('signin.accountTitle') : t('signin.title'),
         otp: t('signin.otpTitle'),
         children: children.length > 1 ? t('signin.whichChild') : t('signin.isThisChild'),
         find: t('signin.findTitle'),
       })[step],
-    [step, children.length, t]
+    [step, children.length, mode, t]
   );
 
   return (
@@ -248,6 +273,11 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
                 <button type="submit" className="btn btn-primary psi-cta" disabled={!phoneValid || busy}>
                   {busy ? t('signin.sending') : t('signin.send')}
                 </button>
+                <p className="psi-staff">
+                  <Link to="/login" onClick={onClose} className="psi-link">
+                    {t('signin.staffSignIn')}
+                  </Link>
+                </p>
               </form>
             )}
 
@@ -255,7 +285,16 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
               <div className="psi-body">
                 <p className="psi-lead">
                   {t('signin.sentTo', { mobile: `+91 ${digits.slice(0, 5)} ${digits.slice(5)}` })}{' '}
-                  <button type="button" className="psi-link" onClick={() => setStep('phone')}>
+                  <button
+                    type="button"
+                    className="psi-link"
+                    onClick={() => {
+                      setOtp('');
+                      setError('');
+                      setTestCode(null);
+                      setStep('phone');
+                    }}
+                  >
                     {t('nav.change')}
                   </button>
                 </p>

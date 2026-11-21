@@ -1,0 +1,12 @@
+calls|total_ms|mean_ms|max_ms|q
+14880|712.2|0.048|0.41|SELECT "schools_grade"."id", "schools_grade"."name", "schools_grade"."sort_order" FROM "schools_grade" WHERE (
+14880|599.4|0.040|0.35|SELECT "schools_school"."id", "schools_school"."city_id" FROM "schools_school" WHERE ("schools_school"."active
+11683|356.9|0.031|0.15|SELECT $1 AS "a" FROM "schools_city" WHERE ("schools_city"."active" AND "schools_city"."id" = $2::uuid) LIMIT 
+88|41.3|0.469|0.74|SELECT DISTINCT "catalog_product"."id", "catalog_product"."category_id", "catalog_product"."product_type", "ca
+32|9.0|0.281|0.39|SELECT "catalog_productvariant"."id", "catalog_productvariant"."product_id", "catalog_productvariant"."school_
+28|8.4|0.300|0.38|SELECT "catalog_productvariant"."id", "catalog_productvariant"."product_id", "catalog_productvariant"."school_
+28|5.1|0.180|0.25|SELECT "catalog_productvariant"."id", "catalog_productvariant"."product_id", "catalog_productvariant"."school_
+19|2.1|0.113|0.15|SELECT "inventory_stockbalance"."id", "inventory_stockbalance"."city_id", "inventory_stockbalance"."variant_id
+17|1.9|0.112|0.15|SELECT "inventory_stockbalance"."id", "inventory_stockbalance"."city_id", "inventory_stockbalance"."variant_id
+1|1.7|1.712|1.71|SELECT set_config($1, $2, $3)
+(10 rows)

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
-import { Navigate, Route, Routes, Link, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './auth';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -10,6 +10,8 @@ import { hasChosenLanguage, useLang } from './i18n';
 import { LanguageChooser } from './components/LanguageChooser';
 import { WelcomePopup } from './components/WelcomePopup';
 import { PageSkeleton } from './components/ui/Skeleton';
+import { AccountSheetProvider, useAccountSheet } from './components/account/AccountSheetContext';
+import { ParentSignInSheet } from './components/parent/ParentSignInSheet';
 
 // Lazy Loaded Components
 const BagDrawer = lazy(() =>
@@ -43,7 +45,6 @@ const AdminPortal = lazy(() => import('./pages/AdminPortal'));
 
 import { ComingSoonPage, NotFoundPage } from './pages/InfoPages';
 import { PrivacyPage, TermsPage, RefundPage } from './pages/LegalPages';
-
 export const homeFor = (role?: string, cityId?: string | null) =>
   role === 'BOSS'
     ? '/boss'
@@ -57,20 +58,51 @@ export const homeFor = (role?: string, cityId?: string | null) =>
     ? '/retailer'
     : '/school';
 
-function Guard({ children, roles }: { children: ReactNode; roles?: string[] }) {
-  const { user, loading } = useAuth();
+/** Shown when the device is signed in but the server could not be reached to confirm it. */
+function SignedInOffline({ onRetry }: { onRetry: () => void }) {
+  const { t } = useLang();
+  return (
+    <div className="auth-offline" role="alert">
+      <h2>{t('parent.offlineTitle')}</h2>
+      <p>{t('parent.loadError')}</p>
+      <button type="button" className="btn btn-primary" onClick={onRetry}>
+        {t('parent.retry')}
+      </button>
+    </div>
+  );
+}
+
+export function Guard({ children, roles }: { children: ReactNode; roles?: string[] }) {
+  const { user, loading, offline, retry } = useAuth();
+  const location = useLocation();
+  const { openSheet } = useAccountSheet();
+
+  useEffect(() => {
+    if (!loading && !user && !offline && roles?.includes('PARENT')) {
+      openSheet(location.pathname + location.search);
+    }
+  }, [loading, user, offline, roles, location.pathname, location.search, openSheet]);
+
   if (loading) return <div className="splash">Loading your store…</div>;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user && offline) return <SignedInOffline onRetry={retry} />;
+  if (!user) {
+    if (roles?.includes('PARENT')) {
+      return <Navigate to="/" replace />;
+    }
+    return <Navigate to="/login" replace />;
+  }
   if (roles && !roles.includes(user.role)) return <Navigate to={homeFor(user.role, user.city)} replace />;
   return <>{children}</>;
 }
 
 import { SmoothScroll, scrollPageTo } from './motion/SmoothScroll';
 
-export default function App() {
+function AppContent() {
   const [bagOpen, setBagOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { open: accountSheetOpen, returnTo, closeSheet: closeAccountSheet } = useAccountSheet();
 
   const isPortal =
     location.pathname.startsWith('/boss') ||
@@ -189,9 +221,29 @@ export default function App() {
         <Suspense fallback={null}>
           <BagDrawer isOpen={bagOpen} onClose={() => setBagOpen(false)} />
         </Suspense>
+
+        {/* Global Parent Account Sign-in Sheet */}
+        <ParentSignInSheet
+          mode="account"
+          open={accountSheetOpen}
+          onClose={closeAccountSheet}
+          onDone={() => {
+            const target = returnTo || '/parent';
+            closeAccountSheet();
+            navigate(target);
+          }}
+        />
       </div>
       </SmoothScroll>
     </ErrorBoundary>
+  );
+}
+
+export default function App() {
+  return (
+    <AccountSheetProvider>
+      <AppContent />
+    </AccountSheetProvider>
   );
 }
 

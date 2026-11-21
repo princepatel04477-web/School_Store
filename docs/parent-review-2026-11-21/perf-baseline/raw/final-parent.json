@@ -1,0 +1,152 @@
+{
+  "scenario": "parent",
+  "warmup_s": 15,
+  "step_s": 60,
+  "steps": [
+    {
+      "vus": 1,
+      "generator_processes": 1,
+      "seconds": 60.0,
+      "requests": 2705,
+      "rps": 45.1,
+      "p50": 21.2,
+      "p95": 29.4,
+      "p99": 32.4,
+      "max": 121.0,
+      "error_pct": 0.0,
+      "codes": {
+        "200": 2705
+      },
+      "pg_connections_mid_step": 8,
+      "server_cpu_cores_used": 0.53,
+      "generator_cpu_cores_used_total": 0.31,
+      "generator_cpu_cores_per_process_max": 0.31,
+      "p95_by_endpoint": {
+        "order_detail": 31.8,
+        "students": 25.6,
+        "orders": 23.8
+      }
+    },
+    {
+      "vus": 5,
+      "generator_processes": 5,
+      "seconds": 60.0,
+      "requests": 4974,
+      "rps": 82.9,
+      "p50": 53.6,
+      "p95": 96.9,
+      "p99": 167.9,
+      "max": 233.8,
+      "error_pct": 0.0,
+      "codes": {
+        "200": 4974
+      },
+      "pg_connections_mid_step": 8,
+      "server_cpu_cores_used": 1.07,
+      "generator_cpu_cores_used_total": 0.63,
+      "generator_cpu_cores_per_process_max": 0.13,
+      "p95_by_endpoint": {
+        "students": 80.2,
+        "orders": 60.5,
+        "order_detail": 106.5
+      }
+    },
+    {
+      "vus": 10,
+      "generator_processes": 6,
+      "seconds": 60.1,
+      "requests": 4770,
+      "rps": 79.4,
+      "p50": 113.8,
+      "p95": 225.3,
+      "p99": 301.4,
+      "max": 383.0,
+      "error_pct": 0.0,
+      "codes": {
+        "200": 4770
+      },
+      "pg_connections_mid_step": 8,
+      "server_cpu_cores_used": 1.07,
+      "generator_cpu_cores_used_total": 0.61,
+      "generator_cpu_cores_per_process_max": 0.13,
+      "p95_by_endpoint": {
+        "orders": 167.2,
+        "students": 228.5,
+        "order_detail": 284.9
+      }
+    },
+    {
+      "vus": 25,
+      "generator_processes": 6,
+      "seconds": 60.4,
+      "requests": 4874,
+      "rps": 80.7,
+      "p50": 295.5,
+      "p95": 441.1,
+      "p99": 490.9,
+      "max": 588.9,
+      "error_pct": 0.0,
+      "codes": {
+        "200": 4874
+      },
+      "pg_connections_mid_step": 8,
+      "server_cpu_cores_used": 1.07,
+      "generator_cpu_cores_used_total": 0.61,
+      "generator_cpu_cores_per_process_max": 0.13,
+      "p95_by_endpoint": {
+        "orders": 398.1,
+        "students": 427.5,
+        "order_detail": 475.4
+      }
+    },
+    {
+      "vus": 50,
+      "generator_processes": 6,
+      "seconds": 60.5,
+      "requests": 4941,
+      "rps": 81.7,
+      "p50": 598.4,
+      "p95": 755.0,
+      "p99": 802.3,
+      "max": 858.2,
+      "error_pct": 0.0,
+      "codes": {
+        "200": 4941
+      },
+      "pg_connections_mid_step": 8,
+      "server_cpu_cores_used": 1.07,
+      "generator_cpu_cores_used_total": 0.63,
+      "generator_cpu_cores_per_process_max": 0.12,
+      "p95_by_endpoint": {
+        "orders": 709.7,
+        "students": 746.3,
+        "order_detail": 788.3
+      }
+    },
+    {
+      "vus": 100,
+      "generator_processes": 6,
+      "seconds": 61.2,
+      "requests": 5841,
+      "rps": 95.4,
+      "p50": 1178.1,
+      "p95": 1374.0,
+      "p99": 1450.4,
+      "max": 30041.5,
+      "error_pct": 0.03,
+      "codes": {
+        "200": 5839,
+        "ReadTimeout": 2
+      },
+      "pg_connections_mid_step": 8,
+      "server_cpu_cores_used": 1.08,
+      "generator_cpu_cores_used_total": 0.75,
+      "generator_cpu_cores_per_process_max": 0.19,
+      "p95_by_endpoint": {
+        "orders": 1328.2,
+        "students": 1359.6,
+        "order_detail": 1417.8
+      }
+    }
+  ]
+}

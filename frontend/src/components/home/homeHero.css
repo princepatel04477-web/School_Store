@@ -160,6 +160,62 @@
   letter-spacing: 0.02em;
 }
 
+/* Account Button (min 44 x 44 tap target) */
+.emerald-account-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  border: none;
+  color: var(--emerald-white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.18s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.emerald-account-btn:hover,
+.emerald-account-btn:focus-visible {
+  background-color: rgba(255, 255, 255, 0.12);
+  outline: 2px solid var(--emerald-saffron);
+  outline-offset: 2px;
+}
+
+.emerald-account-icon {
+  stroke: var(--emerald-white);
+  flex-shrink: 0;
+}
+
+.emerald-account-label {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .emerald-account-btn {
+    width: auto;
+    min-width: 44px;
+    padding: 0 12px;
+    gap: 6px;
+  }
+
+  .emerald-account-label {
+    display: inline;
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--emerald-white);
+    letter-spacing: 0.01em;
+  }
+}
+
 /* Bag Button (44 x 44) */
 .emerald-bag-btn {
   width: 44px;
@@ -1170,6 +1226,10 @@
 
 /* Narrow phones: logo and language pill no longer collide. */
 @media (max-width: 419.98px) {
+  .emerald-header-container {
+    padding-inline: 14px;
+  }
+
   .emerald-header-left {
     gap: 8px;
     min-width: 0;
@@ -1185,7 +1245,7 @@
   }
 
   .emerald-logo-text {
-    font-size: 21px;
+    font-size: 20px;
   }
 
   .emerald-header-right {
@@ -1195,6 +1255,20 @@
   .emerald-lang-pill {
     padding: 0 10px;
     gap: 4px;
+  }
+}
+
+@media (max-width: 359.98px) {
+  .emerald-header-container {
+    padding-inline: 10px;
+  }
+
+  .emerald-logo-text {
+    font-size: 19px;
+  }
+
+  .emerald-lang-pill {
+    padding: 0 8px;
   }
 }
 

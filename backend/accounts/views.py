@@ -29,7 +29,19 @@ class LoginRateThrottle(AnonRateThrottle):
 
 
 class OTPRateThrottle(AnonRateThrottle):
+    """Sending codes (each one is a paid SMS): per client address."""
+
     scope = "otp"
+
+
+class OTPVerifyRateThrottle(AnonRateThrottle):
+    """
+    Checking codes has its own, larger allowance so a parent's typing mistakes
+    do not use up the send limit. Guessing stays bounded: a code is burned after
+    OTP_MAX_ATTEMPTS wrong tries for that number, and a new one needs a send.
+    """
+
+    scope = "otp_verify"
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -92,19 +104,25 @@ class OTPLoginView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [OTPRateThrottle]
+    throttle_classes = [OTPVerifyRateThrottle]
 
     def post(self, request):
         phone = normalize_in_mobile(request.data.get("phone"))
         otp = str(request.data.get("otp") or "").strip()
         if not phone or not otp:
             return Response(
-                {"detail": "Enter your mobile number and the OTP we sent."},
+                {"detail": "Enter your mobile number and the OTP we sent.", "code": "otp_missing_fields"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         cached = cache.get(f"otp:{phone}")
-        if not cached or str(cached) != otp:
+        if not cached:
+            return Response(
+                {"detail": "That OTP is wrong or has expired. Request a new one.", "code": "otp_expired"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if str(cached) != otp:
             # Burn the code after a few wrong tries so it can't be guessed
             attempts_key = f"otp_attempts:{phone}"
             attempts = (cache.get(attempts_key) or 0) + 1
@@ -112,7 +130,7 @@ class OTPLoginView(APIView):
             if attempts >= OTP_MAX_ATTEMPTS:
                 cache.delete(f"otp:{phone}")
             return Response(
-                {"detail": "That OTP is wrong or has expired. Request a new one."},
+                {"detail": "That OTP is wrong or has expired. Request a new one.", "code": "otp_wrong"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         cache.delete(f"otp:{phone}")
@@ -140,7 +158,7 @@ class OTPLoginView(APIView):
             created = True
         elif user.role != User.Role.PARENT:
             return Response(
-                {"detail": "Staff accounts sign in with a username and password."},
+                {"detail": "Staff accounts sign in with a username and password.", "code": "staff_account"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         elif not user.phone_verified:

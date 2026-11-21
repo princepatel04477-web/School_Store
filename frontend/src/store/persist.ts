@@ -1,13 +1,12 @@
 /**
  * What this phone or browser is allowed to remember.
  *
- * Rule from the client: someone who is not signed in leaves nothing behind. No school,
- * class, bag, size answer, language or half-placed order is written to the browser or the
- * app on disk, so opening the site or app again always starts clean.
+ * Rule from the client: no bag, school, class, size answer, or half-placed order
+ * is kept on disk for anyone (signed in or not), so opening the site or app again
+ * always starts clean with an empty bag.
  *
- * Only a signed-in parent's bag, language and pending order are kept on the device, and
- * `purgeSavedData` deletes all of it on sign-out. The sign-in tokens themselves live in
- * `api.ts` and are the only thing that marks someone as signed in.
+ * `purgeSavedData` clears any residual data on sign-out. The sign-in tokens themselves
+ * live in `api.ts` and are the only thing that marks someone as signed in.
  *
  * The chosen school, class, boy/girl and size answers are never written to disk at all,
  * signed in or not. They live in memory for the open page only.

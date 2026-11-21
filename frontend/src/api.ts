@@ -30,20 +30,24 @@ export type Product={
   customisation_schema?:CustomisationField[] | {fields?: CustomisationField[]};
   variants:{id:string;size:string;stock_status:StockStatus|null}[];
 };
-export type Order={id:string;order_number:string;student_name:string;status:string;payment_status:string;total:number;created_at:string;status_events?:{status:string;timestamp:string}[]};
+export type Order={id:string;order_number:string;student?:string|null;student_name:string;status:string;payment_status:string;payment_method?:string;total:number;created_at:string;status_events?:{status:string;timestamp:string}[]};
 const API=import.meta.env.VITE_API_URL||'/api';
 let refreshing:Promise<string>|null=null;
-async function refresh(){const token=localStorage.getItem('refresh'); const r=await fetch(`${API}/auth/token/refresh/`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh:token})}); if(!r.ok) throw Error('session expired'); const d=await r.json(); localStorage.setItem('access',d.access); return d.access;}
+/** The refresh token was refused: the sign-in really is over. Network errors and server faults are not this. */
+class SessionExpired extends Error{constructor(){super('session expired');this.name='SessionExpired';}}
+async function refresh(){const token=localStorage.getItem('refresh'); const r=await fetch(`${API}/auth/token/refresh/`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh:token})}); if(r.status===400||r.status===401) throw new SessionExpired(); if(!r.ok) throw new ApiError('Something went wrong',r.status); const d=await r.json(); localStorage.setItem('access',d.access); return d.access;}
 /** Turns an API path into a full URL. Paths may be "/panel/..." or "/api/panel/...". */
 function toUrl(path:string){return path.startsWith('/api/')?`${API}${path.slice(4)}`:`${API}${path}`;}
 /** A request the server answered with an error; keeps the status and body so callers can tell a refusal from an outage. */
 export class ApiError extends Error{constructor(message:string,public status:number,public data:Record<string,unknown>={}){super(message);this.name='ApiError';}}
-export async function api<T>(path:string, init:RequestInit={},{retry=true}={}):Promise<T>{const headers=new Headers(init.headers); headers.set('Content-Type','application/json'); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); let res=await fetch(toUrl(path),{...init,headers}); if(res.status===401&&retry&&localStorage.getItem('refresh')){refreshing??=(refresh().finally(()=>{refreshing=null})); try{const token=await refreshing; return api<T>(path,{...init,headers:new Headers({...Object.fromEntries(headers),Authorization:`Bearer ${token}`})},{retry:false})}catch{logout();}} if(!res.ok){const data=await res.json().catch(()=>({})); throw new ApiError(data.detail||'Something went wrong',res.status,data);} return res.status===204?undefined as T:res.json();}
+export async function api<T>(path:string, init:RequestInit={},{retry=true}={}):Promise<T>{const headers=new Headers(init.headers); headers.set('Content-Type','application/json'); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); let res=await fetch(toUrl(path),{...init,headers}); if(res.status===401&&retry&&localStorage.getItem('refresh')){refreshing??=(refresh().finally(()=>{refreshing=null})); try{const token=await refreshing; return api<T>(path,{...init,headers:new Headers({...Object.fromEntries(headers),Authorization:`Bearer ${token}`})},{retry:false})}catch(err){if(err instanceof SessionExpired) logout(); else throw err;}} if(!res.ok){const data=await res.json().catch(()=>({})); throw new ApiError(data.detail||'Something went wrong',res.status,data);} return res.status===204?undefined as T:res.json();}
 /** Multipart upload: never sets Content-Type so the browser can add the boundary. */
 export async function upload<T>(path:string, form:FormData):Promise<T>{const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{method:'POST',headers,body:form}); if(!res.ok){const data=await res.json().catch(()=>({})); throw new ApiError(data.detail||'Upload failed',res.status,data);} return res.json();}
 /** Stream a protected file with the bearer token attached (no token in the URL). */
 export async function download(path:string, filename:string){const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{headers}); if(!res.ok) throw new Error((await res.json().catch(()=>({}))).detail||'Download failed'); const blob=await res.blob(); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);}
-export function logout(){localStorage.removeItem('access');localStorage.removeItem('refresh'); purgeSavedData(); try{sessionStorage.clear();}catch{/* storage blocked */} window.location.href='/login';}
+let loggingOut=false;
+/** Signs out once: a second call while the first redirect is under way would lose the role and pick the wrong page. */
+export function logout(){if(loggingOut) return; loggingOut=true; const role = typeof localStorage !== 'undefined' ? localStorage.getItem('user_role') : null; localStorage.removeItem('access');localStorage.removeItem('refresh'); localStorage.removeItem('user_role'); purgeSavedData(); try{sessionStorage.clear();}catch{/* storage blocked */} window.location.href=role==='PARENT'?'/':'/login';}
 export const auth={login:(username:string,password:string)=>api<{access:string;refresh:string;user:User}>('/auth/token/',{method:'POST',body:JSON.stringify({username,password})}),register:(body:unknown)=>api<{access:string;refresh:string;user:User}>('/auth/register/',{method:'POST',body:JSON.stringify(body)}),me:()=>api<User>('/auth/me/'),
   /** Parent sign-in by mobile number: send the code, then verify it. */
   sendOtp:(phone:string)=>api<{detail:string;phone:string;otp_debug?:string}>('/auth/otp/send/',{method:'POST',body:JSON.stringify({phone})}),
@@ -51,7 +55,7 @@ export const auth={login:(username:string,password:string)=>api<{access:string;r
 };
 
 /** A child on the school roster, as the parent sees it. */
-export type ParentChild={id:string;name:string;gr_number:string;grade_name?:string|null;class_name:string;section:string;gender:string;date_of_birth:string|null;school:string;school_name:string;school_code:string;active:boolean};
+export type ParentChild={id:string;name:string;gr_number:string;grade_name?:string|null;class_name:string;section:string;gender:string;date_of_birth:string|null;school:string;school_name:string;school_code:string;branch?:string|null;branch_name?:string|null;city?:string|null;city_name?:string|null;active:boolean};
 export const parentChildren={
   list:()=>api<{results:ParentChild[]}>('/students/'),
   /** Fallback when the school's list has no phone for this parent: GR number + date of birth. */

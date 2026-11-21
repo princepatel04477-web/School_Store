@@ -203,6 +203,12 @@
   font-size: var(--text-sm);
 }
 
+.psi-staff {
+  text-align: center;
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+}
+
 .psi-kids {
   list-style: none;
   margin: 0;
