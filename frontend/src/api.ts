@@ -33,7 +33,38 @@ export type Product={
   customisation_schema?:CustomisationField[] | {fields?: CustomisationField[]};
   variants:{id:string;size:string;stock_status:StockStatus|null}[];
 };
-export type Order={id:string;order_number:string;student_name:string;status:string;payment_status:string;total:number;created_at:string;status_events?:{status:string;timestamp:string}[]};
+export type OrderTrackingStep = {
+  key: string;
+  at: string;
+};
+
+export type OrderTracking = {
+  carrier: 'INDIA_POST' | null;
+  consignment_number: string | null;
+  dispatched_at: string | null;
+  delivered_at: string | null;
+  steps: OrderTrackingStep[];
+};
+
+export type Order = {
+  id: string;
+  order_number: string;
+  student_name: string;
+  student_gr?: string;
+  school_code?: string;
+  school_name?: string;
+  city_name?: string;
+  placed_by_role?: string;
+  status: string;
+  payment_status: string;
+  fulfillment_type?: string;
+  payment_method?: string;
+  subtotal?: string | number;
+  total: number | string;
+  tracking?: OrderTracking;
+  created_at: string;
+  status_events?: { status: string; timestamp: string }[];
+};
 const API=import.meta.env.VITE_API_URL||'/api';
 
 /** Turns an API path into a full URL. Paths may be "/panel/..." or "/api/panel/...". */

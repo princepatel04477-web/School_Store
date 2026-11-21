@@ -1,5 +1,6 @@
 import json
 from django.db import transaction
+from django.db.models import Prefetch
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -16,6 +17,7 @@ from .serializers import (
     OrderCreateSerializer,
     OrderDetailSerializer,
     OrderListSerializer,
+    ParentOrderDetailSerializer,
 )
 
 
@@ -47,8 +49,26 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if self.action == "retrieve":
-            qs = qs.prefetch_related("items__variant__product", "status_events")
+        if self.action == "list":
+            qs = qs.select_related("shipment").prefetch_related(
+                Prefetch(
+                    "status_events",
+                    queryset=OrderStatusEvent.objects.only("order_id", "status", "timestamp").order_by("timestamp"),
+                )
+            )
+        elif self.action == "retrieve":
+            if getattr(self.request.user, "role", None) == "PARENT":
+                qs = qs.select_related("shipment").prefetch_related(
+                    "items__variant__product",
+                    Prefetch(
+                        "status_events",
+                        queryset=OrderStatusEvent.objects.only("order_id", "status", "timestamp").order_by("timestamp"),
+                    ),
+                )
+            else:
+                qs = qs.select_related("shipment").prefetch_related(
+                    "items__variant__product", "status_events"
+                )
 
         status_param = self.request.query_params.get("status")
         school_param = self.request.query_params.get("school")
@@ -78,6 +98,8 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         if self.action == "create":
             return OrderCreateSerializer
         if self.action == "retrieve":
+            if getattr(self.request.user, "role", None) == "PARENT":
+                return ParentOrderDetailSerializer
             return OrderDetailSerializer
         return OrderListSerializer
 
@@ -89,13 +111,18 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         order = serializer.save()
         order = (
             Order.objects.select_related(
-                "student", "school", "city", "placed_by", "payer"
+                "student", "school", "city", "placed_by", "payer", "shipment"
             )
             .prefetch_related("items__variant__product", "status_events")
             .get(pk=order.pk)
         )
+        detail_class = (
+            ParentOrderDetailSerializer
+            if getattr(request.user, "role", None) == "PARENT"
+            else OrderDetailSerializer
+        )
         return Response(
-            OrderDetailSerializer(order).data,
+            detail_class(order).data,
             status=status.HTTP_201_CREATED,
         )
 

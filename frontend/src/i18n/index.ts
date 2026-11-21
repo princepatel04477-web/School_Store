@@ -28,6 +28,7 @@ let chosen: Lang | null = readSavedLang();
 const listeners = new Set<() => void>();
 
 function applyToDocument(lang: Lang) {
+  if (typeof document === 'undefined') return;
   document.documentElement.lang = LANGUAGES.find((l) => l.code === lang)?.bcp47 ?? 'en-IN';
 }
 applyToDocument(chosen ?? 'en');

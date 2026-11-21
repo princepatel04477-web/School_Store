@@ -91,3 +91,42 @@ export function SizeChartSkeleton({ rows = 4, label }: { rows?: number; label?: 
     </div>
   );
 }
+
+export function OrderCardsSkeleton({ count = 3 }: { count?: number }) {
+  return (
+    <div className="orders-skeleton-list" role="status" aria-label="Loading orders...">
+      {Array.from({ length: count }).map((_, i) => (
+        <article
+          key={i}
+          className="order-card"
+          style={{
+            background: 'var(--paper-raised, #fff)',
+            border: '1px solid var(--line, #DCE0E5)',
+            borderRadius: 'var(--radius-lg, 6px)',
+            padding: '18px',
+            marginBottom: '13px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <Skeleton width="120px" height="18px" borderRadius="3px" />
+              <Skeleton width="80px" height="12px" borderRadius="3px" />
+            </div>
+            <Skeleton width="70px" height="24px" borderRadius="4px" />
+          </div>
+          <div style={{ marginBottom: '16px' }}>
+            <Skeleton width="160px" height="14px" borderRadius="3px" />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', paddingTop: '14px', borderTop: '1px solid var(--line, #DCE0E5)' }}>
+            {Array.from({ length: 5 }).map((_, stepIdx) => (
+              <div key={stepIdx} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <Skeleton width="20px" height="20px" borderRadius="50%" />
+                <Skeleton width="80%" height="10px" borderRadius="2px" />
+              </div>
+            ))}
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}

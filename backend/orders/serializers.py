@@ -2,6 +2,7 @@ import uuid
 from decimal import Decimal
 from typing import NamedTuple
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.db.models.functions import Now
@@ -12,7 +13,7 @@ from catalog.models import ProductVariant
 from inventory.models import StockBalance, StockMovement
 from schools.models import Student
 
-from .models import Order, OrderItem, OrderStatusEvent
+from .models import Order, OrderItem, OrderStatusEvent, Shipment
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -122,6 +123,63 @@ class OrderStatusEventSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class ParentOrderStatusEventSerializer(serializers.ModelSerializer):
+    """Parent-safe status event serializer without staff identity or notes."""
+
+    class Meta:
+        model = OrderStatusEvent
+        fields = ("id", "status", "timestamp")
+        read_only_fields = fields
+
+
+class OrderTrackingStepSerializer(serializers.Serializer):
+    key = serializers.CharField()
+    at = serializers.DateTimeField()
+
+
+class OrderTrackingSerializer(serializers.Serializer):
+    carrier = serializers.CharField(allow_null=True)
+    consignment_number = serializers.CharField(allow_null=True)
+    dispatched_at = serializers.DateTimeField(allow_null=True)
+    delivered_at = serializers.DateTimeField(allow_null=True)
+    steps = OrderTrackingStepSerializer(many=True)
+
+
+def get_order_tracking(order: Order) -> dict:
+    try:
+        shipment = order.shipment
+    except (Order.shipment.RelatedObjectDoesNotExist, ObjectDoesNotExist, AttributeError):
+        shipment = None
+
+    carrier = shipment.carrier if shipment else None
+    consignment_number = shipment.consignment_number if shipment else None
+
+    # Use prefetched status_events cache when available
+    events = list(order.status_events.all())
+    events.sort(key=lambda e: e.timestamp)
+
+    steps = [{"key": e.status, "at": e.timestamp} for e in events]
+
+    dispatched_at = None
+    delivered_at = None
+    for e in events:
+        if e.status in (Order.Status.DISPATCHED, Order.Status.SHIPPED):
+            dispatched_at = e.timestamp
+        elif e.status == Order.Status.DELIVERED:
+            delivered_at = e.timestamp
+
+    if not dispatched_at and shipment and shipment.booked_at:
+        dispatched_at = shipment.booked_at
+
+    return {
+        "carrier": carrier,
+        "consignment_number": consignment_number,
+        "dispatched_at": dispatched_at,
+        "delivered_at": delivered_at,
+        "steps": steps,
+    }
+
+
 class OrderListSerializer(serializers.ModelSerializer):
     """Lightweight order list payload without nested arrays."""
 
@@ -130,6 +188,7 @@ class OrderListSerializer(serializers.ModelSerializer):
     school_name = serializers.CharField(source="school.name", read_only=True)
     school_code = serializers.CharField(source="school.code", read_only=True)
     city_name = serializers.CharField(source="city.name", read_only=True)
+    tracking = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -148,9 +207,63 @@ class OrderListSerializer(serializers.ModelSerializer):
             "payment_method",
             "subtotal",
             "total",
+            "tracking",
             "created_at",
         )
         read_only_fields = fields
+
+    def get_tracking(self, obj):
+        data = get_order_tracking(obj)
+        return OrderTrackingSerializer(data).data
+
+
+class ParentOrderDetailSerializer(serializers.ModelSerializer):
+    """Parent order detail payload: drops changed_by, note, and Razorpay ids."""
+
+    student_name = serializers.CharField(source="student.name", read_only=True)
+    student_gr = serializers.CharField(source="student.gr_number", read_only=True)
+    school_name = serializers.CharField(source="school.name", read_only=True)
+    school_code = serializers.CharField(source="school.code", read_only=True)
+    city_name = serializers.CharField(source="city.name", read_only=True)
+    items = OrderItemSerializer(many=True, read_only=True)
+    status_events = ParentOrderStatusEventSerializer(many=True, read_only=True)
+    tracking = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Order
+        fields = (
+            "id",
+            "order_number",
+            "placed_by",
+            "placed_by_role",
+            "payer",
+            "student",
+            "student_name",
+            "student_gr",
+            "parent",
+            "school",
+            "school_name",
+            "school_code",
+            "city",
+            "city_name",
+            "status",
+            "payment_status",
+            "fulfillment_type",
+            "payment_method",
+            "subtotal",
+            "total",
+            "delivery_details",
+            "items",
+            "status_events",
+            "tracking",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+    def get_tracking(self, obj):
+        data = get_order_tracking(obj)
+        return OrderTrackingSerializer(data).data
 
 
 class OrderDetailSerializer(serializers.ModelSerializer):
@@ -163,6 +276,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     city_name = serializers.CharField(source="city.name", read_only=True)
     items = OrderItemSerializer(many=True, read_only=True)
     status_events = OrderStatusEventSerializer(many=True, read_only=True)
+    tracking = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -192,10 +306,15 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "razorpay_payment_id",
             "items",
             "status_events",
+            "tracking",
             "created_at",
             "updated_at",
         )
         read_only_fields = fields
+
+    def get_tracking(self, obj):
+        data = get_order_tracking(obj)
+        return OrderTrackingSerializer(data).data
 
 
 class OrderFitInputSerializer(serializers.Serializer):

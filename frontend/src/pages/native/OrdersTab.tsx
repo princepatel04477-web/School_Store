@@ -1,29 +1,32 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { api, type Order } from '../../api';
+import { api, type Order, type Page } from '../../api';
 import { useAuth } from '../../auth';
 import { Truck } from '../../components/ui/icons';
-import { Timeline } from '../../components/Store';
+import { Timeline, getOrderStatusLabel } from '../../components/Store';
 import { FitFeedbackPrompt } from '../../components/orders/FitFeedbackPrompt';
 import { ParentSignInSheet } from '../../components/parent/ParentSignInSheet';
 import { PullToRefresh } from '../../components/native/PullToRefresh';
+import { OrderCardsSkeleton } from '../../components/ui/Skeleton';
 import { shareOrderDetails } from '../../native/share';
+import { useLang } from '../../i18n';
 import './nativePages.css';
 
 export function OrdersTab() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useLang();
   const [showSignIn, setShowSignIn] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['native-orders', user?.id],
-    queryFn: () => api<any>('/orders/').catch(() => []),
+    queryFn: () => api<Page<Order>>('/orders/'),
     enabled: Boolean(user),
   });
 
-  const orders: Order[] = (data?.results || data || []) as Order[];
+  const orders: Order[] = data?.results || (Array.isArray(data) ? (data as Order[]) : []);
 
   if (!user) {
     return (
@@ -51,8 +54,13 @@ export function OrdersTab() {
     );
   }
 
+  const origin =
+    typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : 'https://school-store.aqualite.workers.dev';
+
   return (
-    <PullToRefresh onRefresh={() => queryClient.invalidateQueries({ queryKey: ['native-orders'] })}>
+    <PullToRefresh onRefresh={() => refetch()}>
       <div className="native-page-container">
         <div className="native-section-header">
           <div>
@@ -63,13 +71,42 @@ export function OrdersTab() {
             type="button"
             className="native-secondary-btn"
             onClick={() => navigate('/')}
+            style={{ minHeight: '44px' }}
           >
             Shop More
           </button>
         </div>
 
         {isLoading ? (
-          <div className="native-loading">Loading your orders…</div>
+          <OrderCardsSkeleton count={3} />
+        ) : isError ? (
+          <div
+            className="native-error-state"
+            role="alert"
+            style={{
+              textAlign: 'center',
+              padding: '32px 16px',
+              background: 'var(--paper-raised)',
+              border: '1px solid var(--line)',
+              borderRadius: 'var(--radius-lg, 6px)',
+              margin: '16px 0',
+            }}
+          >
+            <p style={{ color: 'var(--ink)', fontWeight: 600, fontSize: '15px', marginBottom: '8px' }}>
+              {t('orders.loadError')}
+            </p>
+            <p style={{ color: 'var(--ink-soft)', fontSize: '13px', marginBottom: '16px' }}>
+              {t('common.checkInternet')}
+            </p>
+            <button
+              type="button"
+              className="native-primary-btn"
+              onClick={() => refetch()}
+              style={{ minHeight: '44px', maxWidth: '200px', margin: '0 auto' }}
+            >
+              {t('orders.retry')}
+            </button>
+          </div>
         ) : orders.length > 0 ? (
           <div className="native-orders-list">
             {orders.map((o) => (
@@ -87,7 +124,7 @@ export function OrdersTab() {
                   </div>
                   <div className="native-header-actions">
                     <span className={`native-status-badge status-${(o.status || '').toLowerCase()}`}>
-                      {o.status}
+                      {getOrderStatusLabel(o, t)}
                     </span>
                     <button
                       type="button"
@@ -96,10 +133,11 @@ export function OrdersTab() {
                         shareOrderDetails(
                           o.order_number,
                           o.total,
-                          `https://school-store.aqualite.workers.dev/parent/orders`
+                          `${origin}/parent/orders`
                         )
                       }
                       aria-label="Share order details"
+                      style={{ minHeight: '44px', display: 'inline-flex', alignItems: 'center' }}
                     >
                       Share
                     </button>
@@ -130,7 +168,7 @@ export function OrdersTab() {
             </div>
             <h3>No orders placed yet</h3>
             <p>When you purchase uniforms or school kits, track delivery and exchange requests here.</p>
-            <Link to="/" className="native-primary-btn">
+            <Link to="/" className="native-primary-btn" style={{ minHeight: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
               Browse Catalogue
             </Link>
           </div>

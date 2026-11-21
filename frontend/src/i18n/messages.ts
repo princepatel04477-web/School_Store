@@ -1140,6 +1140,51 @@ export const messages = {
   'foot.phone': { en: 'Phone', gu: 'ફોન', hi: 'फ़ोन' },
   'foot.message': { en: 'Send a message', gu: 'મેસેજ મોકલો', hi: 'मैसेज भेजें' },
   'foot.email': { en: 'Email', gu: 'ઈમેલ', hi: 'ईमेल' },
+
+  // ---------- Day 3 Task B: order tracking & timeline ----------
+  'timeline.step.placed': { en: 'Placed', gu: 'ઓર્ડર થયો', hi: 'ऑर्डर हुआ' },
+  'timeline.step.confirmed': { en: 'Confirmed', gu: 'કન્ફર્મ થયો', hi: 'पुष्टि हुई' },
+  'timeline.step.packed': { en: 'Packed', gu: 'પેક થયો', hi: 'पैक हुआ' },
+  'timeline.step.dispatched': { en: 'Sent by India Post', gu: 'ઇન્ડિયા પોસ્ટ દ્વારા મોકલાયું', hi: 'इंडिया पोस्ट द्वारा भेजा गया' },
+  'timeline.step.ready': { en: 'Ready at school', gu: 'શાળાએ તૈયાર છે', hi: 'स्कूल में तैयार है' },
+  'timeline.step.delivered': { en: 'Delivered', gu: 'પહોંચી ગયું', hi: 'पहुँचा दिया गया' },
+  'timeline.step.collected': { en: 'Collected', gu: 'લઈ ગયા', hi: 'प्राप्त किया' },
+  'timeline.inProgress': { en: 'In progress', gu: 'પ્રગતિમાં છે', hi: 'प्रगति पर है' },
+  'timeline.cancelled.unpaid': {
+    en: 'Payment was not completed, so this order was cancelled.',
+    gu: 'ચુકવણી પૂરી ન થઈ, તેથી આ ઓર્ડર રદ કરવામાં આવ્યો.',
+    hi: 'भुगतान पूरा नहीं हुआ, इसलिए यह ऑर्डर रद्द कर दिया गया।',
+  },
+  'timeline.cancelled.paid': {
+    en: 'This order was cancelled.',
+    gu: 'આ ઓર્ડર રદ કરવામાં આવ્યો છે.',
+    hi: 'यह ऑर्डर रद्द कर दिया गया है।',
+  },
+  'timeline.returned': {
+    en: 'This order was returned.',
+    gu: 'આ ઓર્ડર પરત કરવામાં આવ્યો છે.',
+    hi: 'यह ऑर्डर वापस कर दिया गया है।',
+  },
+  'tracking.indiaPostLabel': {
+    en: 'India Post tracking number',
+    gu: 'ઇન્ડિયા પોસ્ટ ટ્રેકિંગ નંબર',
+    hi: 'इंडिया पोस्ट ट्रैकिंग नंबर',
+  },
+  'tracking.copy': { en: 'Copy', gu: 'કૉપિ કરો', hi: 'कॉपी करें' },
+  'tracking.copied': { en: 'Copied', gu: 'કૉપિ થઈ ગયું', hi: 'कॉपी हो गया' },
+  'tracking.trackOnIndiaPost': {
+    en: 'Track on India Post',
+    gu: 'ઇન્ડિયા પોસ્ટ પર ટ્રેક કરો',
+    hi: 'इंडिया पोस्ट पर ट्रैक करें',
+  },
+  'orders.loadError': {
+    en: 'We could not load your orders.',
+    gu: 'તમારા ઓર્ડર ખૂલ્યા નહીં.',
+    hi: 'आपके ऑर्डर नहीं खुल पाए।',
+  },
+  'orders.retry': { en: 'Retry', gu: 'ફરી પ્રયત્ન કરો', hi: 'फिर से कोशिश करें' },
+  'status.cancelled': { en: 'Cancelled', gu: 'રદ થયેલ', hi: 'रद्द' },
+  'status.returned': { en: 'Returned', gu: 'પરત થયેલ', hi: 'वापस' },
 } satisfies Record<string, Entry>;
 
 export type MessageKey = keyof typeof messages;

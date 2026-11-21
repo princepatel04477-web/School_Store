@@ -91,10 +91,10 @@ export function PrivacyPage() {
 
       <h2>Who we share it with</h2>
       <p>
-        Your child's school (to confirm orders and run the collection counter), the delivery partner (name, phone and
-        address only) and the payment partner. Staff of your child's school, and our own staff, can see the
-        measurements saved on your child's record, and a teacher who orders for your child can add one. The tailor
-        who sews the uniform gets a sheet with your child's name, GR number, class, the sizes ordered and the
+        Your child's school (to confirm orders and run the collection counter), India Post as our delivery partner for
+        home delivery (name, phone and address only), and the payment partner. Staff of your child's school, and our own
+        staff, can see the measurements saved on your child's record, and a teacher who orders for your child can add one.
+        The tailor who sews the uniform gets a sheet with your child's name, GR number, class, the sizes ordered and the
         measurements, and nothing else. School staff do not get this sheet. School
         staff who can open the order see a short-lived link to a
         photo notebook or ID card photo. The print file is what the printer uses. There is no separate printer
@@ -162,7 +162,8 @@ export function TermsPage() {
 
       <h2>Delivery and pickup</h2>
       <p>
-        We deliver to your address or to the school collection counter, whichever you choose at checkout. Dates
+        We deliver to your address or to the school collection counter, whichever you choose at checkout. Home orders
+        go by India Post with a tracking number shown in My orders; pickup orders show "Ready at school". Dates
         shown are estimates; we will message you if an order is delayed.
       </p>
 

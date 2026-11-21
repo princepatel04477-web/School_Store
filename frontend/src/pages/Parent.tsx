@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Check } from '../components/ui/icons';
+import { Check, Truck } from '../components/ui/icons';
 import { Link, Route, Routes } from 'react-router-dom';
 import { Shell } from '../App';
 import { ListenButton } from '../components/ListenButton';
 import { SelectionFlow } from '../components/SelectionFlow';
-import { Cart, Timeline, type CartItem } from '../components/Store';
+import { Cart, Timeline, getOrderStatusLabel, type CartItem } from '../components/Store';
 import { FitFeedbackPrompt } from '../components/orders/FitFeedbackPrompt';
-import { api, deleteChildPhotos, Order, Product } from '../api';
+import { api, deleteChildPhotos, Order, Page, Product } from '../api';
+import { OrderCardsSkeleton } from '../components/ui/Skeleton';
 import { useLang } from '../i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import '../components/photoConsent.css';
@@ -365,13 +366,15 @@ function Dashboard() {
   );
 }
 
-function Orders() {
+export function Orders() {
   const queryClient = useQueryClient();
-  const { data } = useQuery({
+  const { t } = useLang();
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['orders'],
-    queryFn: () => api<any>('/orders/').catch(() => []),
+    queryFn: () => api<Page<Order>>('/orders/'),
+    refetchOnWindowFocus: true,
   });
-  const orders: Order[] = (data?.results || data || []) as Order[];
+  const orders: Order[] = data?.results || (Array.isArray(data) ? (data as Order[]) : []);
 
   return (
     <>
@@ -380,12 +383,42 @@ function Orders() {
           <span className="eyebrow">YOUR PURCHASES</span>
           <h2>My orders</h2>
         </div>
-        <Link className="text-button" to="/parent">
+        <Link className="text-button" to="/parent" style={{ minHeight: '44px', display: 'inline-flex', alignItems: 'center' }}>
           Shop again
         </Link>
       </div>
 
-      {orders.length ? (
+      {isLoading ? (
+        <OrderCardsSkeleton count={3} />
+      ) : isError ? (
+        <div
+          className="orders-error-state"
+          role="alert"
+          style={{
+            padding: '32px 20px',
+            textAlign: 'center',
+            background: 'var(--paper-raised)',
+            border: '1px solid var(--line)',
+            borderRadius: 'var(--radius-lg, 6px)',
+            marginTop: '20px',
+          }}
+        >
+          <p style={{ color: 'var(--ink)', fontWeight: 600, fontSize: '15px', marginBottom: '8px' }}>
+            {t('orders.loadError')}
+          </p>
+          <p style={{ color: 'var(--muted)', fontSize: '13px', marginBottom: '16px' }}>
+            {t('common.checkInternet')}
+          </p>
+          <button
+            type="button"
+            className="primary"
+            onClick={() => refetch()}
+            style={{ minHeight: '44px', minWidth: '88px', padding: '10px 20px' }}
+          >
+            {t('orders.retry')}
+          </button>
+        </div>
+      ) : orders.length ? (
         orders.map((o) => (
           <article className="order-card" key={o.id}>
             <div className="section-row">
@@ -395,7 +428,7 @@ function Orders() {
                   {new Date(o.created_at).toLocaleDateString('en-IN')}
                 </small>
               </div>
-              <span className="status">{o.status}</span>
+              <span className="status">{getOrderStatusLabel(o, t)}</span>
             </div>
             <p>
               {o.student_name} · <strong>₹{o.total}</strong>
@@ -411,10 +444,10 @@ function Orders() {
         ))
       ) : (
         <div className="empty">
-          <span>⌁</span>
+          <Truck width={40} height={40} strokeWidth={1.5} />
           <h3>No orders yet</h3>
           <p>Your orders and live delivery timeline will appear here.</p>
-          <Link className="primary" to="/parent">
+          <Link className="primary" to="/parent" style={{ minHeight: '44px', display: 'inline-flex', alignItems: 'center' }}>
             Browse catalogue
           </Link>
         </div>
