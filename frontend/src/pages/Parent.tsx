@@ -416,6 +416,12 @@ function Orders() {
     try {
       const result = await orderApi.reconcilePayment(order.id);
       update(order.id, result.payment_view);
+      const settled = result.payment_view.state;
+      if (settled !== order.payment_view.state && settled !== 'CHECKING' && settled !== 'NOT_PAID') {
+        // A capture or release also moves the order's status and timeline: fetch them again.
+        void queryClient.invalidateQueries({ queryKey: ['orders'] });
+        void queryClient.invalidateQueries({ queryKey: ['payment-attention'] });
+      }
       const until = Date.now() + result.retry_after_seconds * 1000;
       setCooldowns(previous => ({ ...previous, [order.id]: until }));
       window.setTimeout(() => setCooldowns(previous => previous[order.id] === until
