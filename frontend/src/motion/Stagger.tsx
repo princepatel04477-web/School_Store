@@ -70,6 +70,13 @@ export const curtainVariants = {
 
 export function Stagger({ children, staggerDelay = 0.06, className = '' }: StaggerProps) {
   const shouldReduceMotion = useReducedMotion();
+  // "Appear when on screen" fires once. Items added after that (a list refilled with
+  // other choices, a search cleared) would stay at opacity 0, so once the list has
+  // been seen it simply stays shown and new items come in with it.
+  const [seen, setSeen] = useState(false);
+  const reveal = seen
+    ? ({ animate: 'visible' } as const)
+    : ({ whileInView: 'visible', viewport: IN_VIEW, onViewportEnter: () => setSeen(true) } as const);
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(max-width: 767.98px)').matches;
@@ -104,8 +111,7 @@ export function Stagger({ children, staggerDelay = 0.06, className = '' }: Stagg
     return (
       <motion.div
         initial="hidden"
-        whileInView="visible"
-        viewport={IN_VIEW}
+        {...reveal}
         className={className}
       >
         {validChildren.map((child, i) => (
@@ -128,8 +134,7 @@ export function Stagger({ children, staggerDelay = 0.06, className = '' }: Stagg
   return (
     <motion.div
       initial="hidden"
-      whileInView="visible"
-      viewport={IN_VIEW}
+      {...reveal}
       custom={Math.min(staggerDelay, MAX_STAGGER_TOTAL / Math.max(count, 1))}
       variants={staggerContainerVariants}
       className={className}
