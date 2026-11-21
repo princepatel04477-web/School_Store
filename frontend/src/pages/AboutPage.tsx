@@ -6,6 +6,8 @@ import { useStoreState } from '../store/storeState';
 import { SHOP_LINK } from '../siteConfig';
 import { useStoreDeliveredSchools, type StoreDeliveredSchool } from '../data/catalog';
 import { hasStoreHistory } from '../components/BackButton';
+import { useAuth } from '../auth';
+import { User } from '../components/ui/icons';
 import './aboutPage.css';
 
 export interface AboutPageProps {
@@ -18,6 +20,7 @@ export function AboutPage({ onOpenBag, onOpenLanguage }: AboutPageProps) {
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
   const { totalCount } = useStoreState();
+  const { user } = useAuth();
 
   // SEO: Update page title and meta description
   useEffect(() => {
@@ -134,6 +137,16 @@ export function AboutPage({ onOpenBag, onOpenLanguage }: AboutPageProps) {
             </svg>
             <span>{langLabel}</span>
           </button>
+
+          {/* Sign in, or the parent's own page once signed in (staff are sent to their panel). */}
+          <Link
+            to={user ? '/parent' : '/login'}
+            className="about-bag-btn about-profile-btn"
+            aria-label={user ? t('nav.myAccount') : t('nav.signIn')}
+            title={user ? t('nav.myAccount') : t('nav.signIn')}
+          >
+            <User width={22} height={22} strokeWidth={2} />
+          </Link>
 
           <button
             type="button"

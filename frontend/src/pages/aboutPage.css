@@ -171,7 +171,8 @@ header.about-top-bar {
   outline-offset: 2px;
 }
 
-/* Phones: back, logo, name, language and bag must fit 375px, or the bag is cut off. */
+/* Phones: back, logo, language, profile and bag must fit 360px, or the bag is cut off.
+   The "SchoolStore" word next to the S logo gives way (the link keeps its label). */
 @media (max-width: 419.98px) {
   .about-top-bar,
   nav.about-top-bar,
@@ -187,7 +188,7 @@ header.about-top-bar {
     gap: 8px;
   }
   .about-brand-text {
-    font-size: 21px;
+    display: none;
   }
   .about-lang-pill {
     padding: 0 10px;
@@ -915,4 +916,9 @@ header.about-top-bar {
     transition: none !important;
     transform: none !important;
   }
+}
+
+/* Profile button beside the bag: same look, a link to sign in or the parent's page. */
+.about-profile-btn {
+  text-decoration: none;
 }
