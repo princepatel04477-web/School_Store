@@ -9,7 +9,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -26,6 +26,7 @@ from .import_service import TEMPLATE_COLUMNS
 from .models import City, School, Student, StudentMeasurement
 from .serializers import (
     CitySerializer,
+    ParentSchoolRequestCreateSerializer,
     SchoolSerializer,
     StudentApproveSerializer,
     StudentAssignParentSerializer,
@@ -623,3 +624,26 @@ class StudentImportViewSet(ScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
             'attachment; filename="student-import-template.xlsx"'
         )
         return response
+
+
+class ParentSchoolRequestCreateView(APIView):
+    """
+    Public endpoint for parents to request that their school be added to SchoolStore.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = ParentSchoolRequestCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        req_obj = serializer.save()
+        return Response(
+            {
+                "id": str(req_obj.id),
+                "school_name": req_obj.school_name,
+                "city_name": req_obj.city_name,
+                "status": req_obj.status,
+                "message": "Thank you! Your school request has been recorded. Our team will review it.",
+            },
+            status=status.HTTP_201_CREATED,
+        )
+

@@ -133,6 +133,23 @@ export const parentChildren={
   schools:()=>api<{id:string;name:string;code:string}[]>('/public/schools/'),
 };
 
+export const schoolRequests = {
+  requestSchool: (data: {
+    parent_name?: string;
+    phone: string;
+    email?: string;
+    school_name: string;
+    city_name: string;
+    state_name?: string;
+    pincode?: string;
+    grade_or_class?: string;
+    remarks?: string;
+  }) => api<{ id: string; school_name: string; city_name: string; status: string; message: string }>(
+    '/schools/request-school/',
+    { method: 'POST', body: JSON.stringify(data) }
+  ),
+};
+
 export type PaymentStartResponse = {
   key_id: string;
   razorpay_order_id: string;

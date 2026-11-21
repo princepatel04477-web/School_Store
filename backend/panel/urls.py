@@ -16,6 +16,7 @@ from .views import (
     CommissionView,
     DashboardView,
     ExportJobViewSet,
+    PanelParentSchoolRequestViewSet,
     TailorSheetViewSet,
     PanelFilterOptionsView,
     PanelOrdersView,
@@ -32,6 +33,7 @@ router.register("student-imports", PanelStudentImportViewSet, basename="panel-st
 router.register("teachers", PanelTeacherViewSet, basename="panel-teacher")
 router.register("exports", ExportJobViewSet, basename="panel-export")
 router.register("tailor-sheets", TailorSheetViewSet, basename="panel-tailor-sheet")
+router.register("parent-school-requests", PanelParentSchoolRequestViewSet, basename="panel-parent-school-request")
 
 urlpatterns = [
     path("dashboard/", DashboardView.as_view(), name="panel-dashboard"),

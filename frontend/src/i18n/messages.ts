@@ -1570,6 +1570,168 @@ export const messages = {
   'foot.phone': { en: 'Phone', gu: 'ફોન', hi: 'फ़ोन' },
   'foot.message': { en: 'Send a message', gu: 'મેસેજ મોકલો', hi: 'मैसेज भेजें' },
   'foot.email': { en: 'Email', gu: 'ઈમેલ', hi: 'ईमेल' },
+
+  // ---------- contact & support ----------
+  'contact.title': { en: 'Contact Us', gu: 'સંપર્ક કરો', hi: 'संपर्क करें' },
+  'contact.supportChannels': { en: 'Support Channels', gu: 'સહાય માધ્યમો', hi: 'सहायता माध्यम' },
+  'contact.hours': { en: 'Business Hours', gu: 'કામકાજનો સમય', hi: 'कामकाज का समय' },
+  'contact.company': { en: 'Operating Company', gu: 'સંચાલક કંપની', hi: 'संचालक कंपनी' },
+  'contact.address': { en: 'Registered Address', gu: 'નોંધાયેલ સરનામું', hi: 'पंजीकृत पता' },
+  'contact.phoneUnavailable': {
+    en: 'Direct phone lines are currently offline. Please use the school request form or WhatsApp below during business hours.',
+    gu: 'સીધો ફોન સપોર્ટ હાલમાં સક્રિય નથી. કૃપા કરીને નીચે શાળા વિનંતી ફોર્મ અથવા WhatsApp નો ઉપયોગ કરો.',
+    hi: 'सीधा फ़ोन सपोर्ट फिलहाल सक्रिय नहीं है। कृपया नीचे स्कूल अनुरोध फ़ॉर्म या WhatsApp का उपयोग करें।',
+  },
+  'contact.requestSchoolTitle': {
+    en: 'Request Your School',
+    gu: 'તમારી શાળા માટે વિનંતી કરો',
+    hi: 'अपने स्कूल के लिए अनुरोध करें',
+  },
+  'contact.requestSchoolSubtitle': {
+    en: "Can't find your school? Tell us which school uniform you need. We'll connect with school management and uniform suppliers.",
+    gu: 'તમારી શાળા નથી મળી રહી? અમને જણાવો કે તમને કઈ શાળાનો યુનિફોર્મ જોઈએ છે. અમે શાળા સંચાલન અને સપ્લાયર્સ સાથે સંપર્ક કરીશું.',
+    hi: 'आपका स्कूल नहीं मिल रहा? हमें बताएं कि आपको किस स्कूल की यूनिफ़ॉर्म चाहिए। हम स्कूल प्रबंधन और सप्लायर्स से संपर्क करेंगे।',
+  },
+  'contact.parentName': { en: 'Parent Name', gu: 'વાલીનું નામ', hi: 'अभिभावक का नाम' },
+  'contact.parentPhone': { en: 'Mobile Number', gu: 'મોબાઇલ નંબર', hi: 'मोबाइल नंबर' },
+  'contact.parentPhoneHelp': { en: '10-digit Indian mobile number', gu: '૧૦ અંકનો ભારતીય મોબાઇલ નંબર', hi: '१० अंकों का भारतीय मोबाइल नंबर' },
+  'contact.email': { en: 'Email (Optional)', gu: 'ઇમેઇલ (વૈકલ્પિક)', hi: 'ईमेल (वैकल्पिक)' },
+  'contact.schoolName': { en: 'School Name', gu: 'શાળાનું નામ', hi: 'स्कूल का नाम' },
+  'contact.cityName': { en: 'City or Town', gu: 'શહેર અથવા ગામ', hi: 'शहर या कस्बा' },
+  'contact.stateName': { en: 'State / Union Territory', gu: 'રાજ્ય', hi: 'राज्य' },
+  'contact.gradeOrClass': { en: "Child's Class or Grade", gu: 'બાળકનું ધોરણ', hi: 'बच्चे की कक्षा' },
+  'contact.remarks': { en: 'Remarks or Uniform Details', gu: 'વિગત અથવા ખાસ જરૂરિયાત', hi: 'विवरण या विशेष आवश्यकता' },
+  'contact.submitRequest': { en: 'Submit School Request', gu: 'શાળા વિનંતી મોકલો', hi: 'स्कूल अनुरोध भेजें' },
+  'contact.submitting': { en: 'Submitting…', gu: 'મોકલી રહ્યા છીએ…', hi: 'भेज रहे हैं…' },
+  'contact.successTitle': { en: 'Request Received!', gu: 'વિનંતી મળી ગઈ!', hi: 'अनुरोध प्राप्त हुआ!' },
+  'contact.successMessage': {
+    en: 'Thank you! We have recorded your request for {school} in {city}. Our team will review it and coordinate with the school.',
+    gu: 'આભાર! અમે {city} માં {school} માટે તમારી વિનંતી નોંધી લીધી છે. અમારી ટીમ તેની સમીક્ષા કરશે અને શાળા સાથે સંકલન કરશે.',
+    hi: 'धन्यवाद! हमने {city} में {school} के लिए आपका अनुरोध दर्ज कर लिया है। हमारी टीम इसकी समीक्षा करेगी और स्कूल से संपर्क करेगी।',
+  },
+  'contact.anotherRequest': { en: 'Submit another school request', gu: 'બીજી શાળા માટે વિનંતી કરો', hi: 'अन्य स्कूल के लिए अनुरोध करें' },
+  'contact.backToShop': { en: 'Return to Shop', gu: 'દુકાન પર પાછા જાઓ', hi: 'दुकान पर वापस जाएँ' },
+  'contact.error': { en: 'Failed to submit request. Please check your details and try again.', gu: 'વિનંતી મોકલવામાં ભૂલ થઈ. કૃપા કરીને વિગતો તપાસો અને ફરી પ્રયાસ કરો.', hi: 'अनुरोध भेजने में त्रुटि हुई। कृपया विवरण जाँचें और पुनः प्रयास करें।' },
+
+  // ---------- help & faq ----------
+  'help.title': { en: 'Help & FAQs', gu: 'મદદ અને પ્રશ્નોત્તરી', hi: 'सहायता और अक्सर पूछे जाने वाले सवाल' },
+  'help.subtitle': { en: 'Answers to common questions about school uniform shopping, sizing, and order fulfillment.', gu: 'યુનિફોર્મ ખરીદી, સાઇઝિંગ અને ઓર્ડર ડિલિવરી વિશે સામાન્ય પ્રશ્નોના જવાબો.', hi: 'यूनिफ़ॉर्म ख़रीदारी, साइज़िंग और ऑर्डर डिलीवरी के बारे में सामान्य सवालों के जवाब।' },
+  'help.allTopics': { en: 'All Topics', gu: 'બધા વિષયો', hi: 'सभी विषय' },
+  'help.sizeGuide': { en: 'Size & Fit', gu: 'સાઇઝ અને માપ', hi: 'साइज़ और माप' },
+  'help.delivery': { en: 'Delivery & Pickup', gu: 'ડિલિવરી અને પિકઅપ', hi: 'डिलीवरी और पिकअप' },
+  'help.payment': { en: 'Payment & COD', gu: 'ચુકવણી અને કેશ ઓન ડિલિવરી', hi: 'भुगतान और कैश ऑन डिलीवरी' },
+  'help.returns': { en: 'Exchanges & Refunds', gu: 'બદલાવ અને રિફંડ', hi: 'एक्सचेंज और रिफंड' },
+  'help.requestSchool': { en: 'Request a School', gu: 'શાળા વિનંતી', hi: 'स्कूल अनुरोध' },
+
+  'help.q.sizeHow': { en: 'How do I choose the right size for my child?', gu: 'મારા બાળક માટે સાચી સાઇઝ કેવી રીતે પસંદ કરવી?', hi: 'अपने बच्चे के लिए सही साइज़ कैसे चुनें?' },
+  'help.a.sizeHow': {
+    en: "Measure your child's height, chest, and waist in centimeters using a flexible tape. In our selection flow, entering these measurements gives you a tailored size recommendation based on your school's verified size chart.",
+    gu: 'મેઝરિંગ ટેપ વડે તમારા બાળકની ઊંચાઈ, છાતી અને કમરનું માપ સેન્ટીમીટરમાં લો. અમારી ખરીદી પ્રક્રિયામાં આ માપ દાખલ કરવાથી શાળાના ચકાસાયેલ ચાર્ટ અનુસાર યોગ્ય સાઇઝ સૂચવવામાં આવશે.',
+    hi: 'नापने वाले फ़ीते से अपने बच्चे की लंबाई, छाती और कमर का माप सेंटीमीटर में लें। हमारी ख़रीदारी प्रक्रिया में ये माप डालने पर आपके स्कूल के सत्यापित चार्ट के अनुसार सही साइज़ का सुझाव मिलेगा।',
+  },
+
+  'help.q.sizeBetween': { en: 'What if my child is between two sizes?', gu: 'જો મારા બાળકનું માપ બે સાઇઝ વચ્ચે આવે તો શું કરવું?', hi: 'यदि मेरे बच्चे का माप दो साइज़ के बीच आता है तो क्या करें?' },
+  'help.a.sizeBetween': {
+    en: 'If your child is between sizes, we recommend choosing the larger size. This allows comfortable movement and room for natural growth throughout the school year.',
+    gu: 'જો માપ બે સાઇઝની વચ્ચે આવે, તો અમે મોટી સાઇઝ પસંદ કરવાની સલાહ આપીએ છીએ. જેથી બાળક આરામથી હલનચલન કરી શકે અને આખા શૈક્ષણિક વર્ષ દરમિયાન ઉપયોગી બને.',
+    hi: 'यदि माप दो साइज़ के बीच आता है, तो हम बड़ा साइज़ चुनने की सलाह देते हैं। इससे बच्चा आराम से रह सकता है और पूरे साल विकास के लिए जगह मिलती है।',
+  },
+
+  'help.q.shoes': { en: 'How do shoe sizes work?', gu: 'બૂટની સાઇઝ કેવી રીતે નક્કી થાય છે?', hi: 'जूतों की साइज़ कैसे तय होती है?' },
+  'help.a.shoes': {
+    en: 'Shoe sizes follow standard Indian footwear sizing. Measure the foot from heel to longest toe in centimeters and check the size chart on the shoe product page.',
+    gu: 'બૂટની સાઇઝ ભારતીય માનક માપ પ્રમાણે હોય છે. પગની એડીથી અંગૂઠા સુધીનું માપ સેમીમાં લઈ બૂટના પેજ પર આપેલ સાઇઝ ચાર્ટ તપાસો.',
+    hi: 'जूतों की साइज़ भारतीय मानक नाप के अनुसार होती है। एड़ी से अंगूठे तक का नाप सेंटीमीटर में लें और जूते के पेज पर साइज़ चार्ट देखें।',
+  },
+
+  'help.q.deliveryModes': { en: 'How will my order be delivered?', gu: 'મારો ઓર્ડર કેવી રીતે મળશે?', hi: 'मेरा ऑर्डर कैसे डिलीवर होगा?' },
+  'help.a.deliveryModes': {
+    en: 'Depending on your school, orders are either delivered directly to your home address by courier, or distributed at your school uniform counter during scheduled hours.',
+    gu: 'તમારી શાળાની વ્યવસ્થા મુજબ, ઓર્ડર કુરિયર દ્વારા સીધા તમારા ઘરે પહોંચાડવામાં આવે છે અથવા શાળામાં નક્કી કરેલા સમયે યુનિફોર્મ કાઉન્ટર પરથી આપી શકાય છે.',
+    hi: 'आपके स्कूल की व्यवस्था के अनुसार, ऑर्डर कूरियर से सीधे आपके घर पहुँचाया जाता है या स्कूल में निर्धारित समय पर काउंटर से मिलता है।',
+  },
+
+  'help.q.deliveryTime': { en: 'How long does delivery take?', gu: 'ડિલિવરીમાં કેટલો સમય લાગે છે?', hi: 'डिलीवरी में कितना समय लगता है?' },
+  'help.a.deliveryTime': {
+    en: 'Home delivery orders are typically dispatched within 2 business days and delivered within 3-7 business days across India. Track updates are available on your Orders page.',
+    gu: 'ઘરે ડિલિવરી માટે સામાન્ય રીતે ૨ દિવસમાં ડિસ્પેચ થઈ ૩-૭ દિવસમાં પહોંચે છે. તમારા ઓર્ડર પેજ પર ટ્રેકિંગ ઉપલબ્ધ રહે છે.',
+    hi: 'घर पर डिलीवरी के लिए आम तौर पर २ दिनों में भेजा जाता है और ३-७ दिनों में पहुँचता है। आपके ऑर्डर पेज पर लाइव ट्रैकिंग उपलब्ध है।',
+  },
+
+  'help.q.deliveryCharges': { en: 'Are there delivery charges?', gu: 'શું ડિલિવરી ચાર્જ લાગે છે?', hi: 'क्या डिलीवरी चार्ज लगता है?' },
+  'help.a.deliveryCharges': {
+    en: 'School pickup is always free. Home delivery charges, if any for your city and PIN code, are calculated transparently and shown at checkout before you pay.',
+    gu: 'શાળામાંથી પિકઅપ હંમેશા મફત છે. ઘરે ડિલિવરી માટે જો કોઈ ચાર્જ હોય તો તે ચુકવણી કરતાં પહેલાં ચેકઆઉટ પેજ પર સ્પષ્ટપણે દર્શાવવામાં આવે છે.',
+    hi: 'स्कूल से पिकअप हमेशा मुफ़्त है। घर पर डिलीवरी का शुल्क, यदि लागू हो, तो भुगतान से पहले चेकआउट पर स्पष्ट रूप से दिखाया जाता है।',
+  },
+
+  'help.q.payments': { en: 'Which payment methods are accepted?', gu: 'ચુકવણીની કઈ પદ્ધતિઓ સ્વીકારવામાં આવે છે?', hi: 'भुगतान के कौन से तरीके स्वीकार किए जाते हैं?' },
+  'help.a.payments': {
+    en: 'We accept UPI (Google Pay, PhonePe, Paytm, BHIM), all major debit/credit cards, and net banking via secure Razorpay checkout. Cash on Delivery is offered where available.',
+    gu: 'અમે Razorpay દ્વારા સુરક્ષિત UPI (Google Pay, PhonePe, Paytm, BHIM), તમામ મુખ્ય ડેબિટ/ક્રેડિટ કાર્ડ અને નેટ બેંકિંગ સ્વીકારીએ છીએ. જ્યાં ઉપલબ્ધ હોય ત્યાં કેશ ઓન ડિલિવરી પણ મળે છે.',
+    hi: 'हम सुरक्षित Razorpay द्वारा UPI (Google Pay, PhonePe, Paytm, BHIM), सभी प्रमुख डेबिट/क्रेडिट कार्ड और नेट बैंकिंग स्वीकार करते हैं। जहाँ उपलब्ध हो, कैश ऑन डिलीवरी भी मिलती है।',
+  },
+
+  'help.q.paymentFailed': { en: 'What if my online payment failed but money was deducted?', gu: 'જો ઓનલાઇન ચુકવણી નિષ્ફળ જાય પણ ખાતામાંથી રકમ કપાઈ જાય તો?', hi: 'यदि ऑनलाइन भुगतान विफल हो गया लेकिन पैसे कट गए तो?' },
+  'help.a.paymentFailed': {
+    en: 'Your bank automatically reverses deducted amounts for incomplete transactions within 3-5 business days. If you do not see the refund after 5 days, please reach out to us with your bank transaction reference.',
+    gu: 'અધૂરા વ્યવહારો માટે બેંક સામાન્ય રીતે ૩-૫ દિવસમાં રકમ પાછી જમા કરે છે. જો ૫ દિવસ પછી રકમ ન મળે, તો ટ્રાન્ઝેક્શન રેફરન્સ સાથે અમારો સંપર્ક કરો.',
+    hi: 'अधूरे लेन-देन के लिए बैंक आम तौर पर ३-५ दिनों में पैसे वापस भेज देता है। ५ दिनों के बाद भी राशि न मिले, तो लेन-देन संदर्भ के साथ हमसे संपर्क करें।',
+  },
+
+  'help.q.exchange': { en: 'Can I exchange an item if the size does not fit?', gu: 'જો સાઇઝ યોગ્ય ન હોય તો શું હું વસ્તુ બદલાવી શકું?', hi: 'यदि साइज़ सही न हो तो क्या मैं सामान बदल सकता हूँ?' },
+  'help.a.exchange': {
+    en: 'Yes! The first size exchange on your order is completely free. Submit an exchange request from your Orders page within 7 days of receiving the uniform.',
+    gu: 'હા! તમારા ઓર્ડર પર પહેલી વાર સાઇઝ બદલવી તદ્દન મફત છે. યુનિફોર્મ મળ્યાના ૭ દિવસમાં તમારા ઓર્ડર પેજ પરથી વિનંતી મોકલી શકો છો.',
+    hi: 'हाँ! आपके ऑर्डर पर पहली बार साइज़ बदलना पूरी तरह मुफ़्त है। यूनिफ़ॉर्म मिलने के ७ दिनों के भीतर अपने ऑर्डर पेज से अनुरोध भेजें।',
+  },
+
+  'help.q.returnCondition': { en: 'What condition must items be in for exchange or return?', gu: 'વસ્તુ બદલવા કે પરત કરવા માટે કઈ શરતો છે?', hi: 'सामान बदलने या वापस करने के लिए क्या शर्तें हैं?' },
+  'help.a.returnCondition': {
+    en: 'Items must be unused, unwashed, and in original condition with all brand tags and packaging intact.',
+    gu: 'વસ્તુ બિનઉપયોગી, ન ધોયેલી અને અસલ ટેગ તથા પેકિંગ સાથે હોવી જરૂરી છે.',
+    hi: 'सामान बिना इस्तेमाल किया हुआ, बिना धुला और सभी मूल टैग तथा पैकेजिंग के साथ होना चाहिए।',
+  },
+
+  'help.q.requestSchoolHow': { en: 'How do I request my school if it is not listed?', gu: 'જો મારી શાળા યાદીમાં ન હોય તો વિનંતી કેવી રીતે કરવી?', hi: 'यदि मेरा स्कूल सूची में नहीं है तो अनुरोध कैसे करें?' },
+  'help.a.requestSchoolHow': {
+    en: "Go to our Request Your School page, fill in the school name, city, and your contact number. Our operations team reviews all parent requests and connects with the school administration.",
+    gu: 'અમારી "શાળા માટે વિનંતી" પેજ પર જાઓ, શાળાનું નામ, શહેર અને તમારો મોબાઇલ નંબર લખો. અમારી ટીમ શાળા સંચાલન સાથે સંપર્ક કરશે.',
+    hi: 'हमारे "स्कूल अनुरोध" पेज पर जाएँ, स्कूल का नाम, शहर और अपना मोबाइल नंबर भरें। हमारी टीम स्कूल प्रबंधन से संपर्क करेगी।',
+  },
+
+  'help.stillQuestions': { en: 'Still have questions?', gu: 'હજુ કોઈ પ્રશ્ન છે?', hi: 'क्या अभी भी कोई सवाल है?' },
+  'help.contactSupport': { en: 'Our team is here to assist with school uniform ordering and sizing.', gu: 'અમારી ટીમ યુનિફોર્મ ખરીદી અને સાઇઝિંગમાં મદદ કરવા માટે ઉપલબ્ધ છે.', hi: 'हमारी टीम यूनिफ़ॉर्म ख़रीदारी और साइज़िंग में मदद के लिए उपलब्ध है।' },
+  'help.goToContact': { en: 'Contact Support', gu: 'સંપર્ક કરો', hi: 'संपर्क करें' },
+  'help.requestSchoolButton': { en: 'Request Your School', gu: 'શાળા માટે વિનંતી', hi: 'स्कूल अनुरोध करें' },
+  'parent.title': { en: 'A little easier today.', gu: 'આજે થોડું સરળ બન્યું.', hi: 'आज थोड़ा आसान हुआ।' },
+
+  // ---------- for schools ----------
+  'forSchools.title': { en: 'For Partner Schools', gu: 'ભાગીદાર શાળાઓ માટે', hi: 'पार्टनर स्कूलों के लिए' },
+  'forSchools.subtitle': { en: 'Simplifying uniform procurement, sizing, and delivery for schools and parents across India.', gu: 'સમગ્ર ભારતમાં શાળાઓ અને વાલીઓ માટે યુનિફોર્મ વ્યવસ્થા, સાઇઝિંગ અને ડિલિવરી સરળ બનાવવી.', hi: 'पूरे भारत में स्कूलों और अभिभावकों के लिए यूनिफ़ॉर्म प्रबंधन, साइज़िंग और डिलीवरी को आसान बनाना।' },
+  'forSchools.onboardTitle': { en: 'Partner With SchoolStore', gu: 'SchoolStore સાથે જોડાઓ', hi: 'SchoolStore से जुड़ें' },
+  'forSchools.onboardDesc': { en: 'Get verified uniforms, online ordering for parents, and zero inventory burden for school administration.', gu: 'તમારી શાળા માટે ચકાસાયેલ યુનિફોર્મ, વાલીઓ માટે સીધી ઓનલાઇન ખરીદી અને શાળા પ્રશાસન માટે શૂન્ય ઇન્વેન્ટરી બોજ.', hi: 'सत्यापित यूनिफ़ॉर्म, अभिभावकों के लिए आसान ऑनलाइन ऑर्डर और स्कूल प्रशासन के लिए शून्य इन्वेंट्री का झंझट।' },
+  'forSchools.contactSales': { en: 'Get in Touch', gu: 'સંપર્ક કરો', hi: 'संपर्क करें' },
+
+  // ---------- parent dashboard translations ----------
+  'parent.readyWhenYouAre': { en: 'READY WHEN YOU ARE', gu: 'તમે તૈયાર હોવ ત્યારે', hi: 'जब आप तैयार हों' },
+  'parent.schoolEssentialsSorted': { en: 'School essentials, sorted.', gu: 'શાળાની આવશ્યક ચીજો, સરળતાથી.', hi: 'स्कूल की ज़रूरी चीज़ें, आसानी से।' },
+  'parent.chooseChildSub': { en: 'Choose a child or standard to find tailored essentials.', gu: 'તમારા બાળક અથવા ધોરણ પસંદ કરીને શાળા મુજબના યુનિફોર્મ શોધો.', hi: 'अपने बच्चे या कक्षा को चुनकर स्कूल अनुसार यूनिफ़ॉर्म खोजें।' },
+  'parent.studentProfileViewOnly': { en: 'STUDENT PROFILE (VIEW ONLY)', gu: 'વિદ્યાર્થી પ્રોફાઇલ (માત્ર જોવા માટે)', hi: 'विद्यार्थी प्रोफ़ाइल (केवल देखने के लिए)' },
+  'parent.readOnly': { en: 'Read-only', gu: 'માત્ર વાંચવા માટે', hi: 'केवल पढ़ने के लिए' },
+  'parent.grNumber': { en: 'GR Number', gu: 'જી.આર. નંબર', hi: 'जी.आर. नंबर' },
+  'parent.gradeClass': { en: 'Grade / Class', gu: 'ધોરણ / વર્ગ', hi: 'कक्षा / वर्ग' },
+  'parent.section': { en: 'Section', gu: 'વિભાગ', hi: 'वर्ग (सेक्शन)' },
+  'parent.gender': { en: 'Gender', gu: 'જાતિ', hi: 'लिंग' },
+  'parent.school': { en: 'School', gu: 'શાળા', hi: 'स्कूल' },
+  'parent.storeCategories': { en: 'STORE CATEGORIES', gu: 'દુકાનની કેટેગરીઓ', hi: 'दुकान की श्रेणियाँ' },
+  'parent.shopEssentials': { en: 'Shop Essentials', gu: 'આવશ્યક ચીજો ખરીદો', hi: 'ज़रूरी सामान खरीदें' },
+  'parent.yourPurchases': { en: 'YOUR PURCHASES', gu: 'તમારી ખરીદીઓ', hi: 'आपकी खरीदारी' },
+
+  // ---------- accessibility ----------
+  'a11y.closeDrawer': { en: 'Close drawer', gu: 'ડ્રોઅર બંધ કરો', hi: 'ड्रॉअर बंद करें' },
+  'a11y.drawerOpened': { en: 'Shopping bag drawer opened', gu: 'શોપિંગ બેગ ડ્રોઅર ખુલ્યું', hi: 'शॉपिंग बैग ड्रॉअर खुला' },
+  'a11y.drawerClosed': { en: 'Shopping bag drawer closed', gu: 'શોપિંગ બેગ ડ્રોઅર બંધ થયું', hi: 'शॉपિંગ बैग ड्रॉअर बंद हुआ' },
 } satisfies Record<string, Entry>;
 
 export type MessageKey = keyof typeof messages;

@@ -533,12 +533,13 @@ export function Cart({
   );
 }
 
-export function formatOrderTimestamp(isoString?: string): string {
+export function formatOrderTimestamp(isoString?: string, lang?: string): string {
   if (!isoString) return '';
   try {
     const d = new Date(isoString);
     if (isNaN(d.getTime())) return isoString;
-    return d.toLocaleDateString('en-IN', {
+    const locale = lang === 'gu' ? 'gu-IN' : lang === 'hi' ? 'hi-IN' : 'en-IN';
+    return d.toLocaleDateString(locale, {
       day: 'numeric',
       month: 'short',
       hour: 'numeric',
@@ -551,7 +552,7 @@ export function formatOrderTimestamp(isoString?: string): string {
 }
 
 export function Timeline({ order }: { order: Order }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const isPickup = order.fulfillment_type === 'SCHOOL_PICKUP';
 
   // Normal status progression ranks:
@@ -679,14 +680,14 @@ export function Timeline({ order }: { order: Order }) {
           {isPickup ? t('timeline.schoolPickup') : t('timeline.homeDelivery')}
         </span>
         {lastUpdatedIso && (
-          <span>{t('timeline.lastUpdated', { time: formatOrderTimestamp(lastUpdatedIso) })}</span>
+          <span>{t('timeline.lastUpdated', { time: formatOrderTimestamp(lastUpdatedIso, lang) })}</span>
         )}
       </div>
 
       {/* Main 5-step timeline */}
       <div className="timeline">
         {steps.map((step) => {
-          const timestamp = formatOrderTimestamp(step.event?.timestamp || step.fallbackTime);
+          const timestamp = formatOrderTimestamp(step.event?.timestamp || step.fallbackTime, lang);
           let stateClass = '';
           if (step.isDone) stateClass = 'done';
           else if (step.isCurrent) stateClass = 'current';
@@ -733,7 +734,7 @@ export function Timeline({ order }: { order: Order }) {
           </div>
           <p style={{ margin: '4px 0 0', color: 'var(--ink-soft)' }}>
             {t('timeline.cancelledNotice', {
-              date: formatOrderTimestamp(cancelledEvent?.timestamp || order.updated_at),
+              date: formatOrderTimestamp(cancelledEvent?.timestamp || order.updated_at, lang),
             })}
           </p>
           {cancelledEvent?.note && (
@@ -764,7 +765,7 @@ export function Timeline({ order }: { order: Order }) {
           </div>
           <p style={{ margin: '4px 0 0', color: 'var(--ink-soft)' }}>
             {t('timeline.returnedNotice', {
-              date: formatOrderTimestamp(returnedEvent?.timestamp || order.updated_at),
+              date: formatOrderTimestamp(returnedEvent?.timestamp || order.updated_at, lang),
             })}
           </p>
           {returnedEvent?.note && (
@@ -795,7 +796,7 @@ export function Timeline({ order }: { order: Order }) {
           </div>
           <p style={{ margin: '4px 0 0', color: 'var(--ink-soft)' }}>
             {t('timeline.refundedNotice', {
-              date: formatOrderTimestamp(refundedEvent?.timestamp || order.updated_at),
+              date: formatOrderTimestamp(refundedEvent?.timestamp || order.updated_at, lang),
             })}
           </p>
           {refundedEvent?.note && (

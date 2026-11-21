@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import City, Grade, School, SchoolBranch, Student, StudentMeasurement
+from django.utils import timezone
+from .models import City, Grade, ParentSchoolRequest, School, SchoolBranch, Student, StudentMeasurement
 
 
 @admin.register(City)
@@ -106,3 +107,27 @@ class StudentMeasurementAdmin(admin.ModelAdmin):
     search_fields = ("student__name", "student__gr_number")
     raw_id_fields = ("student", "measured_by", "parent")
     readonly_fields = ("school", "city", "parent", "measured_by_role")
+
+
+@admin.register(ParentSchoolRequest)
+class ParentSchoolRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        "school_name",
+        "city_name",
+        "parent_name",
+        "phone",
+        "grade_or_class",
+        "status",
+        "reviewed_at",
+        "created_at",
+    )
+    list_filter = ("status", "created_at", "city")
+    search_fields = ("school_name", "city_name", "parent_name", "phone")
+    readonly_fields = ("id", "created_at", "updated_at", "reviewed_by", "reviewed_at")
+
+    def save_model(self, request, obj, form, change):
+        if change and "status" in form.changed_data:
+            obj.reviewed_by = request.user
+            obj.reviewed_at = timezone.now()
+        super().save_model(request, obj, form, change)
+

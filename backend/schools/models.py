@@ -488,3 +488,60 @@ class StudentMeasurement(UUIDModel):
 
     def __str__(self) -> str:
         return f"{self.student.name}: {self.height_cm} cm, {self.weight_kg} kg ({self.measured_at:%Y-%m-%d})"
+
+
+class ParentSchoolRequest(UUIDModel):
+    """
+    Public school request submitted by parents when their school is not yet on SchoolStore.
+    Scoped staff handling:
+    - BOSS can view and review all requests.
+    - ADMIN (City Admin) can view and review requests for their assigned city.
+    """
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        CONTACTED = "CONTACTED", "Contacted"
+        ONBOARDED = "ONBOARDED", "School Onboarded"
+        CLOSED = "CLOSED", "Closed"
+
+    parent_name = models.CharField(max_length=150, blank=True, default="")
+    phone = models.CharField(max_length=20)
+    email = models.EmailField(blank=True, default="")
+    school_name = models.CharField(max_length=250)
+    city_name = models.CharField(max_length=120)
+    state_name = models.CharField(max_length=100, blank=True, default="")
+    pincode = models.CharField(max_length=6, blank=True, default="")
+    grade_or_class = models.CharField(max_length=50, blank=True, default="")
+    remarks = models.TextField(blank=True, default="")
+    city = models.ForeignKey(
+        City,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="parent_school_requests",
+    )
+    status = models.CharField(
+        max_length=15,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    notes = models.TextField(blank=True, default="")
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_parent_school_requests",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Parent School Request"
+        verbose_name_plural = "Parent School Requests"
+
+    def __str__(self) -> str:
+        return f"{self.school_name} ({self.city_name}) - {self.phone}"
+

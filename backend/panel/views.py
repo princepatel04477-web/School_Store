@@ -32,8 +32,9 @@ from common.models import ImportJob
 from common.pagination import BoundedCursorPagination, BoundedPageNumberPagination
 from common.permissions import RoleScopedPermission
 from orders.models import Order
-from schools.models import Student
+from schools.models import ParentSchoolRequest, Student
 from schools.serializers import (
+    ParentSchoolRequestStaffSerializer,
     StudentImportJobSerializer,
     StudentImportUploadSerializer,
     StudentSerializer,
@@ -871,3 +872,37 @@ class TailorSheetViewSet(
             filename=job.filename or "tailor-sheet.xlsx",
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
+
+
+class PanelParentSchoolRequestViewSet(viewsets.ModelViewSet):
+    """
+    Staff management of parent school requests.
+    - BOSS: sees and reviews all parent requests nationwide.
+    - ADMIN (City Admin): sees and reviews requests for their assigned city.
+    - SCHOOL_ADMIN, TEACHER, PARENT: 403 Forbidden.
+    """
+    serializer_class = ParentSchoolRequestStaffSerializer
+    permission_classes = [RoleScopedPermission]
+    read_roles = ("BOSS", "ADMIN")
+    write_roles = ("BOSS", "ADMIN")
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return ParentSchoolRequest.objects.none()
+        qs = ParentSchoolRequest.objects.select_related("city", "reviewed_by").order_by("-created_at")
+        if user.role == "BOSS" or getattr(user, "is_superuser", False):
+            return qs
+        if user.role == "ADMIN" and user.city_id:
+            city_name = getattr(user.city, "name", "")
+            return qs.filter(
+                Q(city_id=user.city_id) | Q(city_name__iexact=city_name)
+            )
+        return ParentSchoolRequest.objects.none()
+
+    def perform_update(self, serializer):
+        serializer.save(
+            reviewed_by=self.request.user,
+            reviewed_at=timezone.now(),
+        )
+

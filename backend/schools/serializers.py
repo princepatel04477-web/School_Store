@@ -8,7 +8,7 @@ from common.constants import normalize_class_name
 from common.exceptions import Conflict
 from common.models import ImportJob
 
-from .models import City, School, Student, StudentMeasurement
+from .models import City, ParentSchoolRequest, School, Student, StudentMeasurement
 
 
 class CitySerializer(serializers.ModelSerializer):
@@ -513,3 +513,103 @@ def _decimal_or_none(value):
     except (InvalidOperation, ValueError):
         return None
     return number if number.is_finite() else None
+
+
+class ParentSchoolRequestCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ParentSchoolRequest
+        fields = (
+            "id",
+            "parent_name",
+            "phone",
+            "email",
+            "school_name",
+            "city_name",
+            "state_name",
+            "pincode",
+            "grade_or_class",
+            "remarks",
+            "status",
+            "created_at",
+        )
+        read_only_fields = ("id", "status", "created_at")
+
+    def validate_phone(self, value):
+        digits = "".join(filter(str.isdigit, str(value or "")))
+        if len(digits) == 12 and digits.startswith("91"):
+            digits = digits[2:]
+        if len(digits) != 10:
+            raise ValidationError("Please enter a valid 10-digit mobile number.")
+        return digits
+
+    def validate_school_name(self, value):
+        v = (value or "").strip()
+        if not v:
+            raise ValidationError("School name is required.")
+        return v
+
+    def validate_city_name(self, value):
+        v = (value or "").strip()
+        if not v:
+            raise ValidationError("City or town name is required.")
+        return v
+
+    def create(self, validated_data):
+        city_name = validated_data.get("city_name", "").strip()
+        state_name = validated_data.get("state_name", "").strip()
+        # Look up existing active city if one matches by name
+        matching_city = City.objects.filter(name__iexact=city_name, active=True).first()
+        if matching_city:
+            validated_data["city"] = matching_city
+            if not state_name:
+                validated_data["state_name"] = matching_city.state
+        return super().create(validated_data)
+
+
+class ParentSchoolRequestStaffSerializer(serializers.ModelSerializer):
+    reviewed_by_name = serializers.CharField(source="reviewed_by.get_full_name", read_only=True)
+    city_display = serializers.CharField(source="city.name", read_only=True)
+
+    class Meta:
+        model = ParentSchoolRequest
+        fields = (
+            "id",
+            "parent_name",
+            "phone",
+            "email",
+            "school_name",
+            "city_name",
+            "state_name",
+            "pincode",
+            "grade_or_class",
+            "remarks",
+            "city",
+            "city_display",
+            "status",
+            "notes",
+            "reviewed_by",
+            "reviewed_by_name",
+            "reviewed_at",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "id",
+            "parent_name",
+            "phone",
+            "email",
+            "school_name",
+            "city_name",
+            "state_name",
+            "pincode",
+            "grade_or_class",
+            "remarks",
+            "city",
+            "city_display",
+            "reviewed_by",
+            "reviewed_by_name",
+            "reviewed_at",
+            "created_at",
+            "updated_at",
+        )
+

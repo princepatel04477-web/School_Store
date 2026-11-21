@@ -1,6 +1,6 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .views import CityViewSet, SchoolViewSet, StudentImportViewSet, StudentViewSet
+from .views import CityViewSet, ParentSchoolRequestCreateView, SchoolViewSet, StudentImportViewSet, StudentViewSet
 
 router = DefaultRouter()
 router.register("cities", CityViewSet, basename="city")
@@ -9,6 +9,11 @@ router.register("students", StudentViewSet, basename="student")
 router.register("student-imports", StudentImportViewSet, basename="student-import")
 
 urlpatterns = [
+    path(
+        "schools/request-school/",
+        ParentSchoolRequestCreateView.as_view(),
+        name="school-parent-request",
+    ),
     # Convenience alias: upload straight to /api/students/import/
     path(
         "students/import/",

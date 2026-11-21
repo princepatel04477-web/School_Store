@@ -40,6 +40,12 @@ const CityAdmin = lazy(() => import('./pages/CityAdmin'));
 const BossPanel = lazy(() => import('./pages/BossPanel'));
 const Retailer = lazy(() => import('./pages/Retailer'));
 const AdminPortal = lazy(() => import('./pages/AdminPortal'));
+const ContactPage = lazy(() =>
+  import('./pages/ContactPage').then((m) => ({ default: m.ContactPage }))
+);
+const HelpPage = lazy(() =>
+  import('./pages/HelpPage').then((m) => ({ default: m.HelpPage }))
+);
 
 import { ComingSoonPage, NotFoundPage } from './pages/InfoPages';
 import { PrivacyPage, TermsPage, RefundPage } from './pages/LegalPages';
@@ -150,9 +156,9 @@ export default function App() {
                 }
               />
               <Route path="/for-schools" element={<ComingSoonPage title="For Partner Schools" />} />
-              <Route path="/contact" element={<ComingSoonPage title="Contact Us" />} />
-              <Route path="/help" element={<ComingSoonPage title="Help & FAQs" />} />
-              <Route path="/size-guide" element={<ComingSoonPage title="Size Guide" />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/help" element={<HelpPage />} />
+              <Route path="/size-guide" element={<HelpPage initialTopic="size-guide" />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/refunds" element={<RefundPage />} />

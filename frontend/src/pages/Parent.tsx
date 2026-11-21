@@ -28,8 +28,9 @@ interface StudentDetail {
 }
 
 export default function Parent() {
+  const { t } = useLang();
   return (
-    <Shell title="A little easier today.">
+    <Shell title={t('parent.title')}>
       <Routes>
         <Route index element={<Dashboard />} />
         <Route path="orders" element={<Orders />} />
@@ -127,13 +128,11 @@ function Dashboard() {
   const welcomeCard = (
     <div className="welcome-card">
       <div>
-        <span className="eyebrow">READY WHEN YOU ARE</span>
+        <span className="eyebrow">{t('parent.readyWhenYouAre')}</span>
         <h2>
-          School essentials,
-          <br />
-          <i>sorted.</i>
+          {t('parent.schoolEssentialsSorted')}
         </h2>
-        <p>Choose a child or standard to find tailored essentials.</p>
+        <p>{t('parent.chooseChildSub')}</p>
       </div>
     </div>
   );
@@ -335,7 +334,7 @@ function Dashboard() {
                       fontWeight: 600,
                     }}
                   >
-                    STUDENT PROFILE (VIEW ONLY)
+                    {t('parent.studentProfileViewOnly')}
                   </span>
                   <h3 style={{ margin: '0.25rem 0 0', fontSize: '1.2rem' }}>
                     {selected.name}
@@ -351,7 +350,7 @@ function Dashboard() {
                     fontWeight: 500,
                   }}
                 >
-                  Read-only
+                  {t('parent.readOnly')}
                 </span>
               </div>
 
@@ -365,13 +364,13 @@ function Dashboard() {
               >
                 <div>
                   <span style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>
-                    GR Number
+                    {t('parent.grNumber')}
                   </span>
                   <strong style={{ fontSize: '0.95rem' }}>{selected.gr_number || '-'}</strong>
                 </div>
                 <div>
                   <span style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>
-                    Grade / Class
+                    {t('parent.gradeClass')}
                   </span>
                   <strong style={{ fontSize: '0.95rem' }}>
                     {selected.grade_name || selected.class_name || '-'}
@@ -379,19 +378,19 @@ function Dashboard() {
                 </div>
                 <div>
                   <span style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>
-                    Section
+                    {t('parent.section')}
                   </span>
                   <strong style={{ fontSize: '0.95rem' }}>{selected.section || '-'}</strong>
                 </div>
                 <div>
                   <span style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>
-                    Gender
+                    {t('parent.gender')}
                   </span>
                   <strong style={{ fontSize: '0.95rem' }}>{selected.gender || '-'}</strong>
                 </div>
                 <div>
                   <span style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>
-                    School
+                    {t('parent.school')}
                   </span>
                   <strong style={{ fontSize: '0.95rem' }}>{selected.school_name || '-'}</strong>
                 </div>
@@ -466,20 +465,34 @@ function Dashboard() {
           {/* Category Tabs: Step-by-step Selection flow applies to Uniform, Shoes, Accessories */}
           <div className="section-row" style={{ marginTop: '2rem' }}>
             <div>
-              <span className="eyebrow">STORE CATEGORIES</span>
-              <h2>Shop Essentials</h2>
+              <span className="eyebrow">{t('parent.storeCategories')}</span>
+              <h2>{t('parent.shopEssentials')}</h2>
             </div>
           </div>
           <div className="chips">
-            {LIVE_CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                className={activeCategory === cat ? 'chip active' : 'chip'}
-                onClick={() => setActiveCategory(cat)}
-              >
-                {cat}
-              </button>
-            ))}
+            {LIVE_CATEGORIES.map((cat) => {
+              const label =
+                cat === 'Uniform'
+                  ? t('cat.uniform')
+                  : cat === 'School Shoes'
+                  ? t('cat.shoes')
+                  : cat === 'Uniform Accessories'
+                  ? t('cat.accessories')
+                  : cat === 'Stationery'
+                  ? t('cat.stationery')
+                  : cat === 'ID Cards'
+                  ? t('cat.idcard')
+                  : cat;
+              return (
+                <button
+                  key={cat}
+                  className={activeCategory === cat ? 'chip active' : 'chip'}
+                  onClick={() => setActiveCategory(cat)}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
           <SelectionFlow
@@ -578,7 +591,7 @@ function getPaymentStatusLabel(order: Order, t: (k: any) => string): string {
 }
 
 function Orders() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const queryClient = useQueryClient();
   const [activeModalOrder, setActiveModalOrder] = useState<Order | null>(null);
   const [modalType, setModalType] = useState<'CANCEL' | 'EXCHANGE' | 'RETURN' | 'REPLACE'>('EXCHANGE');
@@ -642,7 +655,7 @@ function Orders() {
     <>
       <div className="section-row" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
-          <span className="eyebrow">YOUR PURCHASES</span>
+          <span className="eyebrow">{t('parent.yourPurchases')}</span>
           <h2>{t('parent.myOrders')}</h2>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
@@ -736,7 +749,9 @@ function Orders() {
                   <div>
                     <b>{o.order_number}</b>
                     <small>
-                      {new Date(o.created_at).toLocaleDateString('en-IN')}
+                      {new Date(o.created_at).toLocaleDateString(
+                        lang === 'gu' ? 'gu-IN' : lang === 'hi' ? 'hi-IN' : 'en-IN'
+                      )}
                     </small>
                   </div>
                   <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>

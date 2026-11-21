@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Trash2 } from '../ui/icons';
 import { Button } from '../ui/Button';
 import { useNavigate, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
 import { useStoreState } from '../../store/storeState';
 import { QuantityStepper } from '../product/QuantityStepper';
@@ -35,6 +35,55 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
   const { cart, updateQuantity, removeItem, undoRemove, lastRemoved, subtotalPaise } = useStoreState();
   const { t } = useLang();
   const [showUndo, setShowUndo] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
+
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  // Restore & initial focus management
+  useEffect(() => {
+    if (isOpen) {
+      previousFocusRef.current = document.activeElement as HTMLElement | null;
+      const timer = setTimeout(() => {
+        closeButtonRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    } else if (previousFocusRef.current) {
+      previousFocusRef.current.focus();
+      previousFocusRef.current = null;
+    }
+  }, [isOpen]);
+
+  // Trap focus inside drawer while open
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        if (!drawerRef.current) return;
+        const focusables = drawerRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
 
   useEffect(() => {
     if (lastRemoved) {
@@ -81,34 +130,41 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.25, ease: EASING }}
+          transition={{ duration: shouldReduceMotion ? 0.1 : 0.25, ease: EASING }}
         >
           <motion.div
+            ref={drawerRef}
             className="bag-drawer"
             role="dialog"
             aria-modal="true"
             aria-label={t('bag.title')}
             onClick={(e) => e.stopPropagation()}
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ duration: 0.3, ease: EASING }}
+            initial={shouldReduceMotion ? { opacity: 0 } : { x: '100%' }}
+            animate={shouldReduceMotion ? { opacity: 1 } : { x: 0 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { x: '100%' }}
+            transition={{ duration: shouldReduceMotion ? 0.1 : 0.3, ease: EASING }}
           >
-        {/* Drawer Header */}
-        <div className="bag-drawer-header">
-          <div className="bag-title-wrap">
-            <h2 className="bag-title">{t('bag.title')}</h2>
-            <span className="bag-item-count">({t('bag.count', { count: cart.length })})</span>
-          </div>
-          <button
-            type="button"
-            className="bag-close-btn"
-            aria-label={t('common.close')}
-            onClick={onClose}
-          >
-            <X width={22} height={22} strokeWidth={1.5} />
-          </button>
-        </div>
+            {/* Screen-reader announcement */}
+            <div className="sr-only" role="status" aria-live="polite">
+              {t('a11y.drawerOpened')}
+            </div>
+
+            {/* Drawer Header */}
+            <div className="bag-drawer-header">
+              <div className="bag-title-wrap">
+                <h2 className="bag-title">{t('bag.title')}</h2>
+                <span className="bag-item-count">({t('bag.count', { count: cart.length })})</span>
+              </div>
+              <button
+                ref={closeButtonRef}
+                type="button"
+                className="bag-close-btn"
+                aria-label={t('a11y.closeDrawer')}
+                onClick={onClose}
+              >
+                <X width={22} height={22} strokeWidth={1.5} />
+              </button>
+            </div>
 
         {/* Undo notification bar */}
         <AnimatePresence initial={false}>
