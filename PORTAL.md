@@ -116,6 +116,7 @@ All portal screens follow the design rules defined in `CLAUDE.md` (no drop shado
 - [ ] Merge the PR into `release/kv-pt-uniform`.
 - [ ] Back up first: `pg_dump` the store-server database.
 - [ ] Update the store server: Pull the merged code onto `192.168.0.125` and restart the `SchoolStorePublic` task, which runs migrate.
+- [ ] Load the school directory: new campuses in `backend/schools/data/north_india_schools.json` only appear after an import. Run `deploy/import-school-directory.ps1` on the server as SYSTEM (the `schtasks` lines are at the top of the script). It writes a `pg_dump` backup first, then runs `manage.py import_school_directory --deactivate-missing`, which updates branches by their Google Maps place id and switches off branches no longer in the file. Check `E:\runtime\data\school_store\logs\import-school-directory.log` for the backup path and the counts.
 - [ ] Check the media folder: Confirm `MEDIA_ROOT/products` exists on the server and that `/media/` URLs load through the Worker.
 - [ ] Look for surprise deploys: Run `npx wrangler deployments list --name school-store` and make sure no unexpected deploy has happened since the last known good one.
 - [ ] Build and deploy the Workers:

@@ -988,6 +988,16 @@ export const messages = {
     gu: 'આ બાળક તમારા મોબાઈલ નંબર સાથે જોડાયેલું નથી. ફરી તમારું બાળક પસંદ કરો.',
     hi: 'यह बच्चा आपके मोबाइल नंबर से जुड़ा नहीं है। फिर से अपना बच्चा चुनें।',
   },
+  'err.wrongCampus': {
+    en: 'Your child is at a different campus of this school. Choose that campus in the shop and add the items again.',
+    gu: 'તમારું બાળક આ શાળાની બીજી શાખામાં છે. દુકાનમાં એ શાખા પસંદ કરો અને વસ્તુઓ ફરી ઉમેરો.',
+    hi: 'आपका बच्चा इस स्कूल की दूसरी शाखा में है। दुकान में वह शाखा चुनें और चीज़ें फिर से जोड़ें।',
+  },
+  'err.chooseCampus': {
+    en: 'Please choose your child’s campus in the shop, then add the items again.',
+    gu: 'દુકાનમાં તમારા બાળકની શાખા પસંદ કરો, પછી વસ્તુઓ ફરી ઉમેરો.',
+    hi: 'दुकान में अपने बच्चे की शाखा चुनें, फिर चीज़ें फिर से जोड़ें।',
+  },
   'err.generic': {
     en: 'We could not place this order. Check your bag and try again, or ask your school for help.',
     gu: 'ઓર્ડર થઈ શક્યો નહીં. બેગ તપાસી ફરી પ્રયત્ન કરો, અથવા શાળાની મદદ લો.',
