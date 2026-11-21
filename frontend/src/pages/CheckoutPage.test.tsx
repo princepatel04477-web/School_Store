@@ -298,16 +298,17 @@ describe('CheckoutPage Razorpay Flow', () => {
     payment_methods: ['ONLINE', 'COD'] as ('ONLINE' | 'COD')[], reservation_minutes: 15,
   };
 
-  it('back after paying in the UPI app: picking cash finds the paid order, not a COD one', async () => {
+  it('same items again with cash picked: a paid earlier order shows its receipt, not a COD order', async () => {
     vi.spyOn(orderApi, 'quote').mockResolvedValueOnce(quoteBoth);
-    // The same bag returns the online order placed before the reload. It was paid meanwhile.
+    // The same items return the online order placed earlier. It was paid meanwhile.
     const earlier = contract.states.CHECKING.detail as Order;
     const submit = vi.spyOn(placeOrderService, 'submitOrder').mockResolvedValueOnce({
       ...earlier, total: String(earlier.total), fulfillment_type: earlier.fulfillment_type!,
     });
-    vi.spyOn(orderApi, 'payment').mockRejectedValueOnce(new ApiError('Already paid', 409, {
-      code: 'already_paid', payment_view: contract.states.PAID.detail.payment_view,
+    const toCod = vi.spyOn(orderApi, 'switchToCod').mockRejectedValueOnce(new ApiError('Paid', 409, {
+      code: 'cod_unavailable', payment_view: contract.states.PAID.detail.payment_view,
     }));
+    const start = vi.spyOn(orderApi, 'payment');
     const open = vi.spyOn(paymentAdapter, 'openRazorpayCheckout');
 
     renderCheckout();
@@ -318,8 +319,32 @@ describe('CheckoutPage Razorpay Flow', () => {
 
     expect(await screen.findByRole('heading', { name: 'Payment received.' })).toBeDefined();
     expect(submit).toHaveBeenCalledTimes(1);
+    expect(toCod).toHaveBeenCalledWith(earlier.id);
+    expect(start).not.toHaveBeenCalled();
     expect(open).not.toHaveBeenCalled();
     expect(screen.queryByText(/Cash on delivery\. Pay/i)).toBeNull();
+  });
+
+  it('same items again with cash picked: an unpaid earlier order moves to cash, still one order', async () => {
+    vi.spyOn(orderApi, 'quote').mockResolvedValueOnce(quoteBoth);
+    const earlier = contract.states.NOT_PAID.detail as Order;
+    const submit = vi.spyOn(placeOrderService, 'submitOrder').mockResolvedValueOnce({
+      ...earlier, total: String(earlier.total), fulfillment_type: earlier.fulfillment_type!,
+    });
+    vi.spyOn(orderApi, 'switchToCod').mockResolvedValueOnce({
+      payment_method: 'COD', payment_view: contract.states.COD_DUE.detail.payment_view,
+    });
+    const open = vi.spyOn(paymentAdapter, 'openRazorpayCheckout');
+
+    renderCheckout();
+    await advanceToStep3();
+    await screen.findByText('Cash on delivery');
+    fireEvent.click(screen.getByDisplayValue('COD'));
+    fireEvent.click(screen.getByRole('button', { name: /Place order/i }));
+
+    expect(await screen.findByText(earlier.order_number, { exact: false })).toBeDefined();
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(open).not.toHaveBeenCalled();
   });
 
   it('a cancelled earlier order for the same bag starts a new order', async () => {

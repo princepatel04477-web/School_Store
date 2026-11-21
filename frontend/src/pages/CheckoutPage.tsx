@@ -288,6 +288,25 @@ export function CheckoutPage() {
         setPlaced(order);
         clearCart();
         scrollPageTo(0);
+      } else if (selectedMethod === 'COD') {
+        // An unpaid online order already holds these items and the parent now wants cash.
+        // The server checks Razorpay first and refuses while a payment may still go through.
+        setOnlineOrder(order);
+        setPayment(order.payment_view);
+        setPaymentBusy(true);
+        try {
+          const switched = await orderApi.switchToCod(order.id);
+          clearPendingOrder();
+          clearCart();
+          setOnlineOrder(null);
+          setPayment(null);
+          setPlaced({ ...order, payment_method: 'COD', payment_view: switched.payment_view });
+          scrollPageTo(0);
+        } catch (error) {
+          applyPayment(order.id, paymentRefusal(error) ?? checkingPayment(order.payment_view));
+        } finally {
+          setPaymentBusy(false);
+        }
       } else {
         setOnlineOrder(order);
         await initiateOnlinePayment(order);
