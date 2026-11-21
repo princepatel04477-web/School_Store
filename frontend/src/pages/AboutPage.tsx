@@ -5,6 +5,7 @@ import { useLang } from '../i18n';
 import { useStoreState } from '../store/storeState';
 import { SHOP_LINK } from '../siteConfig';
 import { useStoreDeliveredSchools, type StoreDeliveredSchool } from '../data/catalog';
+import { hasStoreHistory } from '../components/BackButton';
 import './aboutPage.css';
 
 export interface AboutPageProps {
@@ -80,7 +81,9 @@ export function AboutPage({ onOpenBag, onOpenLanguage }: AboutPageProps) {
   };
 
   const handleBack = () => {
-    if (window.history.length > 1) {
+    // history.length also counts the site the parent came from, so going back
+    // from a page opened straight from Google or WhatsApp would leave the store.
+    if (hasStoreHistory()) {
       navigate(-1);
     } else {
       navigate('/');

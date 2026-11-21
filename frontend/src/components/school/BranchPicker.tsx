@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Search } from '../ui/icons';
 import { SchoolPickerSkeleton } from '../ui/Skeleton';
 import { SplitReveal, Stagger } from '../../motion';
@@ -52,11 +52,32 @@ export function BranchPicker({
   onSelect,
 }: BranchPickerProps) {
   const { t } = useLang();
-  const [state, setState] = useState<string | undefined>(initialState);
-  const [cityId, setCityId] = useState<string | undefined>(initialState ? initialCityId : undefined);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [params] = useSearchParams();
+  // The state and city the parent tapped live in the address (?state=…&city=…), one
+  // history entry per tap, so the phone's back button steps school > city > state
+  // like the round back button does. An empty ?state= means "no state yet". Before
+  // the address has either, the picker opens on the branch saved earlier.
+  const fromAddress = params.has('state');
+  const state = fromAddress ? params.get('state') || undefined : initialState;
+  const cityId = fromAddress ? params.get('city') || undefined : initialState ? initialCityId : undefined;
   const [query, setQuery] = useState('');
-  // Levels skipped because they had one choice; Back skips over them too.
-  const [skipped, setSkipped] = useState<{ state: boolean; city: boolean }>({ state: false, city: false });
+
+  /** Moves the picker. A tap adds a history entry; an automatic move replaces this one. */
+  const moveTo = (nextState: string | undefined, nextCityId: string | undefined, how: 'tap' | 'auto') => {
+    // From the live address: the shop may have updated it in this same moment.
+    const next = new URLSearchParams(window.location.search);
+    next.set('state', nextState ?? '');
+    if (nextState && nextCityId) next.set('city', nextCityId);
+    else next.delete('city');
+    navigate(
+      { search: `?${next}` },
+      how === 'tap' ? { state: { pickerStep: true } } : { replace: true, state: location.state }
+    );
+  };
+  const setState = (name: string) => moveTo(name, undefined, 'tap');
+  const setCityId = (id: string) => moveTo(state, id, 'tap');
 
   const statesQuery = useStoreStates(schoolId);
   const citiesQuery = useStoreCities(state, schoolId);
@@ -75,27 +96,34 @@ export function BranchPicker({
 
   const stage: Stage = !state ? 'state' : !cityId ? 'city' : 'branch';
 
+  // Record where the picker opened in this history entry, so Back to it later shows
+  // the same level instead of the branch saved since.
   useEffect(() => {
-    if (stage === 'state' && states.length === 1) {
-      setState(states[0].name);
-      setSkipped((s) => ({ ...s, state: true }));
-    }
+    if (!fromAddress) moveTo(state, cityId, 'auto');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromAddress]);
+
+  // A level with a single choice is skipped without a history entry, so Back skips it too.
+  const skipped = {
+    state: statesQuery.isSuccess && states.length === 1,
+    city: citiesQuery.isSuccess && cities.length === 1,
+  };
+  useEffect(() => {
+    if (stage === 'state' && states.length === 1) moveTo(states[0].name, undefined, 'auto');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, states]);
   useEffect(() => {
-    if (stage === 'city' && cities.length === 1) {
-      setCityId(cities[0].id);
-      setSkipped((s) => ({ ...s, city: true }));
-    }
+    if (stage === 'city' && cities.length === 1) moveTo(state, cities[0].id, 'auto');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, cities]);
   // The saved state or city has no open branches any more: start that level again.
   useEffect(() => {
-    if (state && statesQuery.isSuccess && !states.some((s) => s.name === state)) {
-      setState(undefined);
-      setCityId(undefined);
-    }
+    if (state && statesQuery.isSuccess && !states.some((s) => s.name === state)) moveTo(undefined, undefined, 'auto');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, states, statesQuery.isSuccess]);
   useEffect(() => {
-    if (cityId && citiesQuery.isSuccess && !city) setCityId(undefined);
+    if (cityId && citiesQuery.isSuccess && !city) moveTo(state, undefined, 'auto');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cityId, city, citiesQuery.isSuccess]);
 
   useEffect(() => setQuery(''), [stage]);
@@ -110,12 +138,14 @@ export function BranchPicker({
     : branches;
 
   const goBack = () => {
-    if (stage === 'branch' && !skipped.city) {
-      setCityId(undefined);
+    // Reached by a tap: the earlier level is the previous history entry, exactly
+    // where the phone's own back button goes.
+    if ((location.state as { pickerStep?: boolean } | null)?.pickerStep) {
+      navigate(-1);
+    } else if (stage === 'branch' && !skipped.city) {
+      moveTo(state, undefined, 'auto');
     } else if (stage !== 'state' && !skipped.state) {
-      setCityId(undefined);
-      setState(undefined);
-      setSkipped({ state: false, city: false });
+      moveTo(undefined, undefined, 'auto');
     }
   };
   const canGoBack = (stage === 'branch' && !skipped.city) || (stage !== 'state' && !skipped.state);

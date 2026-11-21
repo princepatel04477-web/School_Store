@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft } from '../components/ui/icons';
 import { formatINR } from '../utils/formatINR';
 import { useStoreState } from '../store/storeState';
-import { siteConfig } from '../siteConfig';
+import { SHOP_LINK, siteConfig } from '../siteConfig';
 import { useStoreSchools } from '../data/catalog';
 import { fitPayload } from '../data/fit';
 import { buildOrderMessage, whatsappOrderUrl } from '../services/whatsappOrder';
@@ -14,6 +14,7 @@ import { classLabel } from '../i18n/labels';
 import type { ParentChild } from '../api';
 import { ParentSignInSheet } from '../components/parent/ParentSignInSheet';
 import { scrollPageTo } from '../motion/SmoothScroll';
+import { hasStoreHistory } from '../components/BackButton';
 import '../components/cart/bagCheckout.css';
 
 /**
@@ -295,7 +296,7 @@ export function CheckoutPage() {
         <button
           type="button"
           className="checkout-back-link"
-          onClick={() => navigate(-1)}
+          onClick={() => (hasStoreHistory() ? navigate(-1) : navigate(SHOP_LINK))}
         >
           <ArrowLeft width={16} height={16} /> {t('co.back')}
         </button>
