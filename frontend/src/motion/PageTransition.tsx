@@ -1,7 +1,5 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { EASING } from './motionConfig';
+import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useLocation, useNavigationType } from 'react-router-dom';
 import { scrollPageTo } from './SmoothScroll';
 import { isNativeApp } from '../native/nativePlatform';
 
@@ -9,6 +7,7 @@ export interface PageTransitionProps {
   children: ReactNode;
 }
 
+/** App tab roots: moving between them fades, like a native tab bar. */
 const TAB_ROOT_PATHS = new Set([
   '/',
   '/orders',
@@ -24,86 +23,89 @@ const TAB_ROOT_PATHS = new Set([
   '/city',
 ]);
 
+/** Scroll position of each page visited in this tab, by history entry. */
+const scrollByEntry = new Map<string, number>();
+
 /**
- * Moving between pages.
- * - Website: a saffron bar sweeps across the top, the old page fades out fast,
- *   and the new one rises in. Each page's heading then reveals word by word.
- * - App: tabs cross-fade like a native tab bar; inner screens slide in from the right.
- * - Website phones: no vertical movement, to avoid jitter.
+ * Moving between pages. A new page shows at once: a link opens it with a short
+ * fade-in (CSS, so it always finishes), while the phone's back and forward buttons
+ * show the earlier page instantly, where the parent left it. In the app, tabs fade
+ * and inner screens slide in from the right.
+ *
+ * The old version waited for the leaving page to fade out before it showed the next
+ * one. Tapping back again during that fade left the screen empty.
  */
 export function PageTransition({ children }: PageTransitionProps) {
   const location = useLocation();
-  const shouldReduceMotion = useReducedMotion();
-  const prevPathRef = useRef(location.pathname);
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(max-width: 767.98px)').matches;
-  });
+  const navigationType = useNavigationType();
+  const isBackOrForward = navigationType === 'POP';
+  const entryRef = useRef(location.key);
+  const pathRef = useRef(location.pathname);
+  // The page shown before this one, for the app's tab-or-inner-screen choice.
+  const previousPath = pathRef.current;
 
+  // The store puts the scroll back itself, so the browser does not jump first.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(max-width: 767.98px)');
-    const update = () => setIsMobile(mq.matches);
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
+    if (!('scrollRestoration' in window.history)) return undefined;
+    const before = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    return () => {
+      window.history.scrollRestoration = before;
+    };
   }, []);
 
+  // Remember how far down each page the parent was.
   useEffect(() => {
-    scrollPageTo(0);
-    prevPathRef.current = location.pathname;
+    const save = () => scrollByEntry.set(entryRef.current, window.scrollY);
+    window.addEventListener('scroll', save, { passive: true });
+    return () => window.removeEventListener('scroll', save);
+  }, []);
+
+  useLayoutEffect(() => {
+    const pageChanged = pathRef.current !== location.pathname;
+    entryRef.current = location.key;
+    pathRef.current = location.pathname;
+    if (!pageChanged) return undefined;
+
+    const saved = isBackOrForward ? scrollByEntry.get(location.key) : undefined;
+    if (saved === undefined) {
+      scrollPageTo(0);
+      return undefined;
+    }
+
+    // The earlier page may still be loading its screen or its list, so keep trying
+    // for a moment until it is tall enough to scroll back to the same place.
+    let frame = 0;
+    const started = performance.now();
+    const restore = () => {
+      const reachable = document.documentElement.scrollHeight - window.innerHeight >= saved;
+      if (reachable || performance.now() - started > 1500) {
+        scrollPageTo(saved);
+        return;
+      }
+      frame = requestAnimationFrame(restore);
+    };
+    restore();
+    return () => cancelAnimationFrame(frame);
+  }, [location.key, location.pathname, isBackOrForward]);
+
+  // Decided once per page, so moving between the shop's steps does not replay it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const animateIn = useMemo(() => !isBackOrForward, [location.pathname]);
+  const enterClass = useMemo(() => {
+    if (!animateIn) return undefined;
+    if (!isNativeApp()) return 'page-enter';
+    const tabSwitch = TAB_ROOT_PATHS.has(location.pathname) && TAB_ROOT_PATHS.has(previousPath);
+    return tabSwitch ? 'page-enter' : 'page-enter page-enter--slide';
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
-
-  if (shouldReduceMotion) {
-    return <>{children}</>;
-  }
-
-  const isNative = isNativeApp();
-
-  if (isNative) {
-    const isTabSwitch = TAB_ROOT_PATHS.has(location.pathname) && TAB_ROOT_PATHS.has(prevPathRef.current);
-    const variants = isTabSwitch
-      ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
-      : { initial: { opacity: 0, x: 28 }, animate: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -16 } };
-
-    return (
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={location.pathname}
-          initial={variants.initial}
-          animate={variants.animate}
-          exit={variants.exit}
-          transition={{ duration: 0.24, ease: EASING }}
-        >
-          {children}
-        </motion.div>
-      </AnimatePresence>
-    );
-  }
 
   return (
     <>
-      <motion.span
-        key={`bar-${location.pathname}`}
-        className="route-sweep"
-        aria-hidden="true"
-        initial={{ scaleX: 0, opacity: 1 }}
-        animate={{ scaleX: 1, opacity: [1, 1, 0] }}
-        transition={{ scaleX: { duration: 0.55, ease: EASING }, opacity: { duration: 0.8, times: [0, 0.7, 1] } }}
-      />
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={location.pathname}
-          initial={isMobile ? { opacity: 0 } : { opacity: 0, y: 18 }}
-          animate={
-            isMobile
-              ? { opacity: 1, transition: { duration: 0.25, ease: EASING } }
-              : { opacity: 1, y: 0, transition: { duration: 0.45, ease: EASING } }
-          }
-          exit={{ opacity: 0, transition: { duration: 0.14, ease: [0.4, 0, 1, 1] } }}
-        >
-          {children}
-        </motion.div>
-      </AnimatePresence>
+      {animateIn && !isNativeApp() && <span key={`bar-${location.pathname}`} className="route-sweep" aria-hidden="true" />}
+      <div key={location.pathname} className={enterClass}>
+        {children}
+      </div>
     </>
   );
 }

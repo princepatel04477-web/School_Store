@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { Check, ArrowLeft } from '../components/ui/icons';
 import { motion } from 'motion/react';
 import { seedClasses, type SeedClass } from '../data/seedData';
@@ -51,6 +51,9 @@ const GROUP_KEYS: Record<string, MessageKey> = {
   Middle: 'grp.middle',
   Secondary: 'grp.secondary',
 };
+
+/** Kept on each shop history entry: the step the entry before it shows. */
+type FlowEntryState = { fromStep?: number };
 
 export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -270,14 +273,32 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     }
   }, [stepParam]);
 
+  // Write the step shown into this history entry. An address without one opens at the
+  // furthest step the saved answers allow, so Back to it used to jump forward again.
+  // Built from the live address so it never undoes the school picker's own update.
+  const location = useLocation();
+  useEffect(() => {
+    const live = new URLSearchParams(window.location.search);
+    if (live.get('step') === String(stepParam)) return;
+    live.set('step', String(stepParam));
+    navigate({ search: `?${live}` }, { replace: true, state: location.state });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepParam]);
+
   const goToStep = (step: number) => {
     setStepDirection(step > currentStep ? 'forward' : 'backward');
+    // The previous history entry is that step: go back to it, as the phone's back button
+    // would, instead of adding an entry the phone's back button would then return from.
+    if ((location.state as FlowEntryState | null)?.fromStep === step) {
+      navigate(-1);
+      return;
+    }
     setCurrentStep(step);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('step', String(step));
       return next;
-    });
+    }, { state: { fromStep: currentStep } satisfies FlowEntryState });
   };
 
   const requestStepChange = (targetStep: number) => {
@@ -319,7 +340,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       next.delete('gender');
       next.set('step', '2');
       return next;
-    });
+    }, { state: { fromStep: 1 } satisfies FlowEntryState });
   };
 
   // "Show all schools" on a picker opened for one school (from the home page search).
@@ -350,7 +371,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       next.delete('gender');
       next.set('step', '3');
       return next;
-    });
+    }, { state: { fromStep: 2 } satisfies FlowEntryState });
   };
 
   const handleSelectGender = (gender: 'boy' | 'girl') => {
@@ -367,7 +388,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       next.set('gender', gender);
       next.set('step', '4');
       return next;
-    });
+    }, { state: { fromStep: 3 } satisfies FlowEntryState });
   };
 
   // Grouped Classes for Step 2
