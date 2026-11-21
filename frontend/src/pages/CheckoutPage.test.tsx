@@ -264,4 +264,32 @@ describe('CheckoutPage Razorpay Flow', () => {
     expect(screen.queryByText(/Payment received/i)).toBeNull();
     expect(screen.queryByRole('button', { name: /Pay now|Try again|Pay cash/i })).toBeNull();
   });
+  it.each([
+    [409, contract.pending_refusal],
+    [503, contract.outage_refusal],
+  ] as const)('keeps Checkout closed on HTTP %s', async (status, refusal) => {
+    vi.spyOn(orderApi, 'quote').mockResolvedValueOnce({
+      lines: [],
+      subtotal: '1000.00',
+      total: '1000.00',
+      total_paise: 100000,
+      currency: 'INR',
+      payment_methods: ['ONLINE'],
+      reservation_minutes: 15,
+    });
+    const detail = contract.states.CHECKING.detail as Order;
+    vi.spyOn(placeOrderService, 'submitOrder').mockResolvedValueOnce({
+      ...detail, total: String(detail.total), fulfillment_type: detail.fulfillment_type!,
+    });
+    vi.spyOn(orderApi, 'payment').mockRejectedValueOnce(new ApiError('Payment unavailable', status, refusal));
+    const open = vi.spyOn(paymentAdapter, 'openRazorpayCheckout');
+
+    renderCheckout();
+    await advanceToStep3();
+    fireEvent.click(await screen.findByRole('button', { name: /Pay now/i }));
+
+    expect(await screen.findByRole('heading', { name: 'Checking payment' })).toBeDefined();
+    expect(open).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /Pay now|Try again|Pay cash/i })).toBeNull();
+  });
 });
