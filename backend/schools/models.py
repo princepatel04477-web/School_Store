@@ -1,5 +1,7 @@
 from django.conf import settings
 from django.db import models, transaction
+from django.db.models.signals import m2m_changed
+from django.dispatch import receiver
 from django.db.models import Q
 from django.utils import timezone
 from common.models import UUIDModel
@@ -105,6 +107,12 @@ class School(UUIDModel):
     show_logo_public = models.BooleanField(
         default=False,
         help_text="Show logo on About page (the school has given written permission)",
+    )
+    grades = models.ManyToManyField(
+        "Grade",
+        blank=True,
+        related_name="offering_schools",
+        help_text="Classes this school has, chosen in the uniform portal. None chosen: the shop shows every class.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -488,3 +496,11 @@ class StudentMeasurement(UUIDModel):
 
     def __str__(self) -> str:
         return f"{self.student.name}: {self.height_cm} cm, {self.weight_kg} kg ({self.measured_at:%Y-%m-%d})"
+
+
+@receiver(m2m_changed, sender=School.grades.through)
+def _school_grades_changed(sender, **kwargs):
+    # grades.set() never calls School.save(), so the shop's cached school list
+    # would keep the old classes until it expired.
+    if kwargs.get("action") in {"post_add", "post_remove", "post_clear"}:
+        invalidate_school_cache()

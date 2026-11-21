@@ -81,7 +81,7 @@ class SchoolViewSet(
 ):
     cache_version_key = SCHOOL_LIST_CACHE_VERSION_KEY
     cache_namespace = "schools:schools"
-    queryset = School.objects.select_related("city").order_by("name")
+    queryset = School.objects.select_related("city").prefetch_related("grades").order_by("name")
     serializer_class = SchoolSerializer
     permission_classes = [RoleScopedPermission]
     read_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER", "PARENT")

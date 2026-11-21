@@ -2,6 +2,21 @@ import { useState, useMemo, type FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { portalApi, type CitySchool } from '../../api';
 import { Search, Plus, X, SchoolBuilding } from '../ui/icons';
+import { seedClasses } from '../../data/seedData';
+
+const CLASS_GROUPS = ['Pre-primary', 'Primary', 'Middle', 'Secondary'] as const;
+const CLASS_ORDER = seedClasses.map((c) => c.name);
+
+/** "All classes", "Class 1 to Class 5", or the classes listed. */
+export function classesSummary(names: string[] | undefined): string {
+  if (!names || names.length === 0) return 'All classes';
+  const sorted = [...names].sort((a, b) => CLASS_ORDER.indexOf(a) - CLASS_ORDER.indexOf(b));
+  if (sorted.length === CLASS_ORDER.length) return 'All classes';
+  if (sorted.length === 1) return sorted[0];
+  const first = CLASS_ORDER.indexOf(sorted[0]);
+  const unbroken = sorted.every((name, i) => CLASS_ORDER.indexOf(name) === first + i);
+  return unbroken ? `${sorted[0]} to ${sorted[sorted.length - 1]}` : sorted.join(', ');
+}
 
 export function SchoolManagerView() {
   const queryClient = useQueryClient();
@@ -24,6 +39,10 @@ export function SchoolManagerView() {
   const [active, setActive] = useState(true);
   const [commissionRate, setCommissionRate] = useState('');
   const [address, setAddress] = useState('');
+  // Classes this school has. None ticked: the shop shows every class.
+  const [grades, setGrades] = useState<string[]>([]);
+  const toggleGrade = (name: string) =>
+    setGrades((current) => (current.includes(name) ? current.filter((g) => g !== name) : [...current, name]));
 
   // Fetch Cities
   const { data: citiesData } = useQuery({
@@ -59,6 +78,7 @@ export function SchoolManagerView() {
     setActive(true);
     setCommissionRate('');
     setAddress('');
+    setGrades([]);
     setFormError('');
     setFormSuccess('');
     setModalOpen(true);
@@ -75,6 +95,7 @@ export function SchoolManagerView() {
     setActive(sch.active);
     setCommissionRate(sch.commission_rate || '');
     setAddress(sch.address || '');
+    setGrades(sch.grades ?? []);
     setFormError('');
     setFormSuccess('');
     setModalOpen(true);
@@ -95,6 +116,7 @@ export function SchoolManagerView() {
         active,
         address: address.trim(),
         commission_rate: commissionRate.trim() ? commissionRate.trim() : null,
+        grades: [...grades].sort((a, b) => CLASS_ORDER.indexOf(a) - CLASS_ORDER.indexOf(b)),
       };
 
       if (editingSchool) {
@@ -217,6 +239,7 @@ export function SchoolManagerView() {
                   <th>School Name</th>
                   <th>Code</th>
                   <th>City</th>
+                  <th>Classes</th>
                   <th>Fulfillment Options</th>
                   <th>Status</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
@@ -271,6 +294,7 @@ export function SchoolManagerView() {
                       <code style={{ fontSize: '12px', fontWeight: 600 }}>{sch.code}</code>
                     </td>
                     <td>{sch.city_name || '-'}</td>
+                    <td className="portal-classes-cell">{classesSummary(sch.grades)}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                         {sch.home_delivery_enabled && (
@@ -412,6 +436,37 @@ export function SchoolManagerView() {
                     </select>
                   </div>
                 </div>
+
+                <fieldset className="portal-form-group portal-classes-field">
+                  <legend className="portal-form-label">Classes this school has</legend>
+                  <p className="portal-classes-hint">
+                    The shop lists only the ticked classes for this school. None ticked: every class is listed.
+                  </p>
+                  <div className="portal-classes-actions">
+                    <button type="button" className="portal-btn portal-btn-secondary portal-btn-sm" onClick={() => setGrades([...CLASS_ORDER])}>
+                      All
+                    </button>
+                    <button type="button" className="portal-btn portal-btn-secondary portal-btn-sm" onClick={() => setGrades([])}>
+                      Clear
+                    </button>
+                    <span className="portal-classes-count">{classesSummary(grades)}</span>
+                  </div>
+                  {CLASS_GROUPS.map((group) => (
+                    <div key={group} className="portal-classes-group">
+                      <span className="portal-classes-group-name">{group}</span>
+                      <div className="portal-classes-chips">
+                        {seedClasses
+                          .filter((c) => c.group === group)
+                          .map((c) => (
+                            <label key={c.id} className={`portal-class-chip ${grades.includes(c.name) ? 'is-on' : ''}`}>
+                              <input type="checkbox" checked={grades.includes(c.name)} onChange={() => toggleGrade(c.name)} />
+                              <span>{c.name}</span>
+                            </label>
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+                </fieldset>
 
                 <div className="portal-form-group">
                   <label className="portal-form-label">Logo URL</label>

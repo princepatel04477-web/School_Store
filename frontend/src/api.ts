@@ -284,6 +284,8 @@ export type CitySchool={
   contact_phone:string;
   logo_url?:string|null;
   show_logo_public?:boolean;
+  /** Classes the school has ("Nursery", "Class 1", ...). Empty: every class. */
+  grades?:string[];
   created_at:string;
 };
 
