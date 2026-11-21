@@ -207,9 +207,19 @@ class PublicSizeFitEndpointTests(TestCase):
         shirt = res.data["products"][str(self.shirt.id)]
         self.assertEqual([r["size"] for r in shirt["chart"]][:2], ["28 (Class 1-3)", "30 (Class 4-6)"])
         self.assertEqual(shirt["chart"][1]["chest_cm_min"], 64.0)
-        self.assertEqual(shirt["recommendation"], {"status": "FIT", "size": "30 (Class 4-6)", "alt_size": ""})
+        self.assertEqual(shirt["recommendation"]["status"], "FIT")
+        self.assertEqual(shirt["recommendation"]["size"], "30 (Class 4-6)")
+        self.assertEqual(shirt["recommendation"]["alt_size"], "")
+        self.assertEqual(shirt["recommendation"]["reason"], "HEIGHT_WEIGHT_MATCH")
+        self.assertTrue(shirt["recommendation"]["chart_version"].startswith("cv_"))
+        self.assertEqual(
+            shirt["recommendation"]["inputs_used"],
+            {"height_cm": 133.0, "weight_kg": 30.0, "shoulder_cm": None},
+        )
         polo = res.data["products"][str(self.polo.id)]
-        self.assertEqual(polo, {"chart": [], "recommendation": {"status": "NO_CHART", "size": "", "alt_size": ""}})
+        self.assertEqual(polo["chart"], [])
+        self.assertEqual(polo["recommendation"]["status"], "NO_CHART")
+        self.assertEqual(polo["recommendation"]["reason"], "NO_CHART_COVERAGE")
         self.assertEqual(res.data["fit"], {"height_cm": 133.0, "weight_kg": 30.0, "shoulder_cm": None, "warnings": []})
 
     def test_chart_only_when_no_measurements(self):

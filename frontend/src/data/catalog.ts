@@ -53,6 +53,9 @@ type PublicProduct = {
   image?: string | null;
   image_alt?: string | null;
   customisation_schema: CustomisationField[] | { fields?: CustomisationField[] } | null;
+  material_composition?: string | null;
+  care_instructions?: string | null;
+  fabric_care?: string | null;
   variants: PublicVariant[];
   required?: boolean;
 };
@@ -108,6 +111,14 @@ function toProduct(product: PublicProduct): StoreProduct {
     needsDetails: needsDetails(product.customisation_schema),
     official: Boolean(product.school),
     required: Boolean(product.required),
+    materialComposition: product.material_composition || undefined,
+    careInstructions: product.care_instructions || undefined,
+    fabricCare:
+      product.fabric_care ||
+      (product.material_composition && product.care_instructions
+        ? `${product.material_composition}. ${product.care_instructions}`
+        : product.material_composition || product.care_instructions) ||
+      undefined,
   };
 }
 

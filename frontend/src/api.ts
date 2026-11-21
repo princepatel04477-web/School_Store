@@ -891,6 +891,9 @@ export type PortalProduct = {
   class_to?: number | null;
   customisation_schema?: any;
   active: boolean;
+  material_composition?: string;
+  care_instructions?: string;
+  fabric_care?: string;
   variants: PortalVariant[];
   created_at: string;
 };

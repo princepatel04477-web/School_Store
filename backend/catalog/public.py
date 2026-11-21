@@ -584,6 +584,9 @@ class PublicProductList(APIView):
                 "image": product_image(product.images),
                 "image_alt": product_image_alt(product.images),
                 "customisation_schema": product.customisation_schema,
+                "material_composition": product.material_composition,
+                "care_instructions": product.care_instructions,
+                "fabric_care": product.fabric_care,
                 "variants": [
                     {
                         "id": str(variant.id),
@@ -650,7 +653,7 @@ class PublicSizeFitView(APIView):
 
     def post(self, request):
         from .models import SizeChartRow
-        from .sizing import chart_rows_from_models, suggest, validate_fit
+        from .sizing import chart_rows_from_models, compute_chart_version, suggest, validate_fit
 
         raw_ids = request.data.get("products")
         if not isinstance(raw_ids, list) or not raw_ids:
@@ -693,9 +696,22 @@ class PublicSizeFitView(APIView):
         products = {}
         for pid, rows in charts.items():
             recommendation = None
+            chart_rows = chart_rows_from_models(rows)
+            chart_ver = compute_chart_version(chart_rows)
             if check is not None:
-                result = suggest(chart_rows_from_models(rows), check)
-                recommendation = {"status": result.status, "size": result.size, "alt_size": result.alt_size}
+                result = suggest(chart_rows, check)
+                recommendation = {
+                    "status": result.status,
+                    "size": result.size,
+                    "alt_size": result.alt_size,
+                    "reason": result.reason,
+                    "chart_version": result.chart_version or chart_ver,
+                    "inputs_used": {
+                        "height_cm": float(check.height_cm) if check.height_cm is not None else None,
+                        "weight_kg": float(check.weight_kg) if check.weight_kg is not None else None,
+                        "shoulder_cm": float(check.shoulder_cm) if check.shoulder_cm is not None else None,
+                    },
+                }
             products[pid] = {
                 "chart": [
                     {
@@ -713,6 +729,7 @@ class PublicSizeFitView(APIView):
                     }
                     for row in rows
                 ],
+                "chart_version": chart_ver,
                 "recommendation": recommendation,
             }
 

@@ -182,6 +182,9 @@ class StudentProductDetailView(APIView):
                     url for url in (product.images or []) if is_remote_image_url(url)
                 ],
                 "customisation_schema": product.customisation_schema,
+                "material_composition": product.material_composition,
+                "care_instructions": product.care_instructions,
+                "fabric_care": product.fabric_care,
                 "sizes": sizes,
                 "stock_status": best_flag(s["stock_status"] for s in sizes)
                 if sizes

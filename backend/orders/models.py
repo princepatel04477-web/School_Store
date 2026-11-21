@@ -238,6 +238,18 @@ class OrderItem(UUIDModel):
     recommended_size = models.CharField(max_length=50, blank=True, default="")
     recommended_alt_size = models.CharField(max_length=50, blank=True, default="")
     recommendation_status = models.CharField(max_length=20, blank=True, default="")
+    recommendation_reason = models.CharField(
+        max_length=60,
+        blank=True,
+        default="",
+        help_text="Stable reason code/explanation for why this size was suggested.",
+    )
+    size_chart_version = models.CharField(
+        max_length=60,
+        blank=True,
+        default="",
+        help_text="Version identifier or checksum of the size chart used at order time.",
+    )
     chosen_size = models.CharField(max_length=50, blank=True, default="")
 
     class Meta:

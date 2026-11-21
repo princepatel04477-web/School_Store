@@ -57,7 +57,15 @@ export function SizeSelector({
               role="radio"
               aria-checked={isSelected}
               disabled={!s.inStock}
-              aria-label={isSuggested ? `${s.size} (${t('fit.suggestedTag')})` : undefined}
+              aria-label={
+                isSelected && isSuggested
+                  ? `${s.size} (${t('fit.suggestedTag')}, selected)`
+                  : isSelected
+                  ? `${s.size} (selected)`
+                  : isSuggested
+                  ? `${s.size} (${t('fit.suggestedTag')})`
+                  : s.size
+              }
               className={`size-tile ${isSelected ? 'is-selected' : ''} ${isSuggested ? 'is-suggested' : ''} ${!s.inStock ? 'is-out-of-stock' : ''}`}
               onClick={() => onSelectSize(s.id)}
             >

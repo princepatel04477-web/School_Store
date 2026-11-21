@@ -97,6 +97,9 @@ def build_school_catalogue(school_id, category=None) -> list[dict]:
             "class_from",
             "class_to",
             "customisation_schema",
+            "material_composition",
+            "care_instructions",
+            "fabric_care",
             "school_id",
             "category_id",
             "category__name",
@@ -127,6 +130,9 @@ def build_school_catalogue(school_id, category=None) -> list[dict]:
             "price": str(product.selling_price),
             "thumbnail": product_thumbnail(product.images),
             "customisation_schema": product.customisation_schema,
+            "material_composition": getattr(product, "material_composition", ""),
+            "care_instructions": getattr(product, "care_instructions", ""),
+            "fabric_care": getattr(product, "fabric_care", ""),
             "is_required": getattr(product, "is_required", False),
             # Targeting metadata (filtered out of API responses; used to
             # narrow the shared school cache down to one student).

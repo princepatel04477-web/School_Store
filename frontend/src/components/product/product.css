@@ -538,6 +538,26 @@
   line-height: 1.5;
 }
 
+.product-spec-line {
+  margin: 0 0 var(--space-2) !important;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.product-spec-line strong {
+  color: var(--ink);
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.product-care-empty {
+  margin: 0 !important;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
 /* ================== Size Guide Modal ================== */
 .size-guide-backdrop {
   position: fixed;

@@ -41,6 +41,9 @@ export function UniformCatalogView() {
   const [sellingPrice, setSellingPrice] = useState<string>('');
   const [active, setActive] = useState(true);
   const [isRequired, setIsRequired] = useState(false);
+  const [materialComposition, setMaterialComposition] = useState('');
+  const [careInstructions, setCareInstructions] = useState('');
+  const [fabricCare, setFabricCare] = useState('');
 
   // Photo Upload State
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -99,6 +102,9 @@ export function UniformCatalogView() {
     setSellingPrice('');
     setActive(true);
     setIsRequired(false);
+    setMaterialComposition('');
+    setCareInstructions('');
+    setFabricCare('');
     setPhotoFile(null);
     setPhotoPreview(null);
     setPhotoError('');
@@ -121,6 +127,9 @@ export function UniformCatalogView() {
     setSellingPrice(String(p.selling_price));
     setActive(p.active);
     setIsRequired(Boolean(p.is_required));
+    setMaterialComposition(p.material_composition || '');
+    setCareInstructions(p.care_instructions || '');
+    setFabricCare(p.fabric_care || '');
     setPhotoFile(null);
     setPhotoPreview(p.images && p.images.length > 0 ? p.images[0] : null);
     setPhotoError('');
@@ -185,6 +194,9 @@ export function UniformCatalogView() {
         selling_price: sellingPrice,
         active,
         is_required: isRequired,
+        material_composition: materialComposition.trim(),
+        care_instructions: careInstructions.trim(),
+        fabric_care: fabricCare.trim(),
       };
 
       if (editingProduct) {
@@ -756,7 +768,40 @@ export function UniformCatalogView() {
                     className="portal-form-input"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Material specs, washing instructions..."
+                    placeholder="Brief description of the item..."
+                  />
+                </div>
+
+                <div className="portal-form-group">
+                  <label className="portal-form-label">Material / Fabric Composition</label>
+                  <input
+                    type="text"
+                    className="portal-form-input"
+                    value={materialComposition}
+                    onChange={(e) => setMaterialComposition(e.target.value)}
+                    placeholder="e.g. 65% Polyester, 35% Cotton"
+                  />
+                </div>
+
+                <div className="portal-form-group">
+                  <label className="portal-form-label">Care Instructions</label>
+                  <textarea
+                    rows={2}
+                    className="portal-form-input"
+                    value={careInstructions}
+                    onChange={(e) => setCareInstructions(e.target.value)}
+                    placeholder="e.g. Machine wash warm (40°C). Tumble dry medium. Warm iron."
+                  />
+                </div>
+
+                <div className="portal-form-group">
+                  <label className="portal-form-label">Fabric & Care Notes (Optional)</label>
+                  <input
+                    type="text"
+                    className="portal-form-input"
+                    value={fabricCare}
+                    onChange={(e) => setFabricCare(e.target.value)}
+                    placeholder="e.g. Wash dark colours separately. Line dry in shade."
                   />
                 </div>
 

@@ -915,3 +915,255 @@ class ProductRequirementsAndCartValidationTests(TestCase):
         self.assertEqual(data["out_of_stock"][0]["available"], 2)
         self.assertEqual(data["out_of_stock"][0]["requested"], 5)
 
+
+@override_settings(CACHES=LOCMEM)
+class ProductMaterialCareAndSizingTraceabilityTests(TestCase):
+    """
+    Task 7 verification:
+    1. Sizing recommendation stability, reason codes, chart versions, and tuple backward compatibility.
+    2. Historical preservation of order-item sizing snapshots across chart changes.
+    3. Structured material and care fields editing and public API exposure without false claims.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_data")
+        cls.dps = School.objects.get(code="DPS-SUR")
+        cls.surat = City.objects.get(code="SUR")
+        cls.category = Category.objects.get(slug="uniform")
+        cls.shirt = Product.objects.filter(school=cls.dps, name__icontains="shirt").first()
+
+    def test_recommendation_tuple_contract_and_backward_compatibility(self):
+        from catalog.sizing import Reason, Recommendation, Status
+
+        rec = Recommendation(
+            Status.FIT,
+            "30",
+            "",
+            reason=Reason.HEIGHT_WEIGHT_MATCH,
+            chart_version="cv_abc12345",
+        )
+        # 1. 100% backward-compatible with legacy 3-tuple expectations
+        self.assertEqual(rec, (Status.FIT, "30", ""))
+        self.assertEqual(len(rec), 3)
+        status, size, alt_size = rec
+        self.assertEqual(status, Status.FIT)
+        self.assertEqual(size, "30")
+        self.assertEqual(alt_size, "")
+
+        # 2. Modern structured attributes accessible
+        self.assertEqual(rec.status, Status.FIT)
+        self.assertEqual(rec.size, "30")
+        self.assertEqual(rec.alt_size, "")
+        self.assertEqual(rec.reason, Reason.HEIGHT_WEIGHT_MATCH)
+        self.assertEqual(rec.chart_version, "cv_abc12345")
+        self.assertEqual(
+            rec._asdict(),
+            {
+                "status": "FIT",
+                "size": "30",
+                "alt_size": "",
+                "reason": "HEIGHT_WEIGHT_MATCH",
+                "chart_version": "cv_abc12345",
+            },
+        )
+
+    def test_compute_chart_version_is_deterministic_and_tracks_changes(self):
+        from decimal import Decimal as D
+        from catalog.sizing import ChartRow, compute_chart_version
+
+        rows1 = [
+            ChartRow(size="28", height_cm_min=D("120"), height_cm_max=D("130"), weight_kg_min=D("20"), weight_kg_max=D("28")),
+            ChartRow(size="30", height_cm_min=D("130"), height_cm_max=D("140"), weight_kg_min=D("26"), weight_kg_max=D("35")),
+        ]
+        rows2 = list(reversed(rows1))
+        # Order-independent determinism
+        ver1 = compute_chart_version(rows1)
+        ver2 = compute_chart_version(rows2)
+        self.assertTrue(ver1.startswith("cv_"))
+        self.assertEqual(ver1, ver2)
+
+        # Version changes when row boundaries change
+        rows3 = [
+            ChartRow(size="28", height_cm_min=D("120"), height_cm_max=D("130"), weight_kg_min=D("20"), weight_kg_max=D("28")),
+            ChartRow(size="30", height_cm_min=D("130"), height_cm_max=D("145"), weight_kg_min=D("26"), weight_kg_max=D("35")),
+        ]
+        self.assertNotEqual(ver1, compute_chart_version(rows3))
+
+    def test_recommend_size_reason_codes(self):
+        from decimal import Decimal as D
+        from catalog.sizing import ChartRow, Reason, Status, recommend_size
+
+        chart = [
+            ChartRow(size="28", height_cm_min=D("120"), height_cm_max=D("130"), weight_kg_min=D("20"), weight_kg_max=D("26")),
+            ChartRow(size="30", height_cm_min=D("132"), height_cm_max=D("142"), weight_kg_min=D("26"), weight_kg_max=D("34")),
+            ChartRow(size="32", height_cm_min=D("144"), height_cm_max=D("154"), weight_kg_min=D("32"), weight_kg_max=D("42")),
+        ]
+
+        # 1. Exact match with height & weight
+        r_fit = recommend_size(chart, D("136"), D("30"))
+        self.assertEqual(r_fit.status, Status.FIT)
+        self.assertEqual(r_fit.size, "30")
+        self.assertEqual(r_fit.reason, Reason.HEIGHT_WEIGHT_MATCH)
+
+        # 2. Exact match with height only (no weight)
+        r_h = recommend_size(chart, D("136"), None)
+        self.assertEqual(r_h.status, Status.FIT)
+        self.assertEqual(r_h.reason, Reason.HEIGHT_MATCH)
+
+        # 3. Gap between sizes (131 cm)
+        r_gap = recommend_size(chart, D("131"), D("25"))
+        self.assertEqual(r_gap.status, Status.BETWEEN)
+        self.assertEqual(r_gap.reason, Reason.BETWEEN_GAP)
+
+        # 4. Weight adjusted: child height fits 30 (135 cm) but heavier than 34 kg
+        r_wt = recommend_size(chart, D("135"), D("38"))
+        self.assertEqual(r_wt.status, Status.BETWEEN)
+        self.assertEqual(r_wt.size, "32")
+        self.assertEqual(r_wt.reason, Reason.WEIGHT_ADJUSTED_NEXT_SIZE)
+
+        # 5. Below chart
+        r_bel = recommend_size(chart, D("110"), D("18"))
+        self.assertEqual(r_bel.status, Status.BELOW_CHART)
+        self.assertEqual(r_bel.reason, Reason.BELOW_CHART_MIN)
+
+        # 6. Above chart
+        r_abv = recommend_size(chart, D("165"), D("55"))
+        self.assertEqual(r_abv.status, Status.ABOVE_CHART)
+        self.assertEqual(r_abv.reason, Reason.ABOVE_CHART_MAX)
+
+        # 7. No chart
+        r_none = recommend_size([], D("135"), D("30"))
+        self.assertEqual(r_none.status, Status.NO_CHART)
+        self.assertEqual(r_none.reason, Reason.NO_CHART_COVERAGE)
+
+    def test_past_order_recommendations_preserved_when_size_charts_change(self):
+        from decimal import Decimal as D
+        from accounts.models import User
+        from catalog.models import SizeChartRow
+        from catalog.sizing import ChartRow, suggest, validate_fit
+        from orders.models import Order, OrderItem
+        from orders.serializers import OrderCreateSerializer
+        from schools.models import Student
+
+        parent = User.objects.filter(role=User.Role.PARENT).first()
+        student = Student.objects.filter(school=self.dps).first() or Student.objects.first()
+        v30 = self.shirt.variants.filter(size__contains="30").first() or self.shirt.variants.first()
+
+        order = Order.objects.create(
+            order_number="ORD-FIT-TEST-001",
+            school=self.dps,
+            city=self.surat,
+            placed_by=parent,
+            student=student,
+            subtotal=D("450.00"),
+            total=D("450.00"),
+            payment_method=Order.PaymentMethod.CASH_ON_DELIVERY,
+            delivery_details={"full_name": "Test Parent", "phone": "9811100001", "address_line1": "Test", "city": "Surat", "state": "Gujarat", "pincode": "395007"},
+        )
+        item = OrderItem.objects.create(
+            order=order,
+            variant=v30,
+            category=self.shirt.category,
+            quantity=1,
+            unit_price_snapshot=D("450.00"),
+            unit_cost_snapshot=D("280.00"),
+            fit_height_cm=D("134.0"),
+            fit_weight_kg=D("30.0"),
+            fit_source="MANUAL",
+            recommended_size="30",
+            recommended_alt_size="",
+            recommendation_status="FIT",
+            recommendation_reason="HEIGHT_WEIGHT_MATCH",
+            size_chart_version="cv_original_v1",
+            chosen_size="30",
+        )
+
+        # Simulate size chart modifications or deletion
+        SizeChartRow.objects.filter(variant=v30).delete()
+
+        # Re-fetch order item from DB: past recommendations must be completely preserved
+        reloaded = OrderItem.objects.get(id=item.id)
+        self.assertEqual(reloaded.recommended_size, "30")
+        self.assertEqual(reloaded.recommendation_status, "FIT")
+        self.assertEqual(reloaded.recommendation_reason, "HEIGHT_WEIGHT_MATCH")
+        self.assertEqual(reloaded.size_chart_version, "cv_original_v1")
+        self.assertEqual(reloaded.chosen_size, "30")
+
+    def test_product_material_care_crud_and_public_api_exposure(self):
+        from rest_framework.test import APIClient
+        from accounts.models import User
+
+        # 1. Create product with structured material and care
+        p = Product.objects.create(
+            category=self.category,
+            school=self.dps,
+            name="DPS Premium Cotton Shirt",
+            description="Pure cotton shirt",
+            material_composition="100% Organic Cotton",
+            care_instructions="Machine wash cold with like colours. Warm iron.",
+            fabric_care="Do not bleach. Dry in shade.",
+            cost_price=Decimal("250.00"),
+            selling_price=Decimal("499.00"),
+            gender=Product.Gender.BOY,
+            active=True,
+        )
+        ProductVariant.objects.create(product=p, size="30", sku="DPS-ORG-30")
+
+        # 2. Public API endpoint returns material and care
+        client = APIClient()
+        grade = Grade.objects.filter(name="Class 5").first() or Grade.objects.first()
+        p.grades.add(grade)
+
+        url = f"/api/public/products/?school={self.dps.id}&grade={grade.name}&gender=boy&city={self.surat.id}"
+        res = client.get(url)
+        self.assertEqual(res.status_code, 200)
+        results = res.json()["results"]
+        matching = next((item for item in results if item["id"] == str(p.id)), None)
+        self.assertIsNotNone(matching)
+        self.assertEqual(matching["material_composition"], "100% Organic Cotton")
+        self.assertEqual(matching["care_instructions"], "Machine wash cold with like colours. Warm iron.")
+        self.assertEqual(matching["fabric_care"], "Do not bleach. Dry in shade.")
+
+        # 3. Product with missing care info returns empty without inventing claims
+        p_empty = Product.objects.create(
+            category=self.category,
+            school=self.dps,
+            name="DPS Unspecified Cap",
+            description="Uniform cap",
+            cost_price=Decimal("50.00"),
+            selling_price=Decimal("120.00"),
+            gender=Product.Gender.UNISEX,
+            active=True,
+        )
+        p_empty.grades.add(grade)
+        ProductVariant.objects.create(product=p_empty, size="Free", sku="DPS-CAP-FREE")
+
+        cache.clear()
+        res_empty = client.get(url)
+        results_empty = res_empty.json()["results"]
+        matching_empty = next((item for item in results_empty if item["id"] == str(p_empty.id)), None)
+        self.assertIsNotNone(matching_empty)
+        self.assertEqual(matching_empty["material_composition"], "")
+        self.assertEqual(matching_empty["care_instructions"], "")
+        self.assertEqual(matching_empty["fabric_care"], "")
+
+        # 4. Staff serializer allows updating material & care
+        admin_user = User.objects.filter(role=User.Role.ADMIN).first()
+        from rest_framework.test import APIRequestFactory
+        from catalog.serializers import ProductSerializer
+        factory = APIRequestFactory()
+        req = factory.post("/")
+        req.user = admin_user
+        serializer = ProductSerializer(
+            instance=p_empty,
+            data={"material_composition": "100% Polyester", "care_instructions": "Hand wash only."},
+            partial=True,
+            context={"request": req},
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        updated = serializer.save()
+        self.assertEqual(updated.material_composition, "100% Polyester")
+        self.assertEqual(updated.care_instructions, "Hand wash only.")
+
+

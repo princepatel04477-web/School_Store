@@ -233,7 +233,13 @@ export function ProductSheet({
 
               {product.sizes.length > 1 && (
                 <>
-                  <RecommendationNote recommendation={fit?.recommendation} />
+                  <RecommendationNote
+                    recommendation={fit?.recommendation}
+                    selectedSize={product.sizes.find((s) => s.id === selectedSizeId)?.size}
+                    measuredAt={measurement?.measuredAt}
+                    chartRows={fit?.chart}
+                    sizes={product.sizes}
+                  />
                   {sizePage && hasChart ? (
                     <>
                       <button
@@ -245,11 +251,20 @@ export function ProductSheet({
                         {chartOpen ? t('size.hideChart') : t('size.viewChart')}
                       </button>
                       {chartOpen && (
-                        <SizeChartTable rows={fit?.chart} recommendation={fit?.recommendation} />
+                        <SizeChartTable
+                          rows={fit?.chart}
+                          recommendation={fit?.recommendation}
+                          selectedSize={product.sizes.find((s) => s.id === selectedSizeId)?.size}
+                        />
                       )}
                     </>
                   ) : (
-                    <SizeChartTable rows={fit?.chart} loading={fitLoading} recommendation={fit?.recommendation} />
+                    <SizeChartTable
+                      rows={fit?.chart}
+                      loading={fitLoading}
+                      recommendation={fit?.recommendation}
+                      selectedSize={product.sizes.find((s) => s.id === selectedSizeId)?.size}
+                    />
                   )}
                 </>
               )}
@@ -293,7 +308,22 @@ export function ProductSheet({
                   </button>
                   {openFabric && (
                     <div className="accordion-body">
-                      <p>{product.fabricCare || t('product.care')}</p>
+                      {product.materialComposition && (
+                        <p className="product-spec-line">
+                          <strong>{t('product.materialLabel')}:</strong> {product.materialComposition}
+                        </p>
+                      )}
+                      {product.careInstructions && (
+                        <p className="product-spec-line">
+                          <strong>{t('product.careLabel')}:</strong> {product.careInstructions}
+                        </p>
+                      )}
+                      {!product.materialComposition && !product.careInstructions && product.fabricCare && (
+                        <p>{product.fabricCare}</p>
+                      )}
+                      {!product.materialComposition && !product.careInstructions && !product.fabricCare && (
+                        <p className="product-care-empty">{t('product.noCareInfo')}</p>
+                      )}
                     </div>
                   )}
                 </div>

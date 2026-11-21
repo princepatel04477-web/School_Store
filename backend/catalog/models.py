@@ -120,6 +120,22 @@ class Product(UUIDModel):
         db_index=True,
         help_text="Explicit requirement flag: True if required uniform item, False if optional.",
     )
+    material_composition = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        help_text="Fabric or material composition (e.g. 65% Polyester, 35% Cotton).",
+    )
+    care_instructions = models.TextField(
+        blank=True,
+        default="",
+        help_text="Specific washing or care instructions.",
+    )
+    fabric_care = models.TextField(
+        blank=True,
+        default="",
+        help_text="Combined or custom fabric care description.",
+    )
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

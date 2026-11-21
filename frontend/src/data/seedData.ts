@@ -35,6 +35,8 @@ export interface SeedProduct {
   sizes: { id: string; size: string; inStock: boolean }[];
   description: string;
   fabricCare?: string;
+  materialComposition?: string;
+  careInstructions?: string;
   deliveryNotes?: string;
 }
 

@@ -175,7 +175,10 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "source": obj.fit_source,
             "shoulder_edited": obj.fit_shoulder_edited,
             "recommended_size": obj.recommended_size,
+            "recommended_alt_size": obj.recommended_alt_size,
             "recommendation_status": obj.recommendation_status,
+            "recommendation_reason": obj.recommendation_reason,
+            "size_chart_version": obj.size_chart_version,
             "chosen_size": obj.chosen_size,
         }
 
@@ -982,6 +985,8 @@ class OrderCreateSerializer(serializers.Serializer):
             order_item.recommended_size = recommendation.size
             order_item.recommended_alt_size = recommendation.alt_size
             order_item.recommendation_status = recommendation.status
+            order_item.recommendation_reason = getattr(recommendation, "reason", "")
+            order_item.size_chart_version = getattr(recommendation, "chart_version", "")
 
     @staticmethod
     def _remember_measurement(student, user, fits) -> None:

@@ -615,6 +615,56 @@ export const messages = {
     hi: 'आपका बच्चा इस चार्ट से बड़ा है। {size} सबसे बड़ा साइज़ है। स्कूल की दुकान पर पूछें।',
   },
   'fit.suggestedTag': { en: 'Suggested', gu: 'સૂચવેલ', hi: 'सुझाया' },
+  'fit.rec.whySuggested': {
+    en: 'Suggested based on height {height} cm and weight {weight} kg{dateInfo}.',
+    gu: 'ઊંચાઈ {height} સે.મી. અને વજન {weight} કિલો{dateInfo} ના આધારે ભલામણ કરેલ.',
+    hi: 'लंबाई {height} सेमी और वज़न {weight} किलो{dateInfo} के आधार पर सुझाया गया।',
+  },
+  'fit.rec.whyHeightOnly': {
+    en: 'Suggested based on height {height} cm{dateInfo}.',
+    gu: 'ઊંચાઈ {height} સે.મી.{dateInfo} ના આધારે ભલામણ કરેલ.',
+    hi: 'लंबाई {height} सेमी{dateInfo} के आधार पर सुझाया गया।',
+  },
+  'fit.rec.weightAdjusted': {
+    en: 'Sized up to {size} for a comfortable fit based on weight ({weight} kg).',
+    gu: 'વજન ({weight} કિલો) ના આધારે આરામદાયક ફિટિંગ માટે સાઈઝ {size} સૂચવવામાં આવી.',
+    hi: 'वज़न ({weight} किलो) के आधार पर आरामदायक फिट के लिए साइज़ {size} सुझाया गया।',
+  },
+  'fit.rec.shoulderRefined': {
+    en: 'Refined to size {size} using measured shoulder width ({shoulder} cm).',
+    gu: 'માપેલા ખભાના પહોળાઈ ({shoulder} સે.મી.) અનુસાર સાઈઝ {size} નક્કી કરેલ.',
+    hi: 'नापे गए कंधे की चौड़ाई ({shoulder} सेमी) के अनुसार साइज़ {size} तय किया गया।',
+  },
+  'fit.rec.garmentSpecs': {
+    en: 'Garment specs for size {size}: Chest {chest} cm, Length {length} cm.',
+    gu: 'સાઈઝ {size} માટે કપડાંનું માપ: છાતી {chest} સે.મી., લંબાઈ {length} સે.મી.',
+    hi: 'साइज़ {size} के लिए कपड़े का नाप: छाती {chest} सेमी, लंबाई {length} सेमी।',
+  },
+  'fit.rec.selectionDiffers': {
+    en: 'You have chosen size {selected}. Recommended size based on measurements is {recommended}.',
+    gu: 'તમે સાઈઝ {selected} પસંદ કરી છે. માપના આધારે ભલામણ કરેલ સાઈઝ {recommended} છે.',
+    hi: 'आपने साइज़ {selected} चुना है। नाप के अनुसार सुझाई गई साइज़ {recommended} है।',
+  },
+  'fit.rec.matchesRecommendation': {
+    en: 'Selected size {size} matches our measurement recommendation.',
+    gu: 'પસંદ કરેલી સાઈઝ {size} અમારા માપની ભલામણ સાથે મેળ ખાય છે.',
+    hi: 'चुना गया साइज़ {size} हमारे नाप के सुझाव से मेल खाता है।',
+  },
+  'fit.rec.outOfStock': {
+    en: 'Recommended size {size} is currently out of stock in your city.',
+    gu: 'ભલામણ કરેલ સાઈઝ {size} તમારા શહેરમાં હાલ સ્ટોકમાં નથી.',
+    hi: 'सुझाया गया साइज़ {size} आपके शहर में अभी स्टॉक में नहीं है।',
+  },
+  'fit.rec.noChart': {
+    en: 'Size chart is currently unavailable for this item. Please choose based on standard uniform sizing.',
+    gu: 'આ વસ્તુ માટે સાઈઝ ચાર્ટ હાલ ઉપલબ્ધ નથી. સામાન્ય યુનિફોર્મ સાઈઝ પ્રમાણે પસંદ કરો.',
+    hi: 'इस वस्तु के लिए साइज़ चार्ट अभी उपलब्ध नहीं है। सामान्य यूनिफॉर्म साइज़ के अनुसार चुनें।',
+  },
+  'fit.rec.insufficientData': {
+    en: 'Measurements needed for a size recommendation. Enter height and weight above.',
+    gu: 'સાઈઝની ભલામણ માટે માપ જરૂરી છે. ઉપર ઊંચાઈ અને વજન દાખલ કરો.',
+    hi: 'साइज़ के सुझाव के लिए नाप ज़रूरी है। ऊपर लंबाई और वज़न दर्ज करें।',
+  },
   'fit.chart.title': { en: 'Size chart', gu: 'સાઈઝ ચાર્ટ', hi: 'साइज़ चार्ट' },
   'fit.chart.loading': { en: 'Loading the size chart', gu: 'સાઈઝ ચાર્ટ લોડ થાય છે', hi: 'साइज़ चार्ट लोड हो रहा है' },
   'fit.chart.size': { en: 'Size', gu: 'સાઈઝ', hi: 'साइज़' },
@@ -857,6 +907,13 @@ export const messages = {
   },
   'product.outOfStock': { en: 'Out of stock', gu: 'હાલ ઉપલબ્ધ નથી', hi: 'अभी उपलब्ध नहीं' },
   'product.careTitle': { en: 'Washing', gu: 'ધોવાની રીત', hi: 'धोने का तरीका' },
+  'product.materialLabel': { en: 'Material', gu: 'મટીરીયલ / કાપડ', hi: 'सामग्री / कपड़ा' },
+  'product.careLabel': { en: 'Care instructions', gu: 'સંભાળ સૂચનાઓ', hi: 'देखभाल निर्देश' },
+  'product.noCareInfo': {
+    en: 'Care instructions not specified for this item.',
+    gu: 'આ વસ્તુ માટે સંભાળની માહિતી સ્પષ્ટ કરેલ નથી.',
+    hi: 'इस वस्तु के लिए देखभाल निर्देश निर्दिष्ट नहीं हैं।',
+  },
   'product.care': {
     en: 'Wash with similar colours. Iron warm.',
     gu: 'સમાન રંગના કપડાં સાથે ધુઓ. હળવી ગરમ ઇસ્ત્રી કરો.',

@@ -144,10 +144,18 @@ export interface Recommendation {
   status: FitStatus;
   size: string;
   alt_size: string;
+  reason?: string;
+  chart_version?: string;
+  inputs_used?: {
+    height_cm?: number | null;
+    weight_kg?: number | null;
+    shoulder_cm?: number | null;
+  } | null;
 }
 
 export interface ProductFit {
   chart: ChartRow[];
+  chart_version?: string;
   recommendation: Recommendation | null;
 }
 

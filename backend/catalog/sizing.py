@@ -73,6 +73,21 @@ class Status:
     NO_CHART = "NO_CHART"
 
 
+class Reason:
+    HEIGHT_WEIGHT_MATCH = "HEIGHT_WEIGHT_MATCH"
+    HEIGHT_MATCH = "HEIGHT_MATCH"
+    BETWEEN_GAP = "BETWEEN_GAP"
+    BETWEEN_GAP_WEIGHT = "BETWEEN_GAP_WEIGHT"
+    WEIGHT_ADJUSTED_NEXT_SIZE = "WEIGHT_ADJUSTED_NEXT_SIZE"
+    OVERLAPPING_HEIGHT_WEIGHT = "OVERLAPPING_HEIGHT_WEIGHT"
+    SHOULDER_REFINED_EXACT = "SHOULDER_REFINED_EXACT"
+    SHOULDER_BROAD_EXPANDED = "SHOULDER_BROAD_EXPANDED"
+    BELOW_CHART_MIN = "BELOW_CHART_MIN"
+    ABOVE_CHART_MAX = "ABOVE_CHART_MAX"
+    WEIGHT_ABOVE_MAX = "WEIGHT_ABOVE_MAX"
+    NO_CHART_COVERAGE = "NO_CHART_COVERAGE"
+
+
 class FitWarning:
     HEIGHT_UNUSUAL_FOR_CLASS = "HEIGHT_UNUSUAL_FOR_CLASS"
     WEIGHT_UNUSUAL_FOR_CLASS = "WEIGHT_UNUSUAL_FOR_CLASS"
@@ -105,10 +120,54 @@ class ChartRow:
     shoulder_cm_max: Decimal | None = None
 
 
-class Recommendation(NamedTuple):
+class Recommendation(tuple):
+    """
+    Recommended size result. Inherits from tuple(status, size, alt_size)
+    so unpacks, len == 3, and tuple equality are 100% backward-compatible
+    with existing tests and callers, while exposing .reason and .chart_version.
+    """
     status: str
-    size: str = ""
-    alt_size: str = ""
+    size: str
+    alt_size: str
+    reason: str
+    chart_version: str
+
+    def __new__(
+        cls,
+        status: str,
+        size: str = "",
+        alt_size: str = "",
+        reason: str = "",
+        chart_version: str = "",
+    ):
+        instance = super().__new__(cls, (status, size, alt_size))
+        instance.status = status
+        instance.size = size
+        instance.alt_size = alt_size
+        instance.reason = reason
+        instance.chart_version = chart_version
+        return instance
+
+    def _asdict(self) -> dict:
+        return {
+            "status": self.status,
+            "size": self.size,
+            "alt_size": self.alt_size,
+            "reason": self.reason,
+            "chart_version": self.chart_version,
+        }
+
+
+def compute_chart_version(rows: list[ChartRow]) -> str:
+    """Stable, deterministic version checksum computed from chart row bounds."""
+    if not rows:
+        return ""
+    import hashlib
+    summary = repr(sorted([
+        (r.size, str(r.height_cm_min), str(r.height_cm_max), str(r.weight_kg_min), str(r.weight_kg_max))
+        for r in rows
+    ]))
+    return f"cv_{hashlib.md5(summary.encode('utf-8')).hexdigest()[:8]}"
 
 
 # --------------------------------------------------------------------------- #
@@ -217,9 +276,9 @@ def _heavier_than(row: ChartRow, weight: Decimal | None) -> bool:
     return weight is not None and row.weight_kg_max is not None and weight > row.weight_kg_max
 
 
-def _bigger_first(rows: list[ChartRow], pair: list[ChartRow]) -> Recommendation:
+def _bigger_first(rows: list[ChartRow], pair: list[ChartRow], reason: str = "") -> Recommendation:
     smaller, bigger = sorted(pair, key=rows.index)
-    return Recommendation(Status.BETWEEN, bigger.size, smaller.size)
+    return Recommendation(Status.BETWEEN, bigger.size, smaller.size, reason=reason)
 
 
 def recommend_size(
@@ -229,7 +288,7 @@ def recommend_size(
 ) -> Recommendation:
     """`rows` are one product's chart; pass validated numbers (see validate_fit)."""
     if not rows:
-        return Recommendation(Status.NO_CHART)
+        return Recommendation(Status.NO_CHART, reason=Reason.NO_CHART_COVERAGE)
 
     rows = sorted(rows, key=lambda r: (r.height_cm_min, r.height_cm_max, r.size))
     height = Decimal(height_cm)
@@ -239,9 +298,9 @@ def recommend_size(
 
     if not by_height:
         if height < rows[0].height_cm_min:
-            return Recommendation(Status.BELOW_CHART, rows[0].size)
+            return Recommendation(Status.BELOW_CHART, rows[0].size, reason=Reason.BELOW_CHART_MIN)
         if height > max(r.height_cm_max for r in rows):
-            return Recommendation(Status.ABOVE_CHART, rows[-1].size)
+            return Recommendation(Status.ABOVE_CHART, rows[-1].size, reason=Reason.ABOVE_CHART_MAX)
         # In a gap between two sizes: the last one that ends below the child
         # and the first one that starts above.
         below = [r for r in rows if r.height_cm_max < height][-1]
@@ -249,9 +308,9 @@ def recommend_size(
         if _heavier_than(above, weight):
             nxt = rows.index(above) + 1
             if nxt < len(rows):
-                return _bigger_first(rows, [above, rows[nxt]])
-            return Recommendation(Status.ABOVE_CHART, above.size)
-        return _bigger_first(rows, [below, above])
+                return _bigger_first(rows, [above, rows[nxt]], reason=Reason.BETWEEN_GAP_WEIGHT)
+            return Recommendation(Status.ABOVE_CHART, above.size, reason=Reason.WEIGHT_ABOVE_MAX)
+        return _bigger_first(rows, [below, above], reason=Reason.BETWEEN_GAP)
 
     fits = [r for r in by_height if not _heavier_than(r, weight)]
 
@@ -260,11 +319,12 @@ def recommend_size(
         biggest = max(by_height, key=rows.index)
         nxt = rows.index(biggest) + 1
         if nxt < len(rows):
-            return _bigger_first(rows, [biggest, rows[nxt]])
-        return Recommendation(Status.ABOVE_CHART, biggest.size)
+            return _bigger_first(rows, [biggest, rows[nxt]], reason=Reason.WEIGHT_ADJUSTED_NEXT_SIZE)
+        return Recommendation(Status.ABOVE_CHART, biggest.size, reason=Reason.WEIGHT_ABOVE_MAX)
 
     if len(fits) == 1:
-        return Recommendation(Status.FIT, fits[0].size)
+        reason = Reason.HEIGHT_WEIGHT_MATCH if weight is not None else Reason.HEIGHT_MATCH
+        return Recommendation(Status.FIT, fits[0].size, reason=reason)
 
     # Several sizes fit (overlapping ranges): keep the two whose height range
     # is centred closest to the child.
@@ -272,7 +332,7 @@ def recommend_size(
         return abs((row.height_cm_min + row.height_cm_max) / 2 - height)
 
     closest = sorted(fits, key=lambda r: (distance(r), rows.index(r)))[:2]
-    return _bigger_first(rows, closest)
+    return _bigger_first(rows, closest, reason=Reason.OVERLAPPING_HEIGHT_WEIGHT)
 
 
 def refine_with_shoulder(
@@ -303,9 +363,9 @@ def refine_with_shoulder(
             return result
         big_fits, small_fits = fits(bigger), fits(smaller)
         if big_fits is True and small_fits is False:
-            return Recommendation(Status.FIT, bigger.size)
+            return Recommendation(Status.FIT, bigger.size, reason=Reason.SHOULDER_REFINED_EXACT)
         if small_fits is True and big_fits is False:
-            return Recommendation(Status.FIT, smaller.size)
+            return Recommendation(Status.FIT, smaller.size, reason=Reason.SHOULDER_REFINED_EXACT)
         return result
 
     row = by_size.get(result.size)
@@ -313,7 +373,7 @@ def refine_with_shoulder(
         return result
     nxt = rows.index(row) + 1
     if nxt < len(rows):
-        return Recommendation(Status.BETWEEN, rows[nxt].size, row.size)
+        return Recommendation(Status.BETWEEN, rows[nxt].size, row.size, reason=Reason.SHOULDER_BROAD_EXPANDED)
     return result
 
 
@@ -324,14 +384,21 @@ def suggest(rows: list[ChartRow], check: FitCheck) -> Recommendation:
     and the phone was sure enough of the reading.
     """
     result = recommend_size(rows, check.height_cm, check.weight_kg)
+    chart_version = compute_chart_version(rows)
     if (
         getattr(settings, "FIT_USE_SHOULDER", False)
         and check.shoulder_cm is not None
         and check.shoulder_confidence is not None
         and check.shoulder_confidence >= Decimal(str(settings.FIT_SHOULDER_MIN_CONFIDENCE))
     ):
-        return refine_with_shoulder(rows, result, check.shoulder_cm)
-    return result
+        result = refine_with_shoulder(rows, result, check.shoulder_cm)
+    return Recommendation(
+        result.status,
+        result.size,
+        result.alt_size,
+        reason=result.reason,
+        chart_version=chart_version,
+    )
 
 
 def chart_rows_from_models(size_chart_rows) -> list[ChartRow]:
