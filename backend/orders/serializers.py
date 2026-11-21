@@ -13,7 +13,16 @@ from inventory.models import StockBalance, StockMovement
 from schools.models import Student
 
 from .delivery import clean_delivery_details
-from .models import Order, OrderItem, OrderStatusEvent, PaymentAttempt, PaymentReview
+from .models import (
+    Order,
+    OrderAfterSaleRequest,
+    OrderItem,
+    OrderItemExchange,
+    OrderRefund,
+    OrderStatusEvent,
+    PaymentAttempt,
+    PaymentReview,
+)
 
 
 class PaymentAttemptSerializer(serializers.ModelSerializer):
@@ -46,6 +55,75 @@ class PaymentReviewSerializer(serializers.ModelSerializer):
             "created_at",
             "resolved_at",
             "notes",
+        )
+        read_only_fields = fields
+
+
+class OrderAfterSaleRequestSerializer(serializers.ModelSerializer):
+    request_type_display = serializers.CharField(source="get_request_type_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    reason_display = serializers.CharField(source="get_reason_display", read_only=True)
+    product_name = serializers.CharField(source="order_item.variant.product.name", read_only=True)
+    item_sku = serializers.CharField(source="order_item.variant.sku", read_only=True)
+    target_sku = serializers.CharField(source="target_variant.sku", read_only=True)
+
+    class Meta:
+        model = OrderAfterSaleRequest
+        fields = (
+            "id",
+            "order",
+            "order_item",
+            "product_name",
+            "item_sku",
+            "request_type",
+            "request_type_display",
+            "status",
+            "status_display",
+            "reason",
+            "reason_display",
+            "reason_details",
+            "photo_key",
+            "from_size",
+            "target_size",
+            "target_variant",
+            "target_sku",
+            "quantity",
+            "charge_paise",
+            "is_stock_reserved",
+            "is_item_restocked",
+            "restock_condition",
+            "staff_notes",
+            "created_at",
+            "updated_at",
+            "reviewed_at",
+        )
+        read_only_fields = fields
+
+
+class OrderRefundSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    repayment_channel_display = serializers.CharField(source="get_repayment_channel_display", read_only=True)
+
+    class Meta:
+        model = OrderRefund
+        fields = (
+            "id",
+            "order",
+            "request",
+            "order_item",
+            "amount_paise",
+            "currency",
+            "payment_method",
+            "repayment_channel",
+            "repayment_channel_display",
+            "status",
+            "status_display",
+            "razorpay_refund_id",
+            "razorpay_payment_id",
+            "failure_reason",
+            "notes",
+            "created_at",
+            "processed_at",
         )
         read_only_fields = fields
 
@@ -160,6 +238,12 @@ def _get_prefetched_attempts(obj):
     return list(obj.payment_attempts.all())
 
 
+def _get_prefetched_after_sales(obj):
+    if hasattr(obj, "_prefetched_objects_cache") and "after_sales_requests" in obj._prefetched_objects_cache:
+        return list(obj._prefetched_objects_cache["after_sales_requests"])
+    return list(obj.after_sales_requests.all())
+
+
 class OrderTrackingMixin:
     def get_last_attempt_failed(self, obj):
         attempts = _get_prefetched_attempts(obj)
@@ -191,6 +275,7 @@ class OrderTrackingMixin:
         is_paid = obj.payment_status == Order.PaymentStatus.PAID
         is_cod = obj.payment_method == Order.PaymentMethod.CASH_ON_DELIVERY
         is_cancelled = obj.status == Order.Status.CANCELLED
+        is_delivered = obj.status in (Order.Status.DELIVERED, Order.Status.COLLECTED)
 
         pay_now_reason = ""
         if can_pay:
@@ -222,6 +307,53 @@ class OrderTrackingMixin:
         elif in_prog:
             switch_cod_reason = "Payment is currently in progress."
 
+        # After-sales eligibility evaluation
+        as_reqs = _get_prefetched_after_sales(obj)
+        has_active_req = any(
+            r.status in (
+                OrderAfterSaleRequest.Status.REQUESTED,
+                OrderAfterSaleRequest.Status.APPROVED,
+                OrderAfterSaleRequest.Status.INSPECTED,
+            )
+            for r in as_reqs
+        )
+
+        can_cancel = False
+        cancel_reason = ""
+        if is_cancelled:
+            can_cancel = False
+            cancel_reason = "Order is already cancelled."
+        elif obj.status in (
+            Order.Status.DISPATCHED,
+            Order.Status.SHIPPED,
+            Order.Status.DELIVERED,
+            Order.Status.COLLECTED,
+            Order.Status.RETURNED,
+            Order.Status.REFUNDED,
+        ):
+            can_cancel = False
+            cancel_reason = f"Orders in '{obj.status}' status cannot be cancelled online."
+        elif has_active_req:
+            can_cancel = False
+            cancel_reason = "An after-sales request is currently active for this order."
+        else:
+            can_cancel = True
+            cancel_reason = "You may cancel eligible items or order before dispatch."
+
+        can_exchange = is_delivered and not is_cancelled and not has_active_req
+        exchange_reason = (
+            "Eligible for size exchange within 7 days of delivery."
+            if can_exchange
+            else ("Available after delivery" if not is_delivered else "Not eligible for exchange")
+        )
+
+        can_return = is_delivered and not is_cancelled and not has_active_req
+        return_reason = (
+            "Eligible to report damaged or incorrect items within 7 days of delivery."
+            if can_return
+            else ("Available after delivery" if not is_delivered else "Not eligible")
+        )
+
         return {
             "pay_now": {
                 "permitted": can_pay,
@@ -234,10 +366,40 @@ class OrderTrackingMixin:
                 "reason": switch_cod_reason,
             },
             "cancel": {
-                "permitted": False,
-                "allowed": False,
-                "reason": "Parents cannot cancel placed orders online. Please contact the school office.",
+                "permitted": can_cancel,
+                "allowed": can_cancel,
+                "reason": cancel_reason,
             },
+            "exchange": {
+                "permitted": can_exchange,
+                "allowed": can_exchange,
+                "reason": exchange_reason,
+            },
+            "return_or_report": {
+                "permitted": can_return,
+                "allowed": can_return,
+                "reason": return_reason,
+            },
+        }
+
+    def get_after_sales_summary(self, obj):
+        reqs = _get_prefetched_after_sales(obj)
+        active = next(
+            (r for r in reqs if r.status in (
+                OrderAfterSaleRequest.Status.REQUESTED,
+                OrderAfterSaleRequest.Status.APPROVED,
+                OrderAfterSaleRequest.Status.INSPECTED,
+            )),
+            None,
+        )
+        return {
+            "has_active_request": active is not None,
+            "active_request_id": str(active.id) if active else None,
+            "active_request_type": active.request_type if active else None,
+            "active_request_status": active.status if active else None,
+            "active_request_type_display": active.get_request_type_display() if active else None,
+            "active_request_status_display": active.get_status_display() if active else None,
+            "total_requests_count": len(reqs),
         }
 
     def get_delivery_details(self, obj):
@@ -283,6 +445,7 @@ class OrderListSerializer(OrderTrackingMixin, serializers.ModelSerializer):
     has_in_progress_attempt = serializers.SerializerMethodField()
     last_attempt_failed = serializers.SerializerMethodField()
     parent_actions = serializers.SerializerMethodField()
+    after_sales_summary = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -309,6 +472,7 @@ class OrderListSerializer(OrderTrackingMixin, serializers.ModelSerializer):
             "has_in_progress_attempt",
             "last_attempt_failed",
             "parent_actions",
+            "after_sales_summary",
         )
         read_only_fields = fields
 
@@ -325,6 +489,9 @@ class OrderDetailSerializer(OrderTrackingMixin, serializers.ModelSerializer):
     status_events = OrderStatusEventSerializer(many=True, read_only=True)
     payment_attempts = PaymentAttemptSerializer(many=True, read_only=True)
     payment_reviews = PaymentReviewSerializer(many=True, read_only=True)
+    after_sales_requests = OrderAfterSaleRequestSerializer(many=True, read_only=True)
+    refunds = OrderRefundSerializer(many=True, read_only=True)
+    after_sales_summary = serializers.SerializerMethodField()
     delivery_details = serializers.SerializerMethodField()
     can_pay_now = serializers.SerializerMethodField()
     has_in_progress_attempt = serializers.SerializerMethodField()
@@ -361,6 +528,9 @@ class OrderDetailSerializer(OrderTrackingMixin, serializers.ModelSerializer):
             "status_events",
             "payment_attempts",
             "payment_reviews",
+            "after_sales_requests",
+            "refunds",
+            "after_sales_summary",
             "last_attempt_failed",
             "has_in_progress_attempt",
             "can_pay_now",

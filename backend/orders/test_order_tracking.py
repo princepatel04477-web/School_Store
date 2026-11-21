@@ -214,8 +214,9 @@ class OrderTrackingTests(TestCase):
         self.assertIn("switch_to_cod", actions)
         self.assertTrue(actions["switch_to_cod"]["allowed"])
         self.assertIn("cancel", actions)
-        self.assertFalse(actions["cancel"]["allowed"])
-        self.assertIn("contact the school office", actions["cancel"]["reason"])
+        self.assertTrue(actions["cancel"]["allowed"])
+        self.assertTrue(actions["cancel"]["permitted"])
+        self.assertIn("cancel eligible items or order before dispatch", actions["cancel"]["reason"])
 
     def test_no_n_plus_one_queries_on_order_list(self):
         """Listing orders executes a bounded, constant number of queries regardless of order count."""
@@ -238,8 +239,8 @@ class OrderTrackingTests(TestCase):
             )
 
         client = self.parent_client()
-        # Listing 3 orders runs in 3 queries (Orders with select_related, OrderStatusEvent prefetch, PaymentAttempt prefetch)
-        with self.assertNumQueries(3):
+        # Listing 3 orders runs in 4 queries (Orders with select_related, OrderStatusEvent prefetch, PaymentAttempt prefetch, OrderAfterSaleRequest prefetch)
+        with self.assertNumQueries(4):
             res1 = client.get("/api/orders/")
             self.assertEqual(res1.status_code, status.HTTP_200_OK)
             self.assertEqual(len(res1.data.get("results", res1.data)), 3)
@@ -262,8 +263,8 @@ class OrderTrackingTests(TestCase):
                 last_source="VERIFY",
             )
 
-        # The query count must remain exactly 3 queries, proving constant bounded queries with no N+1 query loop!
-        with self.assertNumQueries(3):
+        # The query count must remain exactly 4 queries, proving constant bounded queries with no N+1 query loop!
+        with self.assertNumQueries(4):
             res2 = client.get("/api/orders/")
             self.assertEqual(res2.status_code, status.HTTP_200_OK)
             self.assertEqual(len(res2.data.get("results", res2.data)), 5)

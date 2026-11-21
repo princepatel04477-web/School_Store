@@ -37,7 +37,7 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
     queryset = Order.objects.select_related(
         "student", "school", "city", "placed_by", "payer"
     ).prefetch_related(
-        "status_events", "payment_attempts"
+        "status_events", "payment_attempts", "after_sales_requests"
     ).order_by("-created_at")
     pagination_class = BoundedCursorPagination
     permission_classes = [RoleScopedPermission]
@@ -50,13 +50,15 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         if request.user.role == "PARENT":
-            raise PermissionDenied("Parents cannot edit or cancel an order after it is placed.")
+            raise PermissionDenied(
+                "Parents cannot edit or cancel an order directly. Use the after-sales cancellation request."
+            )
         return super().destroy(request, *args, **kwargs)
 
     def get_queryset(self):
         qs = super().get_queryset()
         if self.action == "retrieve":
-            qs = qs.prefetch_related("items__variant__product", "payment_reviews")
+            qs = qs.prefetch_related("items__variant__product", "payment_reviews", "refunds")
 
         status_param = self.request.query_params.get("status")
         school_param = self.request.query_params.get("school")
@@ -300,6 +302,73 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
                 note="Payment method changed to Cash on Delivery.",
             )
         return Response({"status": "ok", "payment_method": "COD"})
+
+    @action(detail=True, methods=["get"], url_path="after-sales-eligibility")
+    def after_sales_eligibility(self, request, pk=None):
+        """Returns server-owned eligibility for cancellation, size exchange, and returns."""
+        order = self.get_object()
+        from .after_sales import get_order_after_sales_eligibility
+        eligibility = get_order_after_sales_eligibility(order, request.user)
+        return Response(eligibility, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="request-after-sale")
+    def request_after_sale(self, request, pk=None):
+        """Parent request for cancellation, size exchange, or damaged/wrong item."""
+        order = self.get_object()
+        from .after_sales import create_after_sale_request
+        from .serializers import OrderAfterSaleRequestSerializer
+        req_obj = create_after_sale_request(order, request.user, request.data)
+        return Response(OrderAfterSaleRequestSerializer(req_obj).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"], url_path="after-sales-requests")
+    def after_sales_requests(self, request, pk=None):
+        """Lists active and historical after-sales requests and refunds for this order."""
+        order = self.get_object()
+        from .serializers import OrderAfterSaleRequestSerializer, OrderRefundSerializer
+        return Response({
+            "requests": OrderAfterSaleRequestSerializer(order.after_sales_requests.all(), many=True).data,
+            "refunds": OrderRefundSerializer(order.refunds.all(), many=True).data,
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["post"], url_path="review-after-sale")
+    def review_after_sale(self, request):
+        """Staff action to review, approve, reject, inspect, or complete an after-sales request."""
+        if request.user.role not in ("BOSS", "ADMIN", "SCHOOL_ADMIN"):
+            raise PermissionDenied("Only authorized staff may review after-sales requests.")
+        req_id = request.data.get("request_id")
+        action_type = request.data.get("action")
+        notes = (request.data.get("notes") or "").strip()
+        restock_condition = (request.data.get("restock_condition") or "").strip()
+
+        from .models import OrderAfterSaleRequest
+        from .after_sales import review_after_sale_request
+        from .serializers import OrderAfterSaleRequestSerializer
+
+        req_obj = OrderAfterSaleRequest.objects.filter(pk=req_id).first()
+        if not req_obj:
+            raise ValidationError({"request_id": ["After-sales request not found."]})
+
+        updated_req = review_after_sale_request(
+            req_obj, request.user, action_type, notes=notes, restock_condition=restock_condition
+        )
+        return Response(OrderAfterSaleRequestSerializer(updated_req).data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["post"], url_path="process-refund")
+    def process_refund(self, request):
+        """Staff action to process or retry an OrderRefund record."""
+        if request.user.role not in ("BOSS", "ADMIN", "SCHOOL_ADMIN"):
+            raise PermissionDenied("Only authorized staff may process refunds.")
+        refund_id = request.data.get("refund_id")
+        from .models import OrderRefund
+        from .after_sales import process_order_refund
+        from .serializers import OrderRefundSerializer
+
+        refund = OrderRefund.objects.filter(pk=refund_id).first()
+        if not refund:
+            raise ValidationError({"refund_id": ["Refund record not found."]})
+
+        res = process_order_refund(refund, actor=request.user)
+        return Response(OrderRefundSerializer(res).data, status=status.HTTP_200_OK)
 
     def _change_status(self, request, queryset):
         user = request.user
