@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
+import { Link } from 'react-router-dom';
 import { useStoreState } from '../../store/storeState';
+import { useAuth } from '../../auth';
+import { User } from '../ui/icons';
+import { isNativeApp } from '../../native/nativePlatform';
 import { useLang } from '../../i18n';
 import { EASING } from '../../motion/motionConfig';
 import './homeHero.css';
@@ -21,6 +25,7 @@ const SPARKLES = [
 export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
   const { lang, t, setLang } = useLang();
   const { totalCount } = useStoreState();
+  const { user } = useAuth();
   const shouldReduceMotion = useReducedMotion();
   const [isCompact, setIsCompact] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -140,6 +145,17 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
               </svg>
               <span className="emerald-lang-name">{langPillLabel}</span>
             </button>
+
+            {/* Sign in, or the parent's own page once signed in (staff are sent to their panel).
+                In the app it opens the Profile tab, which offers sign-in when signed out. */}
+            <Link
+              to={isNativeApp() ? '/profile' : user ? '/parent' : '/login'}
+              className="emerald-bag-btn emerald-profile-btn"
+              aria-label={user ? t('nav.myAccount') : t('nav.signIn')}
+              title={user ? t('nav.myAccount') : t('nav.signIn')}
+            >
+              <User width={22} height={22} strokeWidth={2} />
+            </Link>
 
             <button
               type="button"

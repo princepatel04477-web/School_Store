@@ -1237,3 +1237,8 @@
     max-width: none;
   }
 }
+
+/* Profile button beside the bag: same look, a link to sign in or the parent's page. */
+.emerald-profile-btn {
+  text-decoration: none;
+}
