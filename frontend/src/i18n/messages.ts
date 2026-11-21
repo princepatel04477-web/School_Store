@@ -708,6 +708,37 @@ export const messages = {
     gu: 'આ બાળક તમારા મોબાઈલ નંબર સાથે જોડાયેલું નથી. ફરી તમારું બાળક પસંદ કરો.',
     hi: 'यह बच्चा आपके मोबाइल नंबर से जुड़ा नहीं है। फिर से अपना बच्चा चुनें।',
   },
+  // Parent account page (ported from the website, review 2026-11-21)
+  'parent.myChildren': { en: 'My children', gu: 'મારાં બાળકો', hi: 'मेरे बच्चे' },
+  'parent.noChildren': { en: 'No children linked yet', gu: 'હજી કોઈ બાળક લિંક થયેલ નથી', hi: 'अभी कोई बच्चा लिंक नहीं है' },
+  'parent.noChildrenHint': {
+    en: 'Your school links your child to this mobile number. If your child is missing, ask the school office.',
+    gu: 'શાળા તમારા બાળકને આ મોબાઇલ નંબર સાથે જોડે છે. બાળક ન દેખાય તો શાળાની ઓફિસમાં પૂછો.',
+    hi: 'स्कूल आपके बच्चे को इस मोबाइल नंबर से जोड़ता है। बच्चा न दिखे तो स्कूल ऑफ़िस से पूछें।',
+  },
+  'parent.studentProfile': { en: 'Student Profile (View only)', gu: 'વિદ્યાર્થી પ્રોફાઇલ (માત્ર જુઓ)', hi: 'छात्र प्रोफ़ाइल (केवल देखें)' },
+  'parent.grNumber': { en: 'GR Number', gu: 'જીઆર નંબર', hi: 'जीआर नंबर' },
+  'parent.class': { en: 'Class', gu: 'ધોરણ', hi: 'कक्षा' },
+  'parent.section': { en: 'Section', gu: 'વિભાગ', hi: 'वर्ग' },
+  'parent.gender': { en: 'Gender', gu: 'જાતિ', hi: 'लिंग' },
+  'parent.school': { en: 'School', gu: 'શાળા', hi: 'स्कूल' },
+  'parent.city': { en: 'City', gu: 'શહેર', hi: 'शहर' },
+  'parent.readOnlyNote': {
+    en: 'Only school staff can change these details. Contact your school to correct them.',
+    gu: 'આ વિગતો ફક્ત શાળાનો સ્ટાફ બદલી શકે છે. સુધારવા માટે શાળાનો સંપર્ક કરો.',
+    hi: 'ये जानकारी सिर्फ़ स्कूल स्टाफ बदल सकता है। सुधार के लिए स्कूल से संपर्क करें।',
+  },
+  'parent.errorTitle': { en: 'Could not load your account', gu: 'તમારું ખાતું લોડ થઈ શક્યું નથી', hi: 'आपका खाता लोड नहीं हो सका' },
+  'parent.retry': { en: 'Try again', gu: 'ફરી પ્રયાસ કરો', hi: 'पुनः प्रयास करें' },
+  'parent.loadError': {
+    en: 'We could not reach the store. Check your connection and try again.',
+    gu: 'સ્ટોર સુધી પહોંચી શક્યા નહીં. તમારું ઇન્ટરનેટ તપાસો અને ફરી પ્રયાસ કરો.',
+    hi: 'स्टोर तक नहीं पहुँच पाए। अपना इंटरनेट जाँचें और फिर कोशिश करें।',
+  },
+  'parent.offlineTitle': { en: 'You are still signed in', gu: 'તમે હજી લોગિન છો', hi: 'आप अभी भी लॉगिन हैं' },
+  'parent.signOut': { en: 'Sign out', gu: 'લોગઆઉટ', hi: 'लॉगआउट' },
+  'parent.myOrders': { en: 'My orders', gu: 'મારા ઓર્ડર', hi: 'मेरे ऑर्डर' },
+
   'err.generic': {
     en: 'We could not place this order. Check your bag and try again, or ask your school for help.',
     gu: 'ઓર્ડર થઈ શક્યો નહીં. બેગ તપાસી ફરી પ્રયત્ન કરો, અથવા શાળાની મદદ લો.',

@@ -2,49 +2,27 @@ import { useState } from 'react';
 import { Check } from '../components/ui/icons';
 import { Link, Route, Routes } from 'react-router-dom';
 import { Shell } from '../App';
+import { useAuth } from '../auth';
 import { ListenButton } from '../components/ListenButton';
 import { SelectionFlow } from '../components/SelectionFlow';
 import { Cart, Timeline, type CartItem } from '../components/Store';
 import { FitFeedbackPrompt } from '../components/orders/FitFeedbackPrompt';
-import { api, deleteChildPhotos, Order, Product } from '../api';
+import { Skeleton } from '../components/ui/Skeleton';
+import { api, deleteChildPhotos, Order, Product, type ParentChild } from '../api';
 import { useLang } from '../i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import '../components/photoConsent.css';
+import './Parent.css';
 import type { Fit } from '../data/fit';
 
-interface StudentDetail {
-  id: string;
-  name: string;
-  gr_number?: string;
-  grade_name?: string;
-  class_name?: string;
-  section?: string;
-  gender?: string;
-  school_name?: string;
-}
+/** The school roster row as the parent sees it, plus the ids the shop needs. */
+type Child = ParentChild & { grade?: string | null };
 
-const fallbackKids: StudentDetail[] = [
-  {
-    id: '1',
-    name: 'Aarav Patel',
-    gr_number: 'GR-1042',
-    grade_name: '5',
-    class_name: '5',
-    section: 'A',
-    gender: 'Male',
-    school_name: 'DPS Surat',
-  },
-  {
-    id: '2',
-    name: 'Diya Patel',
-    gr_number: 'GR-1043',
-    grade_name: '8',
-    class_name: '8',
-    section: 'B',
-    gender: 'Female',
-    school_name: 'DPS Surat',
-  },
-];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const dash = (value?: string | null) => (value && String(value).trim()) || '-';
+/** Grade names already read "Class 6", "LKG"; a bare number gets "Class" in front. */
+const classLabel = (name?: string | null) => (name && /^\d+$/.test(name.trim()) ? `Class ${name.trim()}` : dash(name));
+const genderLabel =(g?: string | null) => (g === 'MALE' ? 'Male' : g === 'FEMALE' ? 'Female' : dash(g));
 
 export default function Parent() {
   return (
@@ -57,32 +35,67 @@ export default function Parent() {
   );
 }
 
+/** My orders and Sign out, always on the parent's page (the app hides the web header). */
+function AccountActions({ showOrders = true }: { showOrders?: boolean }) {
+  const { t } = useLang();
+  const { signOut } = useAuth();
+  return (
+    <div className="parent-actions">
+      {showOrders && (
+        <Link className="btn btn-md btn-outline" to="/parent/orders">
+          {t('parent.myOrders')}
+        </Link>
+      )}
+      <button type="button" className="btn btn-md btn-text" onClick={signOut}>
+        {t('parent.signOut')}
+      </button>
+    </div>
+  );
+}
+
+/** Could not load: say so and offer Try again. Never fill the page with made-up data. */
+function LoadError({ onRetry }: { onRetry: () => void }) {
+  const { t } = useLang();
+  return (
+    <div className="parent-panel" role="alert">
+      <h3>{t('parent.errorTitle')}</h3>
+      <p>{t('parent.loadError')}</p>
+      <button type="button" className="btn btn-md btn-primary" onClick={onRetry}>
+        {t('parent.retry')}
+      </button>
+    </div>
+  );
+}
+
+function ChildrenSkeleton() {
+  return (
+    <div className="kids" aria-busy="true">
+      {[0, 1].map((i) => (
+        <div className="kid parent-kid-skeleton" key={i}>
+          <Skeleton width={40} height={40} />
+          <span className="parent-kid-skeleton-lines">
+            <Skeleton width="60%" height="0.9rem" />
+            <Skeleton width="80%" height="0.75rem" />
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Dashboard() {
   const queryClient = useQueryClient();
   const { t } = useLang();
   const [confirmPhotoDelete, setConfirmPhotoDelete] = useState(false);
   const [photoDeleteState, setPhotoDeleteState] = useState<'idle' | 'working' | 'done' | 'error'>('idle');
-  const { data: studentsData } = useQuery({
+  const students = useQuery({
     queryKey: ['parent-students'],
-    queryFn: () => api<{ results: any[] }>('/students/').catch(() => null),
+    queryFn: () => api<{ results: Child[] }>('/students/'),
   });
 
-  const kids: StudentDetail[] =
-    studentsData?.results && studentsData.results.length > 0
-      ? studentsData.results.map((s: any) => ({
-          id: s.id,
-          name: s.name,
-          gr_number: s.gr_number || '-',
-          grade_name: s.grade_name || s.class_name || '-',
-          class_name: s.class_name || '-',
-          section: s.section || '-',
-          gender: s.gender ? (s.gender === 'MALE' ? 'Male' : s.gender === 'FEMALE' ? 'Female' : s.gender) : '-',
-          school_name: s.school_name || '-',
-        }))
-      : fallbackKids;
-
-  const [selectedId, setSelectedId] = useState<string>(kids[0]?.id || '1');
-  const selected = kids.find((k) => k.id === selectedId) || kids[0] || fallbackKids[0];
+  const kids: Child[] = students.data?.results ?? [];
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = kids.find((k) => k.id === selectedId) ?? kids[0] ?? null;
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
@@ -105,16 +118,15 @@ function Dashboard() {
     setCartItems((prev) => prev.filter((it) => it.id !== id));
   };
 
-  const rawStudent = studentsData?.results?.find((s: any) => s.id === selectedId);
-  const studentProfile = rawStudent
+  const studentProfile = selected
     ? {
-        id: rawStudent.id,
-        school_id: rawStudent.school,
-        school_name: rawStudent.school_name,
-        city_id: rawStudent.city,
-        grade_id: rawStudent.grade,
-        grade_name: rawStudent.grade_name || rawStudent.class_name,
-        gender: rawStudent.gender,
+        id: selected.id,
+        school_id: selected.school,
+        school_name: selected.school_name,
+        city_id: selected.city ?? undefined,
+        grade_id: selected.grade ?? undefined,
+        grade_name: selected.grade_name || selected.class_name,
+        gender: selected.gender,
       }
     : null;
 
@@ -134,141 +146,87 @@ function Dashboard() {
         </div>
       </div>
 
+      <AccountActions />
+
       <div className="student-picker">
         <div className="section-row">
-          <h2>My children</h2>
+          <h2>{t('parent.myChildren')}</h2>
         </div>
-        <div className="kids">
-          {kids.map((k) => (
-            <button
-              onClick={() => {
-                setSelectedId(k.id);
-                setCartItems([]);
-                setConfirmPhotoDelete(false);
-                setPhotoDeleteState('idle');
-              }}
-              className={selected?.id === k.id ? 'kid selected' : 'kid'}
-              key={k.id}
-            >
-              <span className="kid-avatar">{k.name[0]}</span>
-              <span>
-                <b>{k.name}</b>
-                <small>{k.grade_name ? `Grade ${k.grade_name}` : `Class ${k.class_name}`} {k.section ? `${k.section} · ` : ' · '}{k.school_name}</small>
-              </span>
-              <span className="radio">{selected?.id === k.id ? <Check width={14} height={14} strokeWidth={2.5} /> : null}</span>
-            </button>
-          ))}
-        </div>
+        {students.isPending ? (
+          <ChildrenSkeleton />
+        ) : students.isError ? (
+          <LoadError onRetry={() => void students.refetch()} />
+        ) : kids.length === 0 ? (
+          <div className="parent-panel">
+            <h3>{t('parent.noChildren')}</h3>
+            <p>{t('parent.noChildrenHint')}</p>
+          </div>
+        ) : (
+          <div className="kids">
+            {kids.map((k) => (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedId(k.id);
+                  setCartItems([]);
+                  setConfirmPhotoDelete(false);
+                  setPhotoDeleteState('idle');
+                }}
+                className={selected?.id === k.id ? 'kid selected' : 'kid'}
+                key={k.id}
+              >
+                <span className="kid-avatar">{k.name[0]}</span>
+                <span>
+                  <b>{k.name}</b>
+                  <small>
+                    {classLabel(k.grade_name || k.class_name)}
+                    {k.section ? ` ${k.section}` : ''} · {dash(k.school_name)}
+                  </small>
+                </span>
+                <span className="radio">{selected?.id === k.id ? <Check width={14} height={14} strokeWidth={2.5} /> : null}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {selected && (
-        <div
-          style={{
-            background: 'var(--card-bg, #ffffff)',
-            border: '1px solid var(--line, #dfe5dd)',
-            borderRadius: '6px',
-            padding: '1.25rem',
-            margin: '1.5rem 0',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              borderBottom: '1px solid var(--line, #dfe5dd)',
-              paddingBottom: '0.75rem',
-              marginBottom: '1rem',
-            }}
-          >
-            <div>
-              <span
-                style={{
-                  fontSize: '0.75rem',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  color: '#6b7280',
-                  fontWeight: 600,
-                }}
-              >
-                STUDENT PROFILE (VIEW ONLY)
-              </span>
-              <h3 style={{ margin: '0.25rem 0 0', fontSize: '1.2rem' }}>
-                {selected.name}
-              </h3>
-            </div>
-            <span
-              style={{
-                fontSize: '0.75rem',
-                padding: '0.25rem 0.6rem',
-                borderRadius: '6px',
-                background: '#f3f4f6',
-                color: '#4b5563',
-                fontWeight: 500,
-              }}
-            >
-              Read-only
-            </span>
+        <section className="child-profile" aria-label={t('parent.studentProfile')}>
+          <div className="child-profile-head">
+            <span className="eyebrow">{t('parent.studentProfile')}</span>
+            <h3>{selected.name}</h3>
           </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-              gap: '1rem',
-              marginBottom: '1rem',
-            }}
-          >
+          <dl className="child-profile-grid">
             <div>
-              <span style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>
-                GR Number
-              </span>
-              <strong style={{ fontSize: '0.95rem' }}>{selected.gr_number || '-'}</strong>
+              <dt>{t('parent.grNumber')}</dt>
+              <dd>{dash(selected.gr_number)}</dd>
             </div>
             <div>
-              <span style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>
-                Grade / Class
-              </span>
-              <strong style={{ fontSize: '0.95rem' }}>
-                {selected.grade_name || selected.class_name || '-'}
-              </strong>
+              <dt>{t('parent.class')}</dt>
+              <dd>{dash(selected.grade_name || selected.class_name)}</dd>
             </div>
             <div>
-              <span style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>
-                Section
-              </span>
-              <strong style={{ fontSize: '0.95rem' }}>{selected.section || '-'}</strong>
+              <dt>{t('parent.section')}</dt>
+              <dd>{dash(selected.section)}</dd>
             </div>
             <div>
-              <span style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>
-                Gender
-              </span>
-              <strong style={{ fontSize: '0.95rem' }}>{selected.gender || '-'}</strong>
+              <dt>{t('parent.gender')}</dt>
+              <dd>{genderLabel(selected.gender)}</dd>
             </div>
             <div>
-              <span style={{ fontSize: '0.75rem', color: '#6b7280', display: 'block' }}>
-                School
-              </span>
-              <strong style={{ fontSize: '0.95rem' }}>{selected.school_name || '-'}</strong>
+              <dt>{t('parent.school')}</dt>
+              <dd>{dash(selected.school_name)}</dd>
             </div>
-          </div>
-
-          <div
-            style={{
-              background: '#f8fafc',
-              borderLeft: '4px solid #3b82f6',
-              padding: '0.6rem 0.85rem',
-              borderRadius: '4px',
-              fontSize: '0.85rem',
-              color: '#334155',
-            }}
-          >
-            ℹ Contact your school to correct this. Only school staff can update student records.
-          </div>
-        </div>
+            <div>
+              <dt>{t('parent.city')}</dt>
+              <dd>{dash(selected.city_name)}</dd>
+            </div>
+          </dl>
+          <p className="child-profile-note">{t('parent.readOnlyNote')}</p>
+        </section>
       )}
 
-      {selected?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selected.id) && (
+      {selected && UUID.test(selected.id) && (
         <section className="photo-delete">
           <ListenButton text={t('photo.delete.listen')} />
           <p>{t('photo.delete.listen')}</p>
@@ -319,69 +277,87 @@ function Dashboard() {
         </section>
       )}
 
-      {/* Category Tabs: Step-by-step Selection flow applies to Uniform, Shoes, Accessories */}
-      <div className="section-row" style={{ marginTop: '2rem' }}>
-        <div>
-          <span className="eyebrow">STORE CATEGORIES</span>
-          <h2>Shop Essentials</h2>
-        </div>
-      </div>
-      <div className="chips">
-        {(['Uniform', 'School Shoes', 'Uniform Accessories', 'Stationery', 'ID Cards'] as const).map((cat) => (
-          <button
-            key={cat}
-            className={activeCategory === cat ? 'chip active' : 'chip'}
-            onClick={() => setActiveCategory(cat)}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
+      {/* Shopping needs a real child: orders are placed for a child on the school roster. */}
+      {selected && (
+        <>
+          <div className="section-row parent-shop-head">
+            <div>
+              <span className="eyebrow">STORE CATEGORIES</span>
+              <h2>Shop Essentials</h2>
+            </div>
+          </div>
+          <div className="chips">
+            {(['Uniform', 'School Shoes', 'Uniform Accessories', 'Stationery', 'ID Cards'] as const).map((cat) => (
+              <button
+                type="button"
+                key={cat}
+                className={activeCategory === cat ? 'chip active' : 'chip'}
+                onClick={() => setActiveCategory(cat)}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
 
-      <SelectionFlow
-        key={selected?.id}
-        category={activeCategory}
-        studentProfile={studentProfile}
-        cartItemCount={cartItems.length}
-        onClearCart={() => setCartItems([])}
-        onOrder={handleAddItem}
-        onNavigateCategory={(cat) => setActiveCategory(cat as any)}
-      />
+          <SelectionFlow
+            key={selected.id}
+            category={activeCategory}
+            studentProfile={studentProfile}
+            cartItemCount={cartItems.length}
+            onClearCart={() => setCartItems([])}
+            onOrder={handleAddItem}
+            onNavigateCategory={(cat) => setActiveCategory(cat as any)}
+          />
 
-      <Cart
-        items={cartItems}
-        studentId={selected?.id}
-        onClear={() => setCartItems([])}
-        onRemoveItem={handleRemoveItem}
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ['orders'] });
-        }}
-      />
+          <Cart
+            items={cartItems}
+            studentId={selected.id}
+            onClear={() => setCartItems([])}
+            onRemoveItem={handleRemoveItem}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ['orders'] });
+            }}
+          />
+        </>
+      )}
     </>
   );
 }
 
 function Orders() {
   const queryClient = useQueryClient();
-  const { data } = useQuery({
+  const { t } = useLang();
+  const ordersQuery = useQuery({
     queryKey: ['orders'],
-    queryFn: () => api<any>('/orders/').catch(() => []),
+    queryFn: () => api<{ results?: Order[] } | Order[]>('/orders/'),
   });
-  const orders: Order[] = (data?.results || data || []) as Order[];
+  const data = ordersQuery.data;
+  const orders: Order[] = Array.isArray(data) ? data : data?.results ?? [];
 
   return (
     <>
       <div className="section-row">
         <div>
           <span className="eyebrow">YOUR PURCHASES</span>
-          <h2>My orders</h2>
+          <h2>{t('parent.myOrders')}</h2>
         </div>
         <Link className="text-button" to="/parent">
           Shop again
         </Link>
       </div>
 
-      {orders.length ? (
+      {ordersQuery.isPending ? (
+        <div aria-busy="true">
+          {[0, 1].map((i) => (
+            <article className="order-card" key={i}>
+              <Skeleton width="40%" height="1rem" />
+              <Skeleton width="70%" height="0.8rem" style={{ marginTop: 8 }} />
+            </article>
+          ))}
+        </div>
+      ) : ordersQuery.isError ? (
+        <LoadError onRetry={() => void ordersQuery.refetch()} />
+      ) : orders.length ? (
         orders.map((o) => (
           <article className="order-card" key={o.id}>
             <div className="section-row">
@@ -407,7 +383,6 @@ function Orders() {
         ))
       ) : (
         <div className="empty">
-          <span>⌁</span>
           <h3>No orders yet</h3>
           <p>Your orders and live delivery timeline will appear here.</p>
           <Link className="primary" to="/parent">
@@ -415,6 +390,8 @@ function Orders() {
           </Link>
         </div>
       )}
+
+      <AccountActions showOrders={false} />
     </>
   );
 }

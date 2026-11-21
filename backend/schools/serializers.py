@@ -77,6 +77,7 @@ class StudentSerializer(serializers.ModelSerializer):
     parent_name = serializers.CharField(source="parent.get_full_name", read_only=True)
     parent_phone = serializers.CharField(source="parent.phone", read_only=True)
     grade_name = serializers.CharField(source="grade.name", read_only=True)
+    city_name = serializers.CharField(source="city.name", read_only=True, allow_null=True)
     # Optional: school staff get it filled from their JWT scope, Admins must pass
     # a school inside their city.
     school = serializers.PrimaryKeyRelatedField(
@@ -99,6 +100,7 @@ class StudentSerializer(serializers.ModelSerializer):
             "school_name",
             "school_code",
             "city",
+            "city_name",
             "parent",
             "parent_name",
             "parent_phone",
@@ -114,6 +116,7 @@ class StudentSerializer(serializers.ModelSerializer):
             "school_name",
             "school_code",
             "city",
+            "city_name",
             "parent",
             "parent_name",
             "parent_phone",
