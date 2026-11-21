@@ -292,4 +292,52 @@ describe('CheckoutPage Razorpay Flow', () => {
     expect(open).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: /Pay now|Try again|Pay cash/i })).toBeNull();
   });
+
+  const quoteBoth = {
+    lines: [], subtotal: '1000.00', total: '1000.00', total_paise: 100000, currency: 'INR' as const,
+    payment_methods: ['ONLINE', 'COD'] as ('ONLINE' | 'COD')[], reservation_minutes: 15,
+  };
+
+  it('back after paying in the UPI app: picking cash finds the paid order, not a COD one', async () => {
+    vi.spyOn(orderApi, 'quote').mockResolvedValueOnce(quoteBoth);
+    // The same bag returns the online order placed before the reload. It was paid meanwhile.
+    const earlier = contract.states.CHECKING.detail as Order;
+    const submit = vi.spyOn(placeOrderService, 'submitOrder').mockResolvedValueOnce({
+      ...earlier, total: String(earlier.total), fulfillment_type: earlier.fulfillment_type!,
+    });
+    vi.spyOn(orderApi, 'payment').mockRejectedValueOnce(new ApiError('Already paid', 409, {
+      code: 'already_paid', payment_view: contract.states.PAID.detail.payment_view,
+    }));
+    const open = vi.spyOn(paymentAdapter, 'openRazorpayCheckout');
+
+    renderCheckout();
+    await advanceToStep3();
+    await screen.findByText('Cash on delivery');
+    fireEvent.click(screen.getByDisplayValue('COD'));
+    fireEvent.click(screen.getByRole('button', { name: /Place order/i }));
+
+    expect(await screen.findByRole('heading', { name: 'Payment received.' })).toBeDefined();
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(open).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Cash on delivery\. Pay/i)).toBeNull();
+  });
+
+  it('a cancelled earlier order for the same bag starts a new order', async () => {
+    vi.spyOn(orderApi, 'quote').mockResolvedValueOnce(quoteBoth);
+    const released = contract.states.RELEASED.detail as Order;
+    const placed = contract.states.COD_DUE.detail as Order;
+    const submit = vi.spyOn(placeOrderService, 'submitOrder')
+      .mockResolvedValueOnce({ ...released, total: String(released.total), fulfillment_type: released.fulfillment_type! })
+      .mockResolvedValueOnce({ ...placed, total: String(placed.total), fulfillment_type: placed.fulfillment_type! });
+
+    renderCheckout();
+    await advanceToStep3();
+    await screen.findByText('Cash on delivery');
+    fireEvent.click(screen.getByDisplayValue('COD'));
+    fireEvent.click(screen.getByRole('button', { name: /Place order/i }));
+
+    await waitFor(() => expect(submit).toHaveBeenCalledTimes(2));
+    expect(submit.mock.calls[0][0].idempotency_key).not.toBe(submit.mock.calls[1][0].idempotency_key);
+    expect(await screen.findByText(placed.order_number, { exact: false })).toBeDefined();
+  });
 });

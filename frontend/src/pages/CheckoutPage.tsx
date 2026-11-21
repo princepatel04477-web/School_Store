@@ -7,7 +7,7 @@ import { siteConfig } from '../siteConfig';
 import { useStoreSchools } from '../data/catalog';
 import { fitPayload } from '../data/fit';
 import { buildOrderMessage, whatsappOrderUrl } from '../services/whatsappOrder';
-import { orderErrorMessage, prepareOrder, submitOrder, clearPendingOrder, type PlacedOrder } from '../services/placeOrder';
+import { orderErrorMessage, prepareOrder, submitOrder, clearPendingOrder, settlePendingOrder, type OrderPayload, type PlacedOrder } from '../services/placeOrder';
 import { checkingPayment, paymentRefusal, runOrderPayment } from '../services/orderPayment';
 import { PaymentStatus } from '../components/PaymentStatus';
 import { useAuth } from '../auth';
@@ -177,12 +177,11 @@ export function CheckoutPage() {
     }
   }, [activeStep, mode, child, fetchQuote]);
 
-  const applyPayment = (view: PaymentView) => {
+  const applyPayment = (orderId: string, view: PaymentView) => {
     setPayment(view);
-    if (view.receipt) {
-      clearPendingOrder();
-      clearCart();
-    }
+    const bought = settlePendingOrder(orderId, view);
+    if (view.receipt) clearPendingOrder();
+    if (bought || view.receipt) clearCart();
   };
 
   const refreshPayment = async (order: PlacedOrder) => {
@@ -191,14 +190,14 @@ export function CheckoutPage() {
     setPaymentBusy(true);
     try {
       const result = await orderApi.reconcilePayment(order.id);
-      applyPayment(result.payment_view);
+      applyPayment(order.id, result.payment_view);
       setRefreshCoolingDown(true);
       refreshTimer.current = window.setTimeout(() => {
         refreshLock.current = false;
         setRefreshCoolingDown(false);
       }, result.retry_after_seconds * 1000);
     } catch (error) {
-      applyPayment(paymentRefusal(error) ?? checkingPayment(payment ?? order.payment_view));
+      applyPayment(order.id, paymentRefusal(error) ?? checkingPayment(payment ?? order.payment_view));
       refreshLock.current = false;
     } finally {
       setPaymentBusy(false);
@@ -209,9 +208,9 @@ export function CheckoutPage() {
     setPayment(order.payment_view);
     setPaymentBusy(true);
     try {
-      await runOrderPayment(order.id, applyPayment);
+      await runOrderPayment(order.id, (view) => applyPayment(order.id, view));
     } catch (error) {
-      applyPayment(paymentRefusal(error) ?? checkingPayment(order.payment_view));
+      applyPayment(order.id, paymentRefusal(error) ?? checkingPayment(order.payment_view));
     } finally {
       setPaymentBusy(false);
     }
@@ -229,7 +228,7 @@ export function CheckoutPage() {
         if (stopped) return;
         const view = order.payment_view;
         if (view.receipt || view.state === 'RELEASED' || view.state === 'COD_DUE') {
-          applyPayment(view);
+          applyPayment(order.id, view);
           return;
         }
       } catch {
@@ -253,7 +252,7 @@ export function CheckoutPage() {
     setPlacing(true);
     setRetrying(false);
     const contact = { recipient_name: parentName.trim(), phone: parentMobile };
-    const payload = prepareOrder({
+    const draft: Omit<OrderPayload, 'idempotency_key'> = {
       student: child.id,
       fulfillment_type: deliveryType === 'HOME' ? 'HOME_DELIVERY' : 'SCHOOL_PICKUP',
       payment_method: selectedMethod,
@@ -274,11 +273,17 @@ export function CheckoutPage() {
         quantity: item.quantity,
         ...(item.measurement ? { fit: fitPayload(item.measurement) } : {}),
       })),
-    });
+    };
 
     try {
-      const order = await submitOrder(payload, () => setRetrying(true));
-      if (selectedMethod === 'COD') {
+      // The same bag after a reload finds the order already placed for it, whatever was picked now.
+      let order = await submitOrder(prepareOrder(draft), () => setRetrying(true));
+      if (order.status === 'CANCELLED') {
+        // That earlier order was released or cancelled: this checkout is a new order.
+        clearPendingOrder();
+        order = await submitOrder(prepareOrder(draft), () => setRetrying(true));
+      }
+      if (order.payment_method !== 'ONLINE') {
         clearPendingOrder();
         setPlaced(order);
         clearCart();

@@ -8,6 +8,8 @@ import { SelectionFlow } from '../components/SelectionFlow';
 import { Cart, Timeline, type CartItem } from '../components/Store';
 import { api, deleteChildPhotos, Order, Product, orderApi, type PaymentView } from '../api';
 import { checkingPayment, paymentRefusal, runOrderPayment } from '../services/orderPayment';
+import { settlePendingOrder } from '../services/placeOrder';
+import { storeState } from '../store/storeState';
 import { PaymentStatus } from '../components/PaymentStatus';
 import { useLang } from '../i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -402,6 +404,12 @@ function Orders() {
     return previous;
   };
   const update = (id: string, view: PaymentView) => setViews(previous => ({ ...previous, [id]: view }));
+  // A saved online order that is now paid, released or moved to cash no longer holds the bag.
+  useEffect(() => {
+    for (const order of orders) {
+      if (settlePendingOrder(order.id, visiblePayment(order))) storeState.clearCart();
+    }
+  });
 
   async function refresh(order: Order) {
     try {
