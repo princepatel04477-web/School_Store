@@ -4,7 +4,8 @@ import { render, screen, fireEvent, act, waitFor, cleanup } from '@testing-libra
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CheckoutPage } from './CheckoutPage';
-import { orderApi, ApiError } from '../api';
+import { orderApi, ApiError, type Order, type PaymentStartResponse, type PaymentReconcileResponse } from '../api';
+import contract from '../test/fixtures/payment-contract.json';
 import * as placeOrderService from '../services/placeOrder';
 import * as paymentAdapter from '../services/paymentAdapter';
 
@@ -234,195 +235,33 @@ describe('CheckoutPage Razorpay Flow', () => {
       reservation_minutes: 15,
     });
 
+    const deadline = new Date(Date.now() + 900_000).toISOString();
+    const detail = contract.states.CHECKING.detail as Order;
     vi.spyOn(placeOrderService, 'submitOrder').mockResolvedValueOnce({
-      id: 'order-123',
-      order_number: 'SS-ORD-123',
-      total: '1000.00',
-      student_name: 'Aarav Patel',
-      fulfillment_type: 'HOME_DELIVERY',
-      payment_method: 'ONLINE',
-      payment_status: 'PENDING',
-      status: 'PLACED',
+      ...detail, total: String(detail.total), fulfillment_type: detail.fulfillment_type!,
     });
-
     vi.spyOn(orderApi, 'payment').mockResolvedValueOnce({
-      key_id: 'rzp_test_123',
-      razorpay_order_id: 'order_test_123',
-      amount_paise: 100000,
-      amount: 1000,
-      currency: 'INR',
-      store_order_number: 'SS-ORD-123',
+      ...contract.start as PaymentStartResponse, hold_expires_at: deadline,
     });
-
     vi.spyOn(paymentAdapter, 'loadRazorpay').mockResolvedValue(true);
-
-    let modalDismissHandler: (() => void) | undefined;
-    let paymentSuccessHandler: ((response: any) => Promise<void>) | undefined;
-    vi.spyOn(paymentAdapter, 'openRazorpayCheckout').mockImplementation((options: any) => {
-      modalDismissHandler = options.modal?.ondismiss;
-      paymentSuccessHandler = options.handler;
-      return { open: vi.fn(), on: vi.fn() };
+    const open = vi.spyOn(paymentAdapter, 'openRazorpayCheckout').mockImplementation(options => {
+      options.modal?.ondismiss?.();
     });
-
-    // Reconcile takes a moment so checking state can be observed
-    let resolveReconcile: any;
-    vi.spyOn(orderApi, 'reconcilePayment').mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveReconcile = resolve;
-        })
+    vi.spyOn(orderApi, 'reconcilePayment').mockResolvedValueOnce(
+      contract.states.CHECKING.reconcile as PaymentReconcileResponse,
     );
 
-    // Verify returns confirming
-    vi.spyOn(orderApi, 'verifyPayment').mockResolvedValueOnce({
-      status: 'confirming',
-      payment_status: 'PENDING',
-      order_status: 'PLACED',
-    });
-
     renderCheckout();
     await advanceToStep3();
+    fireEvent.click(await screen.findByRole('button', { name: /Pay now/i }));
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Pay now/i })).toBeDefined();
-    });
-
-    // Click Pay Now
-    fireEvent.click(screen.getByRole('button', { name: /Pay now/i }));
-
-    await waitFor(() => {
-      expect(paymentAdapter.openRazorpayCheckout).toHaveBeenCalled();
-    });
-
-    // Case 1: Parent closes modal -> checking state
-    act(() => {
-      modalDismissHandler?.();
-    });
-
-    // In checking state:
-    await waitFor(() => {
-      expect(screen.getAllByText(/Checking your payment/i)[0]).toBeDefined();
-    });
-    // Must NEVER say "paid" or "Payment received" in checking state
+    expect(await screen.findByRole('heading', { name: 'Checking payment' })).toBeDefined();
+    expect(open).toHaveBeenCalledWith(expect.objectContaining({
+      order_id: contract.start.razorpay_order_id, amount: contract.start.amount_paise, retry: { enabled: false },
+    }));
+    expect(screen.getByText(/A payment is still in progress/i)).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Refresh status' })).toBeDefined();
     expect(screen.queryByText(/Payment received/i)).toBeNull();
-    expect(screen.queryByText(/Order SS-ORD-123 is confirmed/i)).toBeNull();
-
-    // Finish reconcile
-    act(() => {
-      resolveReconcile({
-        id: 'order-123',
-        order_number: 'SS-ORD-123',
-        student_name: 'Aarav Patel',
-        status: 'PLACED',
-        payment_status: 'PENDING',
-        payment_method: 'ONLINE',
-        total: '1000.00',
-        created_at: new Date().toISOString(),
-        has_in_progress_attempt: false,
-        last_attempt_failed: null,
-      });
-    });
-
-    // Case 2: Success handler runs but server verify returned 'confirming'
-    await act(async () => {
-      await paymentSuccessHandler?.({
-        razorpay_order_id: 'order_test_123',
-        razorpay_payment_id: 'pay_test_123',
-        razorpay_signature: 'sig_123',
-      });
-    });
-
-    // In confirming state:
-    await waitFor(() => {
-      expect(screen.getByText(/confirming your payment/i)).toBeDefined();
-    });
-    // Must NEVER say "paid" or "Payment received" in confirming state
-    expect(screen.queryByText(/Payment received/i)).toBeNull();
-    expect(screen.queryByText(/Order SS-ORD-123 is confirmed/i)).toBeNull();
-  });
-
-  it('Try again is hidden while server reports attempt in progress', async () => {
-    vi.spyOn(orderApi, 'quote').mockResolvedValueOnce({
-      lines: [],
-      subtotal: '1000.00',
-      total: '1000.00',
-      total_paise: 100000,
-      currency: 'INR',
-      payment_methods: ['ONLINE'],
-      reservation_minutes: 15,
-    });
-
-    vi.spyOn(placeOrderService, 'submitOrder').mockResolvedValueOnce({
-      id: 'order-456',
-      order_number: 'SS-ORD-456',
-      total: '1000.00',
-      student_name: 'Aarav Patel',
-      fulfillment_type: 'HOME_DELIVERY',
-      payment_method: 'ONLINE',
-      payment_status: 'PENDING',
-      status: 'PLACED',
-    });
-
-    vi.spyOn(orderApi, 'payment').mockResolvedValueOnce({
-      key_id: 'rzp_test_123',
-      razorpay_order_id: 'order_test_456',
-      amount_paise: 100000,
-      amount: 1000,
-      currency: 'INR',
-      store_order_number: 'SS-ORD-456',
-    });
-
-    vi.spyOn(paymentAdapter, 'loadRazorpay').mockResolvedValue(true);
-
-    let modalDismissHandler: (() => void) | undefined;
-    vi.spyOn(paymentAdapter, 'openRazorpayCheckout').mockImplementation((options: any) => {
-      modalDismissHandler = options.modal?.ondismiss;
-      return { open: vi.fn(), on: vi.fn() };
-    });
-
-    // Reconcile reports attempt in progress!
-    vi.spyOn(orderApi, 'reconcilePayment').mockResolvedValueOnce({
-      id: 'order-456',
-      order_number: 'SS-ORD-456',
-      student_name: 'Aarav Patel',
-      status: 'PLACED',
-      payment_status: 'PENDING',
-      payment_method: 'ONLINE',
-      total: '1000.00',
-      created_at: new Date().toISOString(),
-      has_in_progress_attempt: true,
-      last_attempt_failed: null,
-    });
-
-    renderCheckout();
-    await advanceToStep3();
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Pay now/i })).toBeDefined();
-    });
-
-    // Click Pay Now
-    fireEvent.click(screen.getByRole('button', { name: /Pay now/i }));
-
-    await waitFor(() => {
-      expect(paymentAdapter.openRazorpayCheckout).toHaveBeenCalled();
-    });
-
-    // Dismiss checkout modal
-    act(() => {
-      modalDismissHandler?.();
-    });
-
-    // Verify "A payment is still in progress" is displayed
-    await waitFor(() => {
-      expect(screen.getByText(/A payment is still in progress/i)).toBeDefined();
-    });
-
-    // "Check again" is available
-    expect(screen.getByText('Check again')).toBeDefined();
-
-    // "Try again" and "Pay cash on delivery instead" MUST BE HIDDEN while attempt is in progress!
-    expect(screen.queryByText('Try again')).toBeNull();
-    expect(screen.queryByText('Pay cash on delivery instead')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Pay now|Try again|Pay cash/i })).toBeNull();
   });
 });

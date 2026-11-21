@@ -141,9 +141,11 @@ class PaymentSafetyTests(OrderFixture):
 
     def test_retrying_payment_reuses_the_razorpay_order(self):
         order = self.make_order("ORD-PNQ-7", payer=self.parent, razorpay_order_id="order_first")
-        res = self.parent_client().post(reverse("order-payment", kwargs={"pk": order.pk}))
+        with patch.object(RazorpayGateway, "fetch_order_payments", return_value=[]) as fetch:
+            res = self.parent_client().post(reverse("order-payment", kwargs={"pk": order.pk}))
+        fetch.assert_called_once_with("order_first")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(res.data["order_id"], "order_first")
+        self.assertEqual(res.data["razorpay_order_id"], "order_first")
 
     def test_late_webhook_does_not_revive_a_cancelled_order(self):
         order = self.make_order("ORD-PNQ-8", order_status=Order.Status.CANCELLED, payer=self.parent, razorpay_order_id="order_late")

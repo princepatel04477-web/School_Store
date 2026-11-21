@@ -232,17 +232,21 @@ class QuoteAndCreateTests(RazorpayTestBase):
     def test_05_payment_called_twice_creates_razorpay_order_once_with_paise_amount(self):
         order = self.make_order(quantity=2)  # 900.00 = 90000 paise
         mock_rzp_order = {"id": "order_rzp_unique_05", "amount": 90000, "currency": "INR"}
-        with patch.object(RazorpayGateway, "create_order", return_value=mock_rzp_order) as mock_create:
+        with (
+            patch.object(RazorpayGateway, "create_order", return_value=mock_rzp_order) as mock_create,
+            patch.object(RazorpayGateway, "fetch_order_payments", return_value=[]) as fetch,
+        ):
             res1 = self.parent_client.post(f"/api/orders/{order.pk}/payment/")
             self.assertEqual(res1.status_code, 200, res1.json())
-            self.assertEqual(res1.json()["order_id"], "order_rzp_unique_05")
-            self.assertEqual(res1.json()["amount"], 90000)
+            self.assertEqual(res1.json()["razorpay_order_id"], "order_rzp_unique_05")
+            self.assertEqual(res1.json()["amount_paise"], 90000)
 
             # Second call reuses existing razorpay_order_id
             res2 = self.parent_client.post(f"/api/orders/{order.pk}/payment/")
             self.assertEqual(res2.status_code, 200, res2.json())
-            self.assertEqual(res2.json()["order_id"], "order_rzp_unique_05")
+            self.assertEqual(res2.json()["razorpay_order_id"], "order_rzp_unique_05")
             mock_create.assert_called_once()
+            fetch.assert_called_once_with("order_rzp_unique_05")
 
 
 @override_settings(

@@ -1,6 +1,7 @@
+import { ParentSignInSheet } from './components/parent/ParentSignInSheet';
 import { PaymentReturnNotice } from './components/PaymentReturnNotice';
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
-import { Navigate, Route, Routes, Link, useLocation } from 'react-router-dom';
+import { Navigate, useNavigate, Route, Routes, Link, useLocation } from 'react-router-dom';
 import { useAuth } from './auth';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -58,9 +59,14 @@ export const homeFor = (role?: string, cityId?: string | null) =>
     ? '/retailer'
     : '/school';
 
-function Guard({ children, roles }: { children: ReactNode; roles?: string[] }) {
+function Guard({ children, roles, parentOtp }: { children: ReactNode; roles?: string[]; parentOtp?: boolean }) {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
   if (loading) return <div className="splash">Loading your store…</div>;
+  if (!user && parentOtp) {
+    const goHome = () => navigate('/', { replace: true });
+    return <ParentSignInSheet open onClose={goHome} onDone={() => {}} />;
+  }
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to={homeFor(user.role, user.city)} replace />;
   return <>{children}</>;
@@ -166,7 +172,7 @@ export default function App() {
               <Route path="/boss/*" element={<Guard roles={['BOSS']}><BossPanel /></Guard>} />
               <Route path="/city/*" element={<Guard roles={['ADMIN', 'BOSS']}><CityAdmin /></Guard>} />
               <Route path="/school/*" element={<Guard roles={['SCHOOL_ADMIN', 'ADMIN', 'BOSS']}><SchoolAdmin /></Guard>} />
-              <Route path="/parent/*" element={<Guard roles={['PARENT']}><Parent /></Guard>} />
+              <Route path="/parent/*" element={<Guard roles={['PARENT']} parentOtp><Parent /></Guard>} />
               <Route path="/teacher/*" element={<Guard roles={['TEACHER', 'SCHOOL_ADMIN']}><Teacher /></Guard>} />
               <Route path="/retailer/*" element={<Guard roles={['RETAILER']}><Retailer /></Guard>} />
               <Route path="/portal/*" element={<Guard roles={['BOSS', 'ADMIN']}><AdminPortal /></Guard>} />
@@ -181,7 +187,7 @@ export default function App() {
         {!isPortal && <Footer />}
 
         {!isPortal && <LanguageChooser open={langOpen} onClose={closeLanguage} />}
-        {!isPortal && <WelcomePopup blocked={langOpen || !hasChosen} />}
+        {!isPortal && !location.pathname.startsWith('/parent') && <WelcomePopup blocked={langOpen || !hasChosen} />}
 
         {searchOpen && (
           <Suspense fallback={null}>
