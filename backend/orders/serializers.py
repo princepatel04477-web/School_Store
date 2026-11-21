@@ -250,7 +250,9 @@ class OrderCreateSerializer(serializers.Serializer):
     # campuses in many cities) has no city of its own, so stock and price come
     # from the campus's city. Optional: a school with its own city works without it.
     branch = serializers.PrimaryKeyRelatedField(
-        queryset=SchoolBranch.objects.select_related("city").all(),
+        # Only campuses the shop still offers: a stale checkout must not order
+        # for a campus that was switched off (e.g. by the directory import).
+        queryset=SchoolBranch.objects.select_related("city").filter(active=True),
         required=False,
         allow_null=True,
     )
@@ -430,12 +432,24 @@ class OrderCreateSerializer(serializers.Serializer):
             effective_price = city_prices.get(variant.product_id, variant.product.selling_price)
             subtotal += effective_price * quantity
 
-        if branch and not student.branch_id:
-            # Record the campus on a child added without one (parent manual
-            # add or claim). Student.save copies the campus's city, which
-            # Order.save then reads. Rolled back if the order fails below.
-            student.branch = branch
-            student.save(update_fields=["branch", "city", "school", "updated_at"])
+        if branch:
+            # Re-read the child under a row lock: two first orders for the same
+            # child at different campuses can both pass validate(). The first
+            # to commit records its campus; the second then sees it here.
+            locked = Student.objects.select_for_update().get(pk=student.pk)
+            if (locked.branch_id and locked.branch_id != branch.id) or (
+                not locked.branch_id and locked.city_id and locked.city_id != branch.city_id
+            ):
+                raise serializers.ValidationError(
+                    {"branch": "This campus is not the child's campus."}
+                )
+            if not locked.branch_id:
+                # Record the campus on a child added without one (parent manual
+                # add or claim). Student.save copies the campus's city, which
+                # Order.save then reads. Rolled back if the order fails below.
+                locked.branch = branch
+                locked.save(update_fields=["branch", "city", "school", "updated_at"])
+            student = locked
 
         order_number = f"ORD-{uuid.uuid4().hex[:16].upper()}"
         try:
