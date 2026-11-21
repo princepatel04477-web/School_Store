@@ -111,7 +111,9 @@ export function OrdersTab() {
               <article className="native-order-card" key={o.id}>
                 <div className="native-card-header">
                   <div>
-                    <div className="native-order-num">{o.order_number}</div>
+                    <Link to={`/orders/${o.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                      <div className="native-order-num">{o.order_number}</div>
+                    </Link>
                     <small className="native-order-date">
                       {new Date(o.created_at).toLocaleDateString('en-IN', {
                         day: 'numeric',
@@ -147,6 +149,20 @@ export function OrdersTab() {
                 </div>
                 <div className="native-timeline-wrapper">
                   <Timeline order={o} />
+                </div>
+                <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+                  <Link
+                    to={`/orders/${o.id}`}
+                    className="native-secondary-btn"
+                    style={{
+                      minHeight: '44px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '8px 16px',
+                    }}
+                  >
+                    {t('orderDetail.viewDetails')} →
+                  </Link>
                 </div>
                 <FitFeedbackPrompt
                   orderId={o.id}

@@ -176,11 +176,116 @@ class ParentTrackingTestCase(TestCase):
         self.assertEqual(ev["note"], "Staff placed internal event note")
 
     def test_another_parents_order_is_404(self):
-        order_p1 = self._create_order(self.parent_1, self.student_1, "ORD-TRK-P1")
+        order_p1 = self._create_order(self.parent_1, self.student_1, "ORD-TRK-P1", status=Order.Status.DISPATCHED)
+        Shipment.objects.create(
+            order=order_p1,
+            carrier=Shipment.Carrier.INDIA_POST,
+            consignment_number="EE999999999IN",
+            created_by=self.staff_admin,
+        )
 
         # Parent 2 tries to access parent 1's order
         resp = self.client_p2.get(f"/api/orders/{order_p1.id}/")
         self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+        # Verify no tracking details leaked in 404 response
+        self.assertNotIn("EE999999999IN", str(resp.content))
+
+    def test_parent_detail_items_include_product_size_qty_personalisation_without_measurements(self):
+        order = self._create_order(self.parent_1, self.student_1, "ORD-TRK-ITEMS", status=Order.Status.CONFIRMED)
+        item = order.items.first()
+        item.fit_height_cm = Decimal("132.50")
+        item.fit_weight_kg = Decimal("28.00")
+        item.fit_shoulder_cm = Decimal("32.00")
+        item.fit_model_version = "v1"
+        item.fit_source = "MANUAL"
+        item.unit_cost_snapshot = Decimal("180.00")
+        item.customisation_data = {"student_name": "Aarav", "house": "Red"}
+        item.save()
+
+        # Parent detail call
+        resp = self.client_p1.get(f"/api/orders/{order.id}/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(resp.data["items"]), 1)
+        parent_item = resp.data["items"][0]
+
+        # Allowed fields
+        self.assertEqual(parent_item["product_name"], "Uniform Set")
+        self.assertEqual(parent_item["size"], "M")
+        self.assertEqual(parent_item["variant_size"], "M")
+        self.assertEqual(parent_item["quantity"], 1)
+        self.assertEqual(parent_item["unit_price_snapshot"], "600.00")
+        self.assertIn("customisation_display", parent_item)
+        self.assertEqual(parent_item["customisation_display"]["student_name"]["value"], "Aarav")
+        self.assertEqual(parent_item["customisation_display"]["house"]["value"], "Red")
+
+        # Must NEVER leak measurements, internal costs, or model versions
+        self.assertNotIn("measurement", parent_item)
+        self.assertNotIn("fit_height_cm", parent_item)
+        self.assertNotIn("fit_weight_kg", parent_item)
+        self.assertNotIn("fit_shoulder_cm", parent_item)
+        self.assertNotIn("fit_model_version", parent_item)
+        self.assertNotIn("fit_source", parent_item)
+        self.assertNotIn("unit_cost_snapshot", parent_item)
+
+    def test_parent_detail_and_list_never_expose_internal_audit_fields(self):
+        order = self._create_order(self.parent_1, self.student_1, "ORD-TRK-AUDIT", status=Order.Status.PACKED)
+        from orders.models import OrderPacking
+        OrderPacking.objects.create(
+            order=order,
+            claimed_by=self.staff_admin,
+            claimed_at=timezone.now(),
+            packed_by=self.staff_admin,
+            packed_at=timezone.now(),
+            issue_note="Internal staff packaging remark",
+        )
+
+        # Parent detail
+        resp_detail = self.client_p1.get(f"/api/orders/{order.id}/")
+        self.assertEqual(resp_detail.status_code, status.HTTP_200_OK)
+        detail_data = resp_detail.data
+        self.assertNotIn("packing", detail_data)
+        self.assertNotIn("claimed_by", str(detail_data))
+        self.assertNotIn("packed_by", str(detail_data))
+        self.assertNotIn("issue_note", str(detail_data))
+        self.assertNotIn("Internal staff packaging remark", str(detail_data))
+        self.assertNotIn("razorpay_order_id", detail_data)
+        self.assertNotIn("razorpay_payment_id", detail_data)
+
+        # Parent list
+        resp_list = self.client_p1.get("/api/orders/")
+        self.assertEqual(resp_list.status_code, status.HTTP_200_OK)
+        list_data = resp_list.data["results"][0]
+        self.assertNotIn("packing", list_data)
+        self.assertNotIn("claimed_by", str(list_data))
+        self.assertNotIn("issue_note", str(list_data))
+        self.assertNotIn("razorpay_order_id", list_data)
+
+    def test_consignment_number_only_set_when_shipment_exists(self):
+        # Order without shipment
+        order_no_shipment = self._create_order(self.parent_1, self.student_1, "ORD-NO-SHIP", status=Order.Status.CONFIRMED)
+        resp = self.client_p1.get(f"/api/orders/{order_no_shipment.id}/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertIsNone(resp.data["tracking"]["consignment_number"])
+        self.assertIsNone(resp.data["tracking"]["carrier"])
+
+        # Older order marked DISPATCHED before tracking was introduced (no shipment row)
+        order_old_dispatched = self._create_order(self.parent_1, self.student_1, "ORD-OLD-DISP", status=Order.Status.DISPATCHED)
+        resp_old = self.client_p1.get(f"/api/orders/{order_old_dispatched.id}/")
+        self.assertEqual(resp_old.status_code, status.HTTP_200_OK)
+        self.assertIsNone(resp_old.data["tracking"]["consignment_number"])
+        self.assertIsNone(resp_old.data["tracking"]["carrier"])
+
+        # Order with shipment
+        Shipment.objects.create(
+            order=order_old_dispatched,
+            carrier=Shipment.Carrier.INDIA_POST,
+            consignment_number="EM123456789IN",
+            created_by=self.staff_admin,
+        )
+        resp_with_shipment = self.client_p1.get(f"/api/orders/{order_old_dispatched.id}/")
+        self.assertEqual(resp_with_shipment.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp_with_shipment.data["tracking"]["consignment_number"], "EM123456789IN")
+        self.assertEqual(resp_with_shipment.data["tracking"]["carrier"], "INDIA_POST")
 
     def test_fixed_query_count_for_1_and_30_orders(self):
         # Create 1 order with shipment and status events

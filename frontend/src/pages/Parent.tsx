@@ -8,6 +8,7 @@ import { Cart, Timeline, getOrderStatusLabel, type CartItem } from '../component
 import { FitFeedbackPrompt } from '../components/orders/FitFeedbackPrompt';
 import { api, deleteChildPhotos, Order, Page, Product } from '../api';
 import { OrderCardsSkeleton } from '../components/ui/Skeleton';
+import { OrderDetail } from './OrderDetail';
 import { useLang } from '../i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import '../components/photoConsent.css';
@@ -54,6 +55,7 @@ export default function Parent() {
       <Routes>
         <Route index element={<Dashboard />} />
         <Route path="orders" element={<Orders />} />
+        <Route path="orders/:id" element={<OrderDetail />} />
       </Routes>
     </Shell>
   );
@@ -423,7 +425,9 @@ export function Orders() {
           <article className="order-card" key={o.id}>
             <div className="section-row">
               <div>
-                <b>{o.order_number}</b>
+                <Link to={`/parent/orders/${o.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                  <b>{o.order_number}</b>
+                </Link>
                 <small>
                   {new Date(o.created_at).toLocaleDateString('en-IN')}
                 </small>
@@ -434,6 +438,22 @@ export function Orders() {
               {o.student_name} · <strong>₹{o.total}</strong>
             </p>
             <Timeline order={o} />
+            <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+              <Link
+                to={`/parent/orders/${o.id}`}
+                className="secondary"
+                style={{
+                  minHeight: '44px',
+                  width: 'auto',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '8px 16px',
+                  borderRadius: 'var(--radius-md, 4px)',
+                }}
+              >
+                {t('orderDetail.viewDetails')} →
+              </Link>
+            </div>
             <FitFeedbackPrompt
               orderId={o.id}
               orderStatus={o.status}

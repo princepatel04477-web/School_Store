@@ -116,13 +116,8 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             .prefetch_related("items__variant__product", "status_events")
             .get(pk=order.pk)
         )
-        detail_class = (
-            ParentOrderDetailSerializer
-            if getattr(request.user, "role", None) == "PARENT"
-            else OrderDetailSerializer
-        )
         return Response(
-            detail_class(order).data,
+            OrderDetailSerializer(order).data,
             status=status.HTTP_201_CREATED,
         )
 

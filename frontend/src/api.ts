@@ -46,6 +46,18 @@ export type OrderTracking = {
   steps: OrderTrackingStep[];
 };
 
+export type OrderItemDetail = {
+  id: string;
+  product_name: string;
+  variant_sku?: string;
+  variant_size?: string;
+  size?: string;
+  quantity: number;
+  unit_price_snapshot: string | number;
+  customisation_data?: Record<string, unknown>;
+  customisation_display?: Record<string, unknown>;
+};
+
 export type Order = {
   id: string;
   order_number: string;
@@ -64,6 +76,7 @@ export type Order = {
   tracking?: OrderTracking;
   created_at: string;
   status_events?: { status: string; timestamp: string }[];
+  items?: OrderItemDetail[];
 };
 const API=import.meta.env.VITE_API_URL||'/api';
 

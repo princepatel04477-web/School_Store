@@ -1185,6 +1185,60 @@ export const messages = {
   'orders.retry': { en: 'Retry', gu: 'ફરી પ્રયત્ન કરો', hi: 'फिर से कोशिश करें' },
   'status.cancelled': { en: 'Cancelled', gu: 'રદ થયેલ', hi: 'रद्द' },
   'status.returned': { en: 'Returned', gu: 'પરત થયેલ', hi: 'वापस' },
+
+  // ---------- Day 3 Task E: parent order detail ----------
+  'orderDetail.title': { en: 'Order details', gu: 'ઓર્ડર વિગતો', hi: 'ऑर्डर विवरण' },
+  'orderDetail.back': { en: 'Back to orders', gu: 'ઓર્ડર પર પાછા જાઓ', hi: 'ऑर्डर पर वापस जाएँ' },
+  'orderDetail.placedOn': { en: 'Placed on {date}', gu: '{date} ના રોજ ઓર્ડર કર્યો', hi: '{date} को ऑर्डर किया गया' },
+  'orderDetail.itemsBought': { en: 'Items bought', gu: 'ખરીદેલી વસ્તુઓ', hi: 'ख़रीदा गया सामान' },
+  'orderDetail.size': { en: 'Size: {size}', gu: 'સાઈઝ: {size}', hi: 'साइज़: {size}' },
+  'orderDetail.qty': { en: 'Qty: {qty}', gu: 'જથ્થો: {qty}', hi: 'मात्रा: {qty}' },
+  'orderDetail.personalisation': { en: 'Personalisation: {details}', gu: 'પર્સનલાઇઝેશન: {details}', hi: 'पर्सनलाइज़ेशन: {details}' },
+  'orderDetail.payment': { en: 'Payment', gu: 'ચુકવણી', hi: 'भुगतान' },
+  'orderDetail.paymentMethod': { en: 'Payment method', gu: 'ચુકવણીની પદ્ધતિ', hi: 'भुगतान का तरीका' },
+  'orderDetail.paymentMethod.online': { en: 'Online', gu: 'ઓનલાઇન', hi: 'ऑनलाइन' },
+  'orderDetail.paymentMethod.cod': { en: 'Cash on delivery', gu: 'કેશ ઓન ડિલિવરી', hi: 'कैश ऑन डिलीवरी' },
+  'orderDetail.paymentStatus.paid': { en: 'Paid', gu: 'ચૂકવેલ', hi: 'भुगतान हो गया' },
+  'orderDetail.paymentStatus.pending': { en: 'Pending', gu: 'બાકી', hi: 'लंबित' },
+  'orderDetail.paymentStatus.failed': { en: 'Failed', gu: 'નિષ્ફળ', hi: 'विफल' },
+  'orderDetail.paymentStatus.refunded': { en: 'Refunded', gu: 'રિફંડ મળેલ', hi: 'वापस किया गया' },
+  'orderDetail.payOnDelivery': { en: 'Pay on delivery', gu: 'ડિલિવરી સમયે ચુકવણી', hi: 'डिलीवरी पर भुगतान' },
+  'orderDetail.payOnDeliveryDue': {
+    en: 'Pay on delivery: ₹{amount} due',
+    gu: 'ડિલિવરી સમયે ચુકવણી: ₹{amount} બાકી',
+    hi: 'डिलीवरी पर भुगतान: ₹{amount} बाकी',
+  },
+  'orderDetail.delivery': { en: 'Delivery', gu: 'ડિલિવરી', hi: 'डिलीवरी' },
+  'orderDetail.latestStoreEvent': { en: 'Latest update: {event} ({time})', gu: 'તાજેતરનું અપડેટ: {event} ({time})', hi: 'नवीनतम अपडेट: {event} ({time})' },
+  'orderDetail.markedDelivered': {
+    en: 'Marked delivered by the store',
+    gu: 'સ્ટોર દ્વારા પહોંચેલ તરીકે ચિહ્નિત',
+    hi: 'स्टोर द्वारा डिलीवर चिह्नित किया गया',
+  },
+  'orderDetail.dispatched': { en: 'Dispatched', gu: 'મોકલાયેલ', hi: 'भेज दिया गया' },
+  'orderDetail.articleNumberLabel': {
+    en: 'India Post article number',
+    gu: 'ઇન્ડિયા પોસ્ટ આર્ટિકલ નંબર',
+    hi: 'इंडिया पोस्ट आर्टिकल नंबर',
+  },
+  'orderDetail.indiaPostHint': {
+    en: 'Copy the number, then paste it on the India Post page.',
+    gu: 'નંબર કૉપિ કરો, પછી ઇન્ડિયા પોસ્ટ પેજ પર પેસ્ટ કરો.',
+    hi: 'नंबर कॉपी करें, फिर इंडिया पोस्ट पेज पर पेस्ट करें।',
+  },
+  'orderDetail.noTrackingRecorded': {
+    en: 'Handed over to India Post. The tracking number was not recorded for this order.',
+    gu: 'ઇન્ડિયા પોસ્ટને સોંપવામાં આવ્યું. આ ઓર્ડર માટે ટ્રેકિંગ નંબર નોંધાયેલ નથી.',
+    hi: 'इंडिया पोस्ट को सौंप दिया गया। इस ऑर्डर के लिए ट्रैकिंग नंबर दर्ज नहीं किया गया था।',
+  },
+  'orderDetail.pickupAt': { en: 'Pickup at {school}', gu: '{school} ખાતેથી પિકઅપ', hi: '{school} पर पिकअप' },
+  'orderDetail.readyAtSchool': { en: 'Ready at school', gu: 'શાળાએ તૈયાર છે', hi: 'स्कूल में तैयार है' },
+  'orderDetail.loadError': {
+    en: 'We could not load your order details.',
+    gu: 'તમારી ઓર્ડર વિગતો ખૂલી નહીં.',
+    hi: 'आपके ऑर्डर का विवरण नहीं खुल पाया।',
+  },
+  'orderDetail.viewDetails': { en: 'View details', gu: 'વિગતો જુઓ', hi: 'विवरण देखें' },
 } satisfies Record<string, Entry>;
 
 export type MessageKey = keyof typeof messages;

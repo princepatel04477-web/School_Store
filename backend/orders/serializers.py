@@ -217,6 +217,35 @@ class OrderListSerializer(serializers.ModelSerializer):
         return OrderTrackingSerializer(data).data
 
 
+class ParentOrderItemSerializer(serializers.ModelSerializer):
+    """Parent-safe order item serializer: includes product name, size, quantity, personalisation without child measurements or internal costs."""
+
+    variant_sku = serializers.CharField(source="variant.sku", read_only=True)
+    variant_size = serializers.CharField(source="variant.size", read_only=True)
+    size = serializers.CharField(source="variant.size", read_only=True)
+    product_name = serializers.CharField(source="variant.product.name", read_only=True)
+    customisation_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OrderItem
+        fields = (
+            "id",
+            "variant",
+            "variant_sku",
+            "variant_size",
+            "size",
+            "product_name",
+            "quantity",
+            "unit_price_snapshot",
+            "customisation_data",
+            "customisation_display",
+        )
+        read_only_fields = fields
+
+    def get_customisation_display(self, obj):
+        return OrderItemSerializer.get_customisation_display(self, obj)
+
+
 class ParentOrderDetailSerializer(serializers.ModelSerializer):
     """Parent order detail payload: drops changed_by, note, and Razorpay ids."""
 
@@ -225,7 +254,7 @@ class ParentOrderDetailSerializer(serializers.ModelSerializer):
     school_name = serializers.CharField(source="school.name", read_only=True)
     school_code = serializers.CharField(source="school.code", read_only=True)
     city_name = serializers.CharField(source="city.name", read_only=True)
-    items = OrderItemSerializer(many=True, read_only=True)
+    items = ParentOrderItemSerializer(many=True, read_only=True)
     status_events = ParentOrderStatusEventSerializer(many=True, read_only=True)
     tracking = serializers.SerializerMethodField()
 

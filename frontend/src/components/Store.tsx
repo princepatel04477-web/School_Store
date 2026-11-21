@@ -655,7 +655,7 @@ export function OrderTrackingBlock({ order }: { order: Order }) {
   );
 }
 
-export function Timeline({ order }: { order: Order }) {
+export function Timeline({ order, hideTrackingBlock }: { order: Order; hideTrackingBlock?: boolean }) {
   const { t } = useLang();
   const isPickup = order.fulfillment_type === 'SCHOOL_PICKUP';
 
@@ -761,7 +761,7 @@ export function Timeline({ order }: { order: Order }) {
           );
         })}
       </ol>
-      <OrderTrackingBlock order={order} />
+      {!hideTrackingBlock && <OrderTrackingBlock order={order} />}
     </>
   );
 }
