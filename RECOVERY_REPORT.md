@@ -4,6 +4,36 @@
 
 Branch: `fix/razorpay-return-recovery` from `ad16038`. No push, merge, deployment, Cloudflare write or store database connection was made.
 
+## Review pass, 21 November 2026 (evening)
+
+**Real Razorpay: UNVERIFIED.** This worktree has no `backend/.env`, so there were no sandbox keys. Real Checkout and real webhook delivery were not tried. Everything below used a fake gateway (scripted payment answers) and a stub in place of `checkout.js`. Nothing was pushed or deployed, and nothing connected to the store server.
+
+### Regressions found and fixed (each with a test that fails without the fix)
+
+| Commit | Problem | Test |
+| --- | --- | --- |
+| `3ab85e6`, `9c618ac` | The saved order key was cleared as soon as an online order was created. A parent who left the payment screen with the bag still full, or added the same items again, got a new key, and checking out again made a **second order** (and a possible second payment). The saved copy now stays, tied to the order id, until that order is paid, released or moved to cash. The payment choice no longer makes it a different order. A cancelled earlier order starts a new one. (A full page load empties the bag, so this happens without a reload.) | `frontend/src/services/placeOrder.test.ts`, 2 cases in `CheckoutPage.test.tsx` |
+| `5671f9d` | When the same items found the earlier unpaid online order but the parent picked cash, Checkout reopened Razorpay. It now calls switch-to-COD. The server checks Razorpay first and refuses while a payment may still go through. | 2 cases in `CheckoutPage.test.tsx` |
+| `396a2aa` | A **delivered** COD order still said "Pay ₹X when the order arrives". Nothing is due after delivery now, and the My Orders card shows the order total again. | `backend/orders/test_recovery_review.py` |
+| `46c5471` | After My Orders' check found a capture, the card showed the receipt but kept the old `PLACED` badge and timeline. A check that settles the payment now fetches the orders again. Found on the phone run. | `frontend/src/pages/ParentOrders.test.tsx` |
+
+Also added, and already passing (no bug): the staff "payments to check" queue and manual check stay inside each role's scope. Parents and teachers get 403. COD never calls Razorpay from PLACED to DELIVERED. Staff-cancelled orders are not shown as released.
+
+### Test results after the fixes
+
+- Full `vitest`: 17 files, 129 tests passed. App type-check (`tsc -p tsconfig.build.json`) passed.
+- Django on SQLite, `orders panel inventory`, run **before** these fixes: 145 ran, OK, 17 skipped. After the fixes I ran only `orders.test_recovery_review` and `orders.test_payment_contract`: 12 tests, OK. The full Django suite and the Postgres run were **not** repeated after the `payment_view.py` change.
+
+### Phone-size Playwright run (Pixel 7 profile, local stack, SIMULATED)
+
+Local Django on a throwaway SQLite database, with the fake gateway. Vite was pointed at it with `VITE_API_PROXY_TARGET` (its default target is the live Worker). Requests to any non-local host were blocked and logged: none were attempted. The OTP limit was raised to 100/min for this run, because the real limit (5/min, send and verify counted together) stops repeated sign-ins.
+
+- **A. Paid, browser closed before success, fresh sign-in:** passed. Checkout opened with the store order's Razorpay order id, ₹800, a timeout from the hold, and retry off. A new context signed in by OTP, with an empty bag, found **one** order, `CONFIRMED` with its receipt and no payment button. [Screenshot](recovery-evidence/review/A-paid-after-browser-closed.png)
+- **B. Payment window closed, back to the full bag, cash picked:** passed in one run. Orders went 1 → 2 → 2 (no second order). The order became COD and Razorpay was not reopened. [Dismissed](recovery-evidence/review/B1-dismissed.png) · [Same items, cash](recovery-evidence/review/B2-same-items-cash.png)
+- **C. Payment still `created` on return:** passed in that run. "Checking payment" and "Refresh status" were shown with no Pay or cash button, and the server answered 409 `payment_in_progress`. After the fake payment failed, Refresh status offered Pay and Pay cash on the same order. [In progress](recovery-evidence/review/C-in-progress.png) · [Then failed](recovery-evidence/review/C-then-failed.png)
+- **D (outage), E (COD delivered in the browser), F (staff queue in the browser): not completed.** The script was still being moved from hand-rolled history changes to real link navigation when the session ended. D and E are covered by the backend tests above. F is covered by the existing and new backend tests.
+- **Open question:** on a second checkout in the same tab, the "Choose your child" picker sometimes opened and closed about 80 ms later with no click. It appeared while the script changed pages with `pushState` outside React Router. I did not finish checking it with real navigation, so it is not yet known whether a parent can hit it.
+
 ## Follow-up verification, 21 November 2026
 
 The checkout and order recovery work now has a generated server contract and passing regression suites. The initial failure counts and statements about pending fixture work below document the earlier run and are superseded by this section.
