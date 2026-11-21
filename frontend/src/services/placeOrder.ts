@@ -15,6 +15,8 @@ import { readSaved, writeSaved, removeSaved } from '../store/persist';
 export interface OrderPayload {
   idempotency_key: string;
   student: string;
+  /** The campus picked in the shop. A chain school's stock and price are per campus city. */
+  branch?: string;
   fulfillment_type: 'HOME_DELIVERY' | 'SCHOOL_PICKUP';
   payment_method: 'COD';
   delivery_details: Record<string, string>;
@@ -28,6 +30,19 @@ export interface PlacedOrder {
   total: string;
   student_name?: string;
   fulfillment_type: string;
+}
+
+/**
+ * The campus picked in the shop, sent only when it belongs to the child's school.
+ * The server checks it again and records it on a child added without one.
+ */
+export function pickedBranch(
+  selection: { schoolId?: string; branchId?: string } | null | undefined,
+  childSchoolId: string | undefined,
+): { branch?: string } {
+  return selection?.branchId && childSchoolId && selection.schoolId === childSchoolId
+    ? { branch: selection.branchId }
+    : {};
 }
 
 const PENDING_KEY = 'schoolstore_pending_order';
@@ -122,5 +137,7 @@ export function orderErrorMessage(error: unknown): MessageKey {
     return 'err.notOnList';
   }
   if (text.includes('own children')) return 'err.notYourChild';
+  if (text.includes("choose the child's campus")) return 'err.chooseCampus';
+  if (text.includes('campus')) return 'err.wrongCampus';
   return 'err.generic';
 }

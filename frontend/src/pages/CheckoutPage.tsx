@@ -7,7 +7,7 @@ import { siteConfig } from '../siteConfig';
 import { useStoreSchools } from '../data/catalog';
 import { fitPayload } from '../data/fit';
 import { buildOrderMessage, whatsappOrderUrl } from '../services/whatsappOrder';
-import { orderErrorMessage, prepareOrder, submitOrder, type PlacedOrder } from '../services/placeOrder';
+import { orderErrorMessage, pickedBranch, prepareOrder, submitOrder, type PlacedOrder } from '../services/placeOrder';
 import { useAuth } from '../auth';
 import { useLang } from '../i18n';
 import { classLabel } from '../i18n/labels';
@@ -139,6 +139,8 @@ export function CheckoutPage() {
     const contact = { recipient_name: parentName.trim(), phone: parentMobile };
     const payload = prepareOrder({
       student: child.id,
+      // Stock and price were shown for this campus, so the order uses it too.
+      ...pickedBranch(selection, child.school),
       fulfillment_type: deliveryType === 'HOME' ? 'HOME_DELIVERY' : 'SCHOOL_PICKUP',
       payment_method: 'COD',
       delivery_details:
