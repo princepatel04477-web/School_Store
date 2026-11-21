@@ -1,0 +1,12 @@
+calls|total_ms|mean_ms|max_ms|q
+12473|595.1|0.048|0.39|SELECT "schools_grade"."id", "schools_grade"."name", "schools_grade"."sort_order" FROM "schools_grade" WHERE (
+12473|501.8|0.040|0.30|SELECT "schools_school"."id", "schools_school"."city_id" FROM "schools_school" WHERE ("schools_school"."active
+9650|294.6|0.031|0.18|SELECT $1 AS "a" FROM "schools_city" WHERE ("schools_city"."active" AND "schools_city"."id" = $2::uuid) LIMIT 
+301|140.2|0.466|0.77|SELECT DISTINCT "catalog_product"."id", "catalog_product"."category_id", "catalog_product"."product_type", "ca
+1|84.1|84.068|84.07|select parent_id from orders_order where parent_id in (select id from accounts_user where username like $1) gr
+1|42.5|42.504|42.50|explain (analyze, buffers) select * from orders_order where id=$1 and parent_id=$2
+1|34.7|34.669|34.67|explain (analyze, buffers) select * from orders_order where parent_id=$1 order by created_at desc, id desc lim
+101|30.4|0.301|1.47|SELECT "catalog_productvariant"."id", "catalog_productvariant"."product_id", "catalog_productvariant"."school_
+106|29.3|0.276|0.41|SELECT "catalog_productvariant"."id", "catalog_productvariant"."product_id", "catalog_productvariant"."school_
+94|17.0|0.181|0.28|SELECT "catalog_productvariant"."id", "catalog_productvariant"."product_id", "catalog_productvariant"."school_
+(10 rows)

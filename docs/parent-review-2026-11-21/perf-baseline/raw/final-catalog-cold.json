@@ -1,0 +1,170 @@
+{
+  "scenario": "catalog-cold",
+  "warmup_s": 0,
+  "step_s": 60,
+  "steps": [
+    {
+      "vus": 1,
+      "generator_processes": 1,
+      "seconds": 60.0,
+      "requests": 4883,
+      "rps": 81.4,
+      "p50": 11.6,
+      "p95": 16.6,
+      "p99": 19.0,
+      "max": 150.5,
+      "error_pct": 0.0,
+      "codes": {
+        "200": 4883
+      },
+      "pg_connections_mid_step": 8,
+      "server_cpu_cores_used": 0.4,
+      "generator_cpu_cores_used_total": 0.52,
+      "generator_cpu_cores_per_process_max": 0.52,
+      "p95_by_endpoint": {
+        "branches": 15.7,
+        "schools": 12.9,
+        "states": 13.3,
+        "products": 19.0,
+        "cities": 13.4,
+        "grades": 12.8
+      }
+    },
+    {
+      "vus": 5,
+      "generator_processes": 5,
+      "seconds": 60.0,
+      "requests": 12407,
+      "rps": 206.7,
+      "p50": 22.6,
+      "p95": 35.1,
+      "p99": 41.8,
+      "max": 132.4,
+      "error_pct": 0.0,
+      "codes": {
+        "200": 12407
+      },
+      "pg_connections_mid_step": 8,
+      "server_cpu_cores_used": 1.11,
+      "generator_cpu_cores_used_total": 1.59,
+      "generator_cpu_cores_per_process_max": 0.32,
+      "p95_by_endpoint": {
+        "branches": 32.7,
+        "cities": 27.3,
+        "products": 41.1,
+        "grades": 26.6,
+        "schools": 26.1,
+        "states": 27.1
+      }
+    },
+    {
+      "vus": 10,
+      "generator_processes": 6,
+      "seconds": 60.0,
+      "requests": 12427,
+      "rps": 207.0,
+      "p50": 43.9,
+      "p95": 75.6,
+      "p99": 118.2,
+      "max": 252.7,
+      "error_pct": 0.0,
+      "codes": {
+        "200": 12427
+      },
+      "pg_connections_mid_step": 8,
+      "server_cpu_cores_used": 1.15,
+      "generator_cpu_cores_used_total": 1.58,
+      "generator_cpu_cores_per_process_max": 0.33,
+      "p95_by_endpoint": {
+        "schools": 53.3,
+        "products": 91.9,
+        "grades": 53.6,
+        "branches": 70.7,
+        "cities": 53.9,
+        "states": 53.2
+      }
+    },
+    {
+      "vus": 25,
+      "generator_processes": 6,
+      "seconds": 60.1,
+      "requests": 12722,
+      "rps": 211.6,
+      "p50": 113.9,
+      "p95": 155.3,
+      "p99": 213.8,
+      "max": 418.8,
+      "error_pct": 0.0,
+      "codes": {
+        "200": 12722
+      },
+      "pg_connections_mid_step": 8,
+      "server_cpu_cores_used": 1.17,
+      "generator_cpu_cores_used_total": 1.62,
+      "generator_cpu_cores_per_process_max": 0.34,
+      "p95_by_endpoint": {
+        "cities": 137.5,
+        "grades": 136.9,
+        "schools": 134.5,
+        "products": 172.3,
+        "branches": 153.2,
+        "states": 135.7
+      }
+    },
+    {
+      "vus": 50,
+      "generator_processes": 6,
+      "seconds": 60.2,
+      "requests": 12565,
+      "rps": 208.8,
+      "p50": 234.4,
+      "p95": 300.9,
+      "p99": 359.4,
+      "max": 740.6,
+      "error_pct": 0.0,
+      "codes": {
+        "200": 12565
+      },
+      "pg_connections_mid_step": 8,
+      "server_cpu_cores_used": 1.15,
+      "generator_cpu_cores_used_total": 1.59,
+      "generator_cpu_cores_per_process_max": 0.28,
+      "p95_by_endpoint": {
+        "grades": 282.8,
+        "branches": 305.4,
+        "schools": 280.6,
+        "products": 325.0,
+        "states": 288.4,
+        "cities": 293.4
+      }
+    },
+    {
+      "vus": 100,
+      "generator_processes": 6,
+      "seconds": 60.5,
+      "requests": 12350,
+      "rps": 204.3,
+      "p50": 470.0,
+      "p95": 560.5,
+      "p99": 601.9,
+      "max": 30063.7,
+      "error_pct": 0.03,
+      "codes": {
+        "200": 12346,
+        "ReadTimeout": 4
+      },
+      "pg_connections_mid_step": 8,
+      "server_cpu_cores_used": 1.14,
+      "generator_cpu_cores_used_total": 1.61,
+      "generator_cpu_cores_per_process_max": 0.29,
+      "p95_by_endpoint": {
+        "schools": 552.1,
+        "grades": 558.6,
+        "states": 549.7,
+        "cities": 557.6,
+        "branches": 560.0,
+        "products": 585.7
+      }
+    }
+  ]
+}
