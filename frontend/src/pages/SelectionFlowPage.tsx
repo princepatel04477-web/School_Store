@@ -167,7 +167,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     schoolCode: activeSchool!.code,
     cityId: activeBranch?.cityId || activeSchool!.cityId,
     cityName: cityLabel,
-    stateName: activeBranch?.stateName,
+    stateName: activeBranch?.stateName || activeSchool?.state || '',
     branchId: activeBranch?.branchId,
     branchName: activeBranch?.branchName,
   });

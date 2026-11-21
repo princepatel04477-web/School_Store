@@ -34,13 +34,15 @@ const mockChild = {
 
 let currentCart = [...mockCart];
 let currentChild: any = mockChild;
+let currentSelection: any = { schoolId: 'school-1', schoolName: 'DPS Surat', cityName: 'Surat', stateName: 'Gujarat' };
+let mockSchoolsList: any = [{ id: 'school-1', name: 'DPS Surat', state: 'Gujarat', city: 'Surat', homeDelivery: true, schoolPickup: true }];
 
 vi.mock('../store/storeState', () => ({
   useStoreState: () => ({
     cart: currentCart,
     subtotalPaise: currentCart.reduce((sum, item) => sum + item.pricePaise * item.quantity, 0),
     clearCart: vi.fn(),
-    selection: { schoolId: 'school-1', schoolName: 'DPS Surat', cityName: 'Surat' },
+    selection: currentSelection,
   }),
 }));
 
@@ -57,7 +59,7 @@ vi.mock('../auth', () => ({
 
 vi.mock('../data/catalog', () => ({
   useStoreSchools: () => ({
-    data: [{ id: 'school-1', name: 'DPS Surat', homeDelivery: true, schoolPickup: true }],
+    data: mockSchoolsList,
   }),
 }));
 
@@ -69,18 +71,7 @@ vi.mock('../components/parent/ParentSignInSheet', () => ({
         <button
           type="button"
           onClick={() =>
-            onDone({
-              id: 'student-1',
-              name: 'Aarav Patel',
-              gr_number: 'GR-1042',
-              class_name: '5',
-              section: 'A',
-              gender: 'Male',
-              school: 'school-1',
-              school_name: 'DPS Surat',
-              school_code: 'DPS',
-              active: true,
-            })
+            onDone(currentChild)
           }
         >
           Select Child
@@ -424,5 +415,221 @@ describe('CheckoutPage Razorpay Flow', () => {
     // "Try again" and "Pay cash on delivery instead" MUST BE HIDDEN while attempt is in progress!
     expect(screen.queryByText('Try again')).toBeNull();
     expect(screen.queryByText('Pay cash on delivery instead')).toBeNull();
+  });
+});
+
+describe('CheckoutPage Delivery Address and PIN Serviceability Flow', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    currentCart = [...mockCart];
+    currentChild = mockChild;
+    currentSelection = { schoolId: 'school-1', schoolName: 'DPS Surat', cityName: 'Surat', stateName: 'Gujarat' };
+    mockSchoolsList = [{ id: 'school-1', name: 'DPS Surat', state: 'Gujarat', city: 'Surat', homeDelivery: true, schoolPickup: true }];
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('non-Gujarat selection and school do not inherit Gujarat', async () => {
+    currentSelection = { schoolId: 'school-punjab', schoolName: 'Cambridge Jalandhar', cityName: 'Jalandhar', stateName: 'Punjab' };
+    mockSchoolsList = [{ id: 'school-punjab', name: 'Cambridge Jalandhar', state: 'Punjab', city: 'Jalandhar', homeDelivery: true, schoolPickup: true }];
+    currentChild = { ...mockChild, school: 'school-punjab', school_name: 'Cambridge Jalandhar' };
+
+    renderCheckout();
+
+    // Advance to Step 2
+    fireEvent.click(screen.getByText('Choose your child'));
+    fireEvent.click(screen.getByText('Select Child'));
+    fireEvent.click(screen.getByText('Next'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Delivery' })).toBeDefined();
+    });
+
+    const stateSelect = screen.getByLabelText('State / Union Territory') as HTMLSelectElement;
+    expect(stateSelect.value).toBe('Punjab');
+    expect(stateSelect.value).not.toBe('Gujarat');
+  });
+
+  it('asks parent for state when location state is unknown and validates on step 2', async () => {
+    currentSelection = { schoolId: 'school-unknown', schoolName: 'Unknown School' };
+    mockSchoolsList = [{ id: 'school-unknown', name: 'Unknown School', homeDelivery: true, schoolPickup: true }];
+    currentChild = { ...mockChild, school: 'school-unknown', school_name: 'Unknown School' };
+
+    renderCheckout();
+
+    // Advance to Step 2
+    fireEvent.click(screen.getByText('Choose your child'));
+    fireEvent.click(screen.getByText('Select Child'));
+    fireEvent.click(screen.getByText('Next'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Delivery' })).toBeDefined();
+    });
+
+    const stateSelect = screen.getByLabelText('State / Union Territory') as HTMLSelectElement;
+    expect(stateSelect.value).toBe('');
+
+    // Fill other fields except State
+    fireEvent.change(screen.getByLabelText('PIN code'), { target: { value: '400001' } });
+    fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Mumbai' } });
+    fireEvent.change(screen.getByLabelText('House and society'), { target: { value: 'Flat 12, Marine Drive' } });
+
+    // Click Next
+    fireEvent.click(screen.getByText('Next'));
+
+    // State error should appear
+    await waitFor(() => {
+      expect(screen.getByText('Please select your state or UT')).toBeDefined();
+    });
+
+    // Parent selects Maharashtra
+    fireEvent.change(stateSelect, { target: { value: 'Maharashtra' } });
+    expect(stateSelect.value).toBe('Maharashtra');
+  });
+
+  it('6-digit PIN lookup auto-fills geography when not manually touched', async () => {
+    currentSelection = { schoolId: 'school-punjab', schoolName: 'Cambridge Jalandhar' };
+    mockSchoolsList = [{ id: 'school-punjab', name: 'Cambridge Jalandhar', homeDelivery: true, schoolPickup: true }];
+    currentChild = { ...mockChild, school: 'school-punjab', school_name: 'Cambridge Jalandhar' };
+
+    const lookupSpy = vi.spyOn(orderApi, 'pincodeLookup').mockResolvedValueOnce({
+      pincode: '144008',
+      format_valid: true,
+      geography: {
+        found: true,
+        pincode: '144008',
+        city: 'Jalandhar',
+        state: 'Punjab',
+      },
+      serviceability: {
+        status: 'UNKNOWN',
+        message: 'Courier serviceability unconfirmed.',
+        provider: null,
+      },
+    });
+
+    renderCheckout();
+
+    // Advance to Step 2
+    fireEvent.click(screen.getByText('Choose your child'));
+    fireEvent.click(screen.getByText('Select Child'));
+    fireEvent.click(screen.getByText('Next'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Delivery' })).toBeDefined();
+    });
+
+    // Enter 6-digit PIN
+    fireEvent.change(screen.getByLabelText('PIN code'), { target: { value: '144008' } });
+
+    await waitFor(() => {
+      expect(lookupSpy).toHaveBeenCalledWith('144008');
+    });
+
+    await waitFor(() => {
+      const cityInput = screen.getByLabelText('City') as HTMLInputElement;
+      const stateSelect = screen.getByLabelText('State / Union Territory') as HTMLSelectElement;
+      expect(cityInput.value).toBe('Jalandhar');
+      expect(stateSelect.value).toBe('Punjab');
+      // Unconfirmed serviceability displays honest message, never promises delivery
+      expect(screen.getByText(/Courier delivery unconfirmed/i)).toBeDefined();
+      expect(screen.queryByText(/Home delivery available to this PIN/i)).toBeNull();
+    });
+  });
+
+  it('6-digit PIN lookup does not override manually corrected city or state', async () => {
+    currentSelection = { schoolId: 'school-punjab', schoolName: 'Cambridge Jalandhar' };
+    mockSchoolsList = [{ id: 'school-punjab', name: 'Cambridge Jalandhar', homeDelivery: true, schoolPickup: true }];
+    currentChild = { ...mockChild, school: 'school-punjab', school_name: 'Cambridge Jalandhar' };
+
+    vi.spyOn(orderApi, 'pincodeLookup').mockResolvedValue({
+      pincode: '144001',
+      format_valid: true,
+      geography: {
+        found: true,
+        pincode: '144001',
+        city: 'Jalandhar',
+        state: 'Punjab',
+      },
+      serviceability: {
+        status: 'UNKNOWN',
+        message: 'Courier serviceability unconfirmed.',
+        provider: null,
+      },
+    });
+
+    renderCheckout();
+
+    // Advance to Step 2
+    fireEvent.click(screen.getByText('Choose your child'));
+    fireEvent.click(screen.getByText('Select Child'));
+    fireEvent.click(screen.getByText('Next'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Delivery' })).toBeDefined();
+    });
+
+    // Parent manually enters their custom city and state first
+    fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Phagwara' } });
+    fireEvent.change(screen.getByLabelText('State / Union Territory'), { target: { value: 'Punjab' } });
+
+    // Now parent enters PIN
+    fireEvent.change(screen.getByLabelText('PIN code'), { target: { value: '144001' } });
+
+    await waitFor(() => {
+      const cityInput = screen.getByLabelText('City') as HTMLInputElement;
+      // Must NOT override manually entered "Phagwara" with "Jalandhar"!
+      expect(cityInput.value).toBe('Phagwara');
+    });
+  });
+
+  it('pickup works without a home address (no street, city, state, or PIN required)', async () => {
+    renderCheckout();
+
+    // Advance to Step 2
+    fireEvent.click(screen.getByText('Choose your child'));
+    fireEvent.click(screen.getByText('Select Child'));
+    fireEvent.click(screen.getByText('Next'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Delivery' })).toBeDefined();
+    });
+
+    // Select School Pickup
+    const pickupRadio = screen.getByRole('radio', { name: /Collect at school/i });
+    fireEvent.click(pickupRadio);
+
+    // Click Next without filling any address fields
+    const nextBtn = screen.getByText('Next');
+    fireEvent.click(nextBtn);
+
+    // Should successfully advance to Step 3 (Payment) without errors
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Payment' })).toBeDefined();
+    });
+  });
+
+  it('serviceability check failure shows unconfirmed unknown status, not serviceable', async () => {
+    vi.spyOn(orderApi, 'pincodeLookup').mockRejectedValueOnce(new Error('Network failure'));
+
+    renderCheckout();
+
+    // Advance to Step 2
+    fireEvent.click(screen.getByText('Choose your child'));
+    fireEvent.click(screen.getByText('Select Child'));
+    fireEvent.click(screen.getByText('Next'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Delivery' })).toBeDefined();
+    });
+
+    fireEvent.change(screen.getByLabelText('PIN code'), { target: { value: '395007' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Courier delivery unconfirmed/i)).toBeDefined();
+      expect(screen.queryByText(/Home delivery available to this PIN/i)).toBeNull();
+    });
   });
 });

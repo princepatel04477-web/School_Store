@@ -123,6 +123,22 @@ export type SwitchToCodResponse = {
   status?: string;
 };
 
+export type PincodeLookupResponse = {
+  pincode: string;
+  format_valid: boolean;
+  geography: {
+    found: boolean;
+    pincode: string;
+    city: string | null;
+    state: string | null;
+  };
+  serviceability: {
+    status: 'SERVICEABLE' | 'UNSERVICEABLE' | 'UNKNOWN';
+    message: string;
+    provider: string | null;
+  };
+};
+
 export const orderApi = {
   quote: (body: unknown) => api<OrderQuote>('/orders/quote/', { method: 'POST', body: JSON.stringify(body) }),
   payment: (orderId: string) => api<PaymentStartResponse>(`/orders/${orderId}/payment/`, { method: 'POST' }),
@@ -130,6 +146,8 @@ export const orderApi = {
     api<VerifyPaymentResponse>(`/orders/${orderId}/verify-payment/`, { method: 'POST', body: JSON.stringify(data) }),
   reconcilePayment: (orderId: string) => api<Order>(`/orders/${orderId}/reconcile-payment/`, { method: 'POST' }),
   switchToCod: (orderId: string) => api<SwitchToCodResponse>(`/orders/${orderId}/switch-to-cod/`, { method: 'POST' }),
+  pincodeLookup: (pincode: string) =>
+    api<PincodeLookupResponse>(`/orders/pincode-lookup/?pincode=${encodeURIComponent(pincode)}`),
 };
 export const queryKey={catalog:['catalog'],orders:['orders'],students:['students']};
 

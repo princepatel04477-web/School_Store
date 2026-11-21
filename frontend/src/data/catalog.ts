@@ -10,6 +10,7 @@ import type { SeedProduct, SeedSchool } from './seedData';
 
 export interface StoreSchool extends SeedSchool {
   cityId?: string;
+  state?: string;
   homeDelivery: boolean;
   schoolPickup: boolean;
 }
@@ -33,6 +34,7 @@ type PublicSchool = {
   code: string;
   city?: string | null;
   city_name?: string;
+  state_name?: string;
   home_delivery?: boolean;
   school_pickup?: boolean;
 };
@@ -76,6 +78,7 @@ function toSchool(school: PublicSchool): StoreSchool {
     slug: slugify(school.name),
     city: school.city_name || '',
     cityId: school.city || undefined,
+    state: school.state_name || '',
     homeDelivery: school.home_delivery ?? true,
     schoolPickup: school.school_pickup ?? true,
   };

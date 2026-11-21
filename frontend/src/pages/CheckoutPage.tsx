@@ -17,6 +17,45 @@ import { ParentSignInSheet } from '../components/parent/ParentSignInSheet';
 import { scrollPageTo } from '../motion/SmoothScroll';
 import '../components/cart/bagCheckout.css';
 
+export const INDIAN_STATES_AND_UTS = [
+  'Andaman and Nicobar Islands',
+  'Andhra Pradesh',
+  'Arunachal Pradesh',
+  'Assam',
+  'Bihar',
+  'Chandigarh',
+  'Chhattisgarh',
+  'Dadra and Nagar Haveli and Daman and Diu',
+  'Delhi',
+  'Goa',
+  'Gujarat',
+  'Haryana',
+  'Himachal Pradesh',
+  'Jammu and Kashmir',
+  'Jharkhand',
+  'Karnataka',
+  'Kerala',
+  'Ladakh',
+  'Lakshadweep',
+  'Madhya Pradesh',
+  'Maharashtra',
+  'Manipur',
+  'Meghalaya',
+  'Mizoram',
+  'Nagaland',
+  'Odisha',
+  'Puducherry',
+  'Punjab',
+  'Rajasthan',
+  'Sikkim',
+  'Tamil Nadu',
+  'Telangana',
+  'Tripura',
+  'Uttar Pradesh',
+  'Uttarakhand',
+  'West Bengal',
+] as const;
+
 /**
  * Two ways to order:
  * - account: the parent signs in with mobile + OTP and picks their child from the
@@ -44,7 +83,15 @@ export function CheckoutPage() {
   const [addressLine1, setAddressLine1] = useState('');
   const [addressLine2, setAddressLine2] = useState('');
   const [city, setCity] = useState(selection?.cityName || '');
-  const [state, setState] = useState('Gujarat');
+  const [state, setState] = useState(selection?.stateName || '');
+  const [cityTouched, setCityTouched] = useState(false);
+  const [stateTouched, setStateTouched] = useState(false);
+  const [pinLookupLoading, setPinLookupLoading] = useState(false);
+  const [serviceability, setServiceability] = useState<{
+    status: 'SERVICEABLE' | 'UNSERVICEABLE' | 'UNKNOWN';
+    message: string;
+    provider: string | null;
+  } | null>(null);
 
   // Validation Errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -115,6 +162,65 @@ export function CheckoutPage() {
     if (deliveryType === 'SCHOOL' && !canCollect && canDeliverHome) setDeliveryType('HOME');
   }, [deliveryType, canDeliverHome, canCollect]);
 
+  useEffect(() => {
+    if (!stateTouched && !state) {
+      if (selection?.stateName) {
+        setState(selection.stateName);
+      } else if (school?.state) {
+        setState(school.state);
+      }
+    }
+  }, [selection?.stateName, school?.state, state, stateTouched]);
+
+  useEffect(() => {
+    if (!cityTouched && !city) {
+      if (selection?.cityName) {
+        setCity(selection.cityName);
+      } else if (school?.city) {
+        setCity(school.city);
+      }
+    }
+  }, [selection?.cityName, school?.city, city, cityTouched]);
+
+  const handlePinChange = async (value: string) => {
+    const clean = value.replace(/\D/g, '').slice(0, 6);
+    setPinCode(clean);
+    setServiceability(null);
+
+    if (clean.length === 6) {
+      if (!/^[1-9]\d{5}$/.test(clean)) {
+        setErrors((prev) => ({ ...prev, pinCode: t('co.err.pinInvalid') }));
+        return;
+      }
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.pinCode;
+        return next;
+      });
+      setPinLookupLoading(true);
+      try {
+        const res = await orderApi.pincodeLookup(clean);
+        if (res.format_valid && res.geography?.found) {
+          if (!cityTouched && res.geography.city) {
+            setCity(res.geography.city);
+          }
+          if (!stateTouched && res.geography.state) {
+            setState(res.geography.state);
+          }
+        }
+        setServiceability(res.serviceability);
+      } catch {
+        setServiceability({
+          status: 'UNKNOWN',
+          message: 'Courier serviceability could not be confirmed.',
+          provider: null,
+        });
+      } finally {
+        setPinLookupLoading(false);
+      }
+    }
+  };
+
   // Items were picked for one school; the child must be at that school.
   const wrongSchool = Boolean(child && selection?.schoolId && child.school !== selection.schoolId);
 
@@ -142,7 +248,11 @@ export function CheckoutPage() {
   const validateStep2 = () => {
     const errs: Record<string, string> = {};
     if (deliveryType === 'HOME') {
-      if (!/^\d{6}$/.test(pinCode.trim())) errs.pinCode = t('co.err.pin');
+      if (!/^[1-9]\d{5}$/.test(pinCode.trim())) {
+        errs.pinCode = t('co.err.pin');
+      } else if (serviceability?.status === 'UNSERVICEABLE') {
+        errs.pinCode = t('co.pinUnserviceable');
+      }
       if (!addressLine1.trim()) errs.addressLine1 = t('co.err.address');
       if (!city.trim()) errs.city = t('co.err.city');
       if (!state.trim()) errs.state = t('co.err.state');
@@ -797,9 +907,33 @@ export function CheckoutPage() {
                           className={`input-control ${errors.pinCode ? 'input-has-err' : ''}`}
                           placeholder={t('co.pinPlaceholder')}
                           value={pinCode}
-                          onChange={(e) => setPinCode(e.target.value.replace(/\D/g, ''))}
+                          onChange={(e) => handlePinChange(e.target.value)}
                         />
                         {errors.pinCode && <span className="field-err">{errors.pinCode}</span>}
+                        {pinLookupLoading && (
+                          <span className="field-hint" style={{ color: 'var(--ink-soft)' }}>
+                            {t('co.pinChecking')}
+                          </span>
+                        )}
+                        {!errors.pinCode && !pinLookupLoading && serviceability && (
+                          <span
+                            className="field-hint"
+                            style={{
+                              color:
+                                serviceability.status === 'SERVICEABLE'
+                                  ? 'var(--brand-deep)'
+                                  : serviceability.status === 'UNSERVICEABLE'
+                                  ? 'var(--danger)'
+                                  : 'var(--ink-soft)',
+                            }}
+                          >
+                            {serviceability.status === 'SERVICEABLE'
+                              ? t('co.pinServiceable')
+                              : serviceability.status === 'UNSERVICEABLE'
+                              ? t('co.pinUnserviceable')
+                              : t('co.pinUnknown')}
+                          </span>
+                        )}
                       </div>
 
                       <div className="form-group">
@@ -810,10 +944,35 @@ export function CheckoutPage() {
                           autoComplete="address-level2"
                           className={`input-control ${errors.city ? 'input-has-err' : ''}`}
                           value={city}
-                          onChange={(e) => setCity(e.target.value)}
+                          onChange={(e) => {
+                            setCity(e.target.value);
+                            setCityTouched(true);
+                          }}
                         />
                         {errors.city && <span className="field-err">{errors.city}</span>}
                       </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="input-label" htmlFor="state">{t('co.state')}</label>
+                      <select
+                        id="state"
+                        autoComplete="address-level1"
+                        className={`input-control ${errors.state ? 'input-has-err' : ''}`}
+                        value={state}
+                        onChange={(e) => {
+                          setState(e.target.value);
+                          setStateTouched(true);
+                        }}
+                      >
+                        <option value="">{t('co.selectState')}</option>
+                        {INDIAN_STATES_AND_UTS.map((st) => (
+                          <option key={st} value={st}>
+                            {st}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.state && <span className="field-err">{errors.state}</span>}
                     </div>
 
                     <div className="form-group">
