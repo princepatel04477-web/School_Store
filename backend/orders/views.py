@@ -7,6 +7,7 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
 from common.pagination import BoundedCursorPagination
 from common.permissions import RoleScopedPermission
@@ -384,6 +385,9 @@ class PincodeLookupView(APIView):
     """
     authentication_classes = []
     permission_classes = [AllowAny]
+    # Public, and backed by a paid provider once configured: rate-limit per IP.
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "pin_lookup"
 
     def get(self, request):
         pincode = (request.query_params.get("pincode") or "").strip()
