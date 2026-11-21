@@ -3,7 +3,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 from rest_framework.test import APIClient
-from orders.models import PaymentReview
+from orders.models import PaymentEvent, PaymentReview
 import json
 from pathlib import Path
 
@@ -104,3 +104,43 @@ class PaymentAttentionTests(RazorpayTestBase):
         with patch.object(RazorpayGateway, "fetch_order_payments", return_value=[]) as gateway:
             self.assertEqual(staff.post(check).status_code, 200)
         gateway.assert_called_once_with(order.razorpay_order_id)
+
+
+    def test_rate_limit_keeps_payment_checking(self):
+        order = self.make_order(razorpay_order_id="fixture-rate-limit")
+        url = f"/api/orders/{order.pk}/reconcile-payment/"
+        with patch.object(RazorpayGateway, "fetch_order_payments", return_value=[]) as gateway:
+            first = self.parent_client.post(url).json()
+            second = self.parent_client.post(url).json()
+        self.assertTrue(first["checked"])
+        self.assertFalse(second["checked"])
+        self.assertEqual(second["payment_view"]["state"], "CHECKING")
+        self.assertFalse(second["payment_view"]["can_pay_now"])
+        gateway.assert_called_once_with(order.razorpay_order_id)
+
+    def test_staff_queue_lists_reasons_and_limits_unmatched_events_to_boss(self):
+        now = timezone.now()
+        order = self.make_order(
+            razorpay_order_id="fixture-event-retry", hold_expires_at=now - timedelta(seconds=1),
+            payment_check_ok=False, payment_check_failed_since=now - timedelta(minutes=11),
+        )
+        PaymentEvent.objects.create(
+            event_id="fixture-retrying-event", event_type="payment.captured",
+            state=PaymentEvent.State.RETRY, razorpay_order_id=order.razorpay_order_id,
+        )
+        PaymentEvent.objects.create(
+            event_id="fixture-unmatched-event", event_type="payment.captured",
+            state=PaymentEvent.State.UNMATCHED,
+        )
+        queue = "/api/panel/payments/needs-reconciliation/"
+        for employee in (self.boss, self.city_admin, self.school_admin):
+            with self.subTest(role=employee.role):
+                staff = APIClient()
+                staff.force_authenticate(employee)
+                response = staff.get(queue)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(
+                    response.json()["results"][0]["reconciliation_reasons"],
+                    ["EVENT_RETRY", "HOLD_EXPIRED", "PROVIDER_UNREACHABLE"],
+                )
+                self.assertEqual(len(response.json()["unmatched_events"]), int(employee == self.boss))

@@ -4,6 +4,40 @@
 
 Branch: `fix/razorpay-return-recovery` from `ad16038`. No push, merge, deployment, Cloudflare write or store database connection was made.
 
+## Follow-up verification, 21 November 2026
+
+The checkout and order recovery work now has a generated server contract and passing regression suites. The initial failure counts and statements about pending fixture work below document the earlier run and are superseded by this section.
+
+- The local browser exposed a password redirect from My Orders. That route now uses the existing parent OTP sheet and preserves the My Orders URL. Browser inspection confirmed the number field and Send OTP button. Verification used the desktop web workflow after the ARTEMIS autonomous run stalled.
+- The command `python manage.py export_payment_contract frontend/src/test/fixtures/payment-contract.json` builds real API responses for all seven states, the start payload and the 409 and 503 refusals. It mocks the gateway and rolls back the sample data.
+- The Checkout, payment status and staff queue tests use the generated fixture. Backend regressions cover payload parity, query count, parent scope, hold safety, rate limiting, staff access and reconciliation reasons.
+- Updated legacy expectations `test_05_payment_called_twice_creates_razorpay_order_once_with_paise_amount` and `test_retrying_payment_reuses_the_razorpay_order` to check the public field names and the mandatory provider lookup. `test_unpaid_online_order_still_expires` now advances the persisted hold deadline. The Checkout tests use the shared payment view, updated screen labels and the provider options actually passed by the storefront.
+- Test results, with zero failures in every run
+
+  | Command | Passed | Skipped |
+  | --- | ---: | ---: |
+  | `python manage.py test orders panel inventory` (SQLite) | 121 | 17 |
+  | `USE_POSTGRES_FOR_TESTS=1 python manage.py test orders panel inventory` (PostgreSQL) | 138 | 0 |
+  | `python manage.py test orders.test_payment_contract` (SQLite) | 7 | 0 |
+  | `USE_POSTGRES_FOR_TESTS=1 python manage.py test orders.test_payment_contract` (PostgreSQL) | 7 | 0 |
+  | `npm test` | 121 | 0 |
+
+  The two full backend runs began before the seven new focused tests were added and the focused tests were run separately on both engines. `npm run build` passed with the existing bundle size advisory.
+- No Razorpay test credentials were supplied for this worktree. Real Checkout and real webhook delivery remain unverified. The original browser captures and local simulations are preserved.
+
+Additional files changed in the follow-up
+
+- `backend/orders/management/commands/export_payment_contract.py`
+- `backend/orders/test_payment_contract.py`
+- `backend/orders/test_payment_method.py`
+- `backend/orders/test_razorpay_checkout.py`
+- `backend/orders/test_status_and_payment.py`
+- `frontend/src/App.tsx`
+- `frontend/src/components/PaymentStatus.test.tsx`
+- `frontend/src/components/PaymentsToCheck.test.tsx`
+- `frontend/src/pages/CheckoutPage.test.tsx`
+- `frontend/src/test/fixtures/payment-contract.json`
+
 ## Part A
 
 The original code at `ad16038` confirmed all ten findings. The existing tests remain unchanged. New test authoring and the test-first sequence could not proceed because the required ARTEMIS exploration was blocked by a missing multimodal model credential and no active Android device. Part D's generated contract fixture, management command and dedicated regression suites remain outstanding. The demonstrations below used the real local API and browser with simulated provider results.
