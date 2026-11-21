@@ -88,9 +88,15 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     () => schools.find((s) => s.id === activeSchoolId) || null,
     [schools, activeSchoolId]
   );
+  // The classes this school has, as chosen in the uniform portal. None chosen: every class.
+  const offeredClasses = useMemo(() => {
+    const names = activeSchool?.grades;
+    return names && names.length > 0 ? seedClasses.filter((c) => names.includes(c.name)) : seedClasses;
+  }, [activeSchool]);
+  // A saved or linked class the school no longer has counts as not chosen.
   const activeClass = useMemo(
-    () => seedClasses.find((c) => c.id === activeClassId) || null,
-    [activeClassId]
+    () => offeredClasses.find((c) => c.id === activeClassId) || null,
+    [offeredClasses, activeClassId]
   );
   // A saved school that has left the store counts as no school; a linked one gets its own message.
   const savedSchoolGone = schoolsQuery.isSuccess && !activeSchool && !linkedSchoolId;
@@ -407,13 +413,13 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       Middle: [],
       Secondary: [],
     };
-    seedClasses.forEach((cls) => {
+    offeredClasses.forEach((cls) => {
       if (groups[cls.group]) {
         groups[cls.group].push(cls);
       }
     });
     return groups;
-  }, []);
+  }, [offeredClasses]);
 
   // Filtered Products for Step 4 (Category + Gender filter)
   const step4Products = useMemo(() => {
@@ -592,7 +598,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
             </div>
 
             <div className="class-groups-container">
-              {Object.entries(groupedClasses).map(([groupTitle, classesInGroup]) => (
+              {Object.entries(groupedClasses).filter(([, classesInGroup]) => classesInGroup.length > 0).map(([groupTitle, classesInGroup]) => (
                 <div key={groupTitle} className="class-group-block">
                   <span className="label class-group-label">{t(GROUP_KEYS[groupTitle] ?? 'grp.primary')}</span>
                   <div className="classes-tiles-grid">

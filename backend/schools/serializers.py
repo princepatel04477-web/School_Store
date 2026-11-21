@@ -8,7 +8,7 @@ from common.constants import normalize_class_name
 from common.exceptions import Conflict
 from common.models import ImportJob
 
-from .models import City, School, Student, StudentMeasurement
+from .models import City, Grade, School, Student, StudentMeasurement
 
 
 class CitySerializer(serializers.ModelSerializer):
@@ -20,6 +20,20 @@ class CitySerializer(serializers.ModelSerializer):
 
 class SchoolSerializer(serializers.ModelSerializer):
     city_name = serializers.CharField(source="city.name", read_only=True)
+    # Classes this school has, by name ("Nursery", "Class 1", ...). Empty: every class.
+    grades = serializers.SlugRelatedField(
+        slug_field="name",
+        many=True,
+        required=False,
+        queryset=Grade.objects.all(),
+    )
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Always in school order (Nursery first), whatever order they were saved in.
+        order = {g.name: g.sort_order for g in instance.grades.all()}
+        data["grades"] = sorted(data["grades"], key=lambda name: order.get(name, 0))
+        return data
 
     class Meta:
         model = School
@@ -38,6 +52,7 @@ class SchoolSerializer(serializers.ModelSerializer):
             "contact_phone",
             "logo_url",
             "show_logo_public",
+            "grades",
             "created_at",
         )
         read_only_fields = ("id", "city_name", "created_at")

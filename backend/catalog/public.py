@@ -59,7 +59,12 @@ class PublicSchoolListView(APIView):
             except Exception:
                 pass
 
-        qs = School.objects.filter(active=True).select_related("city").order_by("name")
+        qs = (
+            School.objects.filter(active=True)
+            .select_related("city")
+            .prefetch_related(Prefetch("grades", queryset=Grade.objects.order_by("sort_order").only("id", "name")))
+            .order_by("name")
+        )
         if search:
             qs = qs.filter(name__icontains=search)
 
@@ -72,6 +77,8 @@ class PublicSchoolListView(APIView):
                 "city_name": s.city.name if s.city_id else "",
                 "home_delivery": s.home_delivery_enabled,
                 "school_pickup": s.school_pickup_enabled,
+                # Classes the school has, in school order. Empty: every class.
+                "grades": [g.name for g in s.grades.all()],
             }
             for s in qs.only(
                 "id", "name", "code", "home_delivery_enabled", "school_pickup_enabled", "city__id", "city__name"

@@ -12,6 +12,8 @@ export interface StoreSchool extends SeedSchool {
   cityId?: string;
   homeDelivery: boolean;
   schoolPickup: boolean;
+  /** Classes the school has ("Nursery", "Class 1", ...). Empty: every class. */
+  grades?: string[];
 }
 
 export interface StoreProduct extends SeedProduct {
@@ -35,6 +37,7 @@ type PublicSchool = {
   city_name?: string;
   home_delivery?: boolean;
   school_pickup?: boolean;
+  grades?: string[];
 };
 
 type PublicVariant = { id: string; size: string; stock_status: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK' | null };
@@ -78,6 +81,7 @@ function toSchool(school: PublicSchool): StoreSchool {
     cityId: school.city || undefined,
     homeDelivery: school.home_delivery ?? true,
     schoolPickup: school.school_pickup ?? true,
+    grades: school.grades ?? [],
   };
 }
 

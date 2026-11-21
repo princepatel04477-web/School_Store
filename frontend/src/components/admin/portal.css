@@ -610,3 +610,115 @@
   color: var(--ink-faint, #8C939C);
   margin-top: auto;
 }
+
+/* Schools: the classes a school has */
+.portal-classes-cell {
+  font-size: 12px;
+  color: var(--ink-soft, #5B636D);
+  max-width: 220px;
+}
+.portal-classes-field {
+  border: 1px solid var(--line, #DCE0E5);
+  border-radius: var(--radius-md, 4px);
+  padding: 12px;
+  margin: 0 0 16px;
+  min-width: 0;
+}
+.portal-classes-field legend {
+  padding: 0 4px;
+}
+.portal-classes-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--ink-soft, #5B636D);
+}
+.portal-classes-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.portal-classes-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink, #1D2329);
+}
+.portal-classes-group + .portal-classes-group {
+  margin-top: 10px;
+}
+.portal-classes-group-name {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint, #8C939C);
+  margin-bottom: 6px;
+}
+.portal-classes-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.portal-class-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--line, #DCE0E5);
+  border-radius: var(--radius-sm, 3px);
+  background: var(--paper-raised, #FFFFFF);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.portal-class-chip:hover {
+  border-color: var(--brand, #2F5D50);
+}
+.portal-class-chip.is-on {
+  background: var(--brand, #2F5D50);
+  border-color: var(--brand, #2F5D50);
+  color: #FFFFFF;
+}
+.portal-class-chip input {
+  accent-color: var(--brand, #2F5D50);
+  margin: 0;
+}
+.portal-class-chip:focus-within {
+  outline: 2px solid var(--brand, #2F5D50);
+  outline-offset: 2px;
+}
+
+/* Phones: the top bar wraps instead of making the whole portal wider than the screen */
+@media (max-width: 639px) {
+  .portal-topbar-inner {
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    gap: 10px;
+  }
+  .portal-brand-badge {
+    display: none;
+  }
+  .portal-topbar-actions {
+    justify-content: flex-start;
+    width: 100%;
+    gap: 8px;
+  }
+  .portal-user-badge {
+    white-space: normal;
+  }
+  .portal-nav-inner {
+    padding: 0 16px;
+  }
+  .portal-main {
+    padding: 16px;
+  }
+  .portal-modal-backdrop {
+    padding: 8px;
+  }
+  .portal-modal {
+    max-height: calc(100vh - 16px);
+  }
+}
