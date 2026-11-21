@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api, type Order } from '../api';
@@ -15,32 +15,68 @@ export function OrderDetailSkeleton() {
   return (
     <div className="order-detail-container" data-testid="order-detail-skeleton">
       <div className="order-detail-back-bar">
-        <Skeleton width="120px" height="44px" borderRadius="var(--radius-md, 4px)" />
+        <Skeleton width="120px" height="44px" className="order-detail-skel-back" />
       </div>
       <div className="order-detail-header-card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <div className="order-detail-skel-header-top">
           <Skeleton width="160px" height="24px" />
-          <Skeleton width="80px" height="24px" borderRadius="12px" />
+          <Skeleton width="80px" height="24px" className="order-detail-skel-badge" />
         </div>
         <Skeleton width="120px" height="16px" />
       </div>
       <div className="order-detail-section">
-        <Skeleton width="140px" height="20px" style={{ marginBottom: '14px' }} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <Skeleton width="140px" height="20px" className="order-detail-skel-title" />
+        <div className="order-detail-skel-items">
           <Skeleton width="100%" height="40px" />
           <Skeleton width="100%" height="40px" />
         </div>
       </div>
       <div className="order-detail-section">
-        <Skeleton width="100px" height="20px" style={{ marginBottom: '14px' }} />
+        <Skeleton width="100px" height="20px" className="order-detail-skel-title" />
         <Skeleton width="100%" height="32px" />
       </div>
       <div className="order-detail-section">
-        <Skeleton width="100px" height="20px" style={{ marginBottom: '14px' }} />
+        <Skeleton width="100px" height="20px" className="order-detail-skel-title" />
         <Skeleton width="100%" height="80px" />
       </div>
     </div>
   );
+}
+
+export async function copyTextWithFallback(
+  text: string,
+  nav: any = typeof navigator !== 'undefined' ? navigator : undefined,
+  doc: any = typeof document !== 'undefined' ? document : undefined,
+): Promise<boolean> {
+  if (nav?.clipboard?.writeText) {
+    try {
+      await nav.clipboard.writeText(text);
+      return true;
+    } catch {
+      // fallback to execCommand below
+    }
+  }
+
+  if (doc?.createElement && doc?.body?.appendChild && doc?.body?.removeChild) {
+    try {
+      const textArea = doc.createElement('textarea');
+      textArea.value = text;
+      textArea.style = textArea.style || {};
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      doc.body.appendChild(textArea);
+      if (typeof textArea.select === 'function') {
+        textArea.select();
+      }
+      const success = Boolean(doc.execCommand && doc.execCommand('copy'));
+      doc.body.removeChild(textArea);
+      return success;
+    } catch {
+      return false;
+    }
+  }
+
+  return false;
 }
 
 function formatEventTimestamp(isoString?: string | null): string {
@@ -75,11 +111,24 @@ function formatOrderDate(isoString?: string | null): string {
   }
 }
 
-export function OrderDetail() {
+export function OrderDetail({
+  initialCopyStatus = 'idle',
+}: {
+  initialCopyStatus?: 'idle' | 'copied' | 'failed';
+} = {}) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useLang();
-  const [copied, setCopied] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>(initialCopyStatus);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const { data: order, isLoading, isError, refetch } = useQuery({
     queryKey: ['order-detail', id],
@@ -99,24 +148,21 @@ export function OrderDetail() {
   };
 
   const handleCopy = async (articleNumber: string) => {
-    try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(articleNumber);
-      } else {
-        const textArea = document.createElement('textarea');
-        textArea.value = articleNumber;
-        textArea.style.position = 'fixed';
-        textArea.style.opacity = '0';
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-      }
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    if (copyTimeoutRef.current) {
+      clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = null;
+    }
+    const success = await copyTextWithFallback(articleNumber);
+    if (success) {
+      setCopyStatus('copied');
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopyStatus('idle');
+      }, 2000);
+    } else {
+      setCopyStatus('failed');
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopyStatus('idle');
+      }, 4000);
     }
   };
 
@@ -150,7 +196,6 @@ export function OrderDetail() {
             type="button"
             className="primary"
             onClick={() => refetch()}
-            style={{ minHeight: '44px', minWidth: '96px' }}
           >
             {t('orders.retry')}
           </button>
@@ -165,6 +210,8 @@ export function OrderDetail() {
   const isDelivered = order.status === 'DELIVERED';
   const isDispatched = ['DISPATCHED', 'SHIPPED', 'DELIVERED'].includes(order.status);
   const consignmentNumber = order.tracking?.consignment_number;
+  const isCopied = copyStatus === 'copied';
+  const isFailed = copyStatus === 'failed';
 
   // Find specific store event timestamps
   const deliveredStep = steps.slice().reverse().find((s) => s.key === 'DELIVERED');
@@ -290,9 +337,9 @@ export function OrderDetail() {
             </div>
           )}
 
-          <div className="order-detail-info-row" style={{ borderTop: '1px solid var(--line, #DCE0E5)', paddingTop: '10px', marginTop: '4px' }}>
-            <span style={{ fontWeight: 700, fontSize: '15px' }}>Total</span>
-            <strong style={{ fontSize: '17px', color: 'var(--brand, #2F5D50)' }}>
+          <div className="order-detail-info-row order-detail-total-row">
+            <span className="order-detail-total-label">Total</span>
+            <strong className="order-detail-total-value">
               ₹{Number(order.total).toLocaleString('en-IN')}
             </strong>
           </div>
@@ -364,12 +411,12 @@ export function OrderDetail() {
                       type="button"
                       className="order-detail-copy-btn"
                       onClick={() => handleCopy(consignmentNumber)}
-                      aria-label={copied ? t('tracking.copied') : t('tracking.copy')}
+                      aria-label={isCopied ? t('tracking.copied') : t('tracking.copy')}
                     >
-                      {copied ? t('tracking.copied') : t('tracking.copy')}
+                      {isCopied ? t('tracking.copied') : t('tracking.copy')}
                     </button>
                     <span aria-live="polite" className="sr-only">
-                      {copied ? t('tracking.copied') : ''}
+                      {isCopied ? t('tracking.copied') : isFailed ? t('orderDetail.copyFailed') : ''}
                     </span>
                     {Boolean(siteConfig.indiaPostTrackingUrl) && (
                       <a
@@ -383,6 +430,11 @@ export function OrderDetail() {
                       </a>
                     )}
                   </div>
+                  {isFailed && (
+                    <p className="order-detail-copy-error" role="status">
+                      {t('orderDetail.copyFailed')}
+                    </p>
+                  )}
                   <p className="order-detail-postal-hint">
                     {t('orderDetail.indiaPostHint')}
                   </p>

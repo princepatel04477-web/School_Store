@@ -1,5 +1,8 @@
 # Day 3 review report (for Codex)
 
+Latest: Task D `bbf13b1` (fixes C1 to C5, C7, C8) and Task E `a36d977` (parent order detail plus integration harness). See the last two sections. Branch `day3-fulfilment`, 4 local commits on top of the baseline.
+Note: in the Tasks A and B section below, the three high bugs were later fixed inside Task C and Task D, not in a separate pass.
+
 Repo: `ss_day3_work` (git copy of `ss_main`, no remote). Branch `day3-fulfilment`.
 Baseline `17c15f2` (main). Task A `5fd68d4`. Task B `9d4b15f`.
 Built by Antigravity (Task A started on Claude Opus 4.6, hit a quota limit, finished on Gemini 3.8 Flash; Task B all Gemini 3.8 Flash).
@@ -108,3 +111,53 @@ Not verified: screenshots (not opened), the Postgres run covered `orders` only, 
 ## Still awaiting Day 2
 
 Real rule callable (assumed `orders.payment_rules.packing_decision`), final blocked reason codes, whether COD needs a confirmation step, refund or cancel of a claimed order, and renumbering migration `0016` after Day 2 merges.
+
+
+---
+
+# Task D review (`bbf13b1`): C1 to C5, C7, C8
+
+All verified by my own throwaway probe on the final code (SQLite):
+
+| Defect | Result now |
+|---|---|
+| C1 article number of 41 characters | 400, no shipment (same for correction) |
+| C2/C3 `booked_at` | ignored: junk value gives 200 and no crash; a 2020 date is not stored (year is current) |
+| C4 `receipt_confirmed` | `"false"`, `"true"`, `1`, `null`, missing all give 400 and write nothing |
+| C5 case or spacing correction | `rb 123` to `RB 123` and then `RB123`: both applied, 2 correction rows kept |
+| C7, C8 | done |
+
+Remaining small item: a numeric article number (JSON `12345`) is accepted and stored as text "12345". Harmless, mention only.
+
+# Task E review (`a36d977`): parent order detail and integration harness
+
+Verified in a clean worktree: SQLite 383 tests OK (28 skipped); Postgres `orders` 116 OK (6 skipped, all the Day 2 integration cases, reason "Day 2 not merged"); `makemigrations --check` clean; Vitest 175; tsc and build clean; 28 screenshots committed (not opened by me).
+
+Evidence table is honest: the 6 real-Day-2 rows are PENDING, the 4 simulated rows are labelled SIMULATED, no row says PROVIDER-VERIFIED.
+Official India Post page is set in `siteConfig.indiaPostTrackingUrl` (https://www.indiapost.gov.in/VAS/Pages/TrackConsignment.aspx, found by web search; owner must confirm). No number is put in the URL.
+
+## Defects
+
+| ID | Sev | Where | Problem | Fix |
+|---|---|---|---|---|
+| E1 | Medium | `backend/orders/views.py` create (about line 119) | Task E removed the PARENT branch, so the response to placing an order is again the staff `OrderDetailSerializer` (status events with `changed_by` and notes, Razorpay id fields). The frontend never reads `razorpay_order_id` from that response (payment uses `/payment/`), so nothing needs it. It reverses Task B's rule that parents get parent-only data. Values are empty or the parent's own at creation, so the leak is small today, but it is a regression of the rule. | Restore `ParentOrderDetailSerializer` for PARENT in the create response; if the checkout needs an extra field, add only that field. Add a test on the create response. |
+| E2 | Medium | `frontend/src/pages/OrderDetail.tsx` `handleCopy` | When copying fails (clipboard blocked, `execCommand` fails) the `catch` still sets "Copied", so the parent is told it worked when it did not. | Show a failure message ("Press and hold the number to copy") when copy fails; test it. |
+| E3 | Low | `OrderDetail.tsx` `OrderDetailSkeleton` | Many inline `style={{...}}` props, against the rule to avoid inline styles. Move to `orderDetail.css`. |
+| E4 | Low | `docs/integration/evidence-table.md` | PENDING rows fill the packing and parent-visible columns with the expected outcome ("Packing permitted", "Parent sees article number"). Reads like a result. Use "not run" in those cells. |
+| E5 | Low | evidence | Cases 1 and 2 (payment survives browser closure, pending and late capture blocked) have no simulated variant, so nothing of them was exercised. Day 2 integration must run them. |
+
+## Awaiting Day 2 and the owners
+
+Real Day 2 branch and the combined migration run, a real payment provider response, a real India Post booking and a verified deep link, owner sign off on the India Post URL, renumbering Day 3's `0016` after Day 2.
+
+---
+
+# Task F review (E1, E2): INCOMPLETE, not committed
+
+Antigravity was interrupted ("error: interrupted") before it committed or wrote the walkthrough. Its changes sit uncommitted in the working tree. I applied them to a clean worktree of `a36d977` and tested.
+
+- E2 (copy feedback): done and good. "Copied" only on real success, failure message in en/hi/gu, timer cleared. Vitest 179 pass, tsc and build clean.
+- E1 (parent create response): the parent serializer is restored in `views.py` and tests were added, but the change exposes a regression from Task E:
+  **F1 (High).** `orders.test_fit_logging.FitLoggingTests.test_line_fit_is_copied_even_without_a_chart` now fails (SQLite 1 error in 385, Postgres 1 error in 118). Cause: Task E's `ParentOrderItemSerializer` dropped `measurement`, `chosen_size`, `recommended_size`, `fit_feedback`, `fit_feedback_answered_at` and `category` from the parent's order items. Task E hid this by sending parents the staff serializer on create, and the parent detail endpoint (GET /api/orders/{id}/) has been missing those fields since Task E. `OrderItemSerializer` contains no staff data (no cost, no staff names), so the new serializer was unnecessary.
+  **Fix:** make `ParentOrderDetailSerializer.items` use `OrderItemSerializer` again (keep the extra `size` alias if the new screen needs it), re-run the full suites, and add a test that the parent detail and create responses include `measurement` and the other fit fields but never `changed_by`, `note` or Razorpay ids.
+- E3: 3 inline `style={{` props remain in `OrderDetail.tsx` (check if they are dynamic values).

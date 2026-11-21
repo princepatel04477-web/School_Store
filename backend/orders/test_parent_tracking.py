@@ -10,6 +10,7 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from catalog.models import Category, Product, ProductVariant
+from inventory.models import StockBalance
 from orders.models import Order, OrderItem, OrderStatusEvent, Shipment
 from schools.models import City, School, Student
 
@@ -37,8 +38,17 @@ class ParentTrackingTestCase(TestCase):
         )
 
         self.cat = Category.objects.create(name="Uniform", slug="uniform")
-        prod = Product.objects.create(name="Uniform Set", category=self.cat, school=self.school, cost_price=Decimal("300"), selling_price=Decimal("600"))
+        prod = Product.objects.create(
+            name="Uniform Set",
+            category=self.cat,
+            school=self.school,
+            cost_price=Decimal("300"),
+            selling_price=Decimal("600"),
+            needs_review=False,
+            gender="boy",
+        )
         self.variant = ProductVariant.objects.create(product=prod, sku="UNIFORM-5", size="M", school=self.school)
+        StockBalance.objects.create(city=self.city, variant=self.variant, stock_quantity=50)
 
         self.client_p1 = APIClient()
         self.client_p1.force_authenticate(user=self.parent_1)
@@ -190,7 +200,18 @@ class ParentTrackingTestCase(TestCase):
         # Verify no tracking details leaked in 404 response
         self.assertNotIn("EE999999999IN", str(resp.content))
 
-    def test_parent_detail_items_include_product_size_qty_personalisation_without_measurements(self):
+    def assert_no_forbidden_keys(self, data, forbidden=None):
+        if forbidden is None:
+            forbidden = {"changed_by", "note", "razorpay_order_id", "razorpay_payment_id"}
+        if isinstance(data, dict):
+            for k, v in data.items():
+                self.assertNotIn(k, forbidden, f"Forbidden key '{k}' found in payload: {data}")
+                self.assert_no_forbidden_keys(v, forbidden)
+        elif isinstance(data, list):
+            for item in data:
+                self.assert_no_forbidden_keys(item, forbidden)
+
+    def test_parent_detail_items_include_fit_fields_and_no_staff_data(self):
         order = self._create_order(self.parent_1, self.student_1, "ORD-TRK-ITEMS", status=Order.Status.CONFIRMED)
         item = order.items.first()
         item.fit_height_cm = Decimal("132.50")
@@ -198,6 +219,9 @@ class ParentTrackingTestCase(TestCase):
         item.fit_shoulder_cm = Decimal("32.00")
         item.fit_model_version = "v1"
         item.fit_source = "MANUAL"
+        item.chosen_size = "M"
+        item.recommended_size = "M"
+        item.fit_feedback = "FITS_WELL"
         item.unit_cost_snapshot = Decimal("180.00")
         item.customisation_data = {"student_name": "Aarav", "house": "Red"}
         item.save()
@@ -208,24 +232,34 @@ class ParentTrackingTestCase(TestCase):
         self.assertEqual(len(resp.data["items"]), 1)
         parent_item = resp.data["items"][0]
 
-        # Allowed fields
+        # Allowed fields & fit fields
         self.assertEqual(parent_item["product_name"], "Uniform Set")
         self.assertEqual(parent_item["size"], "M")
         self.assertEqual(parent_item["variant_size"], "M")
         self.assertEqual(parent_item["quantity"], 1)
         self.assertEqual(parent_item["unit_price_snapshot"], "600.00")
+        self.assertEqual(parent_item["chosen_size"], "M")
+        self.assertEqual(parent_item["recommended_size"], "M")
+        self.assertEqual(parent_item["category"], self.cat.id)
+        self.assertEqual(parent_item["fit_feedback"], "FITS_WELL")
         self.assertIn("customisation_display", parent_item)
         self.assertEqual(parent_item["customisation_display"]["student_name"]["value"], "Aarav")
         self.assertEqual(parent_item["customisation_display"]["house"]["value"], "Red")
 
-        # Must NEVER leak measurements, internal costs, or model versions
-        self.assertNotIn("measurement", parent_item)
-        self.assertNotIn("fit_height_cm", parent_item)
-        self.assertNotIn("fit_weight_kg", parent_item)
-        self.assertNotIn("fit_shoulder_cm", parent_item)
-        self.assertNotIn("fit_model_version", parent_item)
-        self.assertNotIn("fit_source", parent_item)
+        # Items include measurement when line had one
+        self.assertIn("measurement", parent_item)
+        self.assertIsNotNone(parent_item["measurement"])
+        self.assertEqual(parent_item["measurement"]["height_cm"], 132.5)
+        self.assertEqual(parent_item["measurement"]["weight_kg"], 28.0)
+        self.assertEqual(parent_item["measurement"]["shoulder_cm"], 32.0)
+        self.assertEqual(parent_item["measurement"]["source"], "MANUAL")
+
+        # Walk entire response recursively to ensure no staff leaks anywhere
+        self.assert_no_forbidden_keys(resp.data)
+
+        # Internal cost and raw model versions never leak
         self.assertNotIn("unit_cost_snapshot", parent_item)
+        self.assertNotIn("fit_model_version", parent_item)
 
     def test_parent_detail_and_list_never_expose_internal_audit_fields(self):
         order = self._create_order(self.parent_1, self.student_1, "ORD-TRK-AUDIT", status=Order.Status.PACKED)
@@ -335,3 +369,75 @@ class ParentTrackingTestCase(TestCase):
             resp30 = self.client_p1.get("/api/orders/?page_size=50")
             self.assertEqual(resp30.status_code, status.HTTP_200_OK)
             self.assertEqual(len(resp30.data["results"]), 30)
+
+    def test_parent_order_create_response_drops_internal_fields(self):
+        payload = {
+            "idempotency_key": "test-key-p1-create-privacy",
+            "student": str(self.student_1.id),
+            "fulfillment_type": "SCHOOL_PICKUP",
+            "payment_method": "COD",
+            "items": [
+                {
+                    "variant": str(self.variant.id),
+                    "quantity": 1,
+                    "fit": {"height_cm": 135, "weight_kg": 30, "source": "MANUAL"},
+                }
+            ],
+            "fit": {"height_cm": 135, "weight_kg": 30},
+        }
+        resp = self.client_p1.post("/api/orders/", payload, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
+        data = resp.data
+
+        # Required fields for checkout to work
+        self.assertIn("id", data)
+        self.assertIn("order_number", data)
+        self.assertIn("total", data)
+        self.assertEqual(data["student_name"], self.student_1.name)
+        self.assertEqual(data["fulfillment_type"], "SCHOOL_PICKUP")
+
+        # Items include measurement, chosen_size, recommended_size, category, fit_feedback
+        self.assertTrue(len(data.get("items", [])) > 0)
+        item = data["items"][0]
+        self.assertIn("measurement", item)
+        self.assertIsNotNone(item["measurement"])
+        self.assertEqual(item["measurement"]["height_cm"], 135.0)
+        self.assertEqual(item["measurement"]["weight_kg"], 30.0)
+        self.assertIn("chosen_size", item)
+        self.assertIn("recommended_size", item)
+        self.assertIn("category", item)
+        self.assertIn("fit_feedback", item)
+
+        # Must NOT leak razorpay ids or staff fields anywhere in payload recursively
+        self.assert_no_forbidden_keys(data)
+
+    def test_staff_order_create_response_retains_internal_fields(self):
+        payload = {
+            "idempotency_key": "test-key-staff-create-privacy",
+            "student": str(self.student_1.id),
+            "fulfillment_type": "SCHOOL_PICKUP",
+            "payment_method": "COD",
+            "items": [{"variant": str(self.variant.id), "quantity": 1}],
+        }
+        resp = self.client_staff.post("/api/orders/", payload, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        data = resp.data
+
+        # Staff gets OrderDetailSerializer
+        self.assertIn("razorpay_order_id", data)
+        self.assertIn("razorpay_payment_id", data)
+        self.assertTrue(len(data.get("status_events", [])) > 0)
+        for ev in data["status_events"]:
+            self.assertIn("changed_by", ev)
+            self.assertIn("note", ev)
+
+        # Detail response for staff also retains them
+        detail_resp = self.client_staff.get(f"/api/orders/{data['id']}/")
+        self.assertEqual(detail_resp.status_code, status.HTTP_200_OK)
+        detail_data = detail_resp.data
+        self.assertIn("razorpay_order_id", detail_data)
+        self.assertIn("razorpay_payment_id", detail_data)
+        for ev in detail_data["status_events"]:
+            self.assertIn("changed_by", ev)
+            self.assertIn("note", ev)
+

@@ -1239,6 +1239,16 @@ export const messages = {
     hi: 'आपके ऑर्डर का विवरण नहीं खुल पाया।',
   },
   'orderDetail.viewDetails': { en: 'View details', gu: 'વિગતો જુઓ', hi: 'विवरण देखें' },
+  'orderDetail.copyFailed': {
+    en: 'Could not copy. Press and hold the number to copy it.',
+    gu: 'કૉપિ થઈ શક્યું નહીં. નંબર દબાવી રાખીને કૉપિ કરો.',
+    hi: 'कॉपी नहीं हो सका। नंबर को दबाकर रखें और कॉपी करें।',
+  },
+  'tracking.copyFailed': {
+    en: 'Could not copy. Press and hold the number to copy it.',
+    gu: 'કૉપિ થઈ શક્યું નહીં. નંબર દબાવી રાખીને કૉપિ કરો.',
+    hi: 'कॉपी नहीं हो सका। नंबर को दबाकर रखें और कॉपी करें।',
+  },
 } satisfies Record<string, Entry>;
 
 export type MessageKey = keyof typeof messages;

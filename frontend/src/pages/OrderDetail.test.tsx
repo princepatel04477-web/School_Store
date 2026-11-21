@@ -3,11 +3,12 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { OrderDetail } from './OrderDetail';
+import { OrderDetail, copyTextWithFallback } from './OrderDetail';
 import * as apiModule from '../api';
 import * as externalLinksModule from '../native/externalLinks';
 import { siteConfig } from '../siteConfig';
 import { setLang } from '../i18n';
+import { messages } from '../i18n/messages';
 
 let mockUseQueryError = false;
 
@@ -64,12 +65,12 @@ describe('OrderDetail Component', () => {
     siteConfig.indiaPostTrackingUrl = 'https://www.indiapost.gov.in/VAS/Pages/TrackConsignment.aspx';
   });
 
-  const renderComponent = (orderId = 'ord-123') => {
+  const renderComponent = (orderId = 'ord-123', props: any = {}) => {
     return renderToString(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={[`/orders/${orderId}`]}>
           <Routes>
-            <Route path="/orders/:id" element={<OrderDetail />} />
+            <Route path="/orders/:id" element={<OrderDetail {...props} />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>
@@ -409,5 +410,85 @@ describe('OrderDetail Component', () => {
     expect(htmlHi).toContain('कॉपी करें');
     expect(htmlHi).toContain('इंडिया पोस्ट पर ट्रैक करें');
     expect(htmlHi).not.toContain('orderDetail.');
+  });
+
+  describe('E2: Copy consignment number tests', () => {
+    const dispOrder: apiModule.Order = {
+      id: 'ord-copy-test',
+      order_number: 'ORD-COPY-001',
+      student_name: 'Aarav Patel',
+      school_name: 'DPS Surat',
+      status: 'DISPATCHED',
+      payment_status: 'PAID',
+      fulfillment_type: 'HOME_DELIVERY',
+      payment_method: 'ONLINE',
+      total: '650.00',
+      created_at: '2026-11-20T10:00:00Z',
+      items: [
+        {
+          id: 'item-1',
+          product_name: 'School Skirt',
+          size: 'M',
+          quantity: 1,
+          unit_price_snapshot: '650.00',
+        },
+      ],
+      tracking: {
+        carrier: 'INDIA_POST',
+        consignment_number: 'EM123456789IN',
+        dispatched_at: '2026-11-21T12:00:00Z',
+        delivered_at: null,
+        steps: [
+          { key: 'PLACED', at: '2026-11-20T10:00:00Z' },
+          { key: 'DISPATCHED', at: '2026-11-21T12:00:00Z' },
+        ],
+      },
+    };
+
+    it('clipboard success shows Copied', async () => {
+      queryClient.setQueryData(['order-detail', 'ord-copy-test'], dispOrder);
+      const nav = { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } };
+      const ok = await copyTextWithFallback('EM123456789IN', nav as any);
+      expect(ok).toBe(true);
+      const html = renderComponent('ord-copy-test', { initialCopyStatus: ok ? 'copied' : 'failed' });
+      expect(html).toContain('Copied');
+      expect(html).not.toContain('Could not copy');
+    });
+
+    it('clipboard rejects and execCommand returns false shows the failure message and not Copied', async () => {
+      queryClient.setQueryData(['order-detail', 'ord-copy-test'], dispOrder);
+      const nav = { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('Permission denied')) } };
+      const doc = {
+        createElement: vi.fn().mockReturnValue({ style: {}, select: vi.fn() }),
+        body: { appendChild: vi.fn(), removeChild: vi.fn() },
+        execCommand: vi.fn().mockReturnValue(false),
+      };
+      const ok = await copyTextWithFallback('EM123456789IN', nav as any, doc as any);
+      expect(ok).toBe(false);
+      const html = renderComponent('ord-copy-test', { initialCopyStatus: ok ? 'copied' : 'failed' });
+      expect(html).toContain('Could not copy. Press and hold the number to copy it.');
+      expect(html).not.toContain('Copied');
+    });
+
+    it('clipboard missing and execCommand true shows Copied', async () => {
+      queryClient.setQueryData(['order-detail', 'ord-copy-test'], dispOrder);
+      const nav = {};
+      const doc = {
+        createElement: vi.fn().mockReturnValue({ style: {}, select: vi.fn() }),
+        body: { appendChild: vi.fn(), removeChild: vi.fn() },
+        execCommand: vi.fn().mockReturnValue(true),
+      };
+      const ok = await copyTextWithFallback('EM123456789IN', nav as any, doc as any);
+      expect(ok).toBe(true);
+      const html = renderComponent('ord-copy-test', { initialCopyStatus: ok ? 'copied' : 'failed' });
+      expect(html).toContain('Copied');
+      expect(html).not.toContain('Could not copy');
+    });
+
+    it('message exists in all three languages', () => {
+      expect((messages as any)['orderDetail.copyFailed']?.en).toBe('Could not copy. Press and hold the number to copy it.');
+      expect((messages as any)['orderDetail.copyFailed']?.hi).toBe('कॉपी नहीं हो सका। नंबर को दबाकर रखें और कॉपी करें।');
+      expect((messages as any)['orderDetail.copyFailed']?.gu).toBe('કૉપિ થઈ શક્યું નહીં. નંબર દબાવી રાખીને કૉપિ કરો.');
+    });
   });
 });

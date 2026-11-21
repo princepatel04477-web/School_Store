@@ -223,6 +223,15 @@
   overflow-wrap: anywhere;
   word-break: break-all;
   margin-bottom: 12px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.order-detail-copy-error {
+  font-size: 13px;
+  color: var(--ink-soft, #545C66);
+  margin-top: 8px;
+  line-height: 1.4;
 }
 
 .order-detail-article-actions {
@@ -299,6 +308,22 @@
   border-radius: var(--radius-md, 4px);
 }
 
+.order-detail-total-row {
+  border-top: 1px solid var(--line, #DCE0E5);
+  padding-top: 10px;
+  margin-top: 4px;
+}
+
+.order-detail-total-label {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.order-detail-total-value {
+  font-size: 17px;
+  color: var(--brand, #2F5D50);
+}
+
 /* Error State */
 .order-detail-error {
   text-align: center;
@@ -320,4 +345,29 @@
   min-height: 44px;
   min-width: 100px;
   padding: 10px 24px;
+}
+
+/* Skeleton classes - tokens only, no inline styles */
+.order-detail-skel-back {
+  border-radius: var(--radius-md, 4px);
+}
+
+.order-detail-skel-header-top {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--space-2, 8px);
+}
+
+.order-detail-skel-badge {
+  border-radius: var(--radius-lg, 6px);
+}
+
+.order-detail-skel-title {
+  margin-bottom: var(--space-3, 14px);
+}
+
+.order-detail-skel-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
 }
