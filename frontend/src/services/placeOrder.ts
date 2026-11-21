@@ -49,8 +49,8 @@ type PendingOrder = OrderPayload & { order_id?: string };
 
 /**
  * Same child, items and delivery as a saved attempt means it is the same order. The payment
- * choice and the expected total do not count: a parent who comes back after paying in the
- * UPI app and picks cash this time still has one order, not two.
+ * choice and the expected total do not count: a parent who goes back to the bag while a
+ * payment may still go through, and picks cash this time, still has one order, not two.
  */
 function sameOrder(a: Omit<OrderPayload, 'idempotency_key'>, b: Omit<OrderPayload, 'idempotency_key'>): boolean {
   const pick = (order: Omit<OrderPayload, 'idempotency_key'>) =>
@@ -130,8 +130,8 @@ export async function submitOrder(
         body: JSON.stringify(body),
         headers: { 'Idempotency-Key': payload.idempotency_key },
       });
-      // An online order keeps its saved copy until its payment is settled: if the page reloads
-      // while the parent pays in the UPI app, the same bag must find this order again.
+      // An online order keeps its saved copy until its payment is settled: if the parent goes back
+      // to the bag while a payment may still go through, the same items must find this order again.
       if (order.payment_method === 'ONLINE' && order.status !== 'CANCELLED') {
         savePendingOrder({ ...body, idempotency_key: payload.idempotency_key, order_id: order.id });
       } else {

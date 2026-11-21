@@ -25,7 +25,7 @@ function serverReturns(order: Record<string, unknown>) {
   );
 }
 
-describe('retry safety after the page reloads', () => {
+describe('retry safety when the same bag is checked out again', () => {
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem('access', 'token');
@@ -40,7 +40,8 @@ describe('retry safety after the page reloads', () => {
     const fetchMock = serverReturns({ id: 'order-1', order_number: 'ORD-1', payment_method: 'ONLINE', payment_view: views.CHECKING });
     await submitOrder(first);
 
-    // The page reloads while the parent approves in the UPI app. The bag is still there.
+    // The parent leaves the payment screen for the bag, which still holds the same items
+    // (or re-adds them after a reload), and checks out again.
     const again = prepareOrder(base);
     expect(again.idempotency_key).toBe(first.idempotency_key);
     // Choosing cash on the second go is still the same order, not a second one.

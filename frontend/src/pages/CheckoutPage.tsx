@@ -276,7 +276,7 @@ export function CheckoutPage() {
     };
 
     try {
-      // The same bag after a reload finds the order already placed for it, whatever was picked now.
+      // The same items find the order already placed for them, whatever payment was picked now.
       let order = await submitOrder(prepareOrder(draft), () => setRetrying(true));
       if (order.status === 'CANCELLED') {
         // That earlier order was released or cancelled: this checkout is a new order.
