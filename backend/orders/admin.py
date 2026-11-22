@@ -11,6 +11,7 @@ from .models import (
     PaymentEvent,
     PaymentReview,
     PhotoConsent,
+    SizeExchangeRequest,
 )
 from .status import can_transition_order
 
@@ -229,7 +230,7 @@ class SizeExchangeFilter(admin.SimpleListFilter):
 class OrderItemExchangeInline(admin.TabularInline):
     model = OrderItemExchange
     extra = 0
-    fields = ("from_size", "to_size", "reason", "note", "created_by", "created_at")
+    fields = ("from_size", "to_size", "quantity", "reason", "note", "created_by", "created_at")
     readonly_fields = ("created_by", "created_at")
 
 
@@ -265,12 +266,62 @@ class OrderItemAdmin(admin.ModelAdmin):
 
 @admin.register(OrderItemExchange)
 class OrderItemExchangeAdmin(admin.ModelAdmin):
-    list_display = ("order_item", "from_size", "to_size", "reason", "created_by", "created_at")
+    list_display = ("order_item", "from_size", "to_size", "quantity", "reason", "created_by", "created_at")
     list_filter = ("reason",)
     search_fields = ("order_item__order__order_number", "order_item__variant__sku")
     raw_id_fields = ("order_item",)
     readonly_fields = ("id", "created_by", "created_at")
     list_select_related = ("order_item", "order_item__order", "order_item__variant", "created_by")
+    show_full_result_count = False
+
+
+@admin.register(SizeExchangeRequest)
+class SizeExchangeRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        "order",
+        "order_item",
+        "from_size",
+        "target_variant",
+        "quantity",
+        "status",
+        "reservation",
+        "condition",
+        "created_at",
+    )
+    list_filter = ("status", "reservation", "condition", "handover_method")
+    search_fields = ("order__order_number", "idempotency_key", "from_size")
+    raw_id_fields = ("order", "order_item", "from_variant", "target_variant", "exchange_record")
+    readonly_fields = (
+        "id",
+        "order",
+        "order_item",
+        "from_size",
+        "from_variant",
+        "target_variant",
+        "quantity",
+        "reservation",
+        "reserved_at",
+        "released_at",
+        "replacement_set_aside_by",
+        "replacement_set_aside_at",
+        "review_reasons",
+        "window_starts_at",
+        "window_ends_at",
+        "window_confirmed_start",
+        "window_confirmed_by",
+        "window_confirmed_at",
+        "received_at",
+        "received_by",
+        "handed_over_at",
+        "handed_over_by",
+        "original_returned_at",
+        "original_returned_by",
+        "exchange_record",
+        "idempotency_key",
+        "created_by",
+        "created_at",
+        "updated_at",
+    )
     show_full_result_count = False
 
     def save_model(self, request, obj, form, change):

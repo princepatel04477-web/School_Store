@@ -255,8 +255,37 @@ class OrderItem(UUIDModel):
         last = self.exchanges.order_by("-created_at").first()
         return last.to_size if last else (self.chosen_size or self.variant.size)
 
+    @property
+    def size_holdings(self) -> dict[str, int]:
+        """Returns the distribution of sizes currently held for this line as {size: quantity}."""
+        return size_holdings(self)
+
     def __str__(self) -> str:
         return f"{self.order.order_number} - {self.variant.sku} x{self.quantity}"
+
+
+def size_holdings(item: OrderItem) -> dict[str, int]:
+    """
+    Returns the distribution of sizes currently held for an order line as {size: quantity}.
+    Initial holdings are {item.chosen_size or item.variant.size: item.quantity}.
+    Each completed exchange moves units from from_size to to_size.
+    Never invents units: units to move is bounded by what is actually held in from_size.
+    """
+    initial_size = item.chosen_size or item.variant.size
+    holdings: dict[str, int] = {initial_size: item.quantity}
+    exchanges = list(item.exchanges.all())
+    exchanges.sort(key=lambda e: e.created_at or timezone.now())
+    for ex in exchanges:
+        q = ex.quantity if ex.quantity is not None else item.quantity
+        from_s = ex.from_size or initial_size
+        available_from = holdings.get(from_s, 0)
+        units_to_move = min(available_from, q)
+        if units_to_move > 0:
+            holdings[from_s] -= units_to_move
+            if holdings[from_s] == 0:
+                del holdings[from_s]
+            holdings[ex.to_size] = holdings.get(ex.to_size, 0) + units_to_move
+    return holdings
 
 
 class OrderItemExchange(UUIDModel):
@@ -282,6 +311,11 @@ class OrderItemExchange(UUIDModel):
         help_text="Leave blank to use the size the family has now.",
     )
     to_size = models.CharField(max_length=50)
+    quantity = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Number of units exchanged. Null indicates the entire line item.",
+    )
     reason = models.CharField(max_length=12, choices=Reason.choices)
     note = models.TextField(blank=True, default="")
     created_by = models.ForeignKey(
@@ -529,4 +563,213 @@ class PaymentReview(UUIDModel):
 
     def __str__(self) -> str:
         return f"Review {self.reason} (payment: {self.payment_id}) for order {self.order_id}"
+
+
+class SizeExchangeRequest(UUIDModel):
+    """
+    Parent-initiated request to exchange some units of an order line for another size.
+    Server decides eligibility and reserves stock.
+    Staff approve, inspect returned garments, and complete handover.
+    """
+
+    class Status(models.TextChoices):
+        REQUESTED = "REQUESTED", "Requested"
+        APPROVED = "APPROVED", "Approved"
+        RECEIVED = "RECEIVED", "Received"
+        COMPLETED = "COMPLETED", "Completed"
+        INSPECTION_FAILED = "INSPECTION_FAILED", "Inspection Failed"
+        REJECTED = "REJECTED", "Rejected"
+        WITHDRAWN = "WITHDRAWN", "Withdrawn"
+
+    class Reason(models.TextChoices):
+        TOO_SMALL = "TOO_SMALL", "Too small"
+        TOO_BIG = "TOO_BIG", "Too big"
+
+    class Reservation(models.TextChoices):
+        HELD = "HELD", "Held"
+        LOCKED = "LOCKED", "Locked"
+        CONSUMED = "CONSUMED", "Consumed"
+        RELEASED = "RELEASED", "Released"
+
+    class Condition(models.TextChoices):
+        UNCHECKED = "UNCHECKED", "Unchecked"
+        RESTOCKABLE = "RESTOCKABLE", "Restockable"
+        NOT_RESTOCKABLE = "NOT_RESTOCKABLE", "Not restockable"
+
+    class HandoverMethod(models.TextChoices):
+        SCHOOL_COUNTER = "SCHOOL_COUNTER", "School Counter"
+        HOME_VISIT = "HOME_VISIT", "Home Visit"
+        POSTAL = "POSTAL", "Postal"
+
+    class HandoverEvidence(models.TextChoices):
+        COUNTER_HANDOVER = "COUNTER_HANDOVER", "Counter Handover"
+        HOME_VISIT = "HOME_VISIT", "Home Visit"
+        POSTAL_DELIVERED = "POSTAL_DELIVERED", "Postal Delivered"
+
+    class OriginalDisposition(models.TextChoices):
+        HELD_AT_COUNTER = "HELD_AT_COUNTER", "Held at counter"
+        RETURNED_TO_PARENT = "RETURNED_TO_PARENT", "Returned to parent"
+
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="size_exchange_requests",
+    )
+    order_item = models.ForeignKey(
+        OrderItem,
+        on_delete=models.CASCADE,
+        related_name="size_exchange_requests",
+    )
+    status = models.CharField(
+        max_length=24,
+        choices=Status.choices,
+        default=Status.REQUESTED,
+    )
+    reason = models.CharField(
+        max_length=24,
+        choices=Reason.choices,
+    )
+    from_size = models.CharField(max_length=50)
+    from_variant = models.ForeignKey(
+        "catalog.ProductVariant",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    target_variant = models.ForeignKey(
+        "catalog.ProductVariant",
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    quantity = models.PositiveIntegerField(default=1)
+    reservation = models.CharField(
+        max_length=24,
+        choices=Reservation.choices,
+        default=Reservation.HELD,
+    )
+    reserved_at = models.DateTimeField(default=timezone.now)
+    released_at = models.DateTimeField(null=True, blank=True)
+    replacement_set_aside_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    replacement_set_aside_at = models.DateTimeField(null=True, blank=True)
+    condition = models.CharField(
+        max_length=24,
+        choices=Condition.choices,
+        default=Condition.UNCHECKED,
+    )
+    condition_note = models.TextField(blank=True, default="")
+    is_restocked = models.BooleanField(default=False)
+    review_reasons = models.JSONField(default=list, blank=True)
+    window_starts_at = models.DateTimeField(null=True, blank=True)
+    window_ends_at = models.DateTimeField(null=True, blank=True)
+    window_confirmed_start = models.DateTimeField(null=True, blank=True)
+    window_confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    window_confirmed_at = models.DateTimeField(null=True, blank=True)
+    window_confirmed_note = models.TextField(blank=True, default="")
+    handover_method = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        choices=[("", "Not set")] + list(HandoverMethod.choices),
+    )
+    received_at = models.DateTimeField(null=True, blank=True)
+    received_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    handover_evidence = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        choices=[("", "None")] + list(HandoverEvidence.choices),
+    )
+    handed_over_at = models.DateTimeField(null=True, blank=True)
+    handed_over_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    received_by_name = models.CharField(max_length=150, blank=True, default="")
+    handover_note = models.TextField(blank=True, default="")
+    original_disposition = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        choices=[("", "None")] + list(OriginalDisposition.choices),
+    )
+    original_returned_at = models.DateTimeField(null=True, blank=True)
+    original_returned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    rejection_reason = models.TextField(blank=True, default="")
+    charge_paise = models.BigIntegerField(default=0)
+    exchange_record = models.ForeignKey(
+        OrderItemExchange,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="size_exchange_requests",
+    )
+    idempotency_key = models.CharField(max_length=128, blank=True, default="")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order_item"],
+                condition=models.Q(status__in=["REQUESTED", "APPROVED", "RECEIVED", "INSPECTION_FAILED"]),
+                name="uniq_active_size_exchange_per_item",
+            ),
+            models.UniqueConstraint(
+                fields=["order", "idempotency_key"],
+                condition=~models.Q(idempotency_key=""),
+                name="uniq_order_size_exchange_idempotency",
+            ),
+            models.CheckConstraint(
+                check=models.Q(quantity__gte=1),
+                name="size_exchange_quantity_gte_1",
+            ),
+            models.CheckConstraint(
+                check=models.Q(reservation="CONSUMED", status="COMPLETED") | ~models.Q(reservation="CONSUMED"),
+                name="size_exchange_consumed_only_when_completed",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["order", "created_at"], name="idx_size_exchange_order"),
+            models.Index(fields=["status", "created_at"], name="idx_size_exchange_status"),
+            models.Index(fields=["reservation", "reserved_at"], name="idx_size_exchange_reservation"),
+        ]
+
+    def __str__(self) -> str:
+        return f"SizeExchange {self.order.order_number}: {self.from_size} -> {self.target_variant.size} x{self.quantity} ({self.status})"
 

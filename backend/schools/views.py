@@ -365,8 +365,13 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         for item in items:
             key = str(item.variant.product_id)
             if key not in sizes:
-                exchanges = sorted(item.exchanges.all(), key=lambda e: e.created_at)
-                sizes[key] = exchanges[-1].to_size if exchanges else (item.chosen_size or item.variant.size)
+                from orders.models import size_holdings
+                holdings = size_holdings(item)
+                if holdings:
+                    sizes[key] = list(holdings.keys())[-1]
+                else:
+                    exchanges = sorted(item.exchanges.all(), key=lambda e: e.created_at)
+                    sizes[key] = exchanges[-1].to_size if exchanges else (item.chosen_size or item.variant.size)
         return Response(sizes)
 
     # ------------------------------------------------------------------ #

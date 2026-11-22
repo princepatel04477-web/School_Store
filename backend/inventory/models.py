@@ -81,9 +81,11 @@ class StockMovement(UUIDModel):
         RESTOCK = "RESTOCK", "Restock"
         # Sale (written by the checkout path)
         ORDER_PLACED = "ORDER_PLACED", "Order Placed"
+        EXCHANGE_RESERVE = "EXCHANGE_RESERVE", "Exchange Reserve"
         # Stock back in
         ORDER_CANCELLED = "ORDER_CANCELLED", "Order Cancelled"
         RETURN = "RETURN", "Customer Return"
+        EXCHANGE_RELEASE = "EXCHANGE_RELEASE", "Exchange Release"
         # Manual adjustments
         ADJUSTMENT = "ADJUSTMENT", "Manual Adjustment"
         DAMAGE = "DAMAGE", "Damaged / Write-off"
