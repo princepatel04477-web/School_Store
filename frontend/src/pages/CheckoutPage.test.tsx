@@ -332,7 +332,7 @@ describe('CheckoutPage Razorpay Flow', () => {
       ...earlier, total: String(earlier.total), fulfillment_type: earlier.fulfillment_type!,
     });
     vi.spyOn(orderApi, 'switchToCod').mockResolvedValueOnce({
-      payment_method: 'COD', payment_view: contract.states.COD_DUE.detail.payment_view,
+      payment_method: 'COD', payment_view: contract.states.COD_DUE.detail.payment_view as any,
     });
     const open = vi.spyOn(paymentAdapter, 'openRazorpayCheckout');
 

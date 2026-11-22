@@ -8,6 +8,7 @@ import { useAuth } from '../auth';
 import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
 import { SizeChartManager } from '../components/admin/SizeChartManager';
 import { TailorSheetButton, TailorSheetCard } from '../components/admin/TailorSheetCard';
+import { ExchangeQueue } from '../components/admin/ExchangeQueue';
 import {
   cityAdmin, money, num, relative,
   type CityDailySales, type CityOrderDetail, type CitySchool,
@@ -21,6 +22,7 @@ const NAV: PanelNavItem[] = [
   { to: '', label: 'Daily Sales', icon: BarChart, end: true },
   { to: 'inventory', label: 'Inventory & Stock', icon: Package },
   { to: 'orders', label: 'Orders', icon: Receipt },
+  { to: 'exchanges', label: 'Size Exchanges', icon: Ruler },
   { to: 'schools', label: 'Schools', icon: SchoolBuilding },
   { to: 'size-charts', label: 'Size Charts', icon: Ruler },
   { to: '/portal', label: 'Uniform Portal', icon: Package },
@@ -35,6 +37,7 @@ export default function CityAdmin() {
         <Route index element={<CityDailySalesViewComponent />} />
         <Route path="inventory" element={<CityInventoryView />} />
         <Route path="orders" element={<CityOrdersView />} />
+        <Route path="exchanges" element={<ExchangeQueue cityId={user?.city} />} />
         <Route path="schools" element={<CitySchoolsView />} />
         <Route path="size-charts" element={<CitySizeChartsView />} />
       </Routes>

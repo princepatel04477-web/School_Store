@@ -18,6 +18,7 @@ import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
 import { SizeChartManager } from '../components/admin/SizeChartManager';
 import { RetailersManager } from '../components/admin/retail/RetailersManager';
 import { SchoolRequestsReview } from '../components/admin/retail/SchoolRequestsReview';
+import { ExchangeQueue } from '../components/admin/ExchangeQueue';
 
 const NAV: PanelNavItem[] = [
   { to: '', label: 'Executive Overview', icon: Overview, end: true },
@@ -25,6 +26,7 @@ const NAV: PanelNavItem[] = [
   { to: 'management', label: 'Staff & Cities', icon: Users },
   { to: 'schools', label: 'School Commissions', icon: SchoolBuilding },
   { to: 'payments', label: 'Payments to check', icon: ShoppingBag },
+  { to: 'exchanges', label: 'Size Exchanges', icon: Ruler },
   { to: 'view-as', label: 'View As (Audit)', icon: Eye },
   { to: 'size-charts', label: 'Size Charts', icon: Ruler },
   { to: 'school-requests', label: 'School Requests', icon: ShieldCheck },
@@ -60,6 +62,7 @@ export default function BossPanel() {
         <Route path="management" element={<BossStaffManagementView />} />
         <Route path="schools" element={<BossSchoolsCommissionView />} />
         <Route path="payments" element={<BossPayments />} />
+        <Route path="exchanges" element={<ExchangeQueue />} />
         <Route path="view-as" element={<BossViewAsView />} />
         <Route path="size-charts" element={<BossSizeChartsView />} />
         <Route path="school-requests" element={<SchoolRequestsReview />} />

@@ -13,6 +13,7 @@ import { Overview as OverviewIcon, Receipt, User, Users, Download, Ruler } from 
 import { PanelShell, type PanelNavItem } from '../components/admin/PanelShell';
 import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
 import { SizeChartManager } from '../components/admin/SizeChartManager';
+import { ExchangeQueue } from '../components/admin/ExchangeQueue';
 
 /* ------------------------------------------------------------------ *
  * School scope
@@ -27,6 +28,7 @@ const useSchool = () => useContext(SchoolContext);
 const NAV: (PanelNavItem & { roles?: string[] })[] = [
   { to: '', label: 'Overview', icon: OverviewIcon, end: true },
   { to: 'orders', label: 'Orders', icon: Receipt },
+  { to: 'exchanges', label: 'Size Exchanges', icon: Ruler, roles: ['SCHOOL_ADMIN', 'BOSS', 'ADMIN'] },
   { to: 'students', label: 'Students', icon: User },
   { to: 'teachers', label: 'Teachers', icon: Users },
   { to: 'exports', label: 'Exports', icon: Download },
@@ -65,6 +67,7 @@ export default function SchoolAdmin() {
           <Routes>
             <Route index element={<Overview />} />
             <Route path="orders" element={<Orders />} />
+            <Route path="exchanges" element={<ExchangeQueue readOnly={true} schoolId={schoolId} />} />
             <Route path="students" element={<Students />} />
             <Route path="students/:id" element={<StudentDetail />} />
             <Route path="teachers" element={<Teachers />} />

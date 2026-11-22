@@ -17,6 +17,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import '../components/photoConsent.css';
 import type { Fit } from '../data/fit';
 import { LIVE_CATEGORIES } from '../data/liveCategories';
+import ParentExchange from './ParentExchange';
 
 interface StudentDetail {
   id: string;
@@ -58,6 +59,7 @@ export default function Parent() {
       <Routes>
         <Route index element={<Dashboard />} />
         <Route path="orders" element={<Orders />} />
+        <Route path="orders/:orderId/exchange" element={<ParentExchange />} />
       </Routes>
     </Shell>
   );
@@ -507,6 +509,18 @@ function Orders() {
               onCod={() => void act(o, 'cod')} />
 
             <Timeline order={o} />
+
+            {o.status === 'DELIVERED' && (
+              <div style={{ marginTop: '0.75rem' }}>
+                <Link
+                  to={`/parent/orders/${o.id}/exchange`}
+                  className="text-button"
+                  style={{ fontSize: '0.8125rem' }}
+                >
+                  {t('exchange.changeSize')} &rarr;
+                </Link>
+              </div>
+            )}
           </article>
         ))
       ) : (
