@@ -4,7 +4,8 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from schools.models import City
 
-from .models import Order, OrderStatusEvent, PaymentReview, Shipment
+from .models import Order, OrderStatusEvent, PaymentAttempt, PaymentReview, Shipment
+from .status import apply_provider_payment
 from .test_razorpay_checkout import RazorpayTestBase
 
 
@@ -105,3 +106,22 @@ class FulfilmentTests(RazorpayTestBase):
         shipped = self.make_order(status=Order.Status.SHIPPED)
         sent = self.staff.get(reverse("fulfilment-queue"), {"tab": "sent"}).json()["results"]
         self.assertIn(str(shipped.pk), {str(row["id"]) for row in sent})
+
+    def test_verified_capture_unlocks_packing_and_late_capture_does_not(self):
+        for order_status, expected in ((Order.Status.PLACED, 200), (Order.Status.CANCELLED, 409)):
+            with self.subTest(order_status=order_status):
+                order = self.make_order(status=order_status, razorpay_order_id=f"rzp_day3_{order_status}")
+                apply_provider_payment(order, {
+                    "id": f"pay_day3_{order_status}",
+                    "order_id": order.razorpay_order_id,
+                    "amount": int(order.total * 100),
+                    "currency": "INR",
+                    "status": "captured",
+                }, PaymentAttempt.Source.WEBHOOK)
+                order.refresh_from_db()
+                self.assertEqual(order.payment_status, Order.PaymentStatus.PAID)
+                response = self.act(order, "claim")
+                self.assertEqual(response.status_code, expected, response.json())
+                if order_status == Order.Status.CANCELLED:
+                    self.assertEqual(response.data["code"], "PAYMENT_REVIEW_OPEN")
+                    self.assertFalse(hasattr(order, "packing"))
