@@ -5,6 +5,8 @@ import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { orderApi, type Order, type PaymentReconcileResponse } from '../api';
+import { Timeline } from '../components/Store';
+import { setLang } from '../i18n';
 import contract from '../test/fixtures/payment-contract.json';
 import Parent from './Parent';
 
@@ -13,7 +15,20 @@ vi.mock('../auth', () => ({ useAuth: () => ({ user: { id: 'parent-1', role: 'PAR
 
 afterEach(() => {
   cleanup();
+  setLang('en');
   vi.restoreAllMocks();
+});
+
+it.each([
+  { status: 'SHIPPED', lang: 'gu', label: 'મોકલ્યો' },
+  { status: 'PENDING', lang: 'hi', label: 'ऑर्डर मिल गया' },
+] as const)('shows the current legacy $status step in $lang', ({ status, lang, label }) => {
+  setLang(lang);
+  const order = { ...(contract.states.NOT_PAID.list as Order), status, fulfillment_type: 'HOME_DELIVERY' };
+  const { container } = render(<Timeline order={order} />);
+  const current = container.querySelector('[aria-current="step"]');
+  expect(current?.textContent).toContain(label);
+  expect(container.querySelector('time')).toBeNull();
 });
 
 function listResponse(order: Order) {
@@ -42,8 +57,8 @@ describe('My Orders after the parent comes back', () => {
     // The order loads as CHECKING with an empty bag and nothing saved, and is checked once.
     await waitFor(() => expect(reconcile).toHaveBeenCalledWith(checking.id));
     expect(await screen.findByText('Payment received.')).toBeDefined();
-    await waitFor(() => expect(screen.getByText('CONFIRMED')).toBeDefined());
-    expect(screen.queryByText('PLACED')).toBeNull();
+    await waitFor(() => expect(screen.getByText('Confirmed').closest('[aria-current="step"]')).not.toBeNull());
+    expect(screen.getByText('Order placed').closest('[aria-current="step"]')).toBeNull();
     expect(reconcile).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/orders/')).length).toBe(2);
   });

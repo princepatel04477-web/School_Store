@@ -51,6 +51,23 @@ vi.mock('motion/react', async () => {
   };
 });
 
+const mockAuthState = {
+  user: null as any,
+  loading: false,
+};
+
+vi.mock('../../auth', async () => {
+  const actual = await vi.importActual('../../auth');
+  return {
+    ...actual,
+    useAuth: () => ({
+      user: mockAuthState.user,
+      loading: mockAuthState.loading,
+      signOut: vi.fn(),
+    }),
+  };
+});
+
 function renderHomeHero() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -68,6 +85,8 @@ describe('HomeHero (P1 Emerald Stage)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     reducedMotionValue = false;
+    mockAuthState.user = null;
+    mockAuthState.loading = false;
     act(() => {
       setLang('en');
     });
@@ -153,5 +172,44 @@ describe('HomeHero (P1 Emerald Stage)', () => {
 
     const floatWrap = container.querySelector('.emerald-float-wrap');
     expect(floatWrap).toBeTruthy();
+  });
+
+  describe('account entrance', () => {
+    it('signed out shows a link named "Sign in" to the shared destination (/login)', () => {
+      mockAuthState.user = null;
+      mockAuthState.loading = false;
+      const { container } = renderHomeHero();
+      const accountLink = screen.getByRole('link', { name: /Sign in/i });
+      expect(accountLink).toBeTruthy();
+      expect(accountLink.getAttribute('href')).toBe('/login');
+      expect(container.querySelector('.emerald-account-btn')).toBe(accountLink);
+    });
+
+    it('signed in as PARENT shows "My account" to /parent', () => {
+      mockAuthState.user = { id: 'p1', role: 'PARENT', username: 'parent1' };
+      mockAuthState.loading = false;
+      renderHomeHero();
+      const accountLink = screen.getByRole('link', { name: /My account/i });
+      expect(accountLink).toBeTruthy();
+      expect(accountLink.getAttribute('href')).toBe('/parent');
+    });
+
+    it('signed in as SCHOOL_ADMIN goes to /school', () => {
+      mockAuthState.user = { id: 'sa1', role: 'SCHOOL_ADMIN', username: 'admin1' };
+      mockAuthState.loading = false;
+      renderHomeHero();
+      const accountLink = screen.getByRole('link', { name: /My account/i });
+      expect(accountLink).toBeTruthy();
+      expect(accountLink.getAttribute('href')).toBe('/school');
+    });
+
+    it('while auth is still loading, renders signed-out form without shifting', () => {
+      mockAuthState.user = null;
+      mockAuthState.loading = true;
+      renderHomeHero();
+      const accountLink = screen.getByRole('link', { name: /Sign in/i });
+      expect(accountLink).toBeTruthy();
+      expect(accountLink.getAttribute('href')).toBe('/login');
+    });
   });
 });

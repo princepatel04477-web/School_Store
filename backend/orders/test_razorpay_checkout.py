@@ -763,6 +763,33 @@ class WebhookAcknowledgementTests(RazorpayTestBase):
     RAZORPAY_WEBHOOK_SECRET=TEST_WEBHOOK_SECRET,
 )
 class ExpiryAndRaceTests(TransactionTestCase):
+    def test_two_staff_claims_create_one_assignment_and_one_event(self):
+        from concurrent.futures import ThreadPoolExecutor
+
+        order = self._create_aged_order("rzp_day3_race")
+        order.payment_method = Order.PaymentMethod.CASH_ON_DELIVERY
+        order.save(update_fields=["payment_method"])
+        staff = [
+            User.objects.create_user(username=f"claim-staff-{index}", role="ADMIN", city=self.city)
+            for index in range(2)
+        ]
+        barrier = threading.Barrier(2)
+        path = reverse("fulfilment-action", args=[order.pk, "claim"])
+
+        def claim(user):
+            try:
+                client = APIClient()
+                client.force_authenticate(user)
+                barrier.wait(timeout=5)
+                return client.post(path).status_code
+            finally:
+                connection.close()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            self.assertEqual(sorted(pool.map(claim, staff)), [200, 409])
+        self.assertIn(order.packing.claimed_by_id, {user.pk for user in staff})
+        self.assertEqual(order.status_events.filter(status=Order.Status.PROCESSING).count(), 1)
+
     def setUp(self):
         cache.clear()
         self.city = City.objects.create(name="Postgres Surat", code="PG-SUR")
@@ -1050,9 +1077,18 @@ class PackingRuleTests(RazorpayTestBase):
         paid_order = self.make_order(
             payment_status=Order.PaymentStatus.PAID, status=Order.Status.CONFIRMED, payment_method=Order.PaymentMethod.ONLINE
         )
-        res_pack = client.patch(f"/api/orders/{paid_order.pk}/", {"status": Order.Status.PACKED}, format="json")
+        prefix = f"/api/fulfilment/{paid_order.pk}/"
+        self.assertEqual(client.patch(f"/api/orders/{paid_order.pk}/", {"status": Order.Status.PACKED}).status_code, 400)
+        self.assertEqual(client.post(prefix + "claim/").status_code, 200)
+        confirmation = client.post(prefix + "confirm/", {
+            "item_id": str(paid_order.items.get().pk), "confirmed": True,
+        }, format="json")
+        self.assertEqual(confirmation.status_code, 200, confirmation.json())
+        res_pack = client.post(prefix + "pack/")
         self.assertEqual(res_pack.status_code, 200, res_pack.json())
-        res_disp = client.patch(f"/api/orders/{paid_order.pk}/", {"status": Order.Status.DISPATCHED}, format="json")
+        res_disp = client.post(prefix + "handover/", {
+            "article_number": "D3-PREPAID", "receipt_confirmed": True,
+        }, format="json")
         self.assertEqual(res_disp.status_code, 200, res_disp.json())
 
         # 2. COD order can move forward as today

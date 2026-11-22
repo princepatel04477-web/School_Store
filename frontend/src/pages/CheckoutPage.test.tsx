@@ -4,7 +4,7 @@ import { render, screen, fireEvent, act, waitFor, cleanup } from '@testing-libra
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CheckoutPage } from './CheckoutPage';
-import { orderApi, ApiError, type Order, type PaymentStartResponse, type PaymentReconcileResponse } from '../api';
+import { orderApi, ApiError, type Order, type PaymentStartResponse, type PaymentReconcileResponse, type PaymentView } from '../api';
 import contract from '../test/fixtures/payment-contract.json';
 import * as placeOrderService from '../services/placeOrder';
 import * as paymentAdapter from '../services/paymentAdapter';
@@ -332,7 +332,7 @@ describe('CheckoutPage Razorpay Flow', () => {
       ...earlier, total: String(earlier.total), fulfillment_type: earlier.fulfillment_type!,
     });
     vi.spyOn(orderApi, 'switchToCod').mockResolvedValueOnce({
-      payment_method: 'COD', payment_view: contract.states.COD_DUE.detail.payment_view,
+      payment_method: 'COD', payment_view: contract.states.COD_DUE.detail.payment_view as PaymentView,
     });
     const open = vi.spyOn(paymentAdapter, 'openRazorpayCheckout');
 

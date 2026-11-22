@@ -31,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       auth.me()
         .then((u) => {
           setUser(u);
+          localStorage.setItem('user_role', u.role);
         })
         .catch(() => logout())
         .finally(() => setLoading(false));
@@ -43,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('access', tokens.access);
     localStorage.setItem('refresh', tokens.refresh);
     const signedIn = tokens.user ?? (await auth.me());
+    localStorage.setItem('user_role', signedIn.role);
     setUser(signedIn);
     storeState.mergeOnSignIn(signedIn);
     return signedIn;

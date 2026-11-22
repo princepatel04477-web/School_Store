@@ -141,7 +141,7 @@ class Command(BaseCommand):
                 student_id, parent_id, school_id, city_id, student_class, status,
                 subtotal, total, payment_status, payment_method, fulfillment_type,
                 razorpay_order_id, razorpay_payment_id, razorpay_signature,
-                delivery_details, created_at, updated_at
+                delivery_details, cancel_reason, created_at, updated_at
             ) FROM STDIN
         """
         item_copy_sql = """
@@ -222,6 +222,7 @@ class Command(BaseCommand):
                             f"pay_rzp_{seq:07d}" if pay_status == "PAID" else "",
                             "",
                             delivery_details,
+                            "",
                             ts,
                             ts,
                         )

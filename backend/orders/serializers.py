@@ -171,6 +171,7 @@ class OrderListSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "order_number",
+            "student",
             "student_name",
             "student_gr",
             "school_code",
@@ -264,7 +265,7 @@ class ParentOrderDetailSerializer(OrderDetailSerializer):
 
     class Meta(OrderDetailSerializer.Meta):
         fields = (
-            "id", "order_number", "student_name", "school_name", "status", "payment_view",
+            "id", "order_number", "student", "student_name", "school_name", "status", "payment_view",
             "payment_status", "fulfillment_type", "payment_method", "subtotal", "total",
             "items", "status_events", "tracking", "created_at", "updated_at",
         )

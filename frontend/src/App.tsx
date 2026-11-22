@@ -12,6 +12,7 @@ import { hasChosenLanguage, useLang } from './i18n';
 import { LanguageChooser } from './components/LanguageChooser';
 import { WelcomePopup } from './components/WelcomePopup';
 import { PageSkeleton } from './components/ui/Skeleton';
+import { AccountSheetProvider, useAccountSheet } from './components/account/AccountSheetContext';
 
 // Lazy Loaded Components
 const BagDrawer = lazy(() =>
@@ -45,7 +46,6 @@ const AdminPortal = lazy(() => import('./pages/AdminPortal'));
 
 import { ComingSoonPage, NotFoundPage } from './pages/InfoPages';
 import { PrivacyPage, TermsPage, RefundPage } from './pages/LegalPages';
-
 export const homeFor = (role?: string, cityId?: string | null) =>
   role === 'BOSS'
     ? '/boss'
@@ -59,25 +59,36 @@ export const homeFor = (role?: string, cityId?: string | null) =>
     ? '/retailer'
     : '/school';
 
-function Guard({ children, roles, parentOtp }: { children: ReactNode; roles?: string[]; parentOtp?: boolean }) {
+export function Guard({ children, roles }: { children: ReactNode; roles?: string[] }) {
   const { user, loading } = useAuth();
-  const navigate = useNavigate();
+  const location = useLocation();
+  const { openSheet } = useAccountSheet();
+
+  useEffect(() => {
+    if (!loading && !user && roles?.includes('PARENT')) {
+      openSheet(location.pathname + location.search);
+    }
+  }, [loading, user, roles, location.pathname, location.search, openSheet]);
+
   if (loading) return <div className="splash">Loading your store…</div>;
-  if (!user && parentOtp) {
-    const goHome = () => navigate('/', { replace: true });
-    return <ParentSignInSheet open onClose={goHome} onDone={() => {}} />;
+  if (!user) {
+    if (roles?.includes('PARENT')) {
+      return <Navigate to="/" replace />;
+    }
+    return <Navigate to="/login" replace />;
   }
-  if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to={homeFor(user.role, user.city)} replace />;
   return <>{children}</>;
 }
 
 import { SmoothScroll, scrollPageTo } from './motion/SmoothScroll';
 
-export default function App() {
+function AppContent() {
   const [bagOpen, setBagOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { open: accountSheetOpen, returnTo, closeSheet: closeAccountSheet } = useAccountSheet();
 
   const isPortal =
     location.pathname.startsWith('/boss') ||
@@ -172,7 +183,7 @@ export default function App() {
               <Route path="/boss/*" element={<Guard roles={['BOSS']}><BossPanel /></Guard>} />
               <Route path="/city/*" element={<Guard roles={['ADMIN', 'BOSS']}><CityAdmin /></Guard>} />
               <Route path="/school/*" element={<Guard roles={['SCHOOL_ADMIN', 'ADMIN', 'BOSS']}><SchoolAdmin /></Guard>} />
-              <Route path="/parent/*" element={<Guard roles={['PARENT']} parentOtp><Parent /></Guard>} />
+              <Route path="/parent/*" element={<Guard roles={['PARENT']}><Parent /></Guard>} />
               <Route path="/teacher/*" element={<Guard roles={['TEACHER', 'SCHOOL_ADMIN']}><Teacher /></Guard>} />
               <Route path="/retailer/*" element={<Guard roles={['RETAILER']}><Retailer /></Guard>} />
               <Route path="/portal/*" element={<Guard roles={['BOSS', 'ADMIN']}><AdminPortal /></Guard>} />
@@ -199,9 +210,29 @@ export default function App() {
         <Suspense fallback={null}>
           <BagDrawer isOpen={bagOpen} onClose={() => setBagOpen(false)} />
         </Suspense>
+
+        {/* Global Parent Account Sign-in Sheet */}
+        <ParentSignInSheet
+          mode="account"
+          open={accountSheetOpen}
+          onClose={closeAccountSheet}
+          onDone={() => {
+            const target = returnTo || '/parent';
+            closeAccountSheet();
+            navigate(target);
+          }}
+        />
       </div>
       </SmoothScroll>
     </ErrorBoundary>
+  );
+}
+
+export default function App() {
+  return (
+    <AccountSheetProvider>
+      <AppContent />
+    </AccountSheetProvider>
   );
 }
 

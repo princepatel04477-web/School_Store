@@ -70,6 +70,7 @@ export type PaymentReconcileResponse = { checked: boolean; retry_after_seconds: 
 
 export type Order = {
   id: string;
+  student?: string | null;
   order_number: string;
   student_name: string;
   status: string;
@@ -96,7 +97,7 @@ export async function api<T>(path:string, init:RequestInit={},{retry=true}={}):P
 export async function upload<T>(path:string, form:FormData):Promise<T>{const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{method:'POST',headers,body:form}); if(!res.ok){const data=await res.json().catch(()=>({})); throw new ApiError(data.detail||'Upload failed',res.status,data);} return res.json();}
 /** Stream a protected file with the bearer token attached (no token in the URL). */
 export async function download(path:string, filename:string){const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{headers}); if(!res.ok) throw new Error((await res.json().catch(()=>({}))).detail||'Download failed'); const blob=await res.blob(); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);}
-export function logout(){localStorage.removeItem('access');localStorage.removeItem('refresh'); purgeSavedData(); try{sessionStorage.clear();}catch{/* storage blocked */} window.location.href='/login';}
+export function logout(){const role = typeof localStorage !== 'undefined' ? localStorage.getItem('user_role') : null; localStorage.removeItem('access');localStorage.removeItem('refresh'); localStorage.removeItem('user_role'); purgeSavedData(); try{sessionStorage.clear();}catch{/* storage blocked */} window.location.href=role==='PARENT'?'/':'/login';}
 export const auth={login:(username:string,password:string)=>api<{access:string;refresh:string;user:User}>('/auth/token/',{method:'POST',body:JSON.stringify({username,password})}),register:(body:unknown)=>api<{access:string;refresh:string;user:User}>('/auth/register/',{method:'POST',body:JSON.stringify(body)}),me:()=>api<User>('/auth/me/'),
   /** Parent sign-in by mobile number: send the code, then verify it. */
   sendOtp:(phone:string)=>api<{detail:string;phone:string;otp_debug?:string}>('/auth/otp/send/',{method:'POST',body:JSON.stringify({phone})}),
@@ -104,7 +105,7 @@ export const auth={login:(username:string,password:string)=>api<{access:string;r
 };
 
 /** A child on the school roster, as the parent sees it. */
-export type ParentChild={id:string;name:string;gr_number:string;grade_name?:string|null;class_name:string;section:string;gender:string;date_of_birth:string|null;school:string;school_name:string;school_code:string;active:boolean};
+export type ParentChild={id:string;name:string;gr_number:string;grade_name?:string|null;class_name:string;section:string;gender:string;date_of_birth:string|null;school:string;school_name:string;school_code:string;branch?:string|null;branch_name?:string|null;city?:string|null;active:boolean};
 export const parentChildren={
   list:()=>api<{results:ParentChild[]}>('/students/'),
   /** Fallback when the school's list has no phone for this parent: GR number + date of birth. */
