@@ -1,4 +1,5 @@
 import { PaymentsToCheck } from '../components/PaymentsToCheck';
+import { PackingQueue } from '../components/admin/PackingQueue';
 import { useEffect, useMemo, useState } from 'react';
 import { X, Overview, BarChart as BarChartIcon, Users, SchoolBuilding, Eye, Ruler, ShoppingBag, ShieldCheck, Package } from '../components/ui/icons';
 import { PanelShell, type PanelNavItem } from '../components/admin/PanelShell';
@@ -25,6 +26,7 @@ const NAV: PanelNavItem[] = [
   { to: 'management', label: 'Staff & Cities', icon: Users },
   { to: 'schools', label: 'School Commissions', icon: SchoolBuilding },
   { to: 'payments', label: 'Payments to check', icon: ShoppingBag },
+  { to: 'packing', label: 'Packing', icon: Package },
   { to: 'view-as', label: 'View As (Audit)', icon: Eye },
   { to: 'size-charts', label: 'Size Charts', icon: Ruler },
   { to: 'school-requests', label: 'School Requests', icon: ShieldCheck },
@@ -56,6 +58,7 @@ export default function BossPanel() {
     <PanelShell base="/boss" role="Owner / Boss Executive" context="Global Business View" nav={NAV}>
       <Routes>
         <Route index element={<BossOverviewView />} />
+        <Route path="packing" element={<PackingQueue />} />
         <Route path="analytics" element={<BossAnalyticsChartsView />} />
         <Route path="management" element={<BossStaffManagementView />} />
         <Route path="schools" element={<BossSchoolsCommissionView />} />

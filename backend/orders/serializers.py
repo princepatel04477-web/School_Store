@@ -252,6 +252,33 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         return None
 
 
+class ParentOrderStatusEventSerializer(OrderStatusEventSerializer):
+    class Meta(OrderStatusEventSerializer.Meta):
+        fields = ("status", "timestamp")
+        read_only_fields = fields
+
+
+class ParentOrderDetailSerializer(OrderDetailSerializer):
+    status_events = ParentOrderStatusEventSerializer(many=True, read_only=True)
+    tracking = serializers.SerializerMethodField()
+
+    class Meta(OrderDetailSerializer.Meta):
+        fields = (
+            "id", "order_number", "student_name", "school_name", "status", "payment_view",
+            "payment_status", "fulfillment_type", "payment_method", "subtotal", "total",
+            "items", "status_events", "tracking", "created_at", "updated_at",
+        )
+        read_only_fields = fields
+
+    def get_tracking(self, order):
+        if order.fulfillment_type != Order.FulfillmentType.HOME_DELIVERY:
+            return None
+        shipment = getattr(order, "shipment", None)
+        if shipment is None:
+            return None
+        return {"article_number": shipment.article_number, "booked_at": shipment.booked_at}
+
+
 class OrderFitInputSerializer(serializers.Serializer):
     """The child's measurement from the size page (optional)."""
 

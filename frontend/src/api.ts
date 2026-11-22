@@ -81,6 +81,8 @@ export type Order = {
   payment_view: PaymentView;
   razorpay_order_id?: string;
   status_events?: { status: string; timestamp: string }[];
+  tracking?: { article_number: string; booked_at: string } | null;
+  items?: { id: string; product_name: string; variant_size: string; quantity: number }[];
 };
 const API=import.meta.env.VITE_API_URL||'/api';
 let refreshing:Promise<string>|null=null;

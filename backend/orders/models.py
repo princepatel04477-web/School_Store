@@ -530,3 +530,30 @@ class PaymentReview(UUIDModel):
     def __str__(self) -> str:
         return f"Review {self.reason} (payment: {self.payment_id}) for order {self.order_id}"
 
+
+class OrderPacking(models.Model):
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="packing")
+    claimed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    claimed_at = models.DateTimeField(auto_now_add=True)
+    confirmed_items = models.JSONField(default=list, blank=True)
+    issue = models.TextField(blank=True, default="")
+
+
+class Shipment(models.Model):
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="shipment")
+    article_number = models.CharField(max_length=40)
+    article_key = models.CharField(max_length=120, unique=True)
+    booked_at = models.DateTimeField(auto_now_add=True)
+    booked_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+
+
+class ShipmentCorrection(models.Model):
+    shipment = models.ForeignKey(Shipment, on_delete=models.CASCADE, related_name="corrections")
+    previous_number = models.CharField(max_length=40)
+    article_number = models.CharField(max_length=40)
+    reason = models.CharField(max_length=500)
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-changed_at", "-id")

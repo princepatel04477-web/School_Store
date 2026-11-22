@@ -1,6 +1,6 @@
 import json
 from django.db import transaction
-from rest_framework import status, viewsets
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from common.pagination import BoundedCursorPagination
 from common.permissions import RoleScopedPermission
 from common.scoping import ScopedQuerysetMixin
+from .fulfilment import MANAGED_STATUSES
 from .models import Order, OrderStatusEvent, PaymentAttempt
 from .payment import RazorpayGateway
 from .payment_view import MINIMUM_HOLD, check_provider, matching_captures, payment_view, reconcile_order
@@ -20,7 +21,12 @@ from .serializers import (
     OrderDetailSerializer,
     OrderListSerializer,
     OrderQuoteSerializer,
+    ParentOrderDetailSerializer,
 )
+
+
+class BulkOrderStatusInput(serializers.Serializer):
+    order_ids = serializers.ListField(child=serializers.UUIDField(), allow_empty=False, max_length=500)
 
 
 class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
@@ -58,7 +64,9 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
                     parent_id=self.request.user.pk, payment_method=Order.PaymentMethod.ONLINE,
                 ).exclude(status=Order.Status.CANCELLED).exclude(Exists(matching_captures()))
         if self.action == "retrieve":
-            qs = qs.prefetch_related("items__variant__product", "status_events", "payment_attempts", "payment_reviews")
+            qs = qs.select_related("shipment").prefetch_related(
+                "items__variant__product", "status_events", "payment_attempts", "payment_reviews",
+            )
 
         status_param = self.request.query_params.get("status")
         school_param = self.request.query_param = self.request.query_params.get("school")
@@ -88,8 +96,11 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         if self.action == "create":
             return OrderCreateSerializer
         if self.action == "retrieve":
-            return OrderDetailSerializer
+            return self.detail_serializer()
         return OrderListSerializer
+
+    def detail_serializer(self):
+        return ParentOrderDetailSerializer if self.request.user.role == "PARENT" else OrderDetailSerializer
 
     @action(detail=False, methods=["post"], url_path="quote")
     def quote(self, request):
@@ -111,7 +122,7 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             .get(pk=order.pk)
         )
         return Response(
-            OrderDetailSerializer(order).data,
+            self.detail_serializer()(order).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -283,6 +294,9 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             if not can_move:
                 raise ValidationError({"status": [reason]})
 
+        if new_status in MANAGED_STATUSES:
+            raise ValidationError({"status": ["Use the fulfilment workflow to update this status."]})
+
         return new_status, change_order_status(queryset, new_status, user, note)
 
     def update(self, request, *args, **kwargs):
@@ -307,17 +321,9 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=["post"], url_path="bulk-status")
     def bulk_status(self, request):
         """One request: one bulk UPDATE + one bulk_create of status events."""
-        order_ids = request.data.get("order_ids")
-        if not order_ids or not isinstance(order_ids, list):
-            return Response(
-                {"order_ids": ["A non-empty list of order IDs is required."]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if len(order_ids) > 500:
-            return Response(
-                {"order_ids": ["At most 500 orders per request."]},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        serializer = BulkOrderStatusInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order_ids = serializer.validated_data["order_ids"]
         new_status, changed = self._change_status(
             request, self.get_queryset().filter(id__in=order_ids)
         )

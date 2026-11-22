@@ -1,4 +1,5 @@
 import { PaymentsToCheck } from '../components/PaymentsToCheck';
+import { PackingQueue } from '../components/admin/PackingQueue';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { X, BarChart, Package, Receipt, SchoolBuilding, Ruler } from '../components/ui/icons';
 import { PanelShell, type PanelNavItem } from '../components/admin/PanelShell';
@@ -21,6 +22,7 @@ const NAV: PanelNavItem[] = [
   { to: '', label: 'Daily Sales', icon: BarChart, end: true },
   { to: 'inventory', label: 'Inventory & Stock', icon: Package },
   { to: 'orders', label: 'Orders', icon: Receipt },
+  { to: 'packing', label: 'Packing', icon: Package },
   { to: 'schools', label: 'Schools', icon: SchoolBuilding },
   { to: 'size-charts', label: 'Size Charts', icon: Ruler },
   { to: '/portal', label: 'Uniform Portal', icon: Package },
@@ -35,6 +37,7 @@ export default function CityAdmin() {
         <Route index element={<CityDailySalesViewComponent />} />
         <Route path="inventory" element={<CityInventoryView />} />
         <Route path="orders" element={<CityOrdersView />} />
+        <Route path="packing" element={<PackingQueue />} />
         <Route path="schools" element={<CitySchoolsView />} />
         <Route path="size-charts" element={<CitySizeChartsView />} />
       </Routes>
@@ -874,10 +877,6 @@ function BulkStatusUpdateModal({
           <label>
             <span>Target Status:</span>
             <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
-              <option value="PROCESSING">Processing</option>
-              <option value="PACKED">Packed</option>
-              <option value="DISPATCHED">Dispatched</option>
-              <option value="DELIVERED">Delivered</option>
               <option value="CANCELLED">Cancelled</option>
             </select>
           </label>
@@ -920,10 +919,6 @@ function OrderDetailModal({
 
   const nextStatusMap: Record<string, string> = {
     PLACED: 'CONFIRMED',
-    CONFIRMED: 'PROCESSING',
-    PROCESSING: 'PACKED',
-    PACKED: 'DISPATCHED',
-    DISPATCHED: 'DELIVERED',
   };
 
   const advanceMutation = useMutation({

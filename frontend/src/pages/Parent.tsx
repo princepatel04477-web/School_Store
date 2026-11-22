@@ -17,6 +17,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import '../components/photoConsent.css';
 import type { Fit } from '../data/fit';
 import { LIVE_CATEGORIES } from '../data/liveCategories';
+import { ParentOrderDetail } from './ParentOrderDetail';
 
 interface StudentDetail {
   id: string;
@@ -58,6 +59,7 @@ export default function Parent() {
       <Routes>
         <Route index element={<Dashboard />} />
         <Route path="orders" element={<Orders />} />
+        <Route path="orders/:orderId" element={<ParentOrderDetail />} />
       </Routes>
     </Shell>
   );
@@ -475,7 +477,7 @@ function Orders() {
       <div className="section-row">
         <div>
           <span className="eyebrow">YOUR PURCHASES</span>
-          <h2>My orders</h2>
+          <h2>{t('tracking.orders')}</h2>
         </div>
         <Link className="text-button" to="/parent">
           Shop again
@@ -496,7 +498,6 @@ function Orders() {
                   {new Date(o.created_at).toLocaleDateString('en-IN')}
                 </small>
               </div>
-              <span className="status">{o.status}</span>
             </div>
             <p>
               {o.student_name} · <strong>{formatINR(Math.round(Number(o.total) * 100))}</strong>
@@ -507,6 +508,7 @@ function Orders() {
               onCod={() => void act(o, 'cod')} />
 
             <Timeline order={o} />
+            <Link className="text-button" to={'/parent/orders/' + o.id}>{t('tracking.details')}</Link>
           </article>
         ))
       ) : (

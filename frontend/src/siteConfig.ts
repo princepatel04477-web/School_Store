@@ -29,6 +29,7 @@ export const siteConfig = {
   hours: 'Mon – Sat, 9:00 AM – 6:00 PM IST',
   businessName: 'School Store Retail by Colorbenz',
   address: ADDRESS,
+  indiaPostTrackingUrl: 'https://www.indiapost.gov.in/',
   categories: [
     { label: 'Uniform', slug: 'Uniform' },
     { label: 'Shoes', slug: 'School Shoes' },

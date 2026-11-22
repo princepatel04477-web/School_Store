@@ -170,6 +170,13 @@ export function TermsPage() {
         production starts they cannot be cancelled, except for a fault on our side.
       </p>
 
+      <h2>Delivery and school pickup</h2>
+      <p>
+        Check My orders for packing updates. For orders booked with India Post, My orders shows the article
+        number you can enter on the India Post website. For school pickup, My orders shows when your order is
+        ready to collect.
+      </p>
+
       <h2>Delivery and pickup</h2>
       <p>
         We deliver to your address or to the school collection counter, whichever you choose at checkout. Dates

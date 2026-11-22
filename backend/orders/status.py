@@ -20,6 +20,7 @@ from django.db.models.functions import Now
 from inventory.models import StockBalance, StockMovement
 
 from .models import Order, OrderItem, OrderStatusEvent, PaymentAttempt, PaymentReview
+from .payment_rules import packing_decision
 
 S = Order.Status
 
@@ -31,7 +32,7 @@ ALLOWED_TRANSITIONS = {
     S.PENDING: _BEFORE_DISPATCH,
     S.CONFIRMED: (S.PROCESSING, S.PACKED, S.CANCELLED),
     S.PROCESSING: (S.PACKED, S.CANCELLED),
-    S.PACKED: (S.DISPATCHED, S.CANCELLED),
+    S.PACKED: (S.DISPATCHED, S.DELIVERED, S.CANCELLED),
     S.DISPATCHED: (S.DELIVERED, S.RETURNED),
     S.SHIPPED: (S.DELIVERED, S.RETURNED),
     S.DELIVERED: (S.RETURNED,),
@@ -53,13 +54,18 @@ def can_transition_order(order: Order, new_status: str) -> tuple[bool, str]:
     if new_status not in ALLOWED_TRANSITIONS.get(order.status, ()):
         return False, f"An order that is {order.status} cannot move to {new_status}."
 
-    if (
-        order.payment_method == Order.PaymentMethod.ONLINE
-        and new_status in PACKING_STATUSES
+    if order.status == S.PACKED and new_status == S.DELIVERED and (
+        order.fulfillment_type != Order.FulfillmentType.SCHOOL_PICKUP
     ):
-        if order.payment_status != Order.PaymentStatus.PAID:
+        return False, "Home delivery orders must be dispatched first."
+
+    if new_status in PACKING_STATUSES:
+        decision = packing_decision(order)
+        if decision.reason_code == "PAYMENT_NOT_PAID":
             return False, f"Online orders must be PAID before moving to {new_status} (currently {order.payment_status})."
-        if order.payment_reviews.filter(resolved_at__isnull=True).exists():
+        if decision.reason_code == "PAYMENT_REFUNDED":
+            return False, "A refunded order cannot move through fulfilment."
+        if not decision.allowed:
             return False, f"Order {order.order_number} has an open review item and cannot move to {new_status}."
 
     return True, ""
