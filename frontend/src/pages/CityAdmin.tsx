@@ -179,7 +179,11 @@ function CityDailySalesViewComponent() {
  * ------------------------------------------------------------------ */
 function CityInventoryView() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'ALL' | 'LOW'>('ALL');
+  const [activeTab, setActiveTab] = useState<'ALL' | 'LOW' | 'RECONCILIATION'>('ALL');
+  const [sizeFilter, setSizeFilter] = useState('');
+  const [severityFilter, setSeverityFilter] = useState('');
+  const [searchFilter, setSearchFilter] = useState('');
+  const [showDiscrepantOnly, setShowDiscrepantOnly] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<{ id: string; sku: string; product_name: string } | null>(null);
   const [stockModal, setStockModal] = useState<{ variant: StockBalance; mode: 'STOCK_IN' | 'ADJUST' } | null>(null);
 
@@ -192,17 +196,31 @@ function CityInventoryView() {
     isLoading,
     refetch: refetchBalances,
   } = useInfiniteQuery({
-    queryKey: ['city-stock-balances', activeTab],
+    queryKey: ['city-stock-balances', activeTab, sizeFilter, severityFilter, searchFilter],
     queryFn: ({ pageParam }) => {
       const p: Record<string, string> = {};
       if (pageParam) {
         const url = new URL(pageParam, window.location.origin);
         for (const [k, v] of url.searchParams.entries()) p[k] = v;
       }
+      if (sizeFilter) p.size = sizeFilter;
+      if (severityFilter) p.severity = severityFilter;
+      if (searchFilter) p.search = searchFilter;
       return activeTab === 'LOW' ? cityAdmin.lowStock(p) : cityAdmin.stockBalances(p);
     },
     getNextPageParam: (last) => relative(last.next),
     initialPageParam: null as string | null,
+    enabled: activeTab !== 'RECONCILIATION',
+  });
+
+  const {
+    data: reconData,
+    isLoading: reconLoading,
+    refetch: refetchRecon,
+  } = useQuery({
+    queryKey: ['city-stock-reconciliation', showDiscrepantOnly],
+    queryFn: () => cityAdmin.reconciliation({ discrepant_only: showDiscrepantOnly ? 'true' : 'false' }),
+    enabled: activeTab === 'RECONCILIATION',
   });
 
   const balances = useMemo(() => data?.pages.flatMap((p) => p.results) ?? [], [data]);
@@ -215,7 +233,7 @@ function CityInventoryView() {
           <h1>City Stock &amp; Inventory</h1>
           <p className="muted">Current on-hand stock per variant, stock-in forms, and audit trail.</p>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
             className={activeTab === 'ALL' ? 'primary' : 'secondary'}
             style={{ width: 'auto' }}
@@ -230,107 +248,309 @@ function CityInventoryView() {
           >
             Low Stock Alerts
           </button>
+          <button
+            className={activeTab === 'RECONCILIATION' ? 'primary' : 'secondary'}
+            style={{ width: 'auto' }}
+            onClick={() => setActiveTab('RECONCILIATION')}
+          >
+            Reconciliation Audit
+          </button>
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-head">
-          <h2>{activeTab === 'LOW' ? 'Low Stock Alerts (Threshold met)' : 'Stock Balances by Variant'}</h2>
-          <span className="badge s-approved">{balances.length} variants loaded</span>
-        </div>
-        <div className="table-scroll">
-          <table className="data">
-            <thead>
-              <tr>
-                <th>Product &amp; SKU</th>
-                <th className="r">Current Stock</th>
-                <th className="r">Threshold</th>
-                <th>Status</th>
-                <th>Last Updated</th>
-                <th className="r">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {balances.length === 0 && !isLoading ? (
-                <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '32px' }} className="muted">
-                    {activeTab === 'LOW' ? 'No variants currently under low stock threshold! ' : 'No inventory records found.'}
-                  </td>
-                </tr>
-              ) : (
-                balances.map((b) => (
-                  <tr key={b.id}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                        <b>{b.product_name}</b>
-                        {b.product_category && (
-                          <span className="badge" style={{ fontSize: '10px', background: '#f0f4f1', color: '#275b4c' }}>
-                            {b.product_category}
-                          </span>
-                        )}
-                        {b.product_type && (
-                          <span className="badge" style={{ fontSize: '10px', background: '#e0ecf8', color: '#1d4ed8' }}>
-                            {b.product_type}
-                          </span>
-                        )}
-                      </div>
-                      <small className="gr mono">
-                        {b.variant_sku}
-                        {b.variant_size ? ` · Size: ${b.variant_size}` : ''}
-                      </small>
-                    </td>
-                    <td className="r mono" style={{ fontSize: '15px' }}>
-                      <b style={{ color: b.is_low_stock ? '#a34235' : 'inherit' }}>{b.stock_quantity}</b>
-                    </td>
-                    <td className="r mono">{b.low_stock_threshold}</td>
-                    <td>
-                      {b.is_low_stock ? (
-                        <span className="badge s-failed">Low Stock</span>
-                      ) : (
-                        <span className="badge s-delivered">In Stock</span>
-                      )}
-                    </td>
-                    <td className="mono" style={{ fontSize: '12px' }}>
-                      {new Date(b.updated_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
-                    </td>
-                    <td className="r actions">
-                      <button
-                        className="link-button"
-                        onClick={() => setStockModal({ variant: b, mode: 'STOCK_IN' })}
-                      >
-                        + Stock In
-                      </button>
-                      <button
-                        className="link-button"
-                        onClick={() => setStockModal({ variant: b, mode: 'ADJUST' })}
-                      >
-                        Adjust
-                      </button>
-                      <button
-                        className="link-button"
-                        onClick={() => setSelectedVariant({ id: b.variant, sku: b.variant_sku, product_name: b.product_name })}
-                      >
-                        History
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        {hasNextPage && (
-          <div className="load-more">
+      {activeTab === 'RECONCILIATION' ? (
+        <div className="card">
+          <div className="card-head">
+            <div>
+              <h2>Inventory Balance Reconciliation Report</h2>
+              <p className="muted" style={{ margin: '4px 0 0', fontSize: '13px' }}>
+                Compares current on-hand balances against the immutable stock movement audit ledger.
+                Discrepancies require physical warehouse review and are never silently corrected.
+              </p>
+            </div>
             <button
               className="secondary"
-              disabled={isFetchingNextPage}
-              onClick={() => fetchNextPage()}
+              style={{ width: 'auto' }}
+              onClick={() => refetchRecon()}
+              disabled={reconLoading}
             >
-              {isFetchingNextPage ? 'Loading more…' : 'Load more variants'}
+              {reconLoading ? 'Auditing…' : 'Re-run Audit'}
             </button>
           </div>
-        )}
-      </div>
+
+          <div style={{ display: 'flex', gap: '16px', padding: '16px 20px', background: 'var(--paper)', borderBottom: '1px solid var(--line)', flexWrap: 'wrap' }}>
+            <div style={{ padding: '8px 14px', background: '#fff', border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)' }}>
+              <div className="eyebrow">BALANCES AUDITED</div>
+              <b style={{ fontSize: '18px' }}>{reconData?.total_balances_checked ?? 0}</b>
+            </div>
+            <div style={{ padding: '8px 14px', background: '#fff', border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)' }}>
+              <div className="eyebrow">PERFECT MATCHES</div>
+              <b style={{ fontSize: '18px', color: '#166534' }}>{reconData?.perfect_match_count ?? 0}</b>
+            </div>
+            <div style={{ padding: '8px 14px', background: (reconData?.discrepant_count ?? 0) > 0 ? '#fbeae5' : '#fff', border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)' }}>
+              <div className="eyebrow">DISCREPANCIES DETECTED</div>
+              <b style={{ fontSize: '18px', color: (reconData?.discrepant_count ?? 0) > 0 ? '#a34235' : '#166534' }}>
+                {reconData?.discrepant_count ?? 0}
+              </b>
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={showDiscrepantOnly}
+                  onChange={(e) => setShowDiscrepantOnly(e.target.checked)}
+                />
+                Show discrepancies only
+              </label>
+            </div>
+          </div>
+
+          <div className="table-scroll">
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Product &amp; SKU</th>
+                  <th>Size</th>
+                  <th className="r">On-Hand Balance</th>
+                  <th className="r">Ledger Sum</th>
+                  <th className="r">Discrepancy (Delta)</th>
+                  <th>Severity</th>
+                  <th>Last Movement</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reconLoading ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '32px' }} className="muted">
+                      Running reconciliation audit against movement ledger…
+                    </td>
+                  </tr>
+                ) : !reconData || reconData.discrepancies.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '32px' }} className="muted">
+                      {showDiscrepantOnly
+                        ? 'No stock discrepancies detected. All checked balances match the ledger sum.'
+                        : 'No balance records found.'}
+                    </td>
+                  </tr>
+                ) : (
+                  reconData.discrepancies.map((row) => (
+                    <tr key={row.balance_id} style={{ background: row.has_discrepancy ? '#fffbf5' : 'inherit' }}>
+                      <td>
+                        <b>{row.product_name}</b>
+                        <div className="mono muted" style={{ fontSize: '11px' }}>{row.sku}</div>
+                      </td>
+                      <td className="mono">{row.size || '-'}</td>
+                      <td className="r mono"><b>{row.current_stock}</b></td>
+                      <td className="r mono">{row.movement_ledger_sum}</td>
+                      <td className="r mono">
+                        {row.discrepancy === 0 ? (
+                          <span style={{ color: '#166534' }}>0 (Match)</span>
+                        ) : (
+                          <span className="badge s-failed" style={{ fontWeight: 700 }}>
+                            {row.discrepancy > 0 ? `+${row.discrepancy}` : row.discrepancy}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`badge ${row.severity === 'OUT_OF_STOCK' || row.severity === 'CRITICAL' ? 's-failed' : 's-delivered'}`}>
+                          {row.severity}
+                        </span>
+                      </td>
+                      <td className="mono" style={{ fontSize: '12px' }}>
+                        {row.last_movement_at
+                          ? new Date(row.last_movement_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })
+                          : '-'}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="card">
+          <div className="card-head">
+            <h2>{activeTab === 'LOW' ? 'Low Stock Alerts (Threshold met)' : 'Stock Balances by Variant'}</h2>
+            <span className="badge s-approved">{balances.length} variants loaded</span>
+          </div>
+
+          {/* Filters Bar: Search, Size, Severity */}
+          <div style={{ display: 'flex', gap: '12px', padding: '12px 20px', background: 'var(--paper)', borderBottom: '1px solid var(--line)', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ flex: '1 1 200px' }}>
+              <input
+                type="text"
+                placeholder="Search SKU, product, or size…"
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                style={{ width: '100%', fontSize: '13px' }}
+              />
+            </div>
+            <div style={{ width: '130px' }}>
+              <select
+                value={sizeFilter}
+                onChange={(e) => setSizeFilter(e.target.value)}
+                style={{ width: '100%', fontSize: '13px' }}
+              >
+                <option value="">All Sizes</option>
+                <option value="26">26</option>
+                <option value="28">28</option>
+                <option value="30">30</option>
+                <option value="32">32</option>
+                <option value="34">34</option>
+                <option value="36">36</option>
+                <option value="38">38</option>
+                <option value="40">40</option>
+                <option value="S">S</option>
+                <option value="M">M</option>
+                <option value="L">L</option>
+                <option value="XL">XL</option>
+                <option value="XXL">XXL</option>
+                <option value="UK-1">UK-1</option>
+                <option value="UK-2">UK-2</option>
+                <option value="UK-3">UK-3</option>
+                <option value="UK-4">UK-4</option>
+                <option value="UK-5">UK-5</option>
+                <option value="UK-6">UK-6</option>
+              </select>
+            </div>
+            <div style={{ width: '160px' }}>
+              <select
+                value={severityFilter}
+                onChange={(e) => setSeverityFilter(e.target.value)}
+                style={{ width: '100%', fontSize: '13px' }}
+              >
+                <option value="">All Severities</option>
+                <option value="OUT_OF_STOCK">Out of Stock</option>
+                <option value="CRITICAL">Critical Low</option>
+                <option value="LOW">Low Stock</option>
+                <option value="NORMAL">Normal</option>
+              </select>
+            </div>
+            {(sizeFilter || severityFilter || searchFilter) && (
+              <button
+                className="link-button"
+                onClick={() => {
+                  setSizeFilter('');
+                  setSeverityFilter('');
+                  setSearchFilter('');
+                }}
+                style={{ fontSize: '12px' }}
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
+
+          <div className="table-scroll">
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Product &amp; SKU</th>
+                  <th className="r">Current Stock</th>
+                  <th className="r">Threshold</th>
+                  <th>Severity</th>
+                  <th className="r">Affected Orders</th>
+                  <th>Last Updated</th>
+                  <th className="r">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {balances.length === 0 && !isLoading ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '32px' }} className="muted">
+                      {activeTab === 'LOW' ? 'No variants currently under low stock threshold! ' : 'No inventory records found.'}
+                    </td>
+                  </tr>
+                ) : (
+                  balances.map((b) => (
+                    <tr key={b.id}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <b>{b.product_name}</b>
+                          {b.product_category && (
+                            <span className="badge" style={{ fontSize: '10px', background: '#f0f4f1', color: '#275b4c' }}>
+                              {b.product_category}
+                            </span>
+                          )}
+                          {b.product_type && (
+                            <span className="badge" style={{ fontSize: '10px', background: '#e0ecf8', color: '#1d4ed8' }}>
+                              {b.product_type}
+                            </span>
+                          )}
+                        </div>
+                        <small className="gr mono">
+                          {b.variant_sku}
+                          {b.variant_size ? ` · Size: ${b.variant_size}` : ''}
+                        </small>
+                      </td>
+                      <td className="r mono" style={{ fontSize: '15px' }}>
+                        <b style={{ color: b.is_low_stock ? '#a34235' : 'inherit' }}>{b.stock_quantity}</b>
+                      </td>
+                      <td className="r mono">{b.low_stock_threshold}</td>
+                      <td>
+                        {b.severity === 'OUT_OF_STOCK' ? (
+                          <span className="badge s-failed" style={{ fontWeight: 700 }}>Out of Stock</span>
+                        ) : b.severity === 'CRITICAL' ? (
+                          <span className="badge" style={{ background: '#fbeae5', color: '#a34235', fontWeight: 700 }}>Critical Low</span>
+                        ) : b.severity === 'LOW' || b.is_low_stock ? (
+                          <span className="badge" style={{ background: '#fef3c7', color: '#92400e', fontWeight: 700 }}>Low Stock</span>
+                        ) : (
+                          <span className="badge s-delivered">Normal</span>
+                        )}
+                      </td>
+                      <td className="r mono">
+                        {(b.affected_orders_count ?? 0) > 0 ? (
+                          <span className="badge" style={{ background: '#fee2e2', color: '#991b1b', fontWeight: 700 }}>
+                            {b.affected_orders_count} active
+                          </span>
+                        ) : (
+                          <span className="muted">0</span>
+                        )}
+                      </td>
+                      <td className="mono" style={{ fontSize: '12px' }}>
+                        {new Date(b.updated_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
+                      </td>
+                      <td className="r actions">
+                        <button
+                          className="link-button"
+                          onClick={() => setStockModal({ variant: b, mode: 'STOCK_IN' })}
+                        >
+                          + Stock In
+                        </button>
+                        <button
+                          className="link-button"
+                          onClick={() => setStockModal({ variant: b, mode: 'ADJUST' })}
+                        >
+                          Adjust
+                        </button>
+                        <button
+                          className="link-button"
+                          onClick={() => setSelectedVariant({ id: b.variant, sku: b.variant_sku, product_name: b.product_name })}
+                        >
+                          History
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {hasNextPage && (
+            <div className="load-more">
+              <button
+                className="secondary"
+                disabled={isFetchingNextPage}
+                onClick={() => fetchNextPage()}
+              >
+                {isFetchingNextPage ? 'Loading more…' : 'Load more variants'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stock In / Adjust Modal */}
       {stockModal && (
@@ -374,7 +594,7 @@ function StockMovementModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: (body: { variant: string; quantity_change: number; reason: string }) =>
+    mutationFn: (body: { variant: string; quantity_change: number; reason: string; notes?: string }) =>
       cityAdmin.addStockMovement(body),
     onSuccess: () => onSuccess(),
     onError: (err: any) => setErrorMsg(err.message || 'Failed to update stock.'),
@@ -391,6 +611,7 @@ function StockMovementModal({
       variant: balance.variant,
       quantity_change: quantity,
       reason,
+      notes: customNote.trim(),
     });
   };
 
@@ -425,18 +646,33 @@ function StockMovementModal({
             <select value={reason} onChange={(e) => setReason(e.target.value)}>
               {mode === 'STOCK_IN' ? (
                 <>
-                  <option value="RESTOCK">Restock</option>
+                  <option value="RESTOCK">Restock (Shipment Received)</option>
                   <option value="INITIAL_STOCK">Initial Stock</option>
+                  <option value="FOUND_STOCK">Found Uncounted Stock</option>
                   <option value="RETURN">Customer Return</option>
                 </>
               ) : (
                 <>
-                  <option value="ADJUSTMENT">Manual Adjustment / Audit discrepancy</option>
+                  <option value="CORRECTION">Physical Count Correction</option>
+                  <option value="ADJUSTMENT">Manual Adjustment</option>
+                  <option value="FOUND_STOCK">Found Uncounted Stock</option>
                   <option value="DAMAGE">Damaged / Write-off</option>
+                  <option value="EXCHANGE_RESERVATION">Exchange Replacement Hold</option>
                   <option value="RESTOCK">Restock</option>
                 </>
               )}
             </select>
+          </label>
+
+          <label>
+            <span>Explanatory Notes (Physical count audit, bay location, PO #):</span>
+            <textarea
+              value={customNote}
+              onChange={(e) => setCustomNote(e.target.value)}
+              placeholder="e.g. Surat warehouse physical audit found 15 extra units in Bay 2."
+              rows={3}
+              style={{ width: '100%', fontSize: '13px', resize: 'vertical' }}
+            />
           </label>
 
           <div className="modal-actions" style={{ marginTop: '16px' }}>

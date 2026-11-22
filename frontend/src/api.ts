@@ -569,6 +569,8 @@ export type StockBalance={
   stock_quantity:number;
   low_stock_threshold:number;
   is_low_stock:boolean;
+  severity?:'OUT_OF_STOCK'|'CRITICAL'|'LOW'|'NORMAL';
+  affected_orders_count?:number;
   updated_at:string;
 };
 
@@ -580,9 +582,34 @@ export type StockMovement={
   variant_sku:string;
   quantity_change:number;
   reason:string;
+  notes?:string;
   reference_order:string|null;
   created_by:string|null;
   created_at:string;
+};
+
+export type ReconciliationItem={
+  balance_id:string;
+  city_id:string;
+  city_code:string;
+  city_name:string;
+  variant_id:string;
+  sku:string;
+  product_name:string;
+  size:string;
+  current_stock:number;
+  movement_ledger_sum:number;
+  discrepancy:number;
+  has_discrepancy:boolean;
+  severity:string;
+  last_movement_at:string|null;
+};
+
+export type StockReconciliationReport={
+  total_balances_checked:number;
+  discrepant_count:number;
+  perfect_match_count:number;
+  discrepancies:ReconciliationItem[];
 };
 
 export type CitySchool={
@@ -660,8 +687,9 @@ export const cityAdmin={
   dailySales:(date?:string,city?:string)=>api<CityDailySales>(`/panel/city-daily-sales/?${new URLSearchParams({...(date?{date}:{}),...(city?{city}:{})})}`),
   stockBalances:(p:Record<string,string>={})=>api<Page<StockBalance>>(`/stock-balances/?${new URLSearchParams(p)}`),
   lowStock:(p:Record<string,string>={})=>api<Page<StockBalance>>(`/stock-balances/low/?${new URLSearchParams(p)}`),
+  reconciliation:(p:Record<string,string>={})=>api<StockReconciliationReport>(`/stock-balances/reconciliation/?${new URLSearchParams(p)}`),
   stockMovements:(variantId?:string,p:Record<string,string>={})=>api<Page<StockMovement>>(`/stock-movements/?${new URLSearchParams({...(variantId?{variant:variantId}:{}),...p})}`),
-  addStockMovement:(body:{variant:string;quantity_change:number;reason:string;city?:string;reference_order?:string|null})=>api<StockMovement>('/stock-movements/',{method:'POST',body:JSON.stringify(body)}),
+  addStockMovement:(body:{variant:string;quantity_change:number;reason:string;notes?:string;city?:string;reference_order?:string|null})=>api<StockMovement>('/stock-movements/',{method:'POST',body:JSON.stringify(body)}),
   orders:(p:Record<string,string>={})=>api<Page<CityOrderDetail>>(`/orders/?${new URLSearchParams(p)}`),
   orderDetail:(id:string)=>api<CityOrderDetail>(`/orders/${id}/`),
   updateOrderStatus:(id:string,status:string)=>api<CityOrderDetail>(`/orders/${id}/`,{method:'PATCH',body:JSON.stringify({status})}),
@@ -972,7 +1000,8 @@ export const portalApi = {
   deleteVariant: (id: string) => api<void>(`/variants/${id}/`, { method: 'DELETE' }),
   categories: () => api<Page<PortalCategory>>('/categories/?page_size=50'),
   stockBalances: (p: Record<string, string> = {}) => api<Page<StockBalance>>(`/stock-balances/?${new URLSearchParams(p)}`),
-  addStockMovement: (body: { variant: string; quantity_change: number; reason: string; city?: string }) =>
+  reconciliation: (p: Record<string, string> = {}) => api<StockReconciliationReport>(`/stock-balances/reconciliation/?${new URLSearchParams(p)}`),
+  addStockMovement: (body: { variant: string; quantity_change: number; reason: string; notes?: string; city?: string }) =>
     api<StockMovement>('/stock-movements/', { method: 'POST', body: JSON.stringify(body) }),
   cityPrices: (p: Record<string, string> = {}) => api<Page<ProductCityPrice>>(`/city-prices/?${new URLSearchParams(p)}`),
   setCityPrice: (body: { product: string; city: string; selling_price: string; cost_price?: string }) =>

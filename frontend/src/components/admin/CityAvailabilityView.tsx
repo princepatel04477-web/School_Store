@@ -55,8 +55,15 @@ export function CityAvailabilityView() {
 
   const [quantityInput, setQuantityInput] = useState<number | ''>(50);
   const [movementReason, setMovementReason] = useState<string>('RESTOCK');
+  const [movementNotes, setMovementNotes] = useState<string>('');
   const [movementError, setMovementError] = useState('');
   const [movementSuccess, setMovementSuccess] = useState('');
+
+  // Size, Severity, and Reconciliation state
+  const [sizeFilter, setSizeFilter] = useState('');
+  const [severityFilter, setSeverityFilter] = useState('');
+  const [reconModalOpen, setReconModalOpen] = useState(false);
+  const [showDiscrepantOnly, setShowDiscrepantOnly] = useState(false);
 
   // Fetch Cities
   const { data: citiesData } = useQuery({
@@ -172,22 +179,35 @@ export function CityAvailabilityView() {
       });
     }
 
-    // Filter by search query (matches product name, category, school, variant SKU, or size)
-    if (!search.trim()) return groups;
-    const q = search.trim().toLowerCase();
+    // Filter by search query, size, and severity
     return groups.filter((g) => {
-      const matchProduct =
-        g.productName.toLowerCase().includes(q) ||
-        (g.schoolName && g.schoolName.toLowerCase().includes(q)) ||
-        (g.categoryName && g.categoryName.toLowerCase().includes(q));
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const matchProduct =
+          g.productName.toLowerCase().includes(q) ||
+          (g.schoolName && g.schoolName.toLowerCase().includes(q)) ||
+          (g.categoryName && g.categoryName.toLowerCase().includes(q));
 
-      const matchVariant = g.variants.some(
-        (v) => v.sku.toLowerCase().includes(q) || v.size.toLowerCase().includes(q)
-      );
+        const matchVariant = g.variants.some(
+          (v) => v.sku.toLowerCase().includes(q) || v.size.toLowerCase().includes(q)
+        );
+        if (!matchProduct && !matchVariant) return false;
+      }
 
-      return matchProduct || matchVariant;
+      if (sizeFilter) {
+        const hasSize = g.variants.some((v) => v.size.toLowerCase() === sizeFilter.toLowerCase());
+        if (!hasSize) return false;
+      }
+
+      if (severityFilter) {
+        if (severityFilter === 'OUT_OF_STOCK' && g.totalStock > 0) return false;
+        if (severityFilter === 'LOW' && !g.variants.some((v) => v.isLowStock)) return false;
+        if (severityFilter === 'NORMAL' && g.variants.some((v) => v.isLowStock)) return false;
+      }
+
+      return true;
     });
-  }, [products, balanceByVariant, search]);
+  }, [products, balanceByVariant, search, sizeFilter, severityFilter]);
 
   // Toggle expand for single product
   const toggleProductExpand = (id: string) => {
@@ -222,6 +242,7 @@ export function CityAvailabilityView() {
     });
     setQuantityInput(50);
     setMovementReason(item.hasBalanceRow ? 'RESTOCK' : 'INITIAL_STOCK');
+    setMovementNotes('');
     setMovementError('');
     setMovementSuccess('');
     setModalOpen(true);
@@ -273,6 +294,7 @@ export function CityAvailabilityView() {
         city: activeCityId,
         quantity_change: Number(quantityInput),
         reason: movementReason,
+        notes: movementNotes.trim(),
       });
     },
     onSuccess: () => {
@@ -286,6 +308,17 @@ export function CityAvailabilityView() {
     onError: (err: any) => {
       setMovementError(err instanceof Error ? err.message : 'Stock movement failed.');
     },
+  });
+
+  // Fetch reconciliation report for active city
+  const { data: reconData, isLoading: reconLoading, refetch: refetchRecon } = useQuery({
+    queryKey: ['portal-reconciliation', activeCityId, showDiscrepantOnly],
+    queryFn: () =>
+      portalApi.reconciliation({
+        city: activeCityId,
+        discrepant_only: showDiscrepantOnly ? 'true' : 'false',
+      }),
+    enabled: reconModalOpen && Boolean(activeCityId),
   });
 
   const selectedCityObj = cities.find((c) => c.id === activeCityId);
@@ -367,6 +400,55 @@ export function CityAvailabilityView() {
               </option>
             ))}
           </select>
+
+          {/* Size Filter */}
+          <select
+            className="portal-select"
+            value={sizeFilter}
+            onChange={(e) => setSizeFilter(e.target.value)}
+          >
+            <option value="">All Sizes</option>
+            <option value="26">26</option>
+            <option value="28">28</option>
+            <option value="30">30</option>
+            <option value="32">32</option>
+            <option value="34">34</option>
+            <option value="36">36</option>
+            <option value="38">38</option>
+            <option value="40">40</option>
+            <option value="S">S</option>
+            <option value="M">M</option>
+            <option value="L">L</option>
+            <option value="XL">XL</option>
+            <option value="XXL">XXL</option>
+            <option value="UK-1">UK-1</option>
+            <option value="UK-2">UK-2</option>
+            <option value="UK-3">UK-3</option>
+            <option value="UK-4">UK-4</option>
+            <option value="UK-5">UK-5</option>
+            <option value="UK-6">UK-6</option>
+          </select>
+
+          {/* Severity Filter */}
+          <select
+            className="portal-select"
+            value={severityFilter}
+            onChange={(e) => setSeverityFilter(e.target.value)}
+          >
+            <option value="">All Severities</option>
+            <option value="OUT_OF_STOCK">Out of Stock</option>
+            <option value="LOW">Low Stock</option>
+            <option value="NORMAL">Normal</option>
+          </select>
+
+          <button
+            type="button"
+            className="portal-btn portal-btn-secondary portal-btn-sm"
+            onClick={() => setReconModalOpen(true)}
+            title="Audit current on-hand stock vs movement ledger history"
+          >
+            Reconciliation Audit
+          </button>
 
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
             <button
@@ -782,7 +864,9 @@ export function CityAvailabilityView() {
                       <option value="INITIAL_STOCK">Initial Stock Entry</option>
                     )}
                     <option value="RESTOCK">Restock (Shipment Received)</option>
+                    <option value="CORRECTION">Physical Count Correction</option>
                     <option value="ADJUSTMENT">Manual Adjustment (Inventory Count)</option>
+                    <option value="FOUND_STOCK">Found Uncounted Stock</option>
                     <option value="DAMAGE">Damaged / Write-off</option>
                     <option value="RETURN">Customer Return</option>
                   </select>
@@ -814,6 +898,17 @@ export function CityAvailabilityView() {
                     </strong>
                   </div>
                 </div>
+
+                <div className="portal-form-group">
+                  <label className="portal-form-label">Explanatory Notes</label>
+                  <input
+                    type="text"
+                    className="portal-form-input"
+                    value={movementNotes}
+                    onChange={(e) => setMovementNotes(e.target.value)}
+                    placeholder="e.g. Surat warehouse physical audit found 15 extra units in Bay 2."
+                  />
+                </div>
               </div>
 
               <div className="portal-modal-footer">
@@ -833,6 +928,137 @@ export function CityAvailabilityView() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Reconciliation Report Modal */}
+      {reconModalOpen && (
+        <div className="portal-modal-backdrop">
+          <div className="portal-modal" style={{ maxWidth: '800px' }}>
+            <div className="portal-modal-header">
+              <div>
+                <h2 className="portal-modal-title">Inventory Reconciliation Audit</h2>
+                <div style={{ fontSize: '12px', color: 'var(--ink-soft)' }}>
+                  Target City: {selectedCityObj?.name || 'Active City'} · Compares current stock with immutable movement history
+                </div>
+              </div>
+              <button
+                type="button"
+                className="portal-btn portal-btn-secondary portal-btn-sm"
+                onClick={() => setReconModalOpen(false)}
+                aria-label="Close"
+              >
+                <X width={16} height={16} />
+              </button>
+            </div>
+
+            <div className="portal-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '12px',
+                  marginBottom: '16px',
+                  padding: '10px 12px',
+                  background: 'var(--paper)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--line)',
+                  fontSize: '13px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>Total Balances: <strong>{reconData?.total_balances_checked ?? 0}</strong></div>
+                <div>Matches: <strong style={{ color: '#166534' }}>{reconData?.perfect_match_count ?? 0}</strong></div>
+                <div>
+                  Discrepancies:{' '}
+                  <strong style={{ color: (reconData?.discrepant_count ?? 0) > 0 ? '#a34235' : '#166534' }}>
+                    {reconData?.discrepant_count ?? 0}
+                  </strong>
+                </div>
+                <div style={{ marginLeft: 'auto' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showDiscrepantOnly}
+                      onChange={(e) => setShowDiscrepantOnly(e.target.checked)}
+                    />
+                    Discrepancies only
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ fontSize: '12px', color: 'var(--ink-soft)', marginBottom: '12px' }}>
+                Note: The reconciliation audit identifies discrepancies between on-hand balances and movement history.
+                The system does not silently correct balances. Any manual adjustments must be verified and recorded with an audit reason.
+              </div>
+
+              {reconLoading ? (
+                <div style={{ textAlign: 'center', padding: '24px' }}>Loading reconciliation audit…</div>
+              ) : !reconData || reconData.discrepancies.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px' }} className="muted">
+                  No discrepancy found. All balances match the recorded movement history.
+                </div>
+              ) : (
+                <table className="portal-table" style={{ fontSize: '13px', width: '100%' }}>
+                  <thead>
+                    <tr>
+                      <th>Product / SKU</th>
+                      <th>Size</th>
+                      <th style={{ textAlign: 'right' }}>Current Balance</th>
+                      <th style={{ textAlign: 'right' }}>Ledger Sum</th>
+                      <th style={{ textAlign: 'right' }}>Delta</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reconData.discrepancies.map((d) => (
+                      <tr key={d.balance_id} style={{ background: d.has_discrepancy ? '#fffbf5' : 'inherit' }}>
+                        <td>
+                          <strong>{d.product_name}</strong>
+                          <div style={{ fontSize: '11px', color: 'var(--ink-soft)' }}>{d.sku}</div>
+                        </td>
+                        <td>{d.size || '-'}</td>
+                        <td style={{ textAlign: 'right' }}><strong>{d.current_stock}</strong></td>
+                        <td style={{ textAlign: 'right' }}>{d.movement_ledger_sum}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          {d.discrepancy === 0 ? (
+                            <span style={{ color: '#166534' }}>0</span>
+                          ) : (
+                            <span style={{ color: '#a34235', fontWeight: 700 }}>
+                              {d.discrepancy > 0 ? `+${d.discrepancy}` : d.discrepancy}
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          {d.has_discrepancy ? (
+                            <span className="badge s-failed" style={{ fontSize: '11px' }}>Discrepancy</span>
+                          ) : (
+                            <span className="badge s-delivered" style={{ fontSize: '11px' }}>Match</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="portal-modal-footer">
+              <button
+                type="button"
+                className="portal-btn portal-btn-secondary"
+                onClick={() => setReconModalOpen(false)}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="portal-btn portal-btn-primary"
+                onClick={() => refetchRecon()}
+                disabled={reconLoading}
+              >
+                {reconLoading ? 'Refreshing…' : 'Re-run Audit'}
+              </button>
+            </div>
           </div>
         </div>
       )}
