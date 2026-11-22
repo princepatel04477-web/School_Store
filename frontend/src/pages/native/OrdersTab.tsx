@@ -9,21 +9,23 @@ import { FitFeedbackPrompt } from '../../components/orders/FitFeedbackPrompt';
 import { ParentSignInSheet } from '../../components/parent/ParentSignInSheet';
 import { PullToRefresh } from '../../components/native/PullToRefresh';
 import { shareOrderDetails } from '../../native/share';
+import { useLang } from '../../i18n';
 import './nativePages.css';
 
 export function OrdersTab() {
   const { user } = useAuth();
+  const { t } = useLang();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showSignIn, setShowSignIn] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['native-orders', user?.id],
-    queryFn: () => api<any>('/orders/').catch(() => []),
+    queryFn: () => api<{ results: Order[] } | Order[]>('/orders/'),
     enabled: Boolean(user),
   });
 
-  const orders: Order[] = (data?.results || data || []) as Order[];
+  const orders = Array.isArray(data) ? data : data?.results ?? [];
 
   if (!user) {
     return (
@@ -70,6 +72,8 @@ export function OrdersTab() {
 
         {isLoading ? (
           <div className="native-loading">Loading your orders…</div>
+        ) : isError ? (
+          <p role="alert">{t('tracking.error')} <button type="button" onClick={() => void refetch()}>{t('tracking.retry')}</button></p>
         ) : orders.length > 0 ? (
           <div className="native-orders-list">
             {orders.map((o) => (
@@ -96,7 +100,7 @@ export function OrdersTab() {
                         shareOrderDetails(
                           o.order_number,
                           o.total,
-                          `https://school-store.aqualite.workers.dev/parent/orders`
+                          `https://school-store.aqualite.workers.dev/parent/orders/${o.id}`
                         )
                       }
                       aria-label="Share order details"
@@ -112,6 +116,7 @@ export function OrdersTab() {
                 <div className="native-timeline-wrapper">
                   <Timeline order={o} />
                 </div>
+                <Link className="native-secondary-btn" to={`/orders/${o.id}`}>{t('tracking.details')}</Link>
                 <FitFeedbackPrompt
                   orderId={o.id}
                   orderStatus={o.status}

@@ -1,3 +1,4 @@
+import { useLang, type MessageKey } from '../i18n';
 import { useState, useMemo } from 'react';
 import { X } from './ui/icons';
 import { Link } from 'react-router-dom';
@@ -533,19 +534,37 @@ export function Cart({
 }
 
 export function Timeline({ order }: { order: Order }) {
-  const steps = ['PLACED', 'CONFIRMED', 'PACKED', 'DISPATCHED', 'DELIVERED'];
+  const { lang, t } = useLang();
+  const pickup = order.fulfillment_type === 'SCHOOL_PICKUP';
+  const steps = pickup
+    ? ['PLACED', 'CONFIRMED', 'PROCESSING', 'PACKED', 'COLLECTED']
+    : ['PLACED', 'CONFIRMED', 'PROCESSING', 'PACKED', 'DISPATCHED', 'DELIVERED'];
+  const normalize = (status: string) => {
+    if (status === 'PENDING') return 'PLACED';
+    if (status === 'SHIPPED') return pickup ? 'PACKED' : 'DISPATCHED';
+    if (status === 'DELIVERED' && pickup) return 'COLLECTED';
+    return status;
+  };
+  const current = normalize(order.status);
+  if (['CANCELLED', 'RETURNED', 'REFUNDED'].includes(current)) {
+    return <p>{t(('tracking.' + current) as MessageKey)}</p>;
+  }
+  const orderIdx = steps.indexOf(current);
+  const events = new Map(order.status_events?.map((event) => [normalize(event.status), event.timestamp]));
   return (
     <div className="timeline">
       {steps.map((s, i) => {
-        const orderIdx = steps.indexOf(order.status);
-        const isCurrent = order.status === s;
+        const isCurrent = current === s;
         const isDone = orderIdx >= i;
+        const timestamp = isDone ? events.get(s) : undefined;
+        const label = pickup && s === 'PACKED' ? 'tracking.readyPickup' : ('tracking.' + s) as MessageKey;
         return (
-          <div className={(isCurrent ? 'current ' : '') + (isDone ? 'done' : '')} key={s}>
-            <span>{i + 1}</span>
+          <div className={(isCurrent ? 'current ' : '') + (isDone ? 'done' : '')} key={s}
+            aria-current={isCurrent ? 'step' : undefined}>
+            <span aria-hidden="true">{i + 1}</span>
             <div>
-              <b>{s[0] + s.slice(1).toLowerCase()}</b>
-              <small>{isCurrent ? 'In progress' : ' '}</small>
+              <b>{t(label)}</b>
+              {timestamp && <small><time dateTime={timestamp}>{new Date(timestamp).toLocaleDateString(lang + '-IN')}</time></small>}
             </div>
           </div>
         );

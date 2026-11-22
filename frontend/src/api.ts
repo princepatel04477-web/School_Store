@@ -32,7 +32,7 @@ export type Product={
   customisation_schema?:CustomisationField[] | {fields?: CustomisationField[]};
   variants:{id:string;size:string;stock_status:StockStatus|null}[];
 };
-export type Order={id:string;order_number:string;student_name:string;status:string;payment_status:string;total:number;created_at:string;status_events?:{status:string;timestamp:string}[]};
+export type Order={id:string;order_number:string;student_name:string;status:string;payment_status:string;total:number;created_at:string;status_events?:{status:string;timestamp:string}[];fulfillment_type?:string;tracking?:{article_number:string;booked_at:string}|null;items?:{id:string;product_name:string;variant_size:string;quantity:number}[]};
 const API=import.meta.env.VITE_API_URL||'/api';
 
 /** Turns an API path into a full URL. Paths may be "/panel/..." or "/api/panel/...". */

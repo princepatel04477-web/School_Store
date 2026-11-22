@@ -11,6 +11,30 @@
 type Entry = { en: string; gu: string; hi: string };
 
 export const messages = {
+  'tracking.error': { en: 'Could not load your orders.', gu: 'તમારા ઓર્ડર લોડ થઈ શક્યા નહીં.', hi: 'आपके ऑर्डर लोड नहीं हो सके।' },
+  'tracking.orders': { en: 'My orders', gu: 'મારા ઓર્ડર', hi: 'मेरे ऑर्डर' },
+  'tracking.details': { en: 'View order details', gu: 'ઓર્ડરની વિગતો જુઓ', hi: 'ऑर्डर का विवरण देखें' },
+  'tracking.loading': { en: 'Loading order…', gu: 'ઓર્ડર લોડ થઈ રહ્યો છે…', hi: 'ऑर्डर लोड हो रहा है…' },
+  'tracking.retry': { en: 'Retry', gu: 'ફરી પ્રયાસ કરો', hi: 'फिर कोशिश करें' },
+  'tracking.loadMore': { en: 'Load more orders', gu: 'વધુ ઓર્ડર જુઓ', hi: 'और ऑर्डर देखें' },
+  'tracking.PLACED': { en: 'Order placed', gu: 'ઓર્ડર મળ્યો', hi: 'ऑर्डर मिल गया' },
+  'tracking.CONFIRMED': { en: 'Confirmed', gu: 'ખાતરી થઈ', hi: 'पुष्टि हुई' },
+  'tracking.PROCESSING': { en: 'Packing', gu: 'પેક થઈ રહ્યો છે', hi: 'पैक हो रहा है' },
+  'tracking.PACKED': { en: 'Packed', gu: 'પેક થઈ ગયો', hi: 'पैक हो गया' },
+  'tracking.DISPATCHED': { en: 'Dispatched', gu: 'મોકલ્યો', hi: 'भेज दिया गया' },
+  'tracking.DELIVERED': { en: 'Delivered', gu: 'પહોંચાડ્યો', hi: 'पहुँचा दिया गया' },
+  'tracking.COLLECTED': { en: 'Collected', gu: 'લઈ લીધો', hi: 'ले लिया गया' },
+  'tracking.CANCELLED': { en: 'Cancelled', gu: 'રદ થયો', hi: 'रद्द हुआ' },
+  'tracking.RETURNED': { en: 'Returned', gu: 'પરત થયો', hi: 'वापस किया गया' },
+  'tracking.REFUNDED': { en: 'Refunded', gu: 'પૈસા પરત મળ્યા', hi: 'पैसे वापस हुए' },
+  'tracking.readyPickup': { en: 'Ready for school pickup', gu: 'શાળામાંથી લેવા તૈયાર', hi: 'स्कूल से लेने के लिए तैयार' },
+  'tracking.pickup': { en: 'School pickup', gu: 'શાળામાંથી લો', hi: 'स्कूल से लें' },
+  'tracking.article': { en: 'India Post article number', gu: 'ઇન્ડિયા પોસ્ટ આર્ટિકલ નંબર', hi: 'इंडिया पोस्ट आर्टिकल नंबर' },
+  'tracking.booked': { en: 'Booked on {date}', gu: '{date} ના રોજ બુક થયું', hi: '{date} को बुक हुआ' },
+  'tracking.copy': { en: 'Copy number', gu: 'નંબર કૉપી કરો', hi: 'नंबर कॉपी करें' },
+  'tracking.copied': { en: 'Copied', gu: 'કૉપી થઈ ગયો', hi: 'कॉपी हो गया' },
+  'tracking.copyFailed': { en: 'Could not copy. Select the number to copy it.', gu: 'કૉપી થઈ શક્યો નહીં. નંબર પસંદ કરીને કૉપી કરો.', hi: 'कॉपी नहीं हुआ। नंबर चुनकर कॉपी करें।' },
+  'tracking.post': { en: 'Track on India Post', gu: 'ઇન્ડિયા પોસ્ટ પર ટ્રૅક કરો', hi: 'इंडिया पोस्ट पर ट्रैक करें' },
   // ---------- common ----------
   'common.close': { en: 'Close', gu: 'બંધ કરો', hi: 'बंद करें' },
   'welcome.message': {

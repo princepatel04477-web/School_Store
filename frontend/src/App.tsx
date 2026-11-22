@@ -43,6 +43,9 @@ const Retailer = lazy(() => import('./pages/Retailer'));
 const OrdersTab = lazy(() =>
   import('./pages/native/OrdersTab').then((m) => ({ default: m.OrdersTab }))
 );
+const ParentOrderDetail = lazy(() =>
+  import('./pages/ParentOrderDetail').then((m) => ({ default: m.ParentOrderDetail }))
+);
 const MeasureTab = lazy(() =>
   import('./pages/native/MeasureTab').then((m) => ({ default: m.MeasureTab }))
 );
@@ -234,6 +237,7 @@ export default function App() {
 
               {/* Native App Main Tabs & Quick Navigation */}
               <Route path="/orders" element={<OrdersTab />} />
+              <Route path="/orders/:orderId" element={<ParentOrderDetail />} />
               <Route path="/measure" element={<MeasureTab />} />
               <Route path="/profile" element={<ProfileTab />} />
 
