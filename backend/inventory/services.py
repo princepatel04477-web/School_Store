@@ -72,6 +72,7 @@ def apply_stock_movement(
     reference_order=None,
     created_by=None,
     school_id=None,
+    notes: str = "",
 ) -> StockMovement:
     """Apply one audited stock change atomically.
 
@@ -115,6 +116,7 @@ def apply_stock_movement(
             or (reference_order.school_id if reference_order else None),
             quantity_change=quantity_change,
             reason=reason,
+            notes=notes or "",
             reference_order=reference_order,
             created_by=created_by,
         )
@@ -130,6 +132,7 @@ def apply_stock_movement(
                 details={
                     "quantity_change": quantity_change,
                     "reason": reason,
+                    "notes": notes or "",
                     "city_id": str(city_id),
                     "movement_id": str(movement.id),
                     "sku": getattr(variant, "sku", ""),

@@ -115,6 +115,8 @@ class StockMovementLedgerTests(TestCase):
         cls.surat = City.objects.get(code="SUR")
         cls.admin_surat = User.objects.get(username="admin_surat")
         cls.variant = ProductVariant.objects.get(sku="SHOE-BLK-UK2")  # 400 in Surat
+        cls.parent = User.objects.get(username="parent_rahul")
+        cls.student = Student.objects.get(gr_number="DPS-2026-001")
 
     def jwt_client(self, user):
         client = APIClient()
@@ -225,3 +227,124 @@ class StockMovementLedgerTests(TestCase):
         self.assertTrue(rows)
         self.assertEqual({row["variant_sku"] for row in rows}, {self.variant.sku})
         self.assertTrue(all(row["is_low_stock"] for row in rows))
+
+    def test_stock_movement_supports_notes_and_clear_reasons(self):
+        """Staff adjustments support clear reasons and explanatory notes."""
+        response = self.jwt_client(self.admin_surat).post(
+            "/api/stock-movements/",
+            {
+                "variant": str(self.variant.pk),
+                "city": str(self.surat.pk),
+                "quantity_change": 15,
+                "reason": StockMovement.Reason.CORRECTION,
+                "notes": "Physical audit count revealed 15 extra pairs in Surat warehouse bay 2.",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data["reason"], StockMovement.Reason.CORRECTION)
+        self.assertEqual(
+            response.data["notes"],
+            "Physical audit count revealed 15 extra pairs in Surat warehouse bay 2.",
+        )
+
+        mov = StockMovement.objects.get(pk=response.data["id"])
+        self.assertEqual(mov.notes, "Physical audit count revealed 15 extra pairs in Surat warehouse bay 2.")
+        self.assertEqual(mov.reason, StockMovement.Reason.CORRECTION)
+
+    def test_stock_balance_filters_size_and_severity(self):
+        """Stock balances can be filtered by variant size and low-stock severity."""
+        # Drive variant down to critical stock (e.g. qty 4, threshold is 20)
+        apply_stock_movement(
+            variant=self.variant,
+            city_id=self.surat.pk,
+            quantity_change=-(self.balance().stock_quantity - 4),
+            reason=StockMovement.Reason.ADJUSTMENT,
+        )
+        # Filter by size
+        resp = self.jwt_client(self.admin_surat).get(
+            f"/api/stock-balances/?size={self.variant.size}"
+        )
+        self.assertEqual(resp.status_code, 200)
+        results = resp.data["results"]
+        self.assertTrue(any(str(r["variant"]) == str(self.variant.pk) for r in results))
+
+        # Filter by severity=CRITICAL
+        resp_crit = self.jwt_client(self.admin_surat).get(
+            "/api/stock-balances/?severity=CRITICAL"
+        )
+        self.assertEqual(resp_crit.status_code, 200)
+        crit_results = resp_crit.data["results"]
+        matched = [r for r in crit_results if str(r["variant"]) == str(self.variant.pk)]
+        self.assertEqual(len(matched), 1)
+        self.assertEqual(matched[0]["severity"], "CRITICAL")
+
+    def test_stock_balance_affected_orders_count(self):
+        """Affected orders count reflects active unfulfilled orders requiring this variant."""
+        from orders.models import OrderItem
+
+        # Verify initial affected count
+        bal = self.balance()
+        resp = self.jwt_client(self.admin_surat).get(
+            f"/api/stock-balances/?variant={self.variant.pk}"
+        )
+        self.assertEqual(resp.status_code, 200)
+        initial_affected = resp.data["results"][0]["affected_orders_count"]
+
+        # Place an order with this variant
+        order_resp = self.jwt_client(self.parent).post(
+            "/api/orders/",
+            {
+                "idempotency_key": "affected-orders-test-001",
+                "student": str(self.student.pk),
+                "fulfillment_type": Order.FulfillmentType.SCHOOL_PICKUP,
+                "items": [{"variant": str(self.variant.pk), "quantity": 1}],
+            },
+            format="json",
+        )
+        self.assertEqual(order_resp.status_code, 201)
+
+        resp2 = self.jwt_client(self.admin_surat).get(
+            f"/api/stock-balances/?variant={self.variant.pk}"
+        )
+        self.assertEqual(resp2.status_code, 200)
+        self.assertEqual(resp2.data["results"][0]["affected_orders_count"], initial_affected + 1)
+
+    def test_reconciliation_report_detects_discrepancy_without_silent_correction(self):
+        """Reconciliation report audits balance vs movement ledger and does NOT silently overwrite."""
+        # Baseline check
+        resp = self.jwt_client(self.admin_surat).get(
+            f"/api/stock-balances/reconciliation/?city={self.surat.pk}"
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("total_balances_checked", resp.data)
+        self.assertIn("discrepant_count", resp.data)
+        self.assertIn("discrepancies", resp.data)
+
+        # Intentionally introduce a raw drift on stock_quantity without a StockMovement row
+        bal = self.balance()
+        original_qty = bal.stock_quantity
+        StockBalance.objects.filter(pk=bal.pk).update(stock_quantity=original_qty + 25)
+
+        # Run reconciliation
+        resp_after = self.jwt_client(self.admin_surat).get(
+            f"/api/stock-balances/reconciliation/?city={self.surat.pk}&discrepant_only=true"
+        )
+        self.assertEqual(resp_after.status_code, 200)
+        self.assertGreaterEqual(resp_after.data["discrepant_count"], 1)
+
+        discrepant_item = next(
+            item for item in resp_after.data["discrepancies"]
+            if item["variant_id"] == str(self.variant.pk)
+        )
+        self.assertEqual(discrepant_item["current_stock"], original_qty + 25)
+        self.assertEqual(discrepant_item["discrepancy"], 25)
+        self.assertTrue(discrepant_item["has_discrepancy"])
+
+        # Crucial check: verify that the report DID NOT silently alter or correct the balance!
+        bal.refresh_from_db()
+        self.assertEqual(
+            bal.stock_quantity,
+            original_qty + 25,
+            "Reconciliation must never silently correct or alter stock balances.",
+        )

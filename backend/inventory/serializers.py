@@ -15,6 +15,8 @@ class StockBalanceSerializer(serializers.ModelSerializer):
     product_category = serializers.CharField(source="variant.product.category.name", read_only=True)
     product_type = serializers.CharField(source="variant.product.product_type", read_only=True)
     variant_size = serializers.CharField(source="variant.size", read_only=True)
+    severity = serializers.CharField(read_only=True)
+    affected_orders_count = serializers.SerializerMethodField()
 
     class Meta:
         model = StockBalance
@@ -30,9 +32,23 @@ class StockBalanceSerializer(serializers.ModelSerializer):
             "stock_quantity",
             "low_stock_threshold",
             "is_low_stock",
+            "severity",
+            "affected_orders_count",
             "updated_at",
         )
         read_only_fields = fields
+
+    def get_affected_orders_count(self, obj) -> int:
+        return Order.objects.filter(
+            city_id=obj.city_id,
+            status__in=[
+                Order.Status.PLACED,
+                Order.Status.PENDING,
+                Order.Status.CONFIRMED,
+                Order.Status.PROCESSING,
+            ],
+            items__variant_id=obj.variant_id,
+        ).distinct().count()
 
 
 class StockMovementSerializer(serializers.ModelSerializer):
@@ -48,6 +64,7 @@ class StockMovementSerializer(serializers.ModelSerializer):
             "variant_sku",
             "quantity_change",
             "reason",
+            "notes",
             "reference_order",
             "created_by",
             "created_at",
@@ -68,13 +85,17 @@ class StockMovementCreateSerializer(serializers.Serializer):
             # Stock-in
             StockMovement.Reason.INITIAL_STOCK,
             StockMovement.Reason.RESTOCK,
+            StockMovement.Reason.FOUND_STOCK,
             # Customer return (stock back in)
             StockMovement.Reason.RETURN,
-            # Manual adjustments
+            # Manual adjustments & corrections
             StockMovement.Reason.ADJUSTMENT,
+            StockMovement.Reason.CORRECTION,
             StockMovement.Reason.DAMAGE,
+            StockMovement.Reason.EXCHANGE_RESERVATION,
         )
     )
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
     reference_order = serializers.PrimaryKeyRelatedField(
         queryset=Order.objects.all(), required=False, allow_null=True
     )
@@ -123,6 +144,7 @@ class StockMovementCreateSerializer(serializers.Serializer):
                 reason=validated_data["reason"],
                 reference_order=validated_data.get("reference_order"),
                 created_by=self.context["request"].user,
+                notes=validated_data.get("notes", ""),
             )
         except InsufficientStockError:
             raise serializers.ValidationError(

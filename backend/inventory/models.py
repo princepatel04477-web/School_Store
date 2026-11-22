@@ -71,6 +71,18 @@ class StockBalance(UUIDModel):
     def __str__(self) -> str:
         return f"{self.city.code} · {self.variant.sku}: {self.stock_quantity}"
 
+    @property
+    def severity(self) -> str:
+        """Categorize low-stock severity for dashboards and triage."""
+        if self.stock_quantity == 0:
+            return "OUT_OF_STOCK"
+        threshold = self.low_stock_threshold or 10
+        if self.stock_quantity <= max(1, threshold // 2):
+            return "CRITICAL"
+        if self.stock_quantity <= threshold:
+            return "LOW"
+        return "NORMAL"
+
 
 class StockMovement(UUIDModel):
     """Append-only audit ledger of stock changes for a city/variant balance."""
@@ -79,13 +91,16 @@ class StockMovement(UUIDModel):
         # Stock-in
         INITIAL_STOCK = "INITIAL_STOCK", "Initial Stock"
         RESTOCK = "RESTOCK", "Restock"
+        FOUND_STOCK = "FOUND_STOCK", "Found Uncounted Stock"
         # Sale (written by the checkout path)
         ORDER_PLACED = "ORDER_PLACED", "Order Placed"
+        EXCHANGE_RESERVATION = "EXCHANGE_RESERVATION", "Exchange Replacement Hold"
         # Stock back in
         ORDER_CANCELLED = "ORDER_CANCELLED", "Order Cancelled"
         RETURN = "RETURN", "Customer Return"
         # Manual adjustments
         ADJUSTMENT = "ADJUSTMENT", "Manual Adjustment"
+        CORRECTION = "CORRECTION", "Physical Count Correction"
         DAMAGE = "DAMAGE", "Damaged / Write-off"
 
     variant = models.ForeignKey(
@@ -125,6 +140,7 @@ class StockMovement(UUIDModel):
         blank=True,
         related_name="stock_movements",
     )
+    notes = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
