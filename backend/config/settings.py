@@ -326,6 +326,7 @@ REST_FRAMEWORK = {
         "student_claim_ip": os.environ.get("STUDENT_CLAIM_IP_RATE", "30/hour"),
         "public_catalog": os.environ.get("PUBLIC_CATALOG_RATE", "120/min"),
         "pin_lookup": os.environ.get("PIN_LOOKUP_RATE", "30/min"),
+        "school_request": os.environ.get("SCHOOL_REQUEST_RATE", "5/hour"),
     },
 }
 

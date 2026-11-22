@@ -208,8 +208,8 @@
 /* Request Success Box */
 .request-success-box {
   background: var(--paper-sunk, #f0fdf4);
-  border: 1px solid #bbf7d0;
-  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
   padding: 2rem 1.5rem;
   text-align: center;
 }
@@ -219,7 +219,7 @@
   height: 48px;
   background: var(--brand, #047857);
   color: #ffffff;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;

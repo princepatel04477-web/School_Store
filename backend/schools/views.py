@@ -11,6 +11,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from accounts.models import User
@@ -630,7 +631,11 @@ class ParentSchoolRequestCreateView(APIView):
     """
     Public endpoint for parents to request that their school be added to SchoolStore.
     """
+    authentication_classes = []
     permission_classes = [AllowAny]
+    # Public and stores contact details: rate-limit per IP so it cannot be used to flood staff.
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "school_request"
 
     def post(self, request, *args, **kwargs):
         serializer = ParentSchoolRequestCreateSerializer(data=request.data)

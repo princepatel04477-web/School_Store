@@ -341,6 +341,9 @@ class CartValidateView(APIView):
 
         items_payload = request.data.get("items")
         if isinstance(items_payload, list) and items_payload:
+            # Public endpoint: bound the work one request can cause.
+            if len(items_payload) > 50:
+                raise ValidationError({"items": "A basket can be checked with at most 50 lines."})
             school_id = school_id or request.data.get("school_id") or request.data.get("school")
             target_city_id = request.data.get("city") or request.data.get("city_id")
             if not target_city_id and school_id:
@@ -363,7 +366,17 @@ class CartValidateView(APIView):
             for entry in items_payload:
                 v_id = entry.get("variant") or entry.get("variant_id")
                 p_id = entry.get("product") or entry.get("product_id")
-                qty = int(entry.get("quantity", 1))
+                if not isinstance(entry, dict):
+                    errors.append("Each item must be an object.")
+                    continue
+                try:
+                    qty = int(entry.get("quantity", 1))
+                except (ValueError, TypeError):
+                    errors.append("Quantity must be a whole number.")
+                    continue
+                if qty < 1 or qty > 20:
+                    errors.append("Quantity must be between 1 and 20.")
+                    continue
                 client_price_paise = entry.get("price_paise")
                 if client_price_paise is None and entry.get("price") is not None:
                     try:

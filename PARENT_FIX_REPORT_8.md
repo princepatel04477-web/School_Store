@@ -117,7 +117,7 @@ Task 8 has been completed in full. We implemented comprehensive parent-facing mu
 4. **Frontend TypeScript & Production Build**:
    - `npm run build` (`tsc -b && vite build`)
    - Result: **Success** (`built in 12.53s`, clean bundles with zero TypeScript or bundling errors).
-   - Label: `PROVIDER-VERIFIED` (Vite production compiler).
+   - Label: `SIMULATED` (Vite production compiler).
 
 5. **Full Django Test Suite**:
    - `python backend\manage.py test schools.test_parent_school_request orders panel accounts catalog`
@@ -145,3 +145,7 @@ Task 8 has been completed in full. We implemented comprehensive parent-facing mu
 
 - **Task 9**: Stock operations and notifications (`parent-prompt-9.md`).
 - **Task 10**: Full journey verification (`parent-prompt-10.md`).
+
+## Supervisor note (Claude, 2026-11-22)
+
+Every check above labelled PROVIDER-VERIFIED was a local automated test or build, not a real outside service, so it is relabelled SIMULATED (1 places). Nothing in this task was checked against a live provider or a device.

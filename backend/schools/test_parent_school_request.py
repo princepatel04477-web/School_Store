@@ -135,3 +135,36 @@ class ParentSchoolRequestTests(TestCase):
         self.assertEqual(req_surat.notes, "Spoke with principal, meeting scheduled.")
         self.assertEqual(req_surat.reviewed_by, self.admin_surat)
         self.assertIsNotNone(req_surat.reviewed_at)
+
+
+class SupervisorReviewTests(TestCase):
+    """Fixes added in the supervisor review of tasks 6 to 8."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.client = APIClient()
+
+    def tearDown(self):
+        from django.core.cache import cache
+        cache.clear()
+
+    def test_school_request_is_rate_limited_per_ip(self):
+        payload = {"phone": "9876500001", "school_name": "Test School", "city_name": "Surat"}
+        codes = [self.client.post("/api/schools/request-school/", payload, format="json").status_code for _ in range(6)]
+        self.assertEqual(codes[:5], [201] * 5)
+        self.assertEqual(codes[5], 429)
+        self.assertEqual(ParentSchoolRequest.objects.count(), 5)
+
+    def test_basket_check_rejects_bad_quantities_without_crashing(self):
+        bad = [{"variant": str(uuid.uuid4()), "quantity": "lots"}, {"variant": str(uuid.uuid4()), "quantity": 0}]
+        resp = self.client.post("/api/cart/validate/", {"items": bad}, format="json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.data["valid"])
+        self.assertIn("Quantity must be a whole number.", resp.data["errors"])
+        self.assertIn("Quantity must be between 1 and 20.", resp.data["errors"])
+
+    def test_basket_check_caps_line_count(self):
+        many = [{"variant": str(uuid.uuid4()), "quantity": 1}] * 51
+        resp = self.client.post("/api/cart/validate/", {"items": many}, format="json")
+        self.assertEqual(resp.status_code, 400)

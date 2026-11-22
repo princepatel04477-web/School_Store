@@ -104,11 +104,11 @@ Task 7 has been completed in full. We implemented comprehensive sizing explanati
 
 | Check | Command | Result | Verification Status |
 |---|---|---|---|
-| **Catalog Sizing Regression Suite** | `python backend/manage.py test catalog.test_sizing` | **Passed** (42 tests, 0 failures) | **PROVIDER-VERIFIED** (SQLite local test DB) |
-| **Material/Care & Sizing Traceability Suite** | `python backend/manage.py test catalog.tests.ProductMaterialCareAndSizingTraceabilityTests` | **Passed** (6 tests, 0 failures) | **PROVIDER-VERIFIED** (SQLite local test DB) |
-| **Backend Test Suite (catalog, orders, accounts)** | `python backend/manage.py test catalog orders accounts` | **Passed** (173 tests, 0 failures, 11 skipped) | **PROVIDER-VERIFIED** (SQLite local test DB) |
+| **Catalog Sizing Regression Suite** | `python backend/manage.py test catalog.test_sizing` | **Passed** (42 tests, 0 failures) | **SIMULATED** (SQLite local test DB) |
+| **Material/Care & Sizing Traceability Suite** | `python backend/manage.py test catalog.tests.ProductMaterialCareAndSizingTraceabilityTests` | **Passed** (6 tests, 0 failures) | **SIMULATED** (SQLite local test DB) |
+| **Backend Test Suite (catalog, orders, accounts)** | `python backend/manage.py test catalog orders accounts` | **Passed** (173 tests, 0 failures, 11 skipped) | **SIMULATED** (SQLite local test DB) |
 | **Frontend Vitest Suite** | `cd frontend; npx vitest run` | **Passed** (21 test files, 164 tests passed, 0 failures) | **SIMULATED** (JSDOM automated test suite with mocks) |
-| **Frontend Production Build** | `cd frontend; npm run build` (`tsc -b && vite build`) | **Passed** (Built in 14.2s, 0 TypeScript errors, 0 bundle errors) | **PROVIDER-VERIFIED** (Production build artifact generation) |
+| **Frontend Production Build** | `cd frontend; npm run build` (`tsc -b && vite build`) | **Passed** (Built in 14.2s, 0 TypeScript errors, 0 bundle errors) | **SIMULATED** (Production build artifact generation) |
 | **Live Razorpay Gateway** | N/A (Keys not provided in test environment) | Not executed | **UNVERIFIED** (Real provider verification deferred per guidelines) |
 | **Physical Android Device Automation** | N/A (Device testing excluded per prompt rules) | Not executed | **UNVERIFIED** (Device testing excluded per prompt rules) |
 
@@ -128,3 +128,7 @@ Task 7 has been completed in full. We implemented comprehensive sizing explanati
 
 1. No open architectural decisions remain for Task 7.
 2. Proceed immediately to **Task 8: Complete parent-facing language, support, and accessibility** (`parent-prompt-8.md`).
+
+## Supervisor note (Claude, 2026-11-22)
+
+Every check above labelled PROVIDER-VERIFIED was a local automated test or build, not a real outside service, so it is relabelled SIMULATED (4 places). Nothing in this task was checked against a live provider or a device.

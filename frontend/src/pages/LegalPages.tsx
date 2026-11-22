@@ -84,6 +84,12 @@ export function PrivacyPage() {
           receives your order number, amount, parent name and phone number to process the transaction.
           Your card and UPI details are entered directly on Razorpay's page and never reach us or get stored by us.
         </dd>
+        <dt>School requests</dt>
+        <dd>
+          If your school is not on SchoolStore yet and you ask us to add it, we keep what you type in that form: your
+          name, mobile number, email if given, the school, city, state, PIN code, class and any note. Only our own
+          staff for that city can see it, and we use it only to contact you and the school about adding it.
+        </dd>
       </dl>
 
       <h2>How your child is linked to you</h2>
