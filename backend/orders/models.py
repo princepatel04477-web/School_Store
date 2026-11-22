@@ -264,8 +264,36 @@ class OrderItem(UUIDModel):
         last = self.exchanges.order_by("-created_at").first()
         return last.to_size if last else (self.chosen_size or self.variant.size)
 
+    @property
+    def size_holdings(self) -> dict[str, int]:
+        """Returns the distribution of sizes currently held for this line as {size: quantity}."""
+        return size_holdings(self)
+
     def __str__(self) -> str:
         return f"{self.order.order_number} - {self.variant.sku} x{self.quantity}"
+
+
+def size_holdings(item: OrderItem) -> dict[str, int]:
+    """
+    Returns the distribution of sizes currently held for an order line as {size: quantity}.
+    Initial holdings are {item.chosen_size or item.variant.size: item.quantity}.
+    Each completed exchange moves units from from_size to to_size.
+    """
+    initial_size = item.chosen_size or item.variant.size
+    holdings: dict[str, int] = {initial_size: item.quantity}
+    exchanges = list(item.exchanges.all())
+    exchanges.sort(key=lambda e: e.created_at or timezone.now())
+    for ex in exchanges:
+        q = ex.quantity if ex.quantity is not None else item.quantity
+        from_s = ex.from_size or initial_size
+        available_from = holdings.get(from_s, 0)
+        units_to_move = min(available_from, q) if available_from > 0 else q
+        if available_from > 0:
+            holdings[from_s] -= units_to_move
+            if holdings[from_s] <= 0:
+                del holdings[from_s]
+        holdings[ex.to_size] = holdings.get(ex.to_size, 0) + units_to_move
+    return holdings
 
 
 class OrderItemExchange(UUIDModel):
@@ -291,6 +319,11 @@ class OrderItemExchange(UUIDModel):
         help_text="Leave blank to use the size the family has now.",
     )
     to_size = models.CharField(max_length=50)
+    quantity = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Number of units exchanged. Null means whole line.",
+    )
     reason = models.CharField(max_length=12, choices=Reason.choices)
     note = models.TextField(blank=True, default="")
     created_by = models.ForeignKey(
@@ -579,6 +612,19 @@ class OrderAfterSaleRequest(UUIDModel):
         DAMAGED_DISCARD = "DAMAGED_DISCARD", "Damaged / Discard"
         UNINSPECTED = "UNINSPECTED", "Uninspected"
 
+    # TODO(D4): Handover method defaults to unset until staff sets SCHOOL_DESK, POST_RETURN, or DOOR_SWAP.
+    class HandoverMethod(models.TextChoices):
+        SCHOOL_DESK = "SCHOOL_DESK", "School uniform desk"
+        POST_RETURN = "POST_RETURN", "India Post return parcel"
+        DOOR_SWAP = "DOOR_SWAP", "Swap at door"
+
+    # TODO(D9): Legacy delivered orders without delivery event use window_check=PENDING and reserve stock.
+    class WindowCheck(models.TextChoices):
+        NOT_APPLICABLE = "NOT_APPLICABLE", "Not applicable"
+        PENDING = "PENDING", "Pending staff check"
+        CONFIRMED = "CONFIRMED", "Confirmed by staff"
+        REJECTED = "REJECTED", "Rejected by staff"
+
     order = models.ForeignKey(
         Order,
         on_delete=models.CASCADE,
@@ -638,6 +684,54 @@ class OrderAfterSaleRequest(UUIDModel):
         related_name="reviewed_after_sales_requests",
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
+    # Handover arrangement set by staff
+    # TODO(D4): Handover method defaults to unset until staff sets SCHOOL_DESK, POST_RETURN, or DOOR_SWAP.
+    handover_method = models.CharField(
+        max_length=24,
+        choices=HandoverMethod.choices,
+        blank=True,
+        default="",
+        help_text="Handover arrangement chosen by staff.",
+    )
+    # Legacy window verification fields
+    # TODO(D9): Legacy delivered orders without delivery event use window_check=PENDING and reserve stock.
+    window_check = models.CharField(
+        max_length=24,
+        choices=WindowCheck.choices,
+        default=WindowCheck.NOT_APPLICABLE,
+        blank=True,
+        help_text="Staff verification state for legacy orders without delivery timestamp.",
+    )
+    window_starts_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="First DELIVERED/COLLECTED timestamp used to count the 7-day exchange window.",
+    )
+    window_confirmed_start = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Staff-confirmed delivery date for legacy orders.",
+    )
+    window_confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="Staff member who confirmed legacy delivery date.",
+    )
+    window_confirmed_at = models.DateTimeField(null=True, blank=True)
+    window_note = models.TextField(
+        blank=True,
+        default="",
+        help_text="Staff notes on delivery date confirmation.",
+    )
+    idempotency_key = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        db_index=True,
+    )
     staff_notes = models.TextField(blank=True, default="")
 
     class Meta:
@@ -645,6 +739,16 @@ class OrderAfterSaleRequest(UUIDModel):
         indexes = [
             models.Index(fields=["order", "created_at"], name="idx_asreq_order_created"),
             models.Index(fields=["status", "created_at"], name="idx_asreq_status_created"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order_item"],
+                condition=models.Q(
+                    order_item__isnull=False,
+                    status__in=["REQUESTED", "APPROVED", "INSPECTED"],
+                ),
+                name="uniq_active_after_sale_per_item",
+            ),
         ]
 
     def __str__(self) -> str:

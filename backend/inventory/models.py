@@ -87,6 +87,9 @@ class StockMovement(UUIDModel):
         # Manual adjustments
         ADJUSTMENT = "ADJUSTMENT", "Manual Adjustment"
         DAMAGE = "DAMAGE", "Damaged / Write-off"
+        # Size exchange reservations and releases
+        EXCHANGE_RESERVE = "EXCHANGE_RESERVE", "Reserved for size exchange"
+        EXCHANGE_RELEASE = "EXCHANGE_RELEASE", "Released size exchange reservation"
 
     variant = models.ForeignKey(
         "catalog.ProductVariant",

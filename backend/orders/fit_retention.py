@@ -27,7 +27,7 @@ from django.utils import timezone
 
 from catalog.models import SizingSample
 
-from .models import Order, OrderItem, OrderItemExchange, OrderStatusEvent
+from .models import Order, OrderItem, OrderItemExchange, OrderStatusEvent, size_holdings
 
 ENDED = (
     Order.Status.DELIVERED,
@@ -71,6 +71,8 @@ def _sample(item: OrderItem) -> SizingSample:
     else:
         reason = ""
     placed = timezone.localdate(item.order.created_at)
+    holdings = size_holdings(item)
+    final_size = list(holdings.keys())[-1] if holdings else (exchanges[-1].to_size if exchanges else (item.chosen_size or item.variant.size))
     return SizingSample(
         product_id=item.variant.product_id,
         month=placed.replace(day=1),

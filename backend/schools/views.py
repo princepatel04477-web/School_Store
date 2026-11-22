@@ -348,7 +348,7 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         capped so a long history stays one small query. Cancelled orders and
         later exchanges count: the size the family kept is the one returned.
         """
-        from orders.models import Order, OrderItem
+        from orders.models import Order, OrderItem, size_holdings
 
         student = self.get_object()
         recent_orders = list(
@@ -367,8 +367,12 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         for item in items:
             key = str(item.variant.product_id)
             if key not in sizes:
-                exchanges = sorted(item.exchanges.all(), key=lambda e: e.created_at)
-                sizes[key] = exchanges[-1].to_size if exchanges else (item.chosen_size or item.variant.size)
+                holdings = size_holdings(item)
+                if holdings:
+                    sizes[key] = list(holdings.keys())[-1]
+                else:
+                    exchanges = sorted(item.exchanges.all(), key=lambda e: e.created_at)
+                    sizes[key] = exchanges[-1].to_size if exchanges else (item.chosen_size or item.variant.size)
         return Response(sizes)
 
     # ------------------------------------------------------------------ #
