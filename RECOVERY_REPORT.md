@@ -4,7 +4,7 @@
 
 Branch: `fix/razorpay-return-recovery` from `ad16038`. No push, merge, deployment, Cloudflare write or store database connection was made.
 
-## Review pass, 21 November 2026 (evening)
+## Review pass, 21 to 22 November 2026
 
 **Real Razorpay: UNVERIFIED.** This worktree has no `backend/.env`, so there were no sandbox keys. Real Checkout and real webhook delivery were not tried. Everything below used a fake gateway (scripted payment answers) and a stub in place of `checkout.js`. Nothing was pushed or deployed, and nothing connected to the store server.
 
@@ -21,18 +21,34 @@ Also added, and already passing (no bug): the staff "payments to check" queue an
 
 ### Test results after the fixes
 
-- Full `vitest`: 17 files, 129 tests passed. App type-check (`tsc -p tsconfig.build.json`) passed.
-- Django on SQLite, `orders panel inventory`, run **before** these fixes: 145 ran, OK, 17 skipped. After the fixes I ran only `orders.test_recovery_review` and `orders.test_payment_contract`: 12 tests, OK. The full Django suite and the Postgres run were **not** repeated after the `payment_view.py` change.
+All with zero failures, run 22 November after every fix above:
+
+| Command | Ran | Skipped |
+| --- | ---: | ---: |
+| `python manage.py test orders panel inventory` (SQLite) | 150 | 17 |
+| `USE_POSTGRES_FOR_TESTS=1 python manage.py test orders panel inventory` (throwaway PostgreSQL on 127.0.0.1:55472) | 150 | 0 |
+| `npx vitest run` | 129 | 0 |
+
+The app type-check (`tsc -p tsconfig.build.json`) passed. As in earlier runs, HTTP and HTTPS proxies pointed at an unused loopback port, so no test could reach Razorpay.
 
 ### Phone-size Playwright run (Pixel 7 profile, local stack, SIMULATED)
 
-Local Django on a throwaway SQLite database, with the fake gateway. Vite was pointed at it with `VITE_API_PROXY_TARGET` (its default target is the live Worker). Requests to any non-local host were blocked and logged: none were attempted. The OTP limit was raised to 100/min for this run, because the real limit (5/min, send and verify counted together) stops repeated sign-ins.
+Local Django on a throwaway SQLite database, with the fake gateway. Vite was pointed at it with `VITE_API_PROXY_TARGET` (its default target is the live Worker). Requests to any non-local host were blocked and logged: none were attempted in any run. The OTP limit was raised to 100/min, because the real limit (5/min, send and verify counted together) stops repeated sign-ins. The parent moves between pages with the site's own links and the bag button, and signs in by OTP. The staff page was opened with the seeded city admin's locally issued tokens, so no password was entered.
 
-- **A. Paid, browser closed before success, fresh sign-in:** passed. Checkout opened with the store order's Razorpay order id, ₹800, a timeout from the hold, and retry off. A new context signed in by OTP, with an empty bag, found **one** order, `CONFIRMED` with its receipt and no payment button. [Screenshot](recovery-evidence/review/A-paid-after-browser-closed.png)
-- **B. Payment window closed, back to the full bag, cash picked:** passed in one run. Orders went 1 → 2 → 2 (no second order). The order became COD and Razorpay was not reopened. [Dismissed](recovery-evidence/review/B1-dismissed.png) · [Same items, cash](recovery-evidence/review/B2-same-items-cash.png)
-- **C. Payment still `created` on return:** passed in that run. "Checking payment" and "Refresh status" were shown with no Pay or cash button, and the server answered 409 `payment_in_progress`. After the fake payment failed, Refresh status offered Pay and Pay cash on the same order. [In progress](recovery-evidence/review/C-in-progress.png) · [Then failed](recovery-evidence/review/C-then-failed.png)
-- **D (outage), E (COD delivered in the browser), F (staff queue in the browser): not completed.** The script was still being moved from hand-rolled history changes to real link navigation when the session ended. D and E are covered by the backend tests above. F is covered by the existing and new backend tests.
-- **Open question:** on a second checkout in the same tab, the "Choose your child" picker sometimes opened and closed about 80 ms later with no click. It appeared while the script changed pages with `pushState` outside React Router. I did not finish checking it with real navigation, so it is not yet known whether a parent can hit it.
+The tooling is in `scripts/recovery-phone/` (see its README). The full run passed **five times in a row**, 18 or 19 checks each, with no failures.
+
+| Case | Result | Evidence |
+| --- | --- | --- |
+| **A.** Paid, browser closed before success, fresh sign-in with an empty bag | Checkout opened with the store order's Razorpay order id, ₹800, a timeout from the hold and retry off. A new browser found **one** order, `CONFIRMED`, with its receipt and no payment button. | [A](recovery-evidence/review/A-paid-after-browser-closed.png) |
+| **B.** Payment window closed, back to the full bag by the header link, cash picked | Bag still held 2 items. Orders went 1 → 2 → 2 (no second order). The order became COD and Razorpay was not reopened. | [B1](recovery-evidence/review/B1-dismissed.png) · [B2](recovery-evidence/review/B2-same-items-cash.png) |
+| **C.** Payment still `created` on return | "Checking payment" and "Refresh status" were shown, with no Pay or cash button, and the server answered 409 `payment_in_progress`. After the payment failed, Refresh status offered Pay and Pay cash on the same order. | [C1](recovery-evidence/review/C-in-progress.png) · [C2](recovery-evidence/review/C-then-failed.png) |
+| **D.** Razorpay down, parent taps Pay | The tap went to the server, which answered 503 `payment_check_failed`. The card switched to "Checking payment" with the outage text and no buttons, and Checkout never opened. | [D](recovery-evidence/review/D-provider-outage.png) |
+| **E.** COD order moved by staff to DELIVERED | The card shows ₹800, the full timeline and no "pay when it arrives". | [E](recovery-evidence/review/E-cod-delivered.png) |
+| **F.** Staff "Payments to check" on a phone, as the city admin | The order appears as CHECKING with reason "provider unreachable" (outage aged to 11 minutes in the local DB). After Razorpay came back, "Check with Razorpay" removed it from the list. | [F](recovery-evidence/review/F-staff-payments-to-check.png) |
+
+- **Child picker question: closed.** With real navigation the picker never closed on its own across the five runs. The earlier closes happened only when the script changed pages with a synthetic `pushState` and `popstate` outside React Router, which a parent cannot do.
+- **Rate limit, as designed:** in 2 of the 5 runs, "Check with Razorpay" landed within 5 seconds of the parent's automatic check of the same order. The server answered "not checked" and the panel said "No fresh provider result. Try again shortly." A second tap after 5 seconds worked.
+- **Cosmetic, not fixed:** the staff list shows the raw state (`CHECKING`) and `INR 800.00`, and its labels are English only. Staff screens were already English only.
 
 ## Follow-up verification, 21 November 2026
 
