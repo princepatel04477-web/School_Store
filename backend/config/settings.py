@@ -302,6 +302,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "orders.sweep_expired_reservations",
         "schedule": crontab(minute="*/5"),  # every 5 minutes
     },
+    "sweep-pending-notifications": {
+        "task": "orders.sweep_pending_notifications",
+        "schedule": crontab(minute="*/2"),  # every 2 minutes
+    },
 }
 
 # Django REST Framework & JWT Authentication

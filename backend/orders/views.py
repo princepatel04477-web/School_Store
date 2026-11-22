@@ -14,10 +14,11 @@ from common.permissions import RoleScopedPermission
 from common.scoping import ScopedQuerysetMixin
 from rest_framework.views import APIView
 from .delivery import PINCODE_REGEX, pin_service
-from .models import Order, OrderStatusEvent, PaymentAttempt, PaymentReview
+from .models import NotificationRecord, Order, OrderStatusEvent, PaymentAttempt, PaymentReview
 from .payment import RazorpayGateway
 from .status import apply_provider_payment, can_transition_order, change_order_status, record_payment
 from .serializers import (
+    NotificationRecordSerializer,
     OrderCreateSerializer,
     OrderDetailSerializer,
     OrderListSerializer,
@@ -480,4 +481,80 @@ class PincodeLookupView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class NotificationRecordViewSet(ScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
+    """
+    Staff Diagnostics & Outbox Monitoring ViewSet:
+    - Lists durable notification records with masked recipient contact info.
+    - Sanitized provider errors for safe staff inspection without credentials.
+    - Supports filtering by status, event_type, and order.
+    - Action `retry` allows staff to reset failed/exhausted records and trigger redelivery.
+    - Scoped by role / city / school.
+    """
+    from .models import NotificationRecord
+    from .serializers import NotificationRecordSerializer
+    from common.pagination import BoundedPageNumberPagination
+
+    queryset = NotificationRecord.objects.select_related("order").order_by("-created_at")
+    serializer_class = NotificationRecordSerializer
+    pagination_class = BoundedPageNumberPagination
+    permission_classes = [RoleScopedPermission]
+    read_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER")
+    write_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN")
+
+    scope_city_field = "city_id"
+    scope_school_field = "school_id"
+
+    def get_queryset(self):
+        qs = NotificationRecord.objects.select_related("order").order_by("-created_at")
+        user = self.request.user
+        if user and user.is_authenticated:
+            if user.role == "ADMIN" and user.city_id:
+                qs = qs.filter(order__city_id=user.city_id)
+            elif user.role in ("SCHOOL_ADMIN", "TEACHER") and user.school_id:
+                qs = qs.filter(order__school_id=user.school_id)
+
+        status_param = self.request.query_params.get("status")
+        event_param = self.request.query_params.get("event_type")
+        order_param = self.request.query_params.get("order")
+
+        if status_param:
+            qs = qs.filter(status=status_param.upper())
+        if event_param:
+            qs = qs.filter(event_type=event_param.upper())
+        if order_param:
+            qs = qs.filter(order__order_number__icontains=order_param)
+        return qs
+
+    @action(detail=True, methods=["post"], url_path="retry")
+    def retry(self, request, pk=None):
+        """Staff trigger to retry a failed or exhausted notification."""
+        from django.utils import timezone
+        from .tasks import deliver_notification_task
+
+        record = self.get_object()
+        if record.status not in (
+            NotificationRecord.Status.FAILED,
+            NotificationRecord.Status.EXHAUSTED,
+            NotificationRecord.Status.PENDING,
+        ):
+            return Response(
+                {"detail": f"Notification is {record.status} and does not require retry."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            record = NotificationRecord.objects.select_for_update().get(pk=record.pk)
+            record.status = NotificationRecord.Status.PENDING
+            record.attempt_count = 0
+            record.next_attempt_at = timezone.now()
+            record.error_message = ""
+            record.save(update_fields=["status", "attempt_count", "next_attempt_at", "error_message", "updated_at"])
+
+        deliver_notification_task.delay(str(record.id))
+        record.refresh_from_db()
+        serializer = self.get_serializer(record)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 

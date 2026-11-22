@@ -940,6 +940,16 @@ class OrderCreateSerializer(serializers.Serializer):
             send_order_confirmation,
         )
 
+        # Enqueue customer order confirmation in durable outbox inside transaction
+        from .models import NotificationRecord
+        from .notifications import enqueue_notification
+
+        enqueue_notification(
+            order,
+            NotificationRecord.EventType.ORDER_CONFIRMED,
+            payload={"order_number": str(order.order_number), "amount": str(order.total)},
+        )
+
         transaction.on_commit(lambda: send_order_confirmation.delay(str(order.id)))
         transaction.on_commit(lambda: refresh_order_summary.delay(str(order.id)))
         if order.payment_method == Order.PaymentMethod.ONLINE:
@@ -1184,4 +1194,37 @@ class OrderQuoteSerializer(serializers.Serializer):
         items_data = self.validated_data["items"]
         quote = calculate_order_pricing_and_validate(student, items_data, user)
         return {k: v for k, v in quote.items() if not k.startswith("_")}
+
+
+class NotificationRecordSerializer(serializers.ModelSerializer):
+    order_number = serializers.CharField(source="order.order_number", read_only=True, default="")
+    recipient = serializers.CharField(source="mask_recipient", read_only=True)
+
+    class Meta:
+        from .models import NotificationRecord
+        model = NotificationRecord
+        fields = (
+            "id",
+            "order",
+            "order_number",
+            "event_type",
+            "category",
+            "channel",
+            "recipient",
+            "status",
+            "attempt_count",
+            "max_attempts",
+            "next_attempt_at",
+            "last_attempt_at",
+            "sent_at",
+            "delivered_at",
+            "provider",
+            "provider_message_id",
+            "error_message",
+            "payload",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
 

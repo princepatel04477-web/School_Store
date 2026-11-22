@@ -13,20 +13,121 @@ from .payment import RazorpayGateway
 from .status import apply_provider_payment
 
 
+@shared_task(name="orders.deliver_notification_task")
+def deliver_notification_task(notification_id):
+    """
+    Executes an outbox notification delivery attempt with row locking,
+    idempotency checks, provider adapter invocation, bounded retry backoff,
+    and sanitized error logging.
+    """
+    from .models import NotificationRecord
+    from .notifications import get_notification_adapter, sanitize_operational_error
+
+    with transaction.atomic():
+        try:
+            record = NotificationRecord.objects.select_for_update().get(pk=notification_id)
+        except NotificationRecord.DoesNotExist:
+            return False
+
+        # Idempotency check: if already sent, delivered or cancelled, never resend
+        if record.status in (
+            NotificationRecord.Status.SENT,
+            NotificationRecord.Status.DELIVERED,
+            NotificationRecord.Status.CANCELLED,
+        ):
+            return True
+
+        if record.status == NotificationRecord.Status.EXHAUSTED:
+            return False
+
+        record.status = NotificationRecord.Status.SENDING
+        record.attempt_count += 1
+        record.last_attempt_at = timezone.now()
+        record.save(update_fields=["status", "attempt_count", "last_attempt_at", "updated_at"])
+
+    # Outside lock: call provider adapter
+    adapter = get_notification_adapter()
+    try:
+        result = adapter.send(record)
+    except Exception as exc:
+        from .notifications import ProviderResult
+        result = ProviderResult(success=False, error_message=str(exc))
+
+    with transaction.atomic():
+        record = NotificationRecord.objects.select_for_update().get(pk=notification_id)
+        record.provider = adapter.__class__.__name__
+        record.provider_response = result.raw_response or {}
+
+        if result.success:
+            # Accepted provider request is marked SENT, NOT DELIVERED
+            record.status = NotificationRecord.Status.SENT
+            record.sent_at = timezone.now()
+            record.provider_message_id = result.provider_message_id
+            record.error_message = ""
+        else:
+            sanitized_err = sanitize_operational_error(result.error_message)
+            record.error_message = sanitized_err
+            if record.attempt_count >= record.max_attempts:
+                record.status = NotificationRecord.Status.EXHAUSTED
+            else:
+                record.status = NotificationRecord.Status.FAILED
+                backoff_delay = min(300, 30 * (2 ** (record.attempt_count - 1)))
+                record.next_attempt_at = timezone.now() + timedelta(seconds=backoff_delay)
+
+        record.save(update_fields=[
+            "status", "provider", "provider_message_id",
+            "provider_response", "error_message", "next_attempt_at",
+            "sent_at", "updated_at",
+        ])
+
+    return result.success
+
+
+@shared_task(name="orders.sweep_pending_notifications")
+def sweep_pending_notifications():
+    """
+    Celery beat periodic task: sweeps overdue PENDING or FAILED notifications
+    from the outbox.
+    Recovers from broker outages, transient worker crashes, or delayed commits.
+    """
+    from .models import NotificationRecord
+
+    now = timezone.now()
+    pending_records = list(
+        NotificationRecord.objects.filter(
+            status__in=[NotificationRecord.Status.PENDING, NotificationRecord.Status.FAILED],
+            attempt_count__lt=F("max_attempts"),
+            next_attempt_at__lte=now,
+        )
+        .order_by("created_at")
+        .values_list("id", flat=True)[:50]
+    )
+
+    results = []
+    for notif_id in pending_records:
+        results.append(deliver_notification_task(str(notif_id)))
+    return results
+
+
 @shared_task
 def send_order_confirmation(order_id):
-    """Texts the parent their order number. Runs after commit, never inside checkout."""
-    from accounts.sms import send_order_confirmation as send_sms
-    from common.phone import normalize_in_mobile
+    """Texts the parent their order confirmation via durable outbox. Runs after commit."""
+    from .notifications import enqueue_notification
+    from .models import NotificationRecord
 
-    order = (
-        Order.objects.select_related("parent", "payer")
-        .only("order_number", "total", "parent__phone", "payer__phone")
-        .get(pk=order_id)
-    )
-    recipient = order.parent or order.payer
-    phone = normalize_in_mobile(recipient.phone if recipient else "")
-    return send_sms(phone, order.order_number, order.total)
+    try:
+        order = (
+            Order.objects.select_related("parent", "payer")
+            .only("order_number", "total", "parent__phone", "payer__phone")
+            .get(pk=order_id)
+        )
+    except Order.DoesNotExist:
+        return False
+
+    rec = enqueue_notification(order, NotificationRecord.EventType.ORDER_CONFIRMED)
+    if rec and rec.status == NotificationRecord.Status.PENDING:
+        deliver_notification_task(str(rec.id))
+    return True
 
 
 @shared_task

@@ -486,7 +486,7 @@ def create_after_sale_request(order: Order, user, data: dict) -> OrderAfterSaleR
                 variant=target_variant,
                 city_id=locked_order.city_id,
                 quantity_change=-order_item.quantity,
-                reason=StockMovement.Reason.ORDER_PLACED,
+                reason=StockMovement.Reason.EXCHANGE_RESERVATION,
                 reference_order=locked_order,
                 created_by=user,
             )
@@ -522,6 +522,21 @@ def create_after_sale_request(order: Order, user, data: dict) -> OrderAfterSaleR
                     "reserved_variant": str(target_variant.id),
                 },
             )
+
+            from .models import NotificationRecord
+            from .notifications import enqueue_notification
+
+            enqueue_notification(
+                locked_order,
+                NotificationRecord.EventType.EXCHANGE_UPDATE,
+                payload={
+                    "order_number": str(locked_order.order_number),
+                    "exchange_id": str(req_obj.id),
+                    "status": "REQUESTED",
+                    "from_size": str(req_obj.from_size),
+                    "target_size": str(req_obj.target_size),
+                },
+            )
             return req_obj
 
         # -------------------------------------------------------------
@@ -546,7 +561,7 @@ def create_after_sale_request(order: Order, user, data: dict) -> OrderAfterSaleR
                         variant=target_variant,
                         city_id=locked_order.city_id,
                         quantity_change=-order_item.quantity,
-                        reason=StockMovement.Reason.ORDER_PLACED,
+                        reason=StockMovement.Reason.EXCHANGE_RESERVATION,
                         reference_order=locked_order,
                         created_by=user,
                     )
@@ -738,6 +753,23 @@ def review_after_sale_request(
             actor=staff_user,
             details={"action": action, "status": req.status, "notes": notes},
         )
+
+        if req.request_type == OrderAfterSaleRequest.RequestType.EXCHANGE:
+            from .models import NotificationRecord
+            from .notifications import enqueue_notification
+
+            enqueue_notification(
+                order,
+                NotificationRecord.EventType.EXCHANGE_UPDATE,
+                payload={
+                    "order_number": str(order.order_number),
+                    "exchange_id": str(req.id),
+                    "status": str(req.status),
+                    "from_size": str(req.from_size),
+                    "target_size": str(req.target_size),
+                },
+            )
+
         return req
 
 
@@ -848,5 +880,20 @@ def process_order_refund(refund_obj: OrderRefund, actor=None) -> OrderRefund:
                     refund.status = OrderRefund.Status.PENDING
                     refund.notes = "Awaiting cash repayment at school collection counter."
                     refund.save()
+
+        if refund.status == OrderRefund.Status.SUCCEEDED:
+            from .models import NotificationRecord
+            from .notifications import enqueue_notification
+
+            enqueue_notification(
+                order,
+                NotificationRecord.EventType.REFUND_PROCESSED,
+                payload={
+                    "order_number": str(order.order_number),
+                    "refund_id": str(refund.id),
+                    "refund_amount": f"₹{refund.amount_paise / 100:.2f}",
+                    "status": "REFUNDED",
+                },
+            )
 
         return refund

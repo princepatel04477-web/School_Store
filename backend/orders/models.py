@@ -738,3 +738,189 @@ class OrderRefund(UUIDModel):
         return f"Refund {self.id} (₹{self.amount_paise / 100:.2f}) - {self.status}"
 
 
+class NotificationPreference(UUIDModel):
+    """Channel and communication preferences for a user / parent.
+
+    Honours preferences and distinguishes transactional updates from marketing.
+    """
+    class PreferredChannel(models.TextChoices):
+        SMS = "SMS", "SMS"
+        WHATSAPP = "WHATSAPP", "WhatsApp"
+        EMAIL = "EMAIL", "Email"
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notification_preferences",
+    )
+    preferred_channel = models.CharField(
+        max_length=20,
+        choices=PreferredChannel.choices,
+        default=PreferredChannel.SMS,
+    )
+    allow_sms = models.BooleanField(default=True)
+    allow_whatsapp = models.BooleanField(default=True)
+    allow_email = models.BooleanField(default=True)
+    allow_marketing = models.BooleanField(
+        default=False,
+        help_text="Marketing communications opt-in; transactional order updates do not require marketing consent.",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def is_channel_allowed(self, channel: str) -> bool:
+        if channel == self.PreferredChannel.SMS:
+            return self.allow_sms
+        if channel == self.PreferredChannel.WHATSAPP:
+            return self.allow_whatsapp
+        if channel == self.PreferredChannel.EMAIL:
+            return self.allow_email
+        return False
+
+    def __str__(self) -> str:
+        return f"Preferences for user {self.user_id} ({self.preferred_channel})"
+
+
+class NotificationRecord(UUIDModel):
+    """Durable Outbox record for customer notifications.
+
+    Decouples notification delivery from the primary database transaction.
+    Provides deduplication, bounded retry, provider-error visibility,
+    and audit tracking without leaking PII or secrets.
+    """
+    class EventType(models.TextChoices):
+        ORDER_CONFIRMED = "ORDER_CONFIRMED", "Order Confirmed"
+        DISPATCHED = "DISPATCHED", "Order Dispatched"
+        PICKUP_READY = "PICKUP_READY", "Ready for Pickup"
+        DELIVERED = "DELIVERED", "Order Delivered"
+        EXCHANGE_UPDATE = "EXCHANGE_UPDATE", "Exchange Update"
+        REFUND_PROCESSED = "REFUND_PROCESSED", "Refund Processed"
+
+    class Category(models.TextChoices):
+        TRANSACTIONAL = "TRANSACTIONAL", "Transactional"
+        MARKETING = "MARKETING", "Marketing"
+
+    class Channel(models.TextChoices):
+        SMS = "SMS", "SMS"
+        WHATSAPP = "WHATSAPP", "WhatsApp"
+        EMAIL = "EMAIL", "Email"
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending Dispatch"
+        SENDING = "SENDING", "Sending In Progress"
+        SENT = "SENT", "Accepted by Provider"  # An accepted provider request is NOT marked delivered
+        DELIVERED = "DELIVERED", "Confirmed Delivered"
+        FAILED = "FAILED", "Attempt Failed"
+        EXHAUSTED = "EXHAUSTED", "Max Retries Reached"
+        CANCELLED = "CANCELLED", "Cancelled / Opted Out"
+
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="notification_records",
+    )
+    event_type = models.CharField(
+        max_length=30,
+        choices=EventType.choices,
+        db_index=True,
+    )
+    category = models.CharField(
+        max_length=20,
+        choices=Category.choices,
+        default=Category.TRANSACTIONAL,
+        db_index=True,
+    )
+    channel = models.CharField(
+        max_length=20,
+        choices=Channel.choices,
+        default=Channel.SMS,
+        db_index=True,
+    )
+    recipient_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        help_text="Stored recipient phone. Masked in operational logs and staff responses.",
+    )
+    recipient_email = models.CharField(
+        max_length=150,
+        blank=True,
+        default="",
+    )
+    idempotency_key = models.CharField(
+        max_length=120,
+        unique=True,
+        db_index=True,
+        help_text="Guarantees retries cannot duplicate customer messages.",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    attempt_count = models.IntegerField(default=0)
+    max_attempts = models.IntegerField(default=3)
+    next_attempt_at = models.DateTimeField(
+        default=timezone.now,
+        db_index=True,
+    )
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+
+    # Provider gateway metadata
+    provider = models.CharField(max_length=50, blank=True, default="")
+    provider_message_id = models.CharField(max_length=100, blank=True, default="", db_index=True)
+    provider_response = models.JSONField(blank=True, default=dict)
+    error_message = models.TextField(
+        blank=True,
+        default="",
+        help_text="Sanitized provider error visibility for staff diagnostics without secrets.",
+    )
+    payload = models.JSONField(
+        blank=True,
+        default=dict,
+        help_text="Message variables / payload; strictly PII and child-free.",
+    )
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "next_attempt_at"], name="idx_notif_status_next"),
+            models.Index(fields=["order", "event_type"], name="idx_notif_order_event"),
+            models.Index(fields=["category", "status"], name="idx_notif_cat_status"),
+        ]
+
+    def mask_recipient(self) -> str:
+        """Returns masked recipient for safe display: e.g. ******3210 or a***@example.com."""
+        from common.phone import normalize_in_mobile
+        if self.recipient_phone:
+            p = normalize_in_mobile(self.recipient_phone)
+            if len(p) >= 4:
+                return "*" * (len(p) - 4) + p[-4:]
+            return "****"
+        if self.recipient_email:
+            parts = self.recipient_email.split("@")
+            if len(parts) == 2 and len(parts[0]) > 1:
+                return parts[0][0] + "***@" + parts[1]
+            return "***@***"
+        return "Unknown"
+
+    @property
+    def city_id(self):
+        return self.order.city_id if self.order else None
+
+    @property
+    def school_id(self):
+        return self.order.school_id if self.order else None
+
+    def __str__(self) -> str:
+        return f"Notification {self.id} [{self.event_type}] to {self.mask_recipient()} - {self.status}"
+
+
+

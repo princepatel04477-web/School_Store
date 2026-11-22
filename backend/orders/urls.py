@@ -6,11 +6,12 @@ from .upload_views import (
     local_storage_download_view,
     local_storage_upload_view,
 )
-from .views import OrderViewSet, PincodeLookupView
+from .views import NotificationRecordViewSet, OrderViewSet, PincodeLookupView
 from .webhooks import razorpay_webhook
 
 router = DefaultRouter()
 router.register("orders", OrderViewSet, basename="order")
+router.register("notifications", NotificationRecordViewSet, basename="notification")
 
 urlpatterns = [
     path("orders/pincode-lookup/", PincodeLookupView.as_view(), name="orders-pincode-lookup"),

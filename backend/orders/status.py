@@ -376,6 +376,40 @@ def change_order_status(queryset, new_status, user, note="") -> list:
                 details={"old_status": old_statuses[o.id], "new_status": new_status, "note": note},
             )
 
+        # Enqueue customer notifications for meaningful lifecycle milestones
+        from .models import NotificationRecord
+        from .notifications import enqueue_notification
+
+        for o in allowed_orders:
+            if new_status in (S.DISPATCHED, S.SHIPPED):
+                enqueue_notification(
+                    o,
+                    NotificationRecord.EventType.DISPATCHED,
+                    payload={
+                        "order_number": str(o.order_number),
+                        "status": "DISPATCHED",
+                    },
+                )
+            elif new_status == S.READY_FOR_PICKUP:
+                enqueue_notification(
+                    o,
+                    NotificationRecord.EventType.PICKUP_READY,
+                    payload={
+                        "order_number": str(o.order_number),
+                        "status": "READY_FOR_PICKUP",
+                        "pickup_location": getattr(o.school, "name", "") if getattr(o, "school", None) else "School Store Pickup Desk",
+                    },
+                )
+            elif new_status in (S.DELIVERED, S.COLLECTED):
+                enqueue_notification(
+                    o,
+                    NotificationRecord.EventType.DELIVERED,
+                    payload={
+                        "order_number": str(o.order_number),
+                        "status": "DELIVERED",
+                    },
+                )
+
         for order_id in ids:
             transaction.on_commit(lambda oid=order_id: refresh_order_summary.delay(str(oid)))
 
