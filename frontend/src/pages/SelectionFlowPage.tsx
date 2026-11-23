@@ -9,6 +9,7 @@ import { useStoreState, storeState } from '../store/storeState';
 import { resolveFlowStep } from '../store/flowStep';
 import { scrollPageTo } from '../motion/SmoothScroll';
 import { ProductCard } from '../components/product/ProductCard';
+import { frameForImage, type ProductFrame } from '../components/product/ProductImage';
 import { ProductSheet } from '../components/product/ProductSheet';
 import { IdCardPreview } from '../components/idcard/IdCardPreview';
 import { StepTransition } from '../motion/StepTransition';
@@ -41,14 +42,6 @@ import { LIVE_CATEGORIES, isCategoryLive } from '../data/liveCategories';
 // Shoes and tie, belt and socks share one Accessories row under Uniform.
 const ACCESSORY_CATEGORIES: readonly string[] = LIVE_CATEGORIES.filter((cat) => cat === 'School Shoes' || cat === 'Uniform Accessories');
 const OTHER_CATEGORIES = LIVE_CATEGORIES.filter((cat) => cat !== 'Uniform' && !ACCESSORY_CATEGORIES.includes(cat));
-
-// Close-ups of the items themselves, in the order shoes, tie, belt, socks.
-const accessoryPhotos = [
-  ...(ACCESSORY_CATEGORIES.includes('School Shoes') ? [{ kind: 'shoes', src: '/products/shoes-black-velcro.webp' }] : []),
-  { kind: 'tie', src: '/products/tie-standard-navy.webp' },
-  { kind: 'belt', src: '/products/belt-elastic-standard.webp' },
-  { kind: 'socks', src: '/products/socks-navy.webp' },
-];
 
 export type AccessoryChip = 'all' | 'shoes' | 'tie' | 'belt' | 'socks';
 
@@ -560,6 +553,16 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     return chips;
   }, [products]);
 
+  // Under Uniform: one chip per kind of accessory. "All" only matters for an old ?cat=Accessories link.
+  const accessoryChips = useMemo(() => availableChips.filter((c) => c.id !== 'all'), [availableChips]);
+
+  // Every card on the page uses one photo frame, so uniforms and accessories line up:
+  // tall when the school has child portraits, square when all photos are close-ups.
+  const listFrame: ProductFrame = useMemo(
+    () => (products.some((p) => frameForImage(p.imageUrl) === 'portrait') ? 'portrait' : 'square'),
+    [products]
+  );
+
   const effectiveSub = useMemo(() => {
     if (availableChips.some((c) => c.id === activeSub)) return activeSub;
     return availableChips[0]?.id ?? 'all';
@@ -743,10 +746,10 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
           <div className="step-panel step-class-panel">
             <button
               type="button"
-              className="step-back-btn"
+              className="step-back-btn step-back-btn--boxed"
               onClick={() => goToStep(1)}
             >
-              <ArrowLeft width={16} height={16} /> {t('home.changeSchool')}
+              <ArrowLeft width={16} height={16} /> {t('flow.backTo', { step: t('flow.school') })}
             </button>
 
             <div className="step-title-row">
@@ -785,10 +788,10 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
           <div className="step-panel step-gender-panel">
             <button
               type="button"
-              className="step-back-btn"
+              className="step-back-btn step-back-btn--boxed"
               onClick={() => goToStep(2)}
             >
-              <ArrowLeft width={16} height={16} /> {t('flow.changeClass')} ({classLabel(activeClass.name, t)})
+              <ArrowLeft width={16} height={16} /> {t('flow.backTo', { step: t('flow.class') })}
             </button>
 
             <div className="step-title-row">
@@ -858,6 +861,14 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         {/* ================= STEP 4: ITEMS ================= */}
         {currentStep === 4 && activeSchool && (
           <div className="step-panel step-items-panel">
+            <button
+              type="button"
+              className="step-back-btn step-back-btn--boxed"
+              onClick={() => requestStepChange(3)}
+            >
+              <ArrowLeft width={16} height={16} /> {t('flow.backTo', { step: t('flow.boyGirl') })}
+            </button>
+
             {/* Summary Bar above product list */}
             <div
               className="selection-summary-bar"
@@ -929,8 +940,8 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   </div>
                 )}
 
-                {/* Uniform first and large, then one Accessories row (shoes, tie, belt,
-                    socks). Inside Accessories, chips switch between its categories. */}
+                {/* Uniform first and large, with the accessory chips (tie, shoes, socks,
+                    belt) right under it. A chip opens just that kind of item. */}
                 <div ref={tabsTopRef} aria-hidden="true" />
                 <div className="cat-switch" role="tablist" aria-label={t('home.shopByCategory')}>
                   <button
@@ -950,36 +961,25 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                     ) : null}
                     <ChevronRight className="cat-strip-chevron" width={18} height={18} aria-hidden="true" />
                   </button>
-                  {ACCESSORY_CATEGORIES.length > 0 && (
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={inAccessories}
-                      className={`cat-strip ${inAccessories ? 'is-active' : ''}`}
-                      onClick={() => selectTab('Accessories')}
-                    >
-                      <span className="cat-strip-photos" aria-hidden="true">
-                        {accessoryPhotos.map((photo) => (
-                          <img
-                            key={photo.kind}
-                            src={photo.src}
-                            alt=""
-                            className="cat-strip-photo"
-                            width={36}
-                            height={36}
-                            loading="lazy"
-                          />
-                        ))}
-                      </span>
-                      <span className="cat-strip-text">
-                        <span className="cat-strip-label">{t('cat.accessoriesGroup')}</span>
-                        <span className="cat-strip-sub">{t('cat.accessoriesSub')}</span>
-                      </span>
-                      {countFor(ACCESSORY_CATEGORIES) ? (
-                        <span className="cat-strip-count">{countFor(ACCESSORY_CATEGORIES)}</span>
-                      ) : null}
-                      <ChevronRight className="cat-strip-chevron" width={18} height={18} aria-hidden="true" />
-                    </button>
+                  {accessoryChips.length > 0 && (
+                    <div className="cat-chips cat-chips--under-uniform" aria-label={t('cat.accessoriesGroup')}>
+                      {accessoryChips.map((chip) => {
+                        const on = inAccessories && effectiveSub === chip.id;
+                        return (
+                          <button
+                            key={chip.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={on}
+                            className={`cat-chip ${on ? 'is-active' : ''}`}
+                            onClick={() => selectAccessoryChip(chip.id)}
+                          >
+                            {t(chip.labelKey)}
+                            {chip.count ? <span className="cat-chip-count">{chip.count}</span> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
                   {OTHER_CATEGORIES.map((cat) => (
                     <button
@@ -1001,23 +1001,6 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                     </button>
                   ))}
                 </div>
-                {inAccessories && availableChips.length > 0 && (
-                  <div className="cat-chips" role="tablist" aria-label={t('cat.accessoriesGroup')}>
-                    {availableChips.map((chip) => (
-                      <button
-                        key={chip.id}
-                        type="button"
-                        role="tab"
-                        aria-selected={effectiveSub === chip.id}
-                        className={`cat-chip ${effectiveSub === chip.id ? 'is-active' : ''}`}
-                        onClick={() => selectAccessoryChip(chip.id)}
-                      >
-                        {t(chip.labelKey)}
-                        {chip.count ? <span className="cat-chip-count">{chip.count}</span> : null}
-                      </button>
-                    ))}
-                  </div>
-                )}
 
                 {/* ID card preview, filled from the parent's record when signed in */}
                 {activeTab === 'ID Cards' && (
@@ -1080,6 +1063,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                               product={p}
                               priority={index === 0}
                               onOpenDetails={openSheet}
+                              frame={listFrame}
                               onAdded={(item) => handleAdded(item, true)}
                             />
                           ))}
@@ -1102,6 +1086,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                               product={p}
                               priority={index === 0 && requiredProducts.length === 0}
                               onOpenDetails={openSheet}
+                              frame={listFrame}
                               onAdded={(item) => handleAdded(item, true)}
                             />
                           ))}

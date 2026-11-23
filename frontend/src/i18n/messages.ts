@@ -415,6 +415,7 @@ export const messages = {
   },
   'flow.chooseSchool': { en: 'Choose your school', gu: 'તમારી શાળા પસંદ કરો', hi: 'अपना स्कूल चुनें' },
   'flow.changeClass': { en: 'Change class', gu: 'ધોરણ બદલો', hi: 'कक्षा बदलें' },
+  'flow.backTo': { en: 'Back to {step}', gu: 'પાછા: {step}', hi: 'वापस: {step}' },
   'flow.changeBoyGirl': { en: 'Change boy / girl', gu: 'છોકરો / છોકરી બદલો', hi: 'लड़का / लड़की बदलें' },
   'flow.noItems': {
     en: 'No {cat} listed yet for {cls} ({g})',

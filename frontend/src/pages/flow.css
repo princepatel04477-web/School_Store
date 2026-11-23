@@ -581,3 +581,24 @@ button.school-select-card {
   color: var(--ink);
   margin-bottom: var(--space-2);
 }
+
+/* Back button at the top of steps 2 to 4: a real button, not a text link */
+.step-back-btn.step-back-btn--boxed {
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background-color: var(--paper-raised);
+  text-decoration: none;
+}
+.step-back-btn.step-back-btn--boxed:hover {
+  border-color: var(--brand);
+}
+
+/* Accessory chips sit right under the Uniform card (no separate Accessories button) */
+.cat-chips.cat-chips--under-uniform {
+  margin: 0;
+  padding-bottom: 2px;
+}
+.cat-chips--under-uniform .cat-chip {
+  border-radius: var(--radius-lg);
+}

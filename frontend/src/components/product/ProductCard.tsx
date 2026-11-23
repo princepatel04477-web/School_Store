@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
 import { useStoreState } from '../../store/storeState';
-import { ProductImage } from './ProductImage';
+import { ProductImage, type ProductFrame } from './ProductImage';
 import { QuantityStepper } from './QuantityStepper';
 import { AddToBagButton } from './AddToBagButton';
 import { EASING, DURATION_FAST } from '../../motion/motionConfig';
@@ -26,9 +26,11 @@ export interface ProductCardProps {
   onAdded?: (product: CardProduct) => void;
   /** The first card on the page loads at once; the rest load as they scroll into view. */
   priority?: boolean;
+  /** One photo frame for every card in the list (see ProductImage). */
+  frame?: ProductFrame;
 }
 
-export function ProductCard({ product, onOpenDetails, onAdded, priority = false }: ProductCardProps) {
+export function ProductCard({ product, onOpenDetails, onAdded, priority = false, frame }: ProductCardProps) {
   const { cart, addItem, updateQuantity } = useStoreState();
   const { t } = useLang();
 
@@ -93,6 +95,7 @@ export function ProductCard({ product, onOpenDetails, onAdded, priority = false 
             imageUrl={product.imageUrl}
             alt={product.imageAlt}
             priority={priority}
+            frame={frame}
           />
         </motion.div>
         {product.required && (
