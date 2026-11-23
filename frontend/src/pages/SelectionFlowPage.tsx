@@ -42,13 +42,20 @@ import { LIVE_CATEGORIES, isCategoryLive } from '../data/liveCategories';
 const ACCESSORY_CATEGORIES: readonly string[] = LIVE_CATEGORIES.filter((cat) => cat === 'School Shoes' || cat === 'Uniform Accessories');
 const OTHER_CATEGORIES = LIVE_CATEGORIES.filter((cat) => cat !== 'Uniform' && !ACCESSORY_CATEGORIES.includes(cat));
 
+const accessoryPhotos = [
+  { kind: 'tie', src: '/products/tie-standard-navy.webp' },
+  ...(ACCESSORY_CATEGORIES.includes('School Shoes') ? [{ kind: 'shoes', src: '/products/shoes-black-velcro.webp' }] : []),
+  { kind: 'socks', src: '/products/socks-navy.webp' },
+  { kind: 'belt', src: '/products/belt-elastic-standard.webp' },
+];
+
 export type AccessoryChip = 'all' | 'shoes' | 'tie' | 'belt' | 'socks';
 
 function getAccessoryType(product: { name: string; category: string }): 'shoes' | 'tie' | 'belt' | 'socks' | null {
   if (product.category === 'School Shoes' || /shoe|oxford|sneaker|footwear/i.test(product.name)) {
     return 'shoes';
   }
-  if (/tie\b|necktie/i.test(product.name)) {
+  if (/\b(?:tie|necktie)\b/i.test(product.name)) {
     return 'tie';
   }
   if (/belt\b/i.test(product.name)) {
@@ -556,21 +563,6 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     if (availableChips.some((c) => c.id === activeSub)) return activeSub;
     return availableChips[0]?.id ?? 'all';
   }, [availableChips, activeSub]);
-
-  const accessoryPhotos = useMemo(() => {
-    const photos: { kind: string; src: string }[] = [];
-    const tieProd = products.find((p) => getAccessoryType(p) === 'tie');
-    photos.push({ kind: 'tie', src: tieProd?.imageUrl || '/products/tie-standard-navy.webp' });
-    if (ACCESSORY_CATEGORIES.includes('School Shoes')) {
-      const shoeProd = products.find((p) => p.category === 'School Shoes' || getAccessoryType(p) === 'shoes');
-      photos.push({ kind: 'shoes', src: shoeProd?.imageUrl || '/products/shoes-black-velcro.webp' });
-    }
-    const socksProd = products.find((p) => getAccessoryType(p) === 'socks');
-    photos.push({ kind: 'socks', src: socksProd?.imageUrl || '/products/kv-socks-navy.webp' });
-    const beltProd = products.find((p) => getAccessoryType(p) === 'belt');
-    photos.push({ kind: 'belt', src: beltProd?.imageUrl || '/products/belt-elastic-standard.webp' });
-    return photos;
-  }, [products]);
 
   // Filtered Products for Step 4 (Category + Gender filter)
   const step4Products = useMemo(() => {

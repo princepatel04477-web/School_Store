@@ -422,13 +422,14 @@ button.school-select-card {
   display: flex;
   align-items: center;
   flex: 0 0 auto;
+  gap: 3px;
   height: 48px;
 }
 
 .cat-strip-photo {
-  width: 44px;
-  height: 44px;
-  object-fit: cover;
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
   border: 1px solid var(--line);
   border-radius: 8px;
   background-color: var(--paper-sunk);
@@ -438,8 +439,9 @@ button.school-select-card {
   border-color: rgba(255, 255, 255, 0.35);
 }
 
-.cat-strip-photo + .cat-strip-photo {
-  margin-left: -12px;
+@media (max-width: 480px) {
+  .cat-strip-photos { display: grid; grid-template-columns: repeat(2, 22px); gap: 2px; }
+  .cat-strip-photo { width: 22px; height: 22px; border-radius: 4px; }
 }
 
 /* Item count: a small round badge */
