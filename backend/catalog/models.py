@@ -231,6 +231,43 @@ class ProductVariant(UUIDModel):
         return f"{self.sku} ({self.product.name} - {self.size})"
 
 
+class ProductCityPrice(UUIDModel):
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="city_prices",
+    )
+    city = models.ForeignKey(
+        "schools.City",
+        on_delete=models.CASCADE,
+        related_name="product_city_prices",
+    )
+    selling_price = models.DecimalField(max_digits=10, decimal_places=2)
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["city__name", "product__name"]
+        unique_together = [("product", "city")]
+        indexes = [
+            models.Index(fields=["product", "city"], name="idx_prod_city_price"),
+            models.Index(fields=["city", "active"], name="idx_city_price_active"),
+        ]
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        invalidate_catalog_cache()
+
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        invalidate_catalog_cache()
+
+    def __str__(self) -> str:
+        return f"{self.product.name} @ {self.city.name}: Rs {self.selling_price}"
+
+
 def _range_ok(low: str, high: str) -> Q:
     """Either end may be blank; when both are set, min <= max."""
     return (
