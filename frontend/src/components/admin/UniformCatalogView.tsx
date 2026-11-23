@@ -153,7 +153,16 @@ export function UniformCatalogView() {
 
   const { data: productsData, isLoading, error } = useQuery({
     queryKey: ['portal-products', queryParams],
-    queryFn: () => portalApi.products(queryParams),
+    // The server sends at most 50 items a page; the store has more, so read every page.
+    queryFn: async () => {
+      const results: PortalProduct[] = [];
+      for (let page = 1; page <= 40; page += 1) {
+        const data = await portalApi.products({ ...queryParams, page: String(page) });
+        results.push(...data.results);
+        if (!data.next) break;
+      }
+      return { results, next: null, previous: null };
+    },
   });
   const products = productsData?.results ?? [];
 
@@ -918,12 +927,12 @@ export function UniformCatalogView() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <input
                         type="file"
-                        accept="image/jpeg,image/png,image/webp"
+                        accept="image/*"
                         onChange={handlePhotoSelect}
                         style={{ fontSize: '13px', maxWidth: '100%' }}
                       />
                       <div style={{ fontSize: '11px', color: 'var(--ink-soft)', marginTop: '4px' }}>
-                        JPG, PNG or WebP. Phone photos are made smaller before they are sent.
+                        Any photo from your phone. It is made smaller before it is sent.
                       </div>
 
                       {editingProduct && photoFile && (

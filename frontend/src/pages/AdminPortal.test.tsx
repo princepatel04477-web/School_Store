@@ -446,4 +446,22 @@ describe('Uniform Portal Frontend Tests', () => {
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: /Save Changes/i })).toBeTruthy();
   });
+  it('lists every item, not only the first page of 50', async () => {
+    mockUser.current = { id: 'boss-123', username: 'test_boss', role: 'BOSS' };
+    vi.spyOn(portalApi, 'categories').mockResolvedValue({ results: [], next: null, previous: null } as any);
+    vi.spyOn(portalApi, 'schools').mockResolvedValue({ results: [], next: null, previous: null } as any);
+    const item = (n: number) => ({
+      id: `p-${n}`, name: `Item ${n}`, selling_price: '100.00', active: true,
+      category: 'cat-1', gender: 'unisex', variants: [], images: [],
+    });
+    const spy = vi.spyOn(portalApi, 'products').mockImplementation(async (p: any) =>
+      p.page === '1'
+        ? ({ results: Array.from({ length: 50 }, (_, i) => item(i + 1)), next: '/api/products/?page=2', previous: null } as any)
+        : ({ results: [item(51), item(52)], next: null, previous: '/api/products/?page=1' } as any)
+    );
+
+    renderWithProviders(<UniformCatalogView />);
+    expect((await screen.findAllByText('Item 52')).length).toBeGreaterThan(0);
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
 });
