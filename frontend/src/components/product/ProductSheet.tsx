@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ChevronDown, ChevronUp } from '../ui/icons';
 import { motion } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
@@ -74,6 +74,7 @@ export function ProductSheet({
   const [openDelivery, setOpenDelivery] = useState(false);
   const [openExchange, setOpenExchange] = useState(false);
 
+  const photoDialog = useRef<HTMLDialogElement>(null);
   const [chartOpen, setChartOpen] = useState(false);
 
   // Each product opens on its suggested size (if in stock), or the size the
@@ -89,7 +90,7 @@ export function ProductSheet({
   // Escape key closes the sheet
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen && !sizeGuideOpen) {
+      if (e.key === 'Escape' && isOpen && !sizeGuideOpen && !photoDialog.current?.open) {
         onClose();
       }
     };
@@ -173,7 +174,7 @@ export function ProductSheet({
           <div className="sheet-content-grid">
             {/* Gallery Left */}
             <div className="sheet-gallery-col">
-              <motion.div layoutId={`product-image-${product.id}`} style={{ width: '100%' }}>
+              <motion.div layoutId={`product-image-${product.id}`} style={{ width: '100%', position: 'relative' }}>
                 <ProductImage
                   id={product.id}
                   name={product.name}
@@ -183,7 +184,19 @@ export function ProductSheet({
                   imageSize={product.heroUrl ? 1000 : 400}
                   priority
                 />
+                {(product.heroUrl || product.imageUrl) && (
+                  <button type="button" className="sheet-photo-trigger" aria-label={t('product.enlargePhoto')}
+                    aria-haspopup="dialog" onClick={() => photoDialog.current?.showModal()} />
+                )}
               </motion.div>
+              <dialog ref={photoDialog} className="sheet-photo-viewer" aria-label={product.name}
+                onClick={(event) => { if (event.target === event.currentTarget) photoDialog.current?.close(); }}>
+                {(product.heroUrl || product.imageUrl) && (
+                  <img src={product.heroUrl || product.imageUrl} alt={product.imageAlt || product.name} loading="lazy" />
+                )}
+                <button type="button" className="sheet-photo-close" aria-label={t('common.close')}
+                  onClick={() => photoDialog.current?.close()}>×</button>
+              </dialog>
             </div>
 
             {/* Details Right */}
