@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { Check, ArrowLeft, ChevronRight } from '../components/ui/icons';
+import { ArrowLeft, ChevronRight } from '../components/ui/icons';
 import { seedClasses, type SeedClass } from '../data/seedData';
 import { useStoreSchools, useStoreProducts } from '../data/catalog';
 import { BranchPicker, type PickedBranch } from '../components/school/BranchPicker';
@@ -13,7 +13,6 @@ import { frameForImage, type ProductFrame } from '../components/product/ProductI
 import { ProductSheet } from '../components/product/ProductSheet';
 import { IdCardPreview } from '../components/idcard/IdCardPreview';
 import { StepTransition } from '../motion/StepTransition';
-import { Thread } from '../motion/Thread';
 import { Stagger, Reveal, Hairline, SplitReveal } from '../motion';
 import { useLang, type MessageKey } from '../i18n';
 import { categoryLabel, classLabel, genderLabel } from '../i18n/labels';
@@ -614,93 +613,6 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
 
   return (
     <div className="selection-flow-page container" id="main">
-      {/* Top Stepper Nav */}
-      <div className="flow-stepper-wrap">
-        <div className="flow-stepper" role="navigation" aria-label={t('flow.progress')}>
-          {/* Step 1 Node */}
-          <button
-            type="button"
-            className={`step-node ${currentStep >= 1 ? 'is-active' : ''} ${currentStep > 1 ? 'is-complete' : ''}`}
-            onClick={() => requestStepChange(1)}
-            aria-current={currentStep === 1 ? 'step' : undefined}
-          >
-            <span className="step-node-bubble">
-              {currentStep > 1 ? <Check width={14} height={14} /> : '1'}
-            </span>
-            <span className="step-node-label">{t('flow.school')}</span>
-          </button>
-
-          {/* Stepper Thread Connector */}
-          <div className="stepper-connector">
-            <Thread animate={currentStep >= 2} />
-          </div>
-
-          {/* Step 2 Node */}
-          <button
-            type="button"
-            className={`step-node ${currentStep >= 2 ? 'is-active' : ''} ${currentStep > 2 ? 'is-complete' : ''}`}
-            onClick={() => activeSchool && requestStepChange(2)}
-            disabled={!activeSchool}
-            aria-current={currentStep === 2 ? 'step' : undefined}
-          >
-            <span className="step-node-bubble">
-              {currentStep > 2 ? <Check width={14} height={14} /> : '2'}
-            </span>
-            <span className="step-node-label">{t('flow.class')}</span>
-          </button>
-
-          {/* Stepper Thread Connector */}
-          <div className="stepper-connector">
-            <Thread animate={currentStep >= 3} />
-          </div>
-
-          {/* Step 3 Node: Boy / Girl */}
-          <button
-            type="button"
-            className={`step-node ${currentStep >= 3 ? 'is-active' : ''} ${currentStep > 3 ? 'is-complete' : ''}`}
-            onClick={() => activeSchool && activeClass && requestStepChange(3)}
-            disabled={!activeSchool || !activeClass}
-            aria-current={currentStep === 3 ? 'step' : undefined}
-          >
-            <span className="step-node-bubble">
-              {currentStep > 3 ? <Check width={14} height={14} /> : '3'}
-            </span>
-            <span className="step-node-label">{t('flow.boyGirl')}</span>
-          </button>
-
-          {/* Stepper Thread Connector */}
-          <div className="stepper-connector">
-            <Thread animate={currentStep >= 4} />
-          </div>
-
-          {/* Step 4 Node: Items */}
-          <button
-            type="button"
-            className={`step-node ${currentStep === 4 ? 'is-active' : ''}`}
-            onClick={() => activeSchool && activeClass && activeGender && goToStep(4)}
-            disabled={!activeSchool || !activeClass || !activeGender}
-            aria-current={currentStep === 4 ? 'step' : undefined}
-          >
-            <span className="step-node-bubble">4</span>
-            <span className="step-node-label">{t('flow.items')}</span>
-          </button>
-        </div>
-
-        {/* Mobile Stepper Header */}
-        <div className="mobile-stepper-title">
-          <span>
-            {t('flow.stepOf', { n: currentStep })} ·{' '}
-            {currentStep === 1
-              ? t('flow.school')
-              : currentStep === 2
-              ? t('flow.class')
-              : currentStep === 3
-              ? t('flow.boyGirl')
-              : t('flow.items')}
-          </span>
-        </div>
-      </div>
-
       {/* Main Stepped Content with Directional Animation */}
       <StepTransition stepKey={currentStep} direction={stepDirection}>
         {/* ================= STEP 1: SCHOOL ================= */}

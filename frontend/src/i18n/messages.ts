@@ -368,12 +368,10 @@ export const messages = {
   },
 
   // ---------- shop steps ----------
-  'flow.progress': { en: 'Steps', gu: 'પગલાં', hi: 'कदम' },
   'flow.school': { en: 'School', gu: 'શાળા', hi: 'स्कूल' },
   'flow.class': { en: 'Class', gu: 'ધોરણ', hi: 'कक्षा' },
   'flow.boyGirl': { en: 'Boy / Girl', gu: 'છોકરો / છોકરી', hi: 'लड़का / लड़की' },
   'flow.items': { en: 'Items', gu: 'વસ્તુઓ', hi: 'सामान' },
-  'flow.stepOf': { en: 'Step {n} of 4', gu: 'પગલું {n} / 4', hi: 'कदम {n} / 4' },
   'flow.s1.title': { en: 'Choose your school', gu: 'તમારી શાળા પસંદ કરો', hi: 'अपना स्कूल चुनें' },
   'flow.s1.sub': { en: 'Tap your child’s school.', gu: 'તમારા બાળકની શાળા પર દબાવો.', hi: 'अपने बच्चे के स्कूल पर दबाएँ।' },
   'flow.s1.search': { en: 'Search school, area, pincode or UDISE code', gu: 'શાળા, વિસ્તાર, પિનકોડ કે UDISE કોડ શોધો', hi: 'स्कूल, इलाका, पिनकोड या UDISE कोड खोजें' },

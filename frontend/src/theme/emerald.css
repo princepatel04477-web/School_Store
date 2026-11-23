@@ -245,40 +245,6 @@ h4,
 
 /* ---------- Shop flow (state, city, school, class, items) ---------- */
 
-:root .mobile-stepper-title {
-  display: none;
-}
-
-@media (max-width: 640px) {
-  :root .mobile-stepper-title {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    border-radius: var(--radius-md);
-    background: var(--emerald-bg, #0e5e3e);
-    color: #ffffff;
-    font-weight: 800;
-    font-size: 13px;
-  }
-}
-
-:root .step-node-bubble {
-  border-width: 2px;
-  font-family: var(--font-heading);
-  font-weight: 800;
-}
-
-:root .step-node.is-active .step-node-bubble {
-  box-shadow: none;
-}
-
-:root .step-node.is-complete .step-node-bubble {
-  background-color: var(--saffron);
-  border-color: var(--saffron);
-  color: var(--ink);
-}
-
 :root .step-heading {
   font-family: var(--font-heading);
   font-weight: 800;
