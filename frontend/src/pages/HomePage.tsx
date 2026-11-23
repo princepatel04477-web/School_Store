@@ -36,32 +36,25 @@ export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps) {
       title: t('cat.uniform'),
       category: 'Uniform',
       kind: 'uniform' as KitKind,
-      href: SHOP_LINK,
-    },
-    { title: t('cat.pt'), category: 'PT Uniform', kind: 'uniform' as KitKind, href: SHOP_LINK },
-    {
-      title: t('cat.shoes'),
-      category: 'School Shoes',
-      kind: 'shoes' as KitKind,
-      href: SHOP_LINK,
+      href: `${SHOP_LINK}?cat=Uniform`,
     },
     {
-      title: t('cat.accessories'),
+      title: t('cat.accessoriesGroup'),
       category: 'Uniform Accessories',
       kind: 'accessories' as KitKind,
-      href: SHOP_LINK,
+      href: `${SHOP_LINK}?cat=Accessories`,
     },
     {
       title: t('cat.stationery'),
       category: 'Stationery',
       kind: 'stationery' as KitKind,
-      href: SHOP_LINK,
+      href: `${SHOP_LINK}?cat=Stationery`,
     },
     {
       title: t('cat.idcard'),
       category: 'ID Cards',
       kind: 'idcard' as KitKind,
-      href: SHOP_LINK,
+      href: `${SHOP_LINK}?cat=ID+Cards`,
     },
   ].filter((tile) => isCategoryLive(tile.category));
 
@@ -88,7 +81,7 @@ export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps) {
           {categoryTiles.map((cat, idx) => (
             <Link
               key={cat.title}
-              to={`${cat.href}?cat=${encodeURIComponent(cat.category)}`}
+              to={cat.href}
               className={`cat-tile house-${idx % 5}`}
               onMouseEnter={prefetchFlowPage}
             >

@@ -338,136 +338,193 @@ button.school-select-card {
   gap: var(--space-8);
 }
 
-.category-tabs-sticky {
-  position: sticky;
-  top: 60px; /* the header's height once the page is scrolled */
-  background-color: var(--paper);
-  z-index: 30;
-  padding: var(--space-3) 0;
+/* Category switch: Uniform as one large card, Accessories as one slim row under it */
+.cat-switch {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-3);
-  border-bottom: 1px solid var(--line);
-  margin-bottom: var(--space-8);
-}
-
-/* Phones: one row of tiles that scrolls sideways */
-@media (max-width: 760px) {
-  .category-tabs-sticky {
-    display: flex;
-    gap: var(--space-2);
-    overflow-x: auto;
-    scrollbar-width: none;
-    margin-bottom: var(--space-6);
-  }
-  .category-tabs-sticky::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-/* Each category is a tile: photo, bold label and how many items it holds */
-.cat-tab {
-  flex: 0 0 104px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   gap: var(--space-2);
+  max-width: 640px;
+  margin-bottom: var(--space-6);
+}
+
+.cat-main,
+.cat-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
   min-width: 0;
+  min-height: 74px;
+  padding: var(--space-3);
   background-color: var(--paper-raised);
   border: 1px solid var(--line);
-  border-bottom: 4px solid var(--line);
-  border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-2) var(--space-2);
-  font-family: var(--font-display);
-  font-size: var(--text-sm);
-  font-weight: 800;
-  font-stretch: var(--stretch-condensed);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  line-height: 1.1;
+  border-radius: 12px;
   color: var(--ink);
+  font: inherit;
+  text-align: left;
   cursor: pointer;
-  position: relative;
-  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
   transition: color var(--duration-fast) var(--ease-standard),
               border-color var(--duration-fast) var(--ease-standard),
               background-color var(--duration-fast) var(--ease-standard);
 }
 
-.cat-tab:hover {
+.cat-main:hover:not(.is-active),
+.cat-strip:hover:not(.is-active) {
   border-color: var(--brand);
-  color: var(--brand);
 }
 
-.cat-tab.is-active {
-  border-color: var(--brand-deep);
-  color: var(--paper-raised);
+.cat-main.is-active,
+.cat-strip.is-active {
+  background-color: var(--emerald-bg, #0e5e3e);
+  border-color: var(--emerald-bg, #0e5e3e);
+  color: #ffffff;
 }
 
-.cat-tab-indicator {
-  position: absolute;
-  inset: 0;
-  background-color: var(--brand);
-  z-index: 0;
-}
-
-.cat-tab-photo {
-  position: relative;
-  z-index: 1;
-  width: 56px;
-  height: 56px;
+.cat-main-photo {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
   object-fit: cover;
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   background-color: var(--paper-sunk);
 }
 
-.cat-tab.is-active .cat-tab-photo {
-  outline: 2px solid var(--paper-raised);
+.cat-main-text,
+.cat-strip-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
 }
 
-.cat-tab-label {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  overflow-wrap: anywhere;
+.cat-main-label,
+.cat-strip-label {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 800;
+  line-height: 1.15;
 }
 
-/* Item count: a small round badge in the corner */
-.cat-tab-count {
-  position: absolute;
-  z-index: 1;
-  top: 6px;
-  right: 6px;
+.cat-main-sub,
+.cat-strip-sub {
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cat-main.is-active .cat-main-sub,
+.cat-strip.is-active .cat-strip-sub {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cat-strip-photos {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: 48px;
+}
+
+.cat-strip-photo {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background-color: var(--paper-sunk);
+}
+
+.cat-strip.is-active .cat-strip-photo {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.cat-strip-photo + .cat-strip-photo {
+  margin-left: -12px;
+}
+
+/* Item count: a small round badge */
+.cat-strip-count,
+.cat-chip-count {
+  display: grid;
+  place-items: center;
   min-width: 22px;
   height: 22px;
   padding: 0 6px;
   border-radius: 999px;
-  display: grid;
-  place-items: center;
-  font-family: var(--font-body);
   font-size: var(--text-xs);
   font-weight: 700;
-  font-stretch: normal;
   background-color: var(--brand);
   color: var(--paper-raised);
 }
 
-.cat-tab.is-active .cat-tab-count {
+.cat-strip-count {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.cat-main.is-active .cat-strip-count,
+.cat-strip.is-active .cat-strip-count,
+.cat-chip.is-active .cat-chip-count {
   background-color: var(--paper-raised);
   color: var(--brand);
 }
 
-@media (min-width: 761px) {
-  .cat-tab {
-    flex-direction: row;
-    justify-content: flex-start;
-    padding: var(--space-3);
-    gap: var(--space-3);
-    font-size: var(--text-base);
-  }
-  .cat-tab-label {
-    text-align: left;
-  }
+.cat-strip-chevron {
+  flex: 0 0 auto;
+  color: currentColor;
+}
+
+.cat-strip-count + .cat-strip-chevron {
+  margin-left: 0;
+}
+
+.cat-main-text + .cat-strip-chevron,
+.cat-strip-text + .cat-strip-chevron {
+  margin-left: auto;
+}
+
+/* Inside Accessories: Shoes / Tie, belt & socks */
+.cat-chips {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: calc(-1 * var(--space-3)) 0 var(--space-6);
+}
+
+.cat-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.cat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  background-color: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-standard),
+              border-color var(--duration-fast) var(--ease-standard),
+              background-color var(--duration-fast) var(--ease-standard);
+}
+
+.cat-chip:hover:not(.is-active) {
+  border-color: var(--brand);
+}
+
+.cat-chip.is-active {
+  background-color: var(--emerald-bg, #0e5e3e);
+  border-color: var(--emerald-bg, #0e5e3e);
+  color: #ffffff;
 }
 
 .required-section-block,

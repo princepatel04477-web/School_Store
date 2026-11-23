@@ -7,7 +7,8 @@ const CATEGORY_KEYS: Record<string, MessageKey> = {
   'PT Uniform': 'cat.pt',
   Uniform: 'cat.uniform',
   'School Shoes': 'cat.shoes',
-  'Uniform Accessories': 'cat.accessories',
+  'Uniform Accessories': 'cat.accessoriesGroup',
+  Accessories: 'cat.accessoriesGroup',
   Stationery: 'cat.stationery',
   'ID Cards': 'cat.idcard',
 };

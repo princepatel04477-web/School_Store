@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { Check, ArrowLeft } from '../components/ui/icons';
-import { motion } from 'motion/react';
+import { Check, ArrowLeft, ChevronRight } from '../components/ui/icons';
 import { seedClasses, type SeedClass } from '../data/seedData';
 import { useStoreSchools, useStoreProducts } from '../data/catalog';
 import { BranchPicker, type PickedBranch } from '../components/school/BranchPicker';
@@ -15,7 +14,6 @@ import { IdCardPreview } from '../components/idcard/IdCardPreview';
 import { StepTransition } from '../motion/StepTransition';
 import { Thread } from '../motion/Thread';
 import { Stagger, Reveal, Hairline, SplitReveal } from '../motion';
-import { EASING } from '../motion/motionConfig';
 import { useLang, type MessageKey } from '../i18n';
 import { categoryLabel, classLabel, genderLabel } from '../i18n/labels';
 import { ListenButton } from '../components/ListenButton';
@@ -36,9 +34,31 @@ import {
   useSizeFit,
   type Fit,
 } from '../data/fit';
-import { isPtUniform, sectionPhoto, shopSection } from '../data/shopSections';
+import { isPtUniform, shopSection } from '../data/shopSections';
 import { CATEGORY_PHOTOS } from '../data/categoryPhotos';
 import { LIVE_CATEGORIES, isCategoryLive } from '../data/liveCategories';
+
+// Shoes and tie, belt and socks share one Accessories row under Uniform.
+const ACCESSORY_CATEGORIES: readonly string[] = LIVE_CATEGORIES.filter((cat) => cat === 'School Shoes' || cat === 'Uniform Accessories');
+const OTHER_CATEGORIES = LIVE_CATEGORIES.filter((cat) => cat !== 'Uniform' && !ACCESSORY_CATEGORIES.includes(cat));
+
+export type AccessoryChip = 'all' | 'shoes' | 'tie' | 'belt' | 'socks';
+
+function getAccessoryType(product: { name: string; category: string }): 'shoes' | 'tie' | 'belt' | 'socks' | null {
+  if (product.category === 'School Shoes' || /shoe|oxford|sneaker|footwear/i.test(product.name)) {
+    return 'shoes';
+  }
+  if (/tie\b|necktie/i.test(product.name)) {
+    return 'tie';
+  }
+  if (/belt\b/i.test(product.name)) {
+    return 'belt';
+  }
+  if (/sock|socks/i.test(product.name)) {
+    return 'socks';
+  }
+  return null;
+}
 import { useBackHandler } from '../components/BackButton';
 import { CategoryPhoto } from '../components/CategoryPhoto';
 import './flow.css';
@@ -209,8 +229,17 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   // Active Category Tab on Step 4
   // A home page category tile links here with ?cat=â€¦, so open on that category.
   const catParam = searchParams.get('cat');
+  const subParam = searchParams.get('sub')?.toLowerCase() as AccessoryChip | undefined;
+  const inAccessories = catParam === 'Accessories' || Boolean(catParam && ACCESSORY_CATEGORIES.includes(catParam));
   // A paused category (notebooks, ID cards) opens on Uniform instead, even from an old link.
-  const activeTab = catParam && CATEGORY_PHOTOS[catParam] && isCategoryLive(catParam) ? catParam : 'Uniform';
+  const activeTab = inAccessories
+    ? 'Accessories'
+    : catParam && CATEGORY_PHOTOS[catParam] && isCategoryLive(catParam)
+    ? catParam
+    : 'Uniform';
+  const defaultSub: AccessoryChip = catParam === 'School Shoes' ? 'shoes' : 'all';
+  const activeSub: AccessoryChip =
+    subParam && ['all', 'shoes', 'tie', 'belt', 'socks'].includes(subParam) ? subParam : defaultSub;
 
   // Changing category while scrolled down jumps back to the start of that category's list
   const tabsTopRef = useRef<HTMLDivElement>(null);
@@ -225,6 +254,25 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       (prev) => {
         const next = new URLSearchParams(prev);
         next.set('cat', cat);
+        if (cat !== 'Accessories') {
+          next.delete('sub');
+        }
+        return next;
+      },
+      { replace: true }
+    );
+  };
+
+  const selectAccessoryChip = (chip: AccessoryChip) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('cat', 'Accessories');
+        if (chip === 'all') {
+          next.delete('sub');
+        } else {
+          next.set('sub', chip);
+        }
         return next;
       },
       { replace: true }
@@ -233,6 +281,55 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
 
   // Product Sheet Modal
   const [activeProductForSheet, setActiveProductForSheet] = useState<CardProduct | null>(null);
+  // An open product gets its own history entry (?item=), so the phone's back button
+  // and the round back button close the product first instead of leaving the list.
+  const itemParam = searchParams.get('item');
+  const openSheet = (item: CardProduct) => {
+    setActiveProductForSheet(item);
+    if (itemParam === item.id) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('item', item.id);
+        return next;
+      },
+      { replace: Boolean(itemParam), state: { sheetEntry: true } }
+    );
+  };
+  const closeSheet = () => {
+    setActiveProductForSheet(null);
+    if (!new URLSearchParams(window.location.search).get('item')) return;
+    const entry = (window.history.state as { usr?: { sheetEntry?: boolean } } | null)?.usr;
+    if (entry?.sheetEntry) {
+      navigate(-1);
+      return;
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('item');
+        return next;
+      },
+      { replace: true }
+    );
+  };
+  // The phone's back button took ?item= away: close the product.
+  useEffect(() => {
+    if (!itemParam) setActiveProductForSheet(null);
+  }, [itemParam]);
+  // A reloaded page opens on the list, so an ?item= left in the address is dropped.
+  useEffect(() => {
+    if (!itemParam) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('item');
+        return next;
+      },
+      { replace: true }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // After an item goes in the bag, guide the parent on (Prompt 24): the
   // matching shirt or trouser, then shoes, then tie, belt and socks, then
@@ -260,13 +357,13 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     return candidates.find((p) => preferred.test(p.name)) ?? candidates[0] ?? null;
   };
   const handleAdded = (product: CardProduct, fromCard = false) => {
-    setActiveProductForSheet(null);
+    closeSheet();
     if (isPtUniform(product)) return;
-    if (product.category === 'Uniform' || product.category === 'School Shoes') {
-      setAdded({ product, match: product.category === 'Uniform' ? matchFor(product) : null });
+    if (product.category === 'Uniform') {
+      setAdded({ product, match: matchFor(product) });
       return;
     }
-    if (product.category === 'Uniform Accessories' && isCategoryLive('Stationery')) {
+    if (ACCESSORY_CATEGORIES.includes(product.category) && isCategoryLive('Stationery')) {
       if (!stationeryAsked) {
         setAskStationery(true);
         return;
@@ -423,11 +520,72 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     return groups;
   }, [offeredClasses]);
 
+  // How many items the server sent for these categories (null while loading).
+  const countFor = (cats: readonly string[]) =>
+    productsQuery.isSuccess ? products.filter((p) => cats.includes(shopSection(p))).length : null;
+
+  const availableChips = useMemo(() => {
+    const chips: { id: AccessoryChip; labelKey: MessageKey; count: number }[] = [];
+    const accessoryItems = products.filter((p) => ACCESSORY_CATEGORIES.includes(p.category));
+    const allCount = accessoryItems.length;
+    if (allCount > 0) {
+      chips.push({ id: 'all', labelKey: 'cat.all', count: allCount });
+    }
+    const tieCount = accessoryItems.filter((p) => getAccessoryType(p) === 'tie').length;
+    if (tieCount > 0) {
+      chips.push({ id: 'tie', labelKey: 'cat.tie', count: tieCount });
+    }
+    if (ACCESSORY_CATEGORIES.includes('School Shoes')) {
+      const shoesCount = accessoryItems.filter((p) => getAccessoryType(p) === 'shoes').length;
+      if (shoesCount > 0) {
+        chips.push({ id: 'shoes', labelKey: 'cat.shoes', count: shoesCount });
+      }
+    }
+    const socksCount = accessoryItems.filter((p) => getAccessoryType(p) === 'socks').length;
+    if (socksCount > 0) {
+      chips.push({ id: 'socks', labelKey: 'cat.socks', count: socksCount });
+    }
+    const beltCount = accessoryItems.filter((p) => getAccessoryType(p) === 'belt').length;
+    if (beltCount > 0) {
+      chips.push({ id: 'belt', labelKey: 'cat.belt', count: beltCount });
+    }
+    return chips;
+  }, [products]);
+
+  const effectiveSub = useMemo(() => {
+    if (availableChips.some((c) => c.id === activeSub)) return activeSub;
+    return availableChips[0]?.id ?? 'all';
+  }, [availableChips, activeSub]);
+
+  const accessoryPhotos = useMemo(() => {
+    const photos: { kind: string; src: string }[] = [];
+    const tieProd = products.find((p) => getAccessoryType(p) === 'tie');
+    photos.push({ kind: 'tie', src: tieProd?.imageUrl || '/products/tie-standard-navy.webp' });
+    if (ACCESSORY_CATEGORIES.includes('School Shoes')) {
+      const shoeProd = products.find((p) => p.category === 'School Shoes' || getAccessoryType(p) === 'shoes');
+      photos.push({ kind: 'shoes', src: shoeProd?.imageUrl || '/products/shoes-black-velcro.webp' });
+    }
+    const socksProd = products.find((p) => getAccessoryType(p) === 'socks');
+    photos.push({ kind: 'socks', src: socksProd?.imageUrl || '/products/kv-socks-navy.webp' });
+    const beltProd = products.find((p) => getAccessoryType(p) === 'belt');
+    photos.push({ kind: 'belt', src: beltProd?.imageUrl || '/products/belt-elastic-standard.webp' });
+    return photos;
+  }, [products]);
+
   // Filtered Products for Step 4 (Category + Gender filter)
   const step4Products = useMemo(() => {
-    // The server already sends only this school, class and boy/girl's items.
-    return products.filter((p) => shopSection(p) === activeTab);
-  }, [products, activeTab]);
+    if (activeTab === 'Uniform') {
+      return products.filter((p) => shopSection(p) === 'Uniform');
+    }
+    if (inAccessories) {
+      const accessoryItems = products.filter((p) => ACCESSORY_CATEGORIES.includes(p.category));
+      if (effectiveSub === 'all') {
+        return accessoryItems;
+      }
+      return accessoryItems.filter((p) => getAccessoryType(p) === effectiveSub);
+    }
+    return products.filter((p) => p.category === activeTab);
+  }, [products, activeTab, inAccessories, effectiveSub]);
 
   // "Order full set": the items made for this school that can be ordered here.
   const fullSetProducts = useMemo(
@@ -440,10 +598,15 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
 
   // The round back button in the top bar goes back one step, like the links on each step
   // (step 4 asks first if going back would clear the bag).
+  // An open product closes first.
   useBackHandler(() => {
-    if (currentStep === 4) requestStepChange(3);
+    if (activeProductForSheet) closeSheet();
+    else if (currentStep === 4) {
+      if (inAccessories) selectTab('Uniform');
+      else requestStepChange(3);
+    }
     else goToStep(currentStep - 1);
-  }, currentStep > 1);
+  }, currentStep > 1 || Boolean(activeProductForSheet));
 
   const requiredProducts = useMemo(() => {
     return step4Products.filter((p) => p.required);
@@ -773,36 +936,95 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   </div>
                 )}
 
-                {/* Sticky Category Tabs */}
+                {/* Uniform first and large, then one Accessories row (shoes, tie, belt,
+                    socks). Inside Accessories, chips switch between its categories. */}
                 <div ref={tabsTopRef} aria-hidden="true" />
-                <div className="category-tabs-sticky" role="tablist" aria-label={t('home.shopByCategory')}>
-                  {LIVE_CATEGORIES.map(
-                    (cat) => {
-                      const count = productsQuery.isSuccess ? products.filter((p) => shopSection(p) === cat).length : null;
-                      return (
-                        <button
-                          key={cat}
-                          type="button"
-                          role="tab"
-                          aria-selected={activeTab === cat}
-                          className={`cat-tab ${activeTab === cat ? 'is-active' : ''}`}
-                          onClick={() => selectTab(cat)}
-                        >
-                          {activeTab === cat && (
-                            <motion.span
-                              layoutId="cat-tab-indicator"
-                              className="cat-tab-indicator"
-                              transition={{ duration: 0.2, ease: EASING }}
-                            />
-                          )}
-                          <CategoryPhoto category={cat} photo={sectionPhoto(CATEGORY_PHOTOS[cat], activeGender)} className="cat-tab-photo" size={56} />
-                          <span className="cat-tab-label">{categoryLabel(cat, t)}</span>
-                          {count ? <span className="cat-tab-count">{count}</span> : null}
-                        </button>
-                      );
-                    }
+                <div className="cat-switch" role="tablist" aria-label={t('home.shopByCategory')}>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'Uniform'}
+                    className={`cat-main ${activeTab === 'Uniform' ? 'is-active' : ''}`}
+                    onClick={() => selectTab('Uniform')}
+                  >
+                    <CategoryPhoto category="Uniform" className="cat-main-photo" size={48} />
+                    <span className="cat-main-text">
+                      <span className="cat-main-label">{categoryLabel('Uniform', t)}</span>
+                      <span className="cat-main-sub">{t('cat.uniformSub')}</span>
+                    </span>
+                    {countFor(['Uniform']) ? (
+                      <span className="cat-strip-count">{countFor(['Uniform'])}</span>
+                    ) : null}
+                    <ChevronRight className="cat-strip-chevron" width={18} height={18} aria-hidden="true" />
+                  </button>
+                  {ACCESSORY_CATEGORIES.length > 0 && (
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={inAccessories}
+                      className={`cat-strip ${inAccessories ? 'is-active' : ''}`}
+                      onClick={() => selectTab('Accessories')}
+                    >
+                      <span className="cat-strip-photos" aria-hidden="true">
+                        {accessoryPhotos.map((photo) => (
+                          <img
+                            key={photo.kind}
+                            src={photo.src}
+                            alt=""
+                            className="cat-strip-photo"
+                            width={36}
+                            height={36}
+                            loading="lazy"
+                          />
+                        ))}
+                      </span>
+                      <span className="cat-strip-text">
+                        <span className="cat-strip-label">{t('cat.accessoriesGroup')}</span>
+                        <span className="cat-strip-sub">{t('cat.accessoriesSub')}</span>
+                      </span>
+                      {countFor(ACCESSORY_CATEGORIES) ? (
+                        <span className="cat-strip-count">{countFor(ACCESSORY_CATEGORIES)}</span>
+                      ) : null}
+                      <ChevronRight className="cat-strip-chevron" width={18} height={18} aria-hidden="true" />
+                    </button>
                   )}
+                  {OTHER_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeTab === cat}
+                      className={`cat-strip ${activeTab === cat ? 'is-active' : ''}`}
+                      onClick={() => selectTab(cat)}
+                    >
+                      <span className="cat-strip-photos" aria-hidden="true">
+                        <CategoryPhoto category={cat} className="cat-strip-photo" size={36} />
+                      </span>
+                      <span className="cat-strip-text">
+                        <span className="cat-strip-label">{categoryLabel(cat, t)}</span>
+                      </span>
+                      {countFor([cat]) ? <span className="cat-strip-count">{countFor([cat])}</span> : null}
+                      <ChevronRight className="cat-strip-chevron" width={18} height={18} aria-hidden="true" />
+                    </button>
+                  ))}
                 </div>
+                {inAccessories && availableChips.length > 0 && (
+                  <div className="cat-chips" role="tablist" aria-label={t('cat.accessoriesGroup')}>
+                    {availableChips.map((chip) => (
+                      <button
+                        key={chip.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={effectiveSub === chip.id}
+                        className={`cat-chip ${effectiveSub === chip.id ? 'is-active' : ''}`}
+                        onClick={() => selectAccessoryChip(chip.id)}
+                      >
+                        {t(chip.labelKey)}
+                        {chip.count ? <span className="cat-chip-count">{chip.count}</span> : null}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {/* ID card preview, filled from the parent's record when signed in */}
                 {activeTab === 'ID Cards' && (
@@ -864,7 +1086,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                               key={p.id}
                               product={p}
                               priority={index === 0}
-                              onOpenDetails={(item) => setActiveProductForSheet(item)}
+                              onOpenDetails={openSheet}
                               onAdded={(item) => handleAdded(item, true)}
                             />
                           ))}
@@ -886,7 +1108,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                               key={p.id}
                               product={p}
                               priority={index === 0 && requiredProducts.length === 0}
-                              onOpenDetails={(item) => setActiveProductForSheet(item)}
+                              onOpenDetails={openSheet}
                               onAdded={(item) => handleAdded(item, true)}
                             />
                           ))}
@@ -950,7 +1172,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       <ProductSheet
         product={activeProductForSheet}
         isOpen={!!activeProductForSheet}
-        onClose={() => setActiveProductForSheet(null)}
+        onClose={closeSheet}
         onOpenBag={onOpenBag}
         fit={activeProductForSheet ? fits?.[activeProductForSheet.id] : undefined}
         fitLoading={sizeFit.isLoading}
@@ -972,17 +1194,17 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         confirmLabel={
           added?.match
             ? t(matchLabelKey(added.match.name))
-            : t(added?.product.category === 'School Shoes' ? 'match.accessories' : 'match.shoes')
+            : t('match.accessories')
         }
         cancelLabel={added?.match ? t('match.continue') : null}
         onConfirm={() => {
           if (!added) return;
-          if (added.match) setActiveProductForSheet(added.match);
-          else selectTab(nextTab[added.product.category] ?? 'Uniform Accessories');
+          if (added.match) openSheet(added.match);
+          else selectTab('Accessories');
           setAdded(null);
         }}
         onCancel={() => {
-          if (added) selectTab(nextTab[added.product.category] ?? 'Uniform Accessories');
+          if (added) selectTab('Accessories');
           setAdded(null);
         }}
       >
