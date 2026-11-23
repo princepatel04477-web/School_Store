@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowLeft, ChevronDown, ChevronUp } from '../ui/icons';
 import { motion } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
@@ -148,7 +149,9 @@ export function ProductSheet({
     }
   };
 
-  return (
+  // Drawn on the page body, so no animation or stacking on the list behind it can
+  // put the site header over the product's own back bar.
+  return createPortal(
     <>
       <div className="product-sheet-backdrop" onClick={onClose}>
         <div
@@ -160,9 +163,9 @@ export function ProductSheet({
         >
           {/* Back to the list */}
           <div className="sheet-topbar">
-            <button type="button" className="sheet-back" aria-label={t('common.close')} onClick={onClose}>
+            <button type="button" className="sheet-back" onClick={onClose}>
               <ArrowLeft width={20} height={20} />
-              <span>{t('product.back')}</span>
+              <span>{t('product.backTo', { cat: categoryLabel(product.category, t) })}</span>
             </button>
             <span className="sheet-topbar-title">{product.name}</span>
           </div>
@@ -345,6 +348,7 @@ export function ProductSheet({
       >
         {hasChart ? <SizeChartTable rows={fit?.chart} recommendation={fit?.recommendation} /> : undefined}
       </SizeGuide>
-    </>
+    </>,
+    document.body
   );
 }

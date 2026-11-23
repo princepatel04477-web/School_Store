@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { Check, ArrowLeft } from '../components/ui/icons';
-import { motion } from 'motion/react';
+import { Check, ArrowLeft, ChevronRight } from '../components/ui/icons';
 import { seedClasses, type SeedClass } from '../data/seedData';
 import { useStoreSchools, useStoreProducts } from '../data/catalog';
 import { BranchPicker, type PickedBranch } from '../components/school/BranchPicker';
@@ -15,7 +14,6 @@ import { IdCardPreview } from '../components/idcard/IdCardPreview';
 import { StepTransition } from '../motion/StepTransition';
 import { Thread } from '../motion/Thread';
 import { Stagger, Reveal, Hairline, SplitReveal } from '../motion';
-import { EASING } from '../motion/motionConfig';
 import { useLang, type MessageKey } from '../i18n';
 import { categoryLabel, classLabel, genderLabel } from '../i18n/labels';
 import { ListenButton } from '../components/ListenButton';
@@ -38,6 +36,10 @@ import {
 } from '../data/fit';
 import { CATEGORY_PHOTOS } from '../data/categoryPhotos';
 import { LIVE_CATEGORIES, isCategoryLive } from '../data/liveCategories';
+
+// Shoes and tie, belt and socks share one Accessories row under Uniform.
+const ACCESSORY_CATEGORIES: readonly string[] = LIVE_CATEGORIES.filter((cat) => cat === 'School Shoes' || cat === 'Uniform Accessories');
+const OTHER_CATEGORIES = LIVE_CATEGORIES.filter((cat) => cat !== 'Uniform' && !ACCESSORY_CATEGORIES.includes(cat));
 import { useBackHandler } from '../components/BackButton';
 import { CategoryPhoto } from '../components/CategoryPhoto';
 import './flow.css';
@@ -210,6 +212,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const catParam = searchParams.get('cat');
   // A paused category (notebooks, ID cards) opens on Uniform instead, even from an old link.
   const activeTab = catParam && CATEGORY_PHOTOS[catParam] && isCategoryLive(catParam) ? catParam : 'Uniform';
+  const inAccessories = ACCESSORY_CATEGORIES.includes(activeTab);
 
   // Changing category while scrolled down jumps back to the start of that category's list
   const tabsTopRef = useRef<HTMLDivElement>(null);
@@ -232,6 +235,55 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
 
   // Product Sheet Modal
   const [activeProductForSheet, setActiveProductForSheet] = useState<CardProduct | null>(null);
+  // An open product gets its own history entry (?item=), so the phone's back button
+  // and the round back button close the product first instead of leaving the list.
+  const itemParam = searchParams.get('item');
+  const openSheet = (item: CardProduct) => {
+    setActiveProductForSheet(item);
+    if (itemParam === item.id) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('item', item.id);
+        return next;
+      },
+      { replace: Boolean(itemParam), state: { sheetEntry: true } }
+    );
+  };
+  const closeSheet = () => {
+    setActiveProductForSheet(null);
+    if (!new URLSearchParams(window.location.search).get('item')) return;
+    const entry = (window.history.state as { usr?: { sheetEntry?: boolean } } | null)?.usr;
+    if (entry?.sheetEntry) {
+      navigate(-1);
+      return;
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('item');
+        return next;
+      },
+      { replace: true }
+    );
+  };
+  // The phone's back button took ?item= away: close the product.
+  useEffect(() => {
+    if (!itemParam) setActiveProductForSheet(null);
+  }, [itemParam]);
+  // A reloaded page opens on the list, so an ?item= left in the address is dropped.
+  useEffect(() => {
+    if (!itemParam) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('item');
+        return next;
+      },
+      { replace: true }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // After an item goes in the bag, guide the parent on (Prompt 24): the
   // matching shirt or trouser, then shoes, then tie, belt and socks, then
@@ -259,7 +311,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     return candidates.find((p) => preferred.test(p.name)) ?? candidates[0] ?? null;
   };
   const handleAdded = (product: CardProduct, fromCard = false) => {
-    setActiveProductForSheet(null);
+    closeSheet();
     if (product.category === 'Uniform' || product.category === 'School Shoes') {
       setAdded({ product, match: product.category === 'Uniform' ? matchFor(product) : null });
       return;
@@ -421,6 +473,10 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     return groups;
   }, [offeredClasses]);
 
+  // How many items the server sent for these categories (null while loading).
+  const countFor = (cats: readonly string[]) =>
+    productsQuery.isSuccess ? products.filter((p) => cats.includes(p.category)).length : null;
+
   // Filtered Products for Step 4 (Category + Gender filter)
   const step4Products = useMemo(() => {
     // The server already sends only this school, class and boy/girl's items.
@@ -438,10 +494,12 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
 
   // The round back button in the top bar goes back one step, like the links on each step
   // (step 4 asks first if going back would clear the bag).
+  // An open product closes first.
   useBackHandler(() => {
-    if (currentStep === 4) requestStepChange(3);
+    if (activeProductForSheet) closeSheet();
+    else if (currentStep === 4) requestStepChange(3);
     else goToStep(currentStep - 1);
-  }, currentStep > 1);
+  }, currentStep > 1 || Boolean(activeProductForSheet));
 
   const requiredProducts = useMemo(() => {
     return step4Products.filter((p) => p.required);
@@ -771,36 +829,85 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   </div>
                 )}
 
-                {/* Sticky Category Tabs */}
+                {/* Uniform first and large, then one Accessories row (shoes, tie, belt,
+                    socks). Inside Accessories, chips switch between its categories. */}
                 <div ref={tabsTopRef} aria-hidden="true" />
-                <div className="category-tabs-sticky" role="tablist" aria-label={t('home.shopByCategory')}>
-                  {LIVE_CATEGORIES.map(
-                    (cat) => {
-                      const count = productsQuery.isSuccess ? products.filter((p) => p.category === cat).length : null;
-                      return (
-                        <button
-                          key={cat}
-                          type="button"
-                          role="tab"
-                          aria-selected={activeTab === cat}
-                          className={`cat-tab ${activeTab === cat ? 'is-active' : ''}`}
-                          onClick={() => selectTab(cat)}
-                        >
-                          {activeTab === cat && (
-                            <motion.span
-                              layoutId="cat-tab-indicator"
-                              className="cat-tab-indicator"
-                              transition={{ duration: 0.2, ease: EASING }}
-                            />
-                          )}
-                          <CategoryPhoto category={cat} className="cat-tab-photo" size={56} />
-                          <span className="cat-tab-label">{categoryLabel(cat, t)}</span>
-                          {count ? <span className="cat-tab-count">{count}</span> : null}
-                        </button>
-                      );
-                    }
+                <div className="cat-switch" role="tablist" aria-label={t('home.shopByCategory')}>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'Uniform'}
+                    className={`cat-main ${activeTab === 'Uniform' ? 'is-active' : ''}`}
+                    onClick={() => selectTab('Uniform')}
+                  >
+                    <CategoryPhoto category="Uniform" className="cat-main-photo" size={64} />
+                    <span className="cat-main-text">
+                      <span className="cat-main-label">{categoryLabel('Uniform', t)}</span>
+                      {countFor(['Uniform']) ? (
+                        <span className="cat-main-sub">{t('bag.count', { count: countFor(['Uniform']) ?? 0 })}</span>
+                      ) : null}
+                    </span>
+                  </button>
+                  {ACCESSORY_CATEGORIES.length > 0 && (
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={inAccessories}
+                      className={`cat-strip ${inAccessories ? 'is-active' : ''}`}
+                      onClick={() => selectTab(inAccessories ? activeTab : ACCESSORY_CATEGORIES[0])}
+                    >
+                      <span className="cat-strip-photos" aria-hidden="true">
+                        {ACCESSORY_CATEGORIES.map((cat) => (
+                          <CategoryPhoto key={cat} category={cat} className="cat-strip-photo" size={36} />
+                        ))}
+                      </span>
+                      <span className="cat-strip-text">
+                        <span className="cat-strip-label">{t('cat.accessoriesGroup')}</span>
+                        <span className="cat-strip-sub">{t('cat.accessoriesSub')}</span>
+                      </span>
+                      {countFor(ACCESSORY_CATEGORIES) ? (
+                        <span className="cat-strip-count">{countFor(ACCESSORY_CATEGORIES)}</span>
+                      ) : null}
+                      <ChevronRight className="cat-strip-chevron" width={18} height={18} aria-hidden="true" />
+                    </button>
                   )}
+                  {OTHER_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeTab === cat}
+                      className={`cat-strip ${activeTab === cat ? 'is-active' : ''}`}
+                      onClick={() => selectTab(cat)}
+                    >
+                      <span className="cat-strip-photos" aria-hidden="true">
+                        <CategoryPhoto category={cat} className="cat-strip-photo" size={36} />
+                      </span>
+                      <span className="cat-strip-text">
+                        <span className="cat-strip-label">{categoryLabel(cat, t)}</span>
+                      </span>
+                      {countFor([cat]) ? <span className="cat-strip-count">{countFor([cat])}</span> : null}
+                      <ChevronRight className="cat-strip-chevron" width={18} height={18} aria-hidden="true" />
+                    </button>
+                  ))}
                 </div>
+                {inAccessories && ACCESSORY_CATEGORIES.length > 1 && (
+                  <div className="cat-chips" role="tablist" aria-label={t('cat.accessoriesGroup')}>
+                    {ACCESSORY_CATEGORIES.map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        role="tab"
+                        aria-selected={activeTab === cat}
+                        className={`cat-chip ${activeTab === cat ? 'is-active' : ''}`}
+                        onClick={() => selectTab(cat)}
+                      >
+                        {categoryLabel(cat, t)}
+                        {countFor([cat]) ? <span className="cat-chip-count">{countFor([cat])}</span> : null}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {/* ID card preview, filled from the parent's record when signed in */}
                 {activeTab === 'ID Cards' && (
@@ -862,7 +969,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                               key={p.id}
                               product={p}
                               priority={index === 0}
-                              onOpenDetails={(item) => setActiveProductForSheet(item)}
+                              onOpenDetails={openSheet}
                               onAdded={(item) => handleAdded(item, true)}
                             />
                           ))}
@@ -884,7 +991,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                               key={p.id}
                               product={p}
                               priority={index === 0 && requiredProducts.length === 0}
-                              onOpenDetails={(item) => setActiveProductForSheet(item)}
+                              onOpenDetails={openSheet}
                               onAdded={(item) => handleAdded(item, true)}
                             />
                           ))}
@@ -948,7 +1055,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       <ProductSheet
         product={activeProductForSheet}
         isOpen={!!activeProductForSheet}
-        onClose={() => setActiveProductForSheet(null)}
+        onClose={closeSheet}
         onOpenBag={onOpenBag}
         fit={activeProductForSheet ? fits?.[activeProductForSheet.id] : undefined}
         fitLoading={sizeFit.isLoading}
@@ -975,7 +1082,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         cancelLabel={added?.match ? t('match.continue') : null}
         onConfirm={() => {
           if (!added) return;
-          if (added.match) setActiveProductForSheet(added.match);
+          if (added.match) openSheet(added.match);
           else selectTab(nextTab[added.product.category] ?? 'Uniform Accessories');
           setAdded(null);
         }}

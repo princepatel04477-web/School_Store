@@ -617,9 +617,12 @@ h4,
 }
 
 /* A page opened from a link fades in. It starts visible enough to read, so a slow
-   phone never shows an empty screen while the fade runs. */
+   phone never shows an empty screen while the fade runs.
+   Fill "backwards", not "both": a filled animation keeps the wrapper a stacking layer
+   after it ends, and the site header then covered every full-screen panel inside it
+   (the product page's Back bar was hidden). */
 .page-enter {
-  animation: page-enter 0.22s ease-out both;
+  animation: page-enter 0.22s ease-out backwards;
 }
 @keyframes page-enter {
   from { opacity: 0.35; }
@@ -628,7 +631,7 @@ h4,
 
 /* Shop steps slide in from the side the parent is heading. */
 .step-enter {
-  animation: step-enter-forward 0.28s var(--em-ease) both;
+  animation: step-enter-forward 0.28s var(--em-ease) backwards;
 }
 .step-enter--backward {
   animation-name: step-enter-backward;
@@ -1127,9 +1130,10 @@ h4,
   min-height: 44px;
   padding: 0;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background-color: rgba(255, 255, 255, 0.14);
-  color: #fff;
+  /* Solid white on the green bar, so parents read it as a button, not part of the logo */
+  border: 1px solid #ffffff;
+  background-color: #ffffff;
+  color: var(--emerald-bg, #0e5e3e);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition:
@@ -1139,7 +1143,7 @@ h4,
 
 :root .round-back-btn:active {
   scale: 0.9;
-  background-color: rgba(255, 255, 255, 0.24);
+  background-color: #dcefe5;
 }
 
 :root .round-back-btn:focus-visible {
