@@ -1,3 +1,5 @@
+import { uniformSizeGuide } from '../data/sizes';
+import { shopSection, sectionPhoto } from '../data/shopSections';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X } from './ui/icons';
 import { CategoryOutlineIllustration } from './product/CategoryOutlineIllustration';
@@ -172,7 +174,9 @@ export function SelectionFlow({
   // The size the child had last time (shoes, tie, belt, socks: Prompt 24), unless
   // the measurement suggests one.
   const lastSizes = useLastSizes(measureStudentId).data;
-  const sizeToPick = suggestedSize ?? (selectedProduct ? lastSizes?.[selectedProduct.id] : undefined);
+  const gradeGuide = selectedProduct && uniformSizeGuide(selectedProduct.category,
+    selectedProduct.variants.map(v => ({ ...v, inStock: v.stock_status === 'IN_STOCK' || v.stock_status === 'LOW_STOCK' })), selection.grade?.name);
+  const sizeToPick = (measurement ? suggestedSize : undefined) ?? (gradeGuide?.availableId ? gradeGuide.label : undefined) ?? suggestedSize ?? (selectedProduct ? lastSizes?.[selectedProduct.id] : undefined);
   useEffect(() => {
     if (!selectedProduct || !sizeToPick) return;
     const match = selectedProduct.variants.find((v) => v.size === sizeToPick);
@@ -244,7 +248,7 @@ export function SelectionFlow({
       }
       let url = `/public/products/?school=${selection.school.id}&city=${selection.city.id}&grade=${selection.grade.id}&gender=${selection.gender}`;
       if (category && category !== 'All') {
-        url += `&category=${encodeURIComponent(category)}`;
+        url += `&category=${encodeURIComponent(category === 'PT Uniform' ? 'Uniform' : category)}`;
       }
       if (isAccessoriesFlow && productTypeFilter !== 'ALL') {
         url += `&product_type=${productTypeFilter}`;
@@ -254,7 +258,9 @@ export function SelectionFlow({
     enabled: !!(selection.school?.id && selection.city?.id && selection.grade?.id && selection.gender && step === 5),
   });
 
-  const productsList = productsData?.results || [];
+  const productsList = (productsData?.results ?? []).filter((p) =>
+    (category === 'All' || shopSection(p) === category) &&
+    (!p.gender || p.gender === 'unisex' || p.gender === selection.gender));
 
   // Auto-skip logic for Step 2 if school has only 1 city
   useEffect(() => {
@@ -390,7 +396,8 @@ export function SelectionFlow({
   // Add to cart helper
   const openProductCustomisation = (p: Product, variantId?: string) => {
     setSelectedProduct(p);
-    setSelectedVariantId(variantId || p.variants[0]?.id || '');
+    const guide = uniformSizeGuide(p.category, p.variants.map(v => ({ ...v, inStock: v.stock_status === 'IN_STOCK' || v.stock_status === 'LOW_STOCK' })), selection.grade?.name);
+    setSelectedVariantId(variantId || guide?.availableId || (guide ? '' : p.variants[0]?.id) || '');
     setCustomValues({});
     setFormError('');
   };
@@ -979,7 +986,7 @@ export function SelectionFlow({
                 return (
                   <article className="product" key={p.id}>
                     <div className={'product-image ' + p.category.toLowerCase().replace(' ', '-')}>
-                      <CategoryOutlineIllustration category={p.category} />
+                       {p.thumbnail || p.image ? <img src={sectionPhoto(p.thumbnail || p.image, selection.gender)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <CategoryOutlineIllustration category={p.category} />}
                     </div>
                     <div className="product-body">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
@@ -1119,6 +1126,7 @@ export function SelectionFlow({
                     </button>
                   )}
                 </div>
+                {gradeGuide && <p>Class default size: {gradeGuide.label}</p>}
                 <select
                   value={selectedVariantId}
                   onChange={(e) => setSelectedVariantId(e.target.value)}
@@ -1140,14 +1148,17 @@ export function SelectionFlow({
                       ? '-- Choose belt length / size --'
                       : '-- Choose size --'}
                   </option>
+                  {gradeGuide?.choices.filter(s => s.id.startsWith('unavailable-')).map(s => (
+                    <option disabled key={s.id}>{s.size} (Unavailable)</option>
+                  ))}
                   {selectedProduct.variants.map((v) => (
-                    <option key={v.id} value={v.id}>
+                    <option key={v.id} value={v.id} disabled={Boolean(gradeGuide && !gradeGuide.choices.find(s => s.id === v.id)?.inStock)}>
                       {isShoeProduct && !v.size.toLowerCase().includes('size')
                         ? `Shoe Size ${v.size}`
                         : isBelt && !v.size.toLowerCase().includes('size') && !v.size.includes('"')
                         ? `Belt Size ${v.size}`
                         : `Size: ${v.size}`}{' '}
-                      ({v.stock_status || 'In stock'})
+                      ({v.stock_status || (gradeGuide ? 'Unavailable' : 'In stock')})
                     </option>
                   ))}
                 </select>

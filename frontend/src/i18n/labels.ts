@@ -4,6 +4,7 @@ type T = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
 /** Server category names are English; parents see them in their language. */
 const CATEGORY_KEYS: Record<string, MessageKey> = {
+  'PT Uniform': 'cat.pt',
   Uniform: 'cat.uniform',
   'School Shoes': 'cat.shoes',
   'Uniform Accessories': 'cat.accessories',

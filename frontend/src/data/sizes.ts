@@ -45,3 +45,18 @@ export function suggestSizeId(sizes: SizeChoice[], className?: string): string |
   });
   return matches.length === 1 ? matches[0].id : undefined;
 }
+
+/** The school's numeric garment sizes. Shoes and accessories use separate scales. */
+export function uniformSizeGuide(category: string, sizes: SizeChoice[], className?: string) {
+  const grade = classNumber(className);
+  if (category !== 'Uniform' || grade === null || grade < 1 || grade > 12 ||
+      !sizes.some((s) => /^\d+$/.test(s.size))) return undefined;
+  const label = String(22 + Math.min(grade, 6) * 2);
+  const required = grade >= 3 && grade <= 5 ? ['24', '26', '28', label] : [label];
+  const choices = [...sizes];
+  for (const size of required) {
+    if (!choices.some((s) => s.size === size)) choices.push({ id: 'unavailable-' + size, size, inStock: false });
+  }
+  choices.sort((a, b) => a.size.localeCompare(b.size, undefined, { numeric: true }));
+  return { label, choices, availableId: sizes.find((s) => s.size === label && s.inStock)?.id };
+}

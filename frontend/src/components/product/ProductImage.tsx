@@ -29,7 +29,7 @@ export function ProductImage({
       className={`product-image-container ${className}`.trim()}
       style={{
         // Photos are square; the drawn stand-in keeps the taller frame
-        aspectRatio: imageUrl ? '1 / 1' : '4 / 5',
+        aspectRatio: imageUrl?.includes('/products/kv-') ? '2 / 3' : imageUrl ? '1 / 1' : '4 / 5',
         backgroundColor: 'var(--paper-sunk)',
         borderRadius: 'var(--radius-md)',
         overflow: 'hidden',

@@ -156,7 +156,7 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
                 return (
                   <Link
                     key={cat.slug}
-                    to={SHOP_LINK}
+                    to={`${SHOP_LINK}?cat=${encodeURIComponent(cat.slug)}`}
                     className={`nav-link ${isActive ? 'is-active' : ''}`}
                     aria-current={isActive ? 'page' : undefined}
                     onMouseEnter={prefetchFlowPage}
@@ -268,7 +268,7 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
               {siteConfig.categories.map((cat, i) => (
                 <Link
                   key={cat.slug}
-                  to={SHOP_LINK}
+                  to={`${SHOP_LINK}?cat=${encodeURIComponent(cat.slug)}`}
                   className="sheet-nav-item"
                   onClick={closeMenu}
                 >

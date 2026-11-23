@@ -118,7 +118,7 @@ function Dashboard() {
       }
     : null;
 
-  const [activeCategory, setActiveCategory] = useState<'Uniform' | 'School Shoes' | 'Uniform Accessories' | 'Stationery' | 'ID Cards'>('Uniform');
+  const [activeCategory, setActiveCategory] = useState<'PT Uniform' | 'Uniform' | 'School Shoes' | 'Uniform Accessories' | 'Stationery' | 'ID Cards'>('Uniform');
 
   return (
     <>

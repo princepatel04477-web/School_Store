@@ -5,7 +5,7 @@
 // To bring one back, delete it from this list. Nothing else needs to change.
 export const PAUSED_CATEGORIES: readonly string[] = ['Stationery', 'ID Cards'];
 
-export const ALL_CATEGORIES = ['Uniform', 'School Shoes', 'Uniform Accessories', 'Stationery', 'ID Cards'] as const;
+export const ALL_CATEGORIES = ['Uniform', 'PT Uniform', 'School Shoes', 'Uniform Accessories', 'Stationery', 'ID Cards'] as const;
 
 export type ShopCategory = (typeof ALL_CATEGORIES)[number];
 

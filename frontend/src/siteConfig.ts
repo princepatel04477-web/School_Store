@@ -31,6 +31,7 @@ export const siteConfig = {
   address: ADDRESS,
   categories: [
     { label: 'Uniform', slug: 'Uniform' },
+    { label: 'PT Uniform', slug: 'PT Uniform' },
     { label: 'Shoes', slug: 'School Shoes' },
     { label: 'Accessories', slug: 'Uniform Accessories' },
     { label: 'Stationery', slug: 'Stationery' },

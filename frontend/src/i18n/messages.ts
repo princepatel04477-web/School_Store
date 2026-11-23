@@ -41,6 +41,8 @@ export const messages = {
   'listen.stop': { en: 'Stop', gu: 'બંધ કરો', hi: 'रोकें' },
 
   // ---------- categories, classes, boy/girl ----------
+  'size.classDefault': { en: 'Class default size: {size}', gu: 'ધોરણ પ્રમાણે માપ: {size}', hi: 'कक्षा के अनुसार साइज़: {size}' },
+  'cat.pt': { en: 'PT Uniform', gu: 'પીટી યુનિફોર્મ', hi: 'पीटी यूनिफ़ॉर्म' },
   'cat.uniform': { en: 'Uniform', gu: 'યુનિફોર્મ', hi: 'यूनिफ़ॉर्म' },
   'cat.shoes': { en: 'Shoes', gu: 'બૂટ', hi: 'जूते' },
   'cat.accessories': { en: 'Tie, belt & socks', gu: 'ટાઈ, બેલ્ટ, મોજાં', hi: 'टाई, बेल्ट, मोज़े' },

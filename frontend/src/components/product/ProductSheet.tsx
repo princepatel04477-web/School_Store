@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
 import { useStoreState } from '../../store/storeState';
 import { ProductImage } from './ProductImage';
+import { uniformSizeGuide } from '../../data/sizes';
 import { SizeSelector } from './SizeSelector';
 import { SizeGuide } from './SizeGuide';
 import { SizeGuideNotice } from './SizeGuideNotice';
@@ -78,7 +79,8 @@ export function ProductSheet({
   // Each product opens on its suggested size (if in stock), or the size the
   // child had last time, never the last product's choice.
   const lastSizeId = product?.sizes.find((s) => s.size === lastSize && s.inStock)?.id;
-  const preselected = product ? preselectSizeId(product.sizes, fit) ?? lastSizeId ?? '' : '';
+  const guide = product && uniformSizeGuide(product.category, product.sizes, className);
+  const preselected = product ? (measurement ? preselectSizeId(product.sizes, fit) : undefined) ?? guide?.availableId ?? lastSizeId ?? preselectSizeId(product.sizes, fit) ?? '' : '';
   useEffect(() => {
     setSelectedSizeId(preselected);
     setSizeError(undefined);
@@ -197,6 +199,8 @@ export function ProductSheet({
               <div className="product-sheet-price">{formatINR(product.pricePaise)}</div>
               <p className="product-sheet-desc">{product.description}</p>
 
+              {guide && <p>{t('size.classDefault', { size: guide.label })}</p>}
+              {!orderable && guide && <SizeSelector sizes={guide.choices.map(s => ({ ...s, inStock: false }))} selectedSizeId="" onSelectSize={() => {}} />}
               {!orderable ? (
                 <p className="card-unavailable sheet-unavailable">
                   {product.needsDetails ? t('product.needsPhoto') : t('product.outOfStock')}
@@ -211,7 +215,7 @@ export function ProductSheet({
               {product.sizes.length > 0 && (
                 <div ref={sizeRowRef}>
                 <SizeSelector
-                  sizes={product.sizes}
+                  sizes={guide?.choices ?? product.sizes}
                   selectedSizeId={selectedSizeId}
                   onSelectSize={(id) => {
                     setSelectedSizeId(id);

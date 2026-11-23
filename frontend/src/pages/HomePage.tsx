@@ -38,6 +38,7 @@ export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps) {
       kind: 'uniform' as KitKind,
       href: SHOP_LINK,
     },
+    { title: t('cat.pt'), category: 'PT Uniform', kind: 'uniform' as KitKind, href: SHOP_LINK },
     {
       title: t('cat.shoes'),
       category: 'School Shoes',
@@ -87,7 +88,7 @@ export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps) {
           {categoryTiles.map((cat, idx) => (
             <Link
               key={cat.title}
-              to={cat.href}
+              to={`${cat.href}?cat=${encodeURIComponent(cat.category)}`}
               className={`cat-tile house-${idx % 5}`}
               onMouseEnter={prefetchFlowPage}
             >

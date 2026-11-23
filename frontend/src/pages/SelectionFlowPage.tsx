@@ -36,6 +36,7 @@ import {
   useSizeFit,
   type Fit,
 } from '../data/fit';
+import { sectionPhoto, shopSection } from '../data/shopSections';
 import { CATEGORY_PHOTOS } from '../data/categoryPhotos';
 import { LIVE_CATEGORIES, isCategoryLive } from '../data/liveCategories';
 import { useBackHandler } from '../components/BackButton';
@@ -249,7 +250,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     const preferred = want === 'bottom' ? /trouser|pant/i : /shirt/i;
     const candidates = products.filter(
       (p) =>
-        p.category === 'Uniform' &&
+        shopSection(p) === shopSection(product) &&
         p.sizes.length > 1 &&
         garmentKind(p.name) === want &&
         pairs.test(p.name) &&
@@ -260,6 +261,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   };
   const handleAdded = (product: CardProduct, fromCard = false) => {
     setActiveProductForSheet(null);
+    if (activeTab === 'PT Uniform') return;
     if (product.category === 'Uniform' || product.category === 'School Shoes') {
       setAdded({ product, match: product.category === 'Uniform' ? matchFor(product) : null });
       return;
@@ -424,16 +426,16 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   // Filtered Products for Step 4 (Category + Gender filter)
   const step4Products = useMemo(() => {
     // The server already sends only this school, class and boy/girl's items.
-    return products.filter((p) => p.category === activeTab);
+    return products.filter((p) => shopSection(p) === activeTab);
   }, [products, activeTab]);
 
   // "Order full set": the items made for this school that can be ordered here.
   const fullSetProducts = useMemo(
     () =>
       products.filter(
-        (p) => isCategoryLive(p.category) && p.official && !p.needsDetails && p.sizes.some((size) => size.inStock)
+        (p) => (activeTab === 'PT Uniform' ? shopSection(p) === activeTab : shopSection(p) !== 'PT Uniform') && isCategoryLive(p.category) && p.official && !p.needsDetails && p.sizes.some((size) => size.inStock)
       ),
-    [products]
+    [products, activeTab]
   );
 
   // The round back button in the top bar goes back one step, like the links on each step
@@ -776,7 +778,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                 <div className="category-tabs-sticky" role="tablist" aria-label={t('home.shopByCategory')}>
                   {LIVE_CATEGORIES.map(
                     (cat) => {
-                      const count = productsQuery.isSuccess ? products.filter((p) => p.category === cat).length : null;
+                      const count = productsQuery.isSuccess ? products.filter((p) => shopSection(p) === cat).length : null;
                       return (
                         <button
                           key={cat}
@@ -793,7 +795,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                               transition={{ duration: 0.2, ease: EASING }}
                             />
                           )}
-                          <CategoryPhoto category={cat} className="cat-tab-photo" size={56} />
+                          <CategoryPhoto category={cat} photo={sectionPhoto(CATEGORY_PHOTOS[cat], activeGender)} className="cat-tab-photo" size={56} />
                           <span className="cat-tab-label">{categoryLabel(cat, t)}</span>
                           {count ? <span className="cat-tab-count">{count}</span> : null}
                         </button>
