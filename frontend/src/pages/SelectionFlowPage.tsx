@@ -81,7 +81,7 @@ const GROUP_KEYS: Record<string, MessageKey> = {
   Secondary: 'grp.secondary',
 };
 
-/** "Add the matching â€¦" names the item it opens: a girl's shirt matches a skirt, not a trouser. */
+/** "Add the matching …" names the item it opens: a girl's shirt matches a skirt, not a trouser. */
 function matchLabelKey(name: string): MessageKey {
   if (/skirt|pinafore/i.test(name)) return 'match.addSkirt';
   if (/shorts/i.test(name)) return 'match.addShorts';
@@ -210,7 +210,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     branchName: activeBranch?.branchName,
   });
 
-  // A link from the school (?school=â€¦&class=â€¦) counts as the parent's choice, so the
+  // A link from the school (?school=…&class=…) counts as the parent's choice, so the
   // bag and checkout know which school and class the order is for.
   useEffect(() => {
     if (!activeSchool) return;
@@ -235,7 +235,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const [pendingTargetStep, setPendingTargetStep] = useState<number | null>(null);
 
   // Active Category Tab on Step 4
-  // A home page category tile links here with ?cat=â€¦, so open on that category.
+  // A home page category tile links here with ?cat=…, so open on that category.
   const catParam = searchParams.get('cat');
   const subParam = searchParams.get('sub')?.toLowerCase() as AccessoryChip | undefined;
   const inAccessories = catParam === 'Accessories' || Boolean(catParam && ACCESSORY_CATEGORIES.includes(catParam));
@@ -686,7 +686,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         {/* Mobile Stepper Header */}
         <div className="mobile-stepper-title">
           <span>
-            {t('flow.stepOf', { n: currentStep })} Â·{' '}
+            {t('flow.stepOf', { n: currentStep })} ·{' '}
             {currentStep === 1
               ? t('flow.school')
               : currentStep === 2
@@ -792,7 +792,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
             </button>
 
             <div className="step-title-row">
-              <span className="label">{schoolLabel} Â· {classLabel(activeClass.name, t)}</span>
+              <span className="label">{schoolLabel} · {classLabel(activeClass.name, t)}</span>
               <SplitReveal as="h1" immediate className="step-heading">{t('flow.s3.title')}</SplitReveal>
               <ListenButton text={t('flow.s3.title')} />
             </div>
@@ -910,7 +910,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
               <div className="items-main-col">
                 <div className="step-title-row">
                   <span className="label">
-                    {schoolLabel} Â· {classLabel(activeClass?.name, t)} Â· {genderLabel(activeGender, t)}
+                    {schoolLabel} · {classLabel(activeClass?.name, t)} · {genderLabel(activeGender, t)}
                   </span>
                   <SplitReveal as="h1" immediate className="step-heading">{t('flow.s4.title')}</SplitReveal>
                   <ListenButton text={`${t('flow.s4.title')}. ${t('flow.s4.listen')}`} />
