@@ -42,11 +42,12 @@ import { LIVE_CATEGORIES, isCategoryLive } from '../data/liveCategories';
 const ACCESSORY_CATEGORIES: readonly string[] = LIVE_CATEGORIES.filter((cat) => cat === 'School Shoes' || cat === 'Uniform Accessories');
 const OTHER_CATEGORIES = LIVE_CATEGORIES.filter((cat) => cat !== 'Uniform' && !ACCESSORY_CATEGORIES.includes(cat));
 
+// Close-ups of the items themselves, in the order shoes, tie, belt, socks.
 const accessoryPhotos = [
-  { kind: 'tie', src: '/products/tie-standard-navy.webp' },
   ...(ACCESSORY_CATEGORIES.includes('School Shoes') ? [{ kind: 'shoes', src: '/products/shoes-black-velcro.webp' }] : []),
-  { kind: 'socks', src: '/products/socks-navy.webp' },
+  { kind: 'tie', src: '/products/tie-standard-navy.webp' },
   { kind: 'belt', src: '/products/belt-elastic-standard.webp' },
+  { kind: 'socks', src: '/products/socks-navy.webp' },
 ];
 
 export type AccessoryChip = 'all' | 'shoes' | 'tie' | 'belt' | 'socks';
