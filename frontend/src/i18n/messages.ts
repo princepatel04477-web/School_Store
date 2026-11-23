@@ -42,10 +42,15 @@ export const messages = {
 
   // ---------- categories, classes, boy/girl ----------
   'cat.uniform': { en: 'Uniform', gu: 'યુનિફોર્મ', hi: 'यूनिफ़ॉर्म' },
+  'cat.uniformSub': { en: 'Shirts, trousers, skirts', gu: 'શર્ટ, પેન્ટ, સ્કર્ટ', hi: 'शर्ट, पैंट, स्कर्ट' },
   'cat.shoes': { en: 'Shoes', gu: 'બૂટ', hi: 'जूते' },
   'cat.accessories': { en: 'Tie, belt & socks', gu: 'ટાઈ, બેલ્ટ, મોજાં', hi: 'टाई, बेल्ट, मोज़े' },
   'cat.accessoriesGroup': { en: 'Accessories', gu: 'એક્સેસરીઝ', hi: 'एक्सेसरीज़' },
-  'cat.accessoriesSub': { en: 'Shoes, tie, belt, socks', gu: 'બૂટ, ટાઈ, બેલ્ટ, મોજાં', hi: 'जूते, टाई, बेल्ट, मोज़े' },
+  'cat.accessoriesSub': { en: 'Tie, shoes, socks, belt', gu: 'ટાઈ, બૂટ, મોજાં, બેલ્ટ', hi: 'टाई, जूते, मोज़े, बेल्ट' },
+  'cat.all': { en: 'All', gu: 'બધા', hi: 'सभी' },
+  'cat.tie': { en: 'Tie', gu: 'ટાઈ', hi: 'टाई' },
+  'cat.belt': { en: 'Belt', gu: 'બેલ્ટ', hi: 'बेल्ट' },
+  'cat.socks': { en: 'Socks', gu: 'મોજાં', hi: 'मोज़े' },
   'cat.stationery': { en: 'Notebooks', gu: 'નોટબુક', hi: 'कॉपियाँ' },
   'cat.idcard': { en: 'ID card', gu: 'આઈડી કાર્ડ', hi: 'आईडी कार्ड' },
   'cls.n': { en: 'Class {n}', gu: 'ધોરણ {n}', hi: 'कक्षा {n}' },
@@ -720,7 +725,7 @@ export const messages = {
   'match.continue': { en: 'Continue shopping', gu: 'ખરીદી ચાલુ રાખો', hi: 'ख़रीदारी जारी रखें' },
   'match.viewBag': { en: 'View bag', gu: 'બેગ જુઓ', hi: 'बैग देखें' },
   'match.shoes': { en: 'Next: school shoes', gu: 'હવે: સ્કૂલ બૂટ', hi: 'अब: स्कूल जूते' },
-  'match.accessories': { en: 'Next: tie, belt and socks', gu: 'હવે: ટાઈ, બેલ્ટ અને મોજાં', hi: 'अब: टाई, बेल्ट और मोज़े' },
+  'match.accessories': { en: 'Next: accessories', gu: 'હવે: એક્સેસરીઝ', hi: 'अब: एक्सेसरीज़' },
   'match.lastSize': { en: 'Last time: size {size}', gu: 'ગઈ વખતે: સાઈઝ {size}', hi: 'पिछली बार: साइज़ {size}' },
   'stationery.ask': {
     en: 'Would you like to buy Stationery items?',

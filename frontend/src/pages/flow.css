@@ -353,9 +353,11 @@ button.school-select-card {
   gap: var(--space-3);
   width: 100%;
   min-width: 0;
+  min-height: 74px;
+  padding: var(--space-3);
   background-color: var(--paper-raised);
   border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  border-radius: 12px;
   color: var(--ink);
   font: inherit;
   text-align: left;
@@ -364,16 +366,6 @@ button.school-select-card {
   transition: color var(--duration-fast) var(--ease-standard),
               border-color var(--duration-fast) var(--ease-standard),
               background-color var(--duration-fast) var(--ease-standard);
-}
-
-.cat-main {
-  min-height: 88px;
-  padding: var(--space-3);
-}
-
-.cat-strip {
-  min-height: 60px;
-  padding: var(--space-2) var(--space-3);
 }
 
 .cat-main:hover:not(.is-active),
@@ -389,11 +381,11 @@ button.school-select-card {
 }
 
 .cat-main-photo {
-  flex: 0 0 auto;
-  width: 64px;
-  height: 64px;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
   object-fit: cover;
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   background-color: var(--paper-sunk);
 }
 
@@ -404,17 +396,21 @@ button.school-select-card {
   min-width: 0;
 }
 
-.cat-main-label {
+.cat-main-label,
+.cat-strip-label {
   font-family: var(--font-display);
-  font-size: var(--text-xl);
+  font-size: var(--text-lg);
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 1.15;
 }
 
 .cat-main-sub,
 .cat-strip-sub {
   font-size: var(--text-sm);
   color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cat-main.is-active .cat-main-sub,
@@ -424,34 +420,26 @@ button.school-select-card {
 
 .cat-strip-photos {
   display: flex;
+  align-items: center;
   flex: 0 0 auto;
+  height: 48px;
 }
 
 .cat-strip-photo {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   object-fit: cover;
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   background-color: var(--paper-sunk);
 }
 
+.cat-strip.is-active .cat-strip-photo {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
 .cat-strip-photo + .cat-strip-photo {
-  margin-left: -10px;
-}
-
-.cat-strip-label {
-  font-family: var(--font-display);
-  font-size: var(--text-base);
-  font-weight: 800;
-  line-height: 1.15;
-}
-
-.cat-strip-sub {
-  font-size: var(--text-sm);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  margin-left: -12px;
 }
 
 /* Item count: a small round badge */
@@ -474,6 +462,7 @@ button.school-select-card {
   flex: 0 0 auto;
 }
 
+.cat-main.is-active .cat-strip-count,
 .cat-strip.is-active .cat-strip-count,
 .cat-chip.is-active .cat-chip-count {
   background-color: var(--paper-raised);
@@ -489,6 +478,7 @@ button.school-select-card {
   margin-left: 0;
 }
 
+.cat-main-text + .cat-strip-chevron,
 .cat-strip-text + .cat-strip-chevron {
   margin-left: auto;
 }
@@ -515,7 +505,7 @@ button.school-select-card {
   padding: 0 var(--space-4);
   background-color: var(--paper-raised);
   border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  border-radius: 10px;
   color: var(--ink);
   font: inherit;
   font-size: var(--text-sm);

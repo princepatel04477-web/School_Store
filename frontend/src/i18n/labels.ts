@@ -6,7 +6,8 @@ type T = (key: MessageKey, vars?: Record<string, string | number>) => string;
 const CATEGORY_KEYS: Record<string, MessageKey> = {
   Uniform: 'cat.uniform',
   'School Shoes': 'cat.shoes',
-  'Uniform Accessories': 'cat.accessories',
+  'Uniform Accessories': 'cat.accessoriesGroup',
+  Accessories: 'cat.accessoriesGroup',
   Stationery: 'cat.stationery',
   'ID Cards': 'cat.idcard',
 };

@@ -36,31 +36,25 @@ export function HomePage({ onOpenBag, onOpenLanguage }: HomePageProps) {
       title: t('cat.uniform'),
       category: 'Uniform',
       kind: 'uniform' as KitKind,
-      href: SHOP_LINK,
+      href: `${SHOP_LINK}?cat=Uniform`,
     },
     {
-      title: t('cat.shoes'),
-      category: 'School Shoes',
-      kind: 'shoes' as KitKind,
-      href: SHOP_LINK,
-    },
-    {
-      title: t('cat.accessories'),
+      title: t('cat.accessoriesGroup'),
       category: 'Uniform Accessories',
       kind: 'accessories' as KitKind,
-      href: SHOP_LINK,
+      href: `${SHOP_LINK}?cat=Accessories`,
     },
     {
       title: t('cat.stationery'),
       category: 'Stationery',
       kind: 'stationery' as KitKind,
-      href: SHOP_LINK,
+      href: `${SHOP_LINK}?cat=Stationery`,
     },
     {
       title: t('cat.idcard'),
       category: 'ID Cards',
       kind: 'idcard' as KitKind,
-      href: SHOP_LINK,
+      href: `${SHOP_LINK}?cat=ID+Cards`,
     },
   ].filter((tile) => isCategoryLive(tile.category));
 

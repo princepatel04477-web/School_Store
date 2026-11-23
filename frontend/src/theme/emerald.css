@@ -671,15 +671,19 @@ h4,
 }
 
 @media (hover: hover) and (pointer: fine) {
-  :root :is(.cat-tile, .school-select-card, .gender-card, .product-card):hover {
+  :root :is(.school-select-card, .gender-card, .product-card):hover {
     translate: 0 -6px;
     box-shadow: var(--shadow-md);
   }
   :root .class-tile:hover {
     translate: 0 -3px;
   }
+  :root .cat-tile:hover {
+    translate: none;
+    box-shadow: none;
+  }
   :root .cat-tile:hover .cat-tile-media img {
-    scale: 1.07;
+    scale: none;
   }
   :root .cat-tile:hover .cat-arrow,
   :root .school-row:hover .school-row-arrow {
