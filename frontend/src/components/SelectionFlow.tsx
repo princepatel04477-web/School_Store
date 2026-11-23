@@ -1,5 +1,5 @@
 import { uniformSizeGuide } from '../data/sizes';
-import { shopSection, sectionPhoto } from '../data/shopSections';
+import { isShopProductVisible, shopSection, sectionPhoto } from '../data/shopSections';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X } from './ui/icons';
 import { CategoryOutlineIllustration } from './product/CategoryOutlineIllustration';
@@ -259,7 +259,7 @@ export function SelectionFlow({
   });
 
   const productsList = (productsData?.results ?? []).filter((p) =>
-    (category === 'All' || shopSection(p) === category) &&
+    isShopProductVisible(p) && (category === 'All' || shopSection(p) === category) &&
     (!p.gender || p.gender === 'unisex' || p.gender === selection.gender));
 
   // Auto-skip logic for Step 2 if school has only 1 city

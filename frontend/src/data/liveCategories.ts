@@ -3,7 +3,7 @@
 // and the "buy stationery?" question are hidden everywhere parents shop. The products,
 // photos and ID card screens are all still in the code and the database.
 // To bring one back, delete it from this list. Nothing else needs to change.
-export const PAUSED_CATEGORIES: readonly string[] = ['Stationery', 'ID Cards'];
+export const PAUSED_CATEGORIES: readonly string[] = ['PT Uniform', 'Stationery', 'ID Cards'];
 
 export const ALL_CATEGORIES = ['Uniform', 'PT Uniform', 'School Shoes', 'Uniform Accessories', 'Stationery', 'ID Cards'] as const;
 

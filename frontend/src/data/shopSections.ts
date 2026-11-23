@@ -1,3 +1,10 @@
+import { isCategoryLive } from './liveCategories';
+
+export function isShopProductVisible(product: { category: string; name: string }): boolean {
+  if (!isCategoryLive(shopSection(product))) return false;
+  return product.category !== 'Uniform Accessories' || !/\byellow\b/i.test(product.name);
+}
+
 export function shopSection(product: { category: string; name: string }): string {
   if (product.category === 'Uniform' && /\b(pt|p\.?e\.?|sports(?:wear)?|house (?:polo|t-shirt)|track pants?)\b/i.test(product.name)) return 'PT Uniform';
   return product.category;

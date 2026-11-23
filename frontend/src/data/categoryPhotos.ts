@@ -11,6 +11,6 @@ export const CATEGORY_PHOTOS: Record<string, string> = {
 /** A product photo to show if a category photo is missing. */
 export const CATEGORY_FALLBACK_PHOTOS: Record<string, string> = {
   Uniform: '/products/uniform-dps-shirt.webp',
-  'Uniform Accessories': '/products/tie-udgam-crest.webp',
+  'Uniform Accessories': '/products/tie-standard-navy.webp',
   Stationery: '/products/notebook-photo.webp',
 };
