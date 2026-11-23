@@ -12,6 +12,57 @@ function slugify(text: string): string {
     .toUpperCase();
 }
 
+/** "22, 24 ,26, 24" -> ["22", "24", "26"]: trimmed, blanks and repeats dropped. */
+export function parseSizes(text: string): string[] {
+  const seen = new Set<string>();
+  const sizes: string[] = [];
+  for (const part of text.split(',')) {
+    const size = part.trim();
+    if (!size || seen.has(size.toLowerCase())) continue;
+    seen.add(size.toLowerCase());
+    sizes.push(size);
+  }
+  return sizes;
+}
+
+/**
+ * SKUs must be unique across the store. Two items can share a name (a Shirt for
+ * Class 1 and another Shirt for Class 2), so part of the item id is included.
+ */
+function buildSku(schoolCode: string, product: PortalProduct, size: string): string {
+  const itemSlug = slugify(product.name).slice(0, 18);
+  const idPart = product.id.replace(/-/g, '').slice(0, 4).toUpperCase();
+  return `${schoolCode}-${itemSlug}-${idPart}-${slugify(size) || 'SIZE'}`;
+}
+
+/** Adds the sizes the item does not have yet. Returns what was added and what failed. */
+async function addSizesToProduct(product: PortalProduct, sizes: string[], schoolCode: string) {
+  const have = new Set((product.variants ?? []).map((v) => v.size.trim().toLowerCase()));
+  const added: PortalVariant[] = [];
+  const failed: string[] = [];
+  for (const size of sizes) {
+    if (have.has(size.toLowerCase())) continue;
+    try {
+      const variant = await portalApi.createVariant({
+        product: product.id,
+        size,
+        sku: buildSku(schoolCode, product, size),
+        active: true,
+      });
+      added.push(variant);
+      have.add(size.toLowerCase());
+    } catch {
+      failed.push(size);
+    }
+  }
+  return { added, failed };
+}
+
+function sizeSummary(p: PortalProduct): string {
+  const sizes = (p.variants ?? []).filter((v) => v.active).map((v) => v.size);
+  return sizes.length ? `Sizes: ${sizes.join(', ')}` : 'No sizes yet';
+}
+
 export function UniformCatalogView() {
   const queryClient = useQueryClient();
 
@@ -40,6 +91,7 @@ export function UniformCatalogView() {
   const [costPrice, setCostPrice] = useState<string>('0.00');
   const [sellingPrice, setSellingPrice] = useState<string>('');
   const [active, setActive] = useState(true);
+  const [sizesText, setSizesText] = useState('');
 
   // Photo Upload State
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -97,6 +149,7 @@ export function UniformCatalogView() {
     setCostPrice('0.00');
     setSellingPrice('');
     setActive(true);
+    setSizesText('');
     setPhotoFile(null);
     setPhotoPreview(null);
     setPhotoError('');
@@ -118,6 +171,7 @@ export function UniformCatalogView() {
     setCostPrice(p.cost_price != null ? String(p.cost_price) : '0.00');
     setSellingPrice(String(p.selling_price));
     setActive(p.active);
+    setSizesText('');
     setPhotoFile(null);
     setPhotoPreview(p.images && p.images.length > 0 ? p.images[0] : null);
     setPhotoError('');
@@ -183,22 +237,35 @@ export function UniformCatalogView() {
         active,
       };
 
+      let saved: PortalProduct;
       if (editingProduct) {
-        return portalApi.updateProduct(editingProduct.id, payload);
+        // Keep the sizes we already know about, so existing ones are skipped below.
+        const updated = await portalApi.updateProduct(editingProduct.id, payload);
+        saved = { ...updated, variants: updated.variants ?? editingProduct.variants };
       } else {
-        const created = await portalApi.createProduct(payload);
+        saved = await portalApi.createProduct(payload);
         if (photoFile) {
           try {
-            await portalApi.uploadProductPhoto(created.id, photoFile);
+            await portalApi.uploadProductPhoto(saved.id, photoFile);
           } catch (e) {
             console.error('Failed to upload photo for created product', e);
           }
         }
-        return created;
       }
+      const schoolCode = schools.find((s) => s.id === saved.school)?.code || 'GEN';
+      const { failed } = await addSizesToProduct(saved, parseSizes(sizesText), schoolCode);
+      return { failed };
     },
-    onSuccess: () => {
+    onSuccess: ({ failed }) => {
       queryClient.invalidateQueries({ queryKey: ['portal-products'] });
+      if (failed.length) {
+        // The item is saved; only some sizes were not. Keep the form open so this is seen.
+        setFormError(
+          `Item saved, but these sizes could not be added: ${failed.join(', ')}. Try them again from the Sizes button.`
+        );
+        setSizesText(failed.join(', '));
+        return;
+      }
       setFormSuccess(editingProduct ? 'Product updated successfully.' : 'Product created successfully.');
       setTimeout(() => {
         setItemModalOpen(false);
@@ -219,29 +286,20 @@ export function UniformCatalogView() {
 
   const addVariantMutation = useMutation({
     mutationFn: async () => {
-      if (!managingSizesProduct || !newSizeName.trim()) {
+      const sizes = parseSizes(newSizeName);
+      if (!managingSizesProduct || !sizes.length) {
         throw new Error('Size name is required.');
       }
-      const sch = schools.find((s) => s.id === managingSizesProduct.school);
-      const schoolCode = sch?.code || 'GEN';
-      const itemSlug = slugify(managingSizesProduct.name).slice(0, 18);
-      const sizeSlug = newSizeName.trim().toUpperCase();
-      const sku = `${schoolCode}-${itemSlug}-${sizeSlug}`;
-
-      return portalApi.createVariant({
-        product: managingSizesProduct.id,
-        size: newSizeName.trim(),
-        sku,
-        active: true,
-      });
+      const schoolCode = schools.find((s) => s.id === managingSizesProduct.school)?.code || 'GEN';
+      return addSizesToProduct(managingSizesProduct, sizes, schoolCode);
     },
-    onSuccess: (newVar) => {
-      setNewSizeName('');
-      setSizeError('');
+    onSuccess: ({ added, failed }) => {
+      setNewSizeName(failed.join(', '));
+      setSizeError(failed.length ? `These sizes could not be added: ${failed.join(', ')}.` : '');
       if (managingSizesProduct) {
         setManagingSizesProduct({
           ...managingSizesProduct,
-          variants: [...(managingSizesProduct.variants || []), newVar],
+          variants: [...(managingSizesProduct.variants || []), ...added],
         });
       }
       queryClient.invalidateQueries({ queryKey: ['portal-products'] });
@@ -463,6 +521,28 @@ export function UniformCatalogView() {
                                 {p.description.length > 36 ? '...' : ''}
                               </div>
                             )}
+                            <div
+                              className={`portal-item-sizes${(p.variants ?? []).some((v) => v.active) ? '' : ' is-empty'}`}
+                            >
+                              {sizeSummary(p)}
+                            </div>
+                            {/* Phones: the Sizes and Actions columns are off the right edge, so repeat the buttons here. */}
+                            <div className="portal-item-phone-actions">
+                              <button
+                                type="button"
+                                className="portal-btn portal-btn-secondary portal-btn-sm"
+                                onClick={() => openSizesModal(p)}
+                              >
+                                Sizes ({p.variants?.length || 0})
+                              </button>
+                              <button
+                                type="button"
+                                className="portal-btn portal-btn-secondary portal-btn-sm"
+                                onClick={() => openEditModal(p)}
+                              >
+                                Edit
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -602,7 +682,7 @@ export function UniformCatalogView() {
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="portal-form-grid">
                   <div className="portal-form-group">
                     <label className="portal-form-label">School</label>
                     <select
@@ -636,7 +716,7 @@ export function UniformCatalogView() {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                <div className="portal-form-grid">
                   <div className="portal-form-group">
                     <label className="portal-form-label">Product Type</label>
                     <select
@@ -679,7 +759,7 @@ export function UniformCatalogView() {
                 </div>
 
                 {/* Class range */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '12px' }}>
                   <div className="portal-form-group">
                     <label className="portal-form-label">Class From</label>
                     <input
@@ -708,6 +788,40 @@ export function UniformCatalogView() {
                       }
                       placeholder="e.g. 5"
                     />
+                  </div>
+                </div>
+
+                <div className="portal-form-group">
+                  <label className="portal-form-label" htmlFor="uniform-sizes">
+                    {editingProduct ? 'Add more sizes' : 'Sizes'}
+                  </label>
+                  <input
+                    id="uniform-sizes"
+                    type="text"
+                    inputMode="text"
+                    className="portal-form-input"
+                    value={sizesText}
+                    onChange={(e) => setSizesText(e.target.value)}
+                    placeholder="e.g. 22, 24, 26"
+                  />
+                  <div className="portal-sizes-hint">
+                    {editingProduct ? (
+                      <>
+                        {sizeSummary(editingProduct)}.{' '}
+                        <button
+                          type="button"
+                          className="portal-link-btn"
+                          onClick={() => {
+                            setItemModalOpen(false);
+                            openSizesModal(editingProduct);
+                          }}
+                        >
+                          Switch off or delete sizes
+                        </button>
+                      </>
+                    ) : (
+                      'Separate sizes with commas. Parents of the classes above see only these sizes.'
+                    )}
                   </div>
                 </div>
 
@@ -764,12 +878,12 @@ export function UniformCatalogView() {
                       </div>
                     )}
 
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
                         onChange={handlePhotoSelect}
-                        style={{ fontSize: '13px' }}
+                        style={{ fontSize: '13px', maxWidth: '100%' }}
                       />
                       <div style={{ fontSize: '11px', color: 'var(--ink-soft)', marginTop: '4px' }}>
                         Accepts JPG, PNG or WebP up to 8 MB. Automatically converted to square 900x900 WebP.
@@ -877,6 +991,7 @@ export function UniformCatalogView() {
               <div
                 style={{
                   display: 'flex',
+                  flexWrap: 'wrap',
                   gap: '8px',
                   alignItems: 'flex-end',
                   padding: '12px',
@@ -885,13 +1000,13 @@ export function UniformCatalogView() {
                   border: '1px solid var(--line)',
                 }}
               >
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: '1 1 180px', minWidth: 0 }}>
                   <label className="portal-form-label" style={{ marginBottom: '4px', display: 'block' }}>
-                    Add New Size
+                    Add sizes (separate with commas)
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. 28, 30, 32, S, M, L, Free"
+                    placeholder="e.g. 22, 24, 26"
                     className="portal-form-input"
                     value={newSizeName}
                     onChange={(e) => setNewSizeName(e.target.value)}
@@ -924,7 +1039,7 @@ export function UniformCatalogView() {
                       <thead>
                         <tr>
                           <th>Size</th>
-                          <th>Generated SKU</th>
+                          <th className="portal-sku-col">Generated SKU</th>
                           <th>Status</th>
                           <th style={{ textAlign: 'right' }}>Toggle</th>
                         </tr>
@@ -933,7 +1048,7 @@ export function UniformCatalogView() {
                         {managingSizesProduct.variants.map((v) => (
                           <tr key={v.id}>
                             <td style={{ fontWeight: 700 }}>{v.size}</td>
-                            <td>
+                            <td className="portal-sku-col">
                               <code style={{ fontSize: '11px' }}>{v.sku}</code>
                             </td>
                             <td>
