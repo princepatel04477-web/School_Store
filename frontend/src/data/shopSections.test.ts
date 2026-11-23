@@ -3,9 +3,9 @@ import { matchesListedClass, shopSection, sectionPhoto } from './shopSections';
 import { uniformSizeGuide } from './sizes';
 
 describe('uniform shopping sections', () => {
-  it('separates PT shirts and track pants from daily uniforms and shoes', () => {
+  it('lists PT shirts and track pants alongside daily uniforms and keeps shoes separate', () => {
     for (const name of ['KV Blue House PT T-Shirt', 'KV Navy PT Track Pants']) {
-      expect(shopSection({ category: 'Uniform', name })).toBe('PT Uniform');
+      expect(shopSection({ category: 'Uniform', name })).toBe('Uniform');
     }
     expect(shopSection({ category: 'Uniform', name: 'KV Summer Shirt' })).toBe('Uniform');
     expect(shopSection({ category: 'School Shoes', name: 'PT Sports Shoes' })).toBe('School Shoes');

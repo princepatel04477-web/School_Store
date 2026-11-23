@@ -7,8 +7,11 @@ export function isShopProductVisible(product: { category: string; name: string }
 }
 
 export function shopSection(product: { category: string; name: string }): string {
-  if (product.category === 'Uniform' && /\b(pt|p\.?e\.?|sports(?:wear)?|house (?:polo|t-shirt)|track pants?)\b/i.test(product.name)) return 'PT Uniform';
-  return product.category;
+  return product.category === 'PT Uniform' ? 'Uniform' : product.category;
+}
+
+export function isPtUniform(product: { category: string; name: string }): boolean {
+  return product.category === 'PT Uniform' || (product.category === 'Uniform' && /\b(pt|p\.?e\.?|sports(?:wear)?|house (?:polo|t-shirt)|track pants?)\b/i.test(product.name));
 }
 
 // Each unisex KV garment has a second portrait for the other section.
