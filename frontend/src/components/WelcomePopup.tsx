@@ -18,15 +18,22 @@ function markSeen() {
  * another dialog (the first-visit language chooser) is open, so the two never
  * stack, and it opens after the page has painted, so it never holds up loading.
  */
-export function WelcomePopup({ blocked }: { blocked: boolean }) {
+export function WelcomePopup({ blocked, skip = false }: { blocked: boolean; skip?: boolean }) {
   const { t } = useLang();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (blocked || alreadySeen()) return;
+    if (alreadySeen()) return;
+    // Only the home page greets. A parent who opens the shop, the checkout or the
+    // payment return page directly (or refreshes there) goes straight to the page.
+    if (skip) {
+      markSeen();
+      return;
+    }
+    if (blocked) return;
     markSeen();
     setOpen(true);
-  }, [blocked]);
+  }, [blocked, skip]);
 
   return (
     <Popup

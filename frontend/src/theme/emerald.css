@@ -626,6 +626,14 @@ h4,
   to { opacity: 1; }
 }
 
+/* Nothing may widen the page sideways on a phone: a sliding step or a wide
+   chip row made the whole page wobble left and right under the parent's thumb.
+   clip (not hidden) keeps the sticky header working. */
+html,
+body {
+  overflow-x: clip;
+}
+
 /* Shop steps slide in from the side the parent is heading. */
 .step-enter {
   animation: step-enter-forward 0.28s var(--em-ease) both;

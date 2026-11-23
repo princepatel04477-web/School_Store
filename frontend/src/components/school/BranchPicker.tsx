@@ -128,6 +128,15 @@ export function BranchPicker({
 
   useEffect(() => setQuery(''), [stage]);
 
+  // A new level starts at its heading. Without this a parent who scrolled down the
+  // state list landed halfway down the short city list, looking at the footer.
+  const [lastStage, setLastStage] = useState(stage);
+  useEffect(() => {
+    if (stage === lastStage) return;
+    setLastStage(stage);
+    if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [stage, lastStage]);
+
   const q = query.trim().toLowerCase();
   const shownStates = q ? states.filter((s) => s.name.toLowerCase().includes(q)) : states;
   const shownCities = q ? cities.filter((c) => c.name.toLowerCase().includes(q)) : cities;
@@ -275,7 +284,9 @@ export function BranchPicker({
               )}
               <span className="pick-row-text">
                 <span className="pick-row-name">{b.name}</span>
-                <span className="pick-row-meta branch-address">{b.address || b.school.name}</span>
+                {(b.address || b.school.name !== b.name) && (
+                  <span className="pick-row-meta branch-address">{b.address || b.school.name}</span>
+                )}
                 {b.udise_code && (
                   <span className="pick-row-meta branch-udise">{t('flow.s1.udise', { code: b.udise_code })}</span>
                 )}

@@ -713,3 +713,82 @@ class StudentCatalogueTests(TestCase):
     def test_parent_cannot_shop_for_someone_elses_child(self):
         res = self.jwt_client(self.other_parent).get(self.catalogue_url(self.boy))
         self.assertEqual(res.status_code, 403)
+
+
+@override_settings(CACHES=LOCMEM)
+class SchoolDeactivationCascadeTests(TestCase):
+    """Deactivating a school switches its uniforms off; reactivating brings them back."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.city = City.objects.create(name="Cascade City", code="CSC")
+        cls.school = School.objects.create(name="Cascade School", code="CSC-01", city=cls.city)
+        cls.other = School.objects.create(name="Other School", code="CSC-02", city=cls.city)
+        cls.category = Category.objects.create(name="Uniform", slug="cascade-uniform")
+        cls.boss = User.objects.create_user(
+            username="cascade_boss", password="x", role="BOSS"
+        )
+
+    def _product(self, school, name, active=True):
+        product = Product.objects.create(
+            category=self.category,
+            school=school,
+            name=name,
+            gender=Product.Gender.UNISEX,
+            cost_price=Decimal("100.00"),
+            selling_price=Decimal("200.00"),
+            active=active,
+        )
+        ProductVariant.objects.create(product=product, size="32", sku=f"{name}-32", active=active)
+        return product
+
+    def _client(self):
+        client = APIClient()
+        token = build_tokens_for_user(self.boss)["access"]
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        return client
+
+    def test_portal_deactivate_and_reactivate_follow_the_school(self):
+        shirt = self._product(self.school, "CSC-SHIRT")
+        retired = self._product(self.school, "CSC-OLD", active=False)
+        elsewhere = self._product(self.other, "CSC-ELSEWHERE")
+        generic = self._product(None, "CSC-GENERIC")
+        client = self._client()
+
+        res = client.patch(f"/api/schools/{self.school.pk}/", {"active": False}, format="json")
+        self.assertEqual(res.status_code, 200, res.content)
+        shirt.refresh_from_db()
+        self.assertFalse(shirt.active)
+        self.assertFalse(shirt.variants.get().active)
+        for untouched in (elsewhere, generic):
+            untouched.refresh_from_db()
+            self.assertTrue(untouched.active)
+            self.assertTrue(untouched.variants.get().active)
+
+        res = client.patch(f"/api/schools/{self.school.pk}/", {"active": True}, format="json")
+        self.assertEqual(res.status_code, 200, res.content)
+        shirt.refresh_from_db()
+        retired.refresh_from_db()
+        self.assertTrue(shirt.active)
+        self.assertTrue(shirt.variants.get().active)
+        # Switched off by hand before the school went off: stays off.
+        self.assertFalse(retired.active)
+        self.assertFalse(retired.variants.get().active)
+
+    def test_delete_endpoint_also_switches_uniforms_off(self):
+        shirt = self._product(self.school, "CSC-DEL")
+        res = self._client().delete(f"/api/schools/{self.school.pk}/")
+        self.assertEqual(res.status_code, 204, res.content)
+        shirt.refresh_from_db()
+        self.assertFalse(shirt.active)
+
+    def test_item_removed_while_school_is_off_stays_off(self):
+        shirt = self._product(self.school, "CSC-GONE")
+        self.school.active = False
+        self.school.save()
+        res = self._client().delete(f"/api/products/{shirt.pk}/")
+        self.assertEqual(res.status_code, 204, res.content)
+        self.school.active = True
+        self.school.save()
+        shirt.refresh_from_db()
+        self.assertFalse(shirt.active)

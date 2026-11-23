@@ -135,7 +135,17 @@ class School(UUIDModel):
                 self.logo_url = self.logo.url
             except Exception:
                 pass
+        was_active = None
+        if self.pk and not self._state.adding:
+            was_active = (
+                School.objects.filter(pk=self.pk).values_list("active", flat=True).first()
+            )
         super().save(*args, **kwargs)
+        if was_active is not None and was_active != self.active:
+            # A school's uniforms follow the school: off with it, back on with it.
+            from catalog.models import sync_school_catalog
+
+            sync_school_catalog(self.pk, self.active)
         invalidate_school_cache()
 
     def delete(self, *args, **kwargs):

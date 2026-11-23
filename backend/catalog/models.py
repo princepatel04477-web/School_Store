@@ -7,6 +7,40 @@ from common.models import UUIDModel
 from common.cache_utils import invalidate_catalog_cache
 
 
+def _add_update_field(save_kwargs, field):
+    fields = save_kwargs.get("update_fields")
+    if fields is not None and field not in fields:
+        save_kwargs["update_fields"] = [*fields, field]
+
+
+def sync_school_catalog(school_id, active):
+    """Switch a school's own uniforms off with the school, and back on with it.
+
+    Only items this switch turned off come back, so an item someone
+    deactivated by hand stays off when the school is reactivated.
+    Generic items (no school) are never touched.
+    """
+    from django.utils import timezone
+
+    now = timezone.now()
+    if active:
+        products = Product.objects.filter(school_id=school_id, paused_by_school=True).update(
+            active=True, paused_by_school=False, updated_at=now
+        )
+        variants = ProductVariant.objects.filter(school_id=school_id, paused_by_school=True).update(
+            active=True, paused_by_school=False, updated_at=now
+        )
+    else:
+        products = Product.objects.filter(school_id=school_id, active=True).update(
+            active=False, paused_by_school=True, updated_at=now
+        )
+        variants = ProductVariant.objects.filter(school_id=school_id, active=True).update(
+            active=False, paused_by_school=True, updated_at=now
+        )
+    invalidate_catalog_cache()
+    return products, variants
+
+
 class Category(UUIDModel):
     name = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(max_length=100, unique=True)
@@ -116,6 +150,10 @@ class Product(UUIDModel):
         help_text="JSON schema for optional/required order-line customisation data.",
     )
     active = models.BooleanField(default=True)
+    paused_by_school = models.BooleanField(
+        default=False,
+        help_text="Switched off because its school was deactivated; switched back on with the school.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -161,6 +199,10 @@ class Product(UUIDModel):
             self.city_id = self.school.city_id
         else:
             self.city_id = None
+        if self.active and self.paused_by_school:
+            # Switched back on by hand: it no longer waits for its school.
+            self.paused_by_school = False
+            _add_update_field(kwargs, "paused_by_school")
         super().save(*args, **kwargs)
         invalidate_catalog_cache()
 
@@ -203,6 +245,7 @@ class ProductVariant(UUIDModel):
     size = models.CharField(max_length=50)
     sku = models.CharField(max_length=80, unique=True)
     active = models.BooleanField(default=True)
+    paused_by_school = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -220,6 +263,9 @@ class ProductVariant(UUIDModel):
             self.city_id = self.product.city_id or (
                 self.product.school.city_id if self.product.school_id else None
             )
+        if self.active and self.paused_by_school:
+            self.paused_by_school = False
+            _add_update_field(kwargs, "paused_by_school")
         super().save(*args, **kwargs)
         invalidate_catalog_cache()
 

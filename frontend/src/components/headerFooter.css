@@ -607,6 +607,15 @@
   }
 }
 
+/* Shop, checkout and other inner pages carry a back button and a menu button
+   as well: there the word cannot fit and showed as "School...". The S mark
+   alone is the logo on those bars. */
+@media (max-width: 440px) {
+  .header-inner:has(.header-back-btn) .brand-wordmark {
+    display: none;
+  }
+}
+
 /* ================== Footer ================== */
 /* Store navy on every page. Columns sit between hairlines, the wordmark runs full width. */
 .site-footer {

@@ -793,6 +793,7 @@ export const messages = {
   // ---------- bag ----------
   'bag.title': { en: 'Your bag', gu: 'તમારી બેગ', hi: 'आपका बैग' },
   'bag.count': { en: '{count} items', gu: '{count} વસ્તુ', hi: '{count} चीज़ें' },
+  'bag.countOne': { en: '1 item', gu: '1 વસ્તુ', hi: '1 चीज़' },
   'bag.removed': { en: 'Item removed.', gu: 'વસ્તુ કાઢી નાખી.', hi: 'चीज़ हटा दी।' },
   'bag.undo': { en: 'Undo', gu: 'પાછું લાવો', hi: 'वापस लाएँ' },
   'bag.remove': { en: 'Remove', gu: 'કાઢી નાખો', hi: 'हटाएँ' },

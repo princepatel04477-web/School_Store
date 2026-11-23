@@ -1,4 +1,4 @@
-import { type ReactNode, type ReactElement, Children, isValidElement, useState, useEffect } from 'react';
+import { type ReactNode, Children, isValidElement, useState, useEffect } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { EASING } from './motionConfig';
 
@@ -91,40 +91,15 @@ export function Stagger({ children, staggerDelay = 0.06, className = '' }: Stagg
   }, []);
 
   // Same wrapper boxes with reduced motion, so layout rules that target them still apply.
-  if (shouldReduceMotion) {
+  // Phones show the list at once: a scroll-triggered fade left blank gaps while the
+  // parent scrolled, and product cards took a second or more to appear.
+  if (shouldReduceMotion || isMobile) {
     return (
       <div className={className}>
         {Children.map(children, (child) =>
           isValidElement(child) ? <div className="stagger-item">{child}</div> : child
         )}
       </div>
-    );
-  }
-
-  // On phones: drop scale, shorten duration to 0.45s, cap total stagger duration to ~0.5s,
-  // and items far below the fold (index >= 8) do not wait for the stagger queue.
-  if (isMobile) {
-    const validChildren = Children.toArray(children).filter(isValidElement) as ReactElement[];
-    const count = validChildren.length;
-    const mobileStagger = Math.min(staggerDelay, 0.5 / Math.max(count, 1));
-
-    return (
-      <motion.div
-        initial="hidden"
-        {...reveal}
-        className={className}
-      >
-        {validChildren.map((child, i) => (
-          <motion.div
-            key={child.key ?? i}
-            variants={mobileChildVariants}
-            custom={i < 8 ? Math.min(i * mobileStagger, 0.5) : 0}
-            className="stagger-item"
-          >
-            {child}
-          </motion.div>
-        ))}
-      </motion.div>
     );
   }
 
@@ -166,13 +141,13 @@ export function StaggerItem({ children, className = '' }: { children: ReactNode;
     return () => mq.removeEventListener('change', update);
   }, []);
 
-  if (shouldReduceMotion) {
+  if (shouldReduceMotion || isMobile) {
     return <div className={className}>{children}</div>;
   }
 
   return (
     <motion.div
-      variants={isMobile ? mobileChildVariants : staggerChildVariants}
+      variants={staggerChildVariants}
       custom={0}
       className={className}
     >

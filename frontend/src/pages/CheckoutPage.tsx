@@ -456,15 +456,19 @@ export function CheckoutPage() {
                   </>
                 )}
 
-                <button
-                  type="button"
-                  className="btn btn-primary step-next-btn"
-                  onClick={() => {
-                    if (validateStep1()) setActiveStep(2);
-                  }}
-                >
-                  {t('co.next')}
-                </button>
+                {/* Before sign-in "Next" can only answer "sign in first", and two big
+                    green buttons on a phone left parents unsure which to press. */}
+                {(mode !== 'account' || isParent) && (
+                  <button
+                    type="button"
+                    className="btn btn-primary step-next-btn"
+                    onClick={() => {
+                      if (validateStep1()) setActiveStep(2);
+                    }}
+                  >
+                    {t('co.next')}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="step-summary-view">

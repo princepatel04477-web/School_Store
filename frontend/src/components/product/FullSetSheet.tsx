@@ -85,6 +85,7 @@ export function FullSetSheet({
         productId: p.id,
         variantId: size.id,
         name: p.name,
+        ...(p.imageUrl ? { image: p.imageUrl } : {}),
         category: p.category,
         pricePaise: p.pricePaise,
         size: size.size,

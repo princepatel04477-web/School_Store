@@ -184,7 +184,11 @@ class ProductViewSet(
     def perform_update(self, serializer):
         old_price = serializer.instance.selling_price
         old_cost = serializer.instance.cost_price
-        prod = serializer.save()
+        extra = {}
+        if "active" in serializer.validated_data:
+            # Switched on or off by hand: it stops following its school.
+            extra["paused_by_school"] = False
+        prod = serializer.save(**extra)
         if prod.selling_price != old_price or prod.cost_price != old_cost:
             from common.audit import log_audit_event
             from common.models import AuditLog
@@ -212,8 +216,9 @@ class ProductViewSet(
                 raise PermissionDenied("Admins can only delete products for schools in their own city.")
 
         instance.active = False
-        instance.save(update_fields=["active", "updated_at"])
-        instance.variants.all().update(active=False)
+        instance.paused_by_school = False
+        instance.save(update_fields=["active", "paused_by_school", "updated_at"])
+        instance.variants.all().update(active=False, paused_by_school=False)
         invalidate_catalog_cache()
 
 
@@ -252,7 +257,8 @@ class ProductVariantViewSet(
     def perform_update(self, serializer):
         old_price = getattr(serializer.instance, "price", None)
         old_cost = getattr(serializer.instance, "cost_price", None)
-        variant = serializer.save()
+        extra = {"paused_by_school": False} if "active" in serializer.validated_data else {}
+        variant = serializer.save(**extra)
         new_price = getattr(variant, "price", None)
         new_cost = getattr(variant, "cost_price", None)
         if (old_price is not None and new_price != old_price) or (old_cost is not None and new_cost != old_cost):
@@ -279,7 +285,8 @@ class ProductVariantViewSet(
             if instance.city_id and instance.city_id != user.city_id:
                 raise PermissionDenied("Admins can only delete variants for their own city.")
         instance.active = False
-        instance.save(update_fields=["active", "updated_at"])
+        instance.paused_by_school = False
+        instance.save(update_fields=["active", "paused_by_school", "updated_at"])
         invalidate_catalog_cache()
 
 

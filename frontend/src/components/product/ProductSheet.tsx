@@ -124,6 +124,7 @@ export function ProductSheet({
       productId: product.id,
       variantId: chosenSize.id,
       name: product.name,
+      ...(product.imageUrl ? { image: product.imageUrl } : {}),
       category: product.category,
       pricePaise: product.pricePaise,
       size: chosenSize.size,

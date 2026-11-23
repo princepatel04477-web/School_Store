@@ -98,7 +98,7 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
         <div className="bag-drawer-header">
           <div className="bag-title-wrap">
             <h2 className="bag-title">{t('bag.title')}</h2>
-            <span className="bag-item-count">({t('bag.count', { count: cart.length })})</span>
+            <span className="bag-item-count">({cart.length === 1 ? t('bag.countOne') : t('bag.count', { count: cart.length })})</span>
           </div>
           <button
             type="button"

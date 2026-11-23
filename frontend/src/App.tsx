@@ -177,7 +177,7 @@ export default function App() {
         {!isPortal && <Footer />}
 
         {!isPortal && <LanguageChooser open={langOpen} onClose={closeLanguage} />}
-        {!isPortal && <WelcomePopup blocked={langOpen || !hasChosen} />}
+        {!isPortal && <WelcomePopup blocked={langOpen || !hasChosen} skip={location.pathname !== '/'} />}
 
         {searchOpen && (
           <Suspense fallback={null}>
