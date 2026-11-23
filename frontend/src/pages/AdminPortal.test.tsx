@@ -268,6 +268,84 @@ describe('Uniform Portal Frontend Tests', () => {
     });
   });
 
+  it('creates the sizes typed in the item form, once each, with unique SKUs', async () => {
+    mockUser.current = { id: 'boss-123', username: 'test_boss', role: 'BOSS' };
+
+    vi.spyOn(portalApi, 'categories').mockResolvedValue({
+      results: [{ id: 'cat-1', name: 'Uniforms', slug: 'uniforms', display_order: 1, active: true }],
+      next: null,
+      previous: null,
+    } as any);
+    vi.spyOn(portalApi, 'schools').mockResolvedValue({
+      results: [{ id: 'sch-1', name: 'Kendriya Vidyalaya', code: 'KV-01', active: true } as any],
+      next: null,
+      previous: null,
+    } as any);
+    vi.spyOn(portalApi, 'products').mockResolvedValue({ results: [], next: null, previous: null } as any);
+    vi.spyOn(portalApi, 'createProduct').mockResolvedValue({
+      id: 'abcd1234-0000-0000-0000-000000000000',
+      name: 'Shirt',
+      school: 'sch-1',
+      variants: [],
+    } as any);
+    const variantSpy = vi
+      .spyOn(portalApi, 'createVariant')
+      .mockImplementation(async (body) => ({ id: `v-${body.size}`, ...body }) as any);
+
+    renderWithProviders(<UniformCatalogView />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Add Uniform Item/i }));
+    fireEvent.change(screen.getByPlaceholderText('e.g. KV Summer Boys Half Sleeve Shirt'), {
+      target: { value: 'Shirt' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('e.g. 399.00'), { target: { value: '350.00' } });
+    fireEvent.change(screen.getByLabelText('Sizes'), { target: { value: '22, 24 , 26, 24,' } });
+    fireEvent.click(screen.getByRole('button', { name: /Create Product/i }));
+
+    await waitFor(() => expect(variantSpy).toHaveBeenCalledTimes(3));
+    expect(variantSpy.mock.calls.map(([body]) => body.size)).toEqual(['22', '24', '26']);
+    expect(variantSpy.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        product: 'abcd1234-0000-0000-0000-000000000000',
+        sku: 'KV-01-SHIRT-ABCD-22',
+        active: true,
+      })
+    );
+  });
+
+  it('shows each item\'s sizes and a Sizes button inside the item cell', async () => {
+    mockUser.current = { id: 'boss-123', username: 'test_boss', role: 'BOSS' };
+
+    vi.spyOn(portalApi, 'categories').mockResolvedValue({ results: [], next: null, previous: null } as any);
+    vi.spyOn(portalApi, 'schools').mockResolvedValue({ results: [], next: null, previous: null } as any);
+    vi.spyOn(portalApi, 'products').mockResolvedValue({
+      results: [
+        {
+          id: 'prod-1',
+          name: 'Class 1 Shirt',
+          selling_price: '350.00',
+          active: true,
+          category: 'cat-1',
+          gender: 'unisex',
+          images: [],
+          variants: [
+            { id: 'v1', size: '22', sku: 'A', active: true },
+            { id: 'v2', size: '24', sku: 'B', active: true },
+            { id: 'v3', size: '26', sku: 'C', active: false },
+          ],
+        },
+      ],
+      next: null,
+      previous: null,
+    } as any);
+
+    renderWithProviders(<UniformCatalogView />);
+
+    expect(await screen.findByText('Sizes: 22, 24')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Sizes (3)' }));
+    expect(await screen.findByText('Manage Sizes & SKUs')).toBeTruthy();
+  });
+
   it('verifies grep find nothing for localStorage in admin components and portal page', () => {
     const adminModules = import.meta.glob<string>(
       ['../components/admin/**/*.tsx', '../components/admin/**/*.ts', './AdminPortal.tsx'],
