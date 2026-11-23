@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { isShopProductVisible, sectionPhoto } from './shopSections';
+import { matchesListedClass, isShopProductVisible, sectionPhoto } from './shopSections';
 import { api } from '../api';
 import type { SeedProduct, SeedSchool } from './seedData';
 
@@ -220,9 +220,9 @@ export function useStoreProducts(
         products.push(...page.results);
         path = page.next ? page.next.slice(page.next.indexOf('/public/')) : null;
       }
-      return products.filter(isShopProductVisible).map(toProduct)
+      return products.filter(p => isShopProductVisible(p) && matchesListedClass(p.name, className)).map(toProduct)
         .filter((p) => !p.gender || p.gender === 'unisex' || p.gender === gender)
-        .map((p) => ({ ...p, imageUrl: sectionPhoto(p.imageUrl, gender), heroUrl: sectionPhoto(p.heroUrl, gender) }));
+        .map((p) => ({ ...p, imageUrl: sectionPhoto(p.imageUrl, gender, className), heroUrl: sectionPhoto(p.heroUrl, gender, className) }));
     },
   });
 }

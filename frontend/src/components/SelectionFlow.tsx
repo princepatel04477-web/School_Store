@@ -1,5 +1,5 @@
 import { uniformSizeGuide } from '../data/sizes';
-import { isShopProductVisible, shopSection, sectionPhoto } from '../data/shopSections';
+import { matchesListedClass, isShopProductVisible, shopSection, sectionPhoto } from '../data/shopSections';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X } from './ui/icons';
 import { CategoryOutlineIllustration } from './product/CategoryOutlineIllustration';
@@ -259,7 +259,7 @@ export function SelectionFlow({
   });
 
   const productsList = (productsData?.results ?? []).filter((p) =>
-    isShopProductVisible(p) && (category === 'All' || shopSection(p) === category) &&
+    isShopProductVisible(p) && matchesListedClass(p.name, selection.grade?.name) && (category === 'All' || shopSection(p) === category) &&
     (!p.gender || p.gender === 'unisex' || p.gender === selection.gender));
 
   // Auto-skip logic for Step 2 if school has only 1 city
@@ -986,7 +986,7 @@ export function SelectionFlow({
                 return (
                   <article className="product" key={p.id}>
                     <div className={'product-image ' + p.category.toLowerCase().replace(' ', '-')}>
-                       {p.thumbnail || p.image ? <img src={sectionPhoto(p.thumbnail || p.image, selection.gender)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <CategoryOutlineIllustration category={p.category} />}
+                       {p.thumbnail || p.image ? <img src={sectionPhoto(p.thumbnail || p.image, selection.gender, selection.grade?.name)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <CategoryOutlineIllustration category={p.category} />}
                     </div>
                     <div className="product-body">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
