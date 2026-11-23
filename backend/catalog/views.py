@@ -155,6 +155,8 @@ class ProductViewSet(
         # Process: square, 900x900, WebP at quality 84
         stream.seek(0)
         with Image.open(stream) as img:
+            # Phone cameras store rotation in EXIF; apply it so the photo is upright.
+            img = ImageOps.exif_transpose(img)
             if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
                 img = img.convert("RGBA")
             else:

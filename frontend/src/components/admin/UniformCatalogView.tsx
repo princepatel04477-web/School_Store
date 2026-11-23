@@ -2,6 +2,27 @@ import { useState, useMemo, type FormEvent, type ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { portalApi, type PortalProduct, type PortalVariant, type CitySchool } from '../../api';
 import { Search, Plus, X, Camera, RefreshCw } from '../ui/icons';
+import { compressImage } from '../../utils/imageCompression';
+
+/** The server refuses files over 8 MB. Phone photos are often bigger. */
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Shrink a phone photo before it is sent: long side 1600 px, JPEG under about 1.5 MB.
+ * Drawing it on a canvas also applies the camera's rotation, so it is not sideways.
+ * If the browser cannot do this, the original file is sent.
+ */
+async function preparePhoto(file: File): Promise<File> {
+  try {
+    // Some phone browsers never finish decoding odd formats; do not wait forever.
+    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15_000));
+    const { blob } = await Promise.race([compressImage(file, 1600, 1_500_000, 0.88), timeout]);
+    const base = file.name.replace(/\.[^.]+$/, '') || 'photo';
+    return new File([blob], `${base}.jpg`, { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
+}
 
 function slugify(text: string): string {
   return text
@@ -192,14 +213,23 @@ export function UniformCatalogView() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 8 * 1024 * 1024) {
-      setPhotoError('Image file exceeds the 8 MB limit.');
-      return;
-    }
-
     setPhotoFile(file);
     const objectUrl = URL.createObjectURL(file);
     setPhotoPreview(objectUrl);
+  };
+
+  /** Send the chosen photo for one item. Throws a message the boss can read. */
+  const sendPhoto = async (productId: string, file: File): Promise<PortalProduct> => {
+    const prepared = await preparePhoto(file);
+    if (prepared.size > MAX_UPLOAD_BYTES) {
+      throw new Error('This photo is over 8 MB. Choose a smaller photo.');
+    }
+    const updated = await portalApi.uploadProductPhoto(productId, prepared);
+    setPhotoFile(null);
+    if (updated.images && updated.images.length > 0) {
+      setPhotoPreview(updated.images[0]);
+    }
+    return updated;
   };
 
   const handlePhotoUploadNow = async () => {
@@ -207,12 +237,8 @@ export function UniformCatalogView() {
     setUploadProgress(true);
     setPhotoError('');
     try {
-      const updated = await portalApi.uploadProductPhoto(editingProduct.id, photoFile);
+      const updated = await sendPhoto(editingProduct.id, photoFile);
       setEditingProduct(updated);
-      setPhotoFile(null);
-      if (updated.images && updated.images.length > 0) {
-        setPhotoPreview(updated.images[0]);
-      }
       queryClient.invalidateQueries({ queryKey: ['portal-products'] });
     } catch (err: any) {
       setPhotoError(err instanceof Error ? err.message : 'Photo upload failed.');
@@ -244,20 +270,31 @@ export function UniformCatalogView() {
         saved = { ...updated, variants: updated.variants ?? editingProduct.variants };
       } else {
         saved = await portalApi.createProduct(payload);
-        if (photoFile) {
-          try {
-            await portalApi.uploadProductPhoto(saved.id, photoFile);
-          } catch (e) {
-            console.error('Failed to upload photo for created product', e);
-          }
+      }
+      // A photo picked in the form goes up with Save, for new and existing items alike.
+      let photoFailed = '';
+      if (photoFile) {
+        try {
+          const withPhoto = await sendPhoto(saved.id, photoFile);
+          saved = { ...withPhoto, variants: withPhoto.variants ?? saved.variants };
+        } catch (e) {
+          photoFailed = e instanceof Error ? e.message : 'Photo upload failed.';
         }
       }
       const schoolCode = schools.find((s) => s.id === saved.school)?.code || 'GEN';
       const { failed } = await addSizesToProduct(saved, parseSizes(sizesText), schoolCode);
-      return { failed };
+      return { failed, saved, photoFailed };
     },
-    onSuccess: ({ failed }) => {
+    onSuccess: ({ failed, saved, photoFailed }) => {
       queryClient.invalidateQueries({ queryKey: ['portal-products'] });
+      if (photoFailed) {
+        // The item is saved; the photo is not. Keep the form open on this item so it can be retried.
+        setEditingProduct(saved);
+        setPhotoError(photoFailed);
+        setFormError(`Item saved, but the photo did not upload: ${photoFailed}`);
+        if (failed.length) setSizesText(failed.join(', '));
+        return;
+      }
       if (failed.length) {
         // The item is saved; only some sizes were not. Keep the form open so this is seen.
         setFormError(
@@ -886,7 +923,7 @@ export function UniformCatalogView() {
                         style={{ fontSize: '13px', maxWidth: '100%' }}
                       />
                       <div style={{ fontSize: '11px', color: 'var(--ink-soft)', marginTop: '4px' }}>
-                        Accepts JPG, PNG or WebP up to 8 MB. Automatically converted to square 900x900 WebP.
+                        JPG, PNG or WebP. Phone photos are made smaller before they are sent.
                       </div>
 
                       {editingProduct && photoFile && (

@@ -7,6 +7,14 @@ import AdminPortal from './AdminPortal';
 import { UniformCatalogView } from '../components/admin/UniformCatalogView';
 import { portalApi } from '../api';
 
+// jsdom has no canvas: hand the photo back as a small JPEG.
+vi.mock('../utils/imageCompression', () => ({
+  compressImage: vi.fn(async () => ({ blob: new Blob(['jpeg-bytes'], { type: 'image/jpeg' }), width: 10, height: 10 })),
+}));
+
+// jsdom has no object URLs (used for the photo preview).
+if (!URL.createObjectURL) (URL as any).createObjectURL = () => 'blob:preview';
+
 // Mock auth hook
 const mockUser = {
   current: null as any,
@@ -360,5 +368,82 @@ describe('Uniform Portal Frontend Tests', () => {
     }
 
     expect(matches).toEqual([]);
+  });
+  it('Save Changes uploads the photo picked while editing an item', async () => {
+    mockUser.current = { id: 'boss-123', username: 'test_boss', role: 'BOSS' };
+    vi.spyOn(portalApi, 'categories').mockResolvedValue({
+      results: [{ id: 'cat-1', name: 'Uniforms', slug: 'uniforms', display_order: 1, active: true }],
+      next: null,
+      previous: null,
+    } as any);
+    vi.spyOn(portalApi, 'schools').mockResolvedValue({ results: [], next: null, previous: null } as any);
+    const product = {
+      id: 'prod-photo',
+      name: 'KV Shirt',
+      selling_price: '399.00',
+      cost_price: '200.00',
+      active: true,
+      category: 'cat-1',
+      school: null,
+      gender: 'unisex',
+      variants: [],
+      images: [],
+    };
+    vi.spyOn(portalApi, 'products').mockResolvedValue({ results: [product], next: null, previous: null } as any);
+    const updateSpy = vi.spyOn(portalApi, 'updateProduct').mockResolvedValue(product as any);
+    const photoSpy = vi.spyOn(portalApi, 'uploadProductPhoto').mockResolvedValue({
+      ...product,
+      images: ['https://school-store.aqualite.workers.dev/media/products/prod-photo/a.webp'],
+    } as any);
+
+    renderWithProviders(<UniformCatalogView />);
+    fireEvent.click((await screen.findAllByRole('button', { name: /^Edit$/i }))[0]);
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const photo = new File(['x'.repeat(20)], 'IMG_2041.HEIC.jpg', { type: 'image/jpeg' });
+    fireEvent.change(input, { target: { files: [photo] } });
+    fireEvent.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+    await waitFor(() => expect(photoSpy).toHaveBeenCalledTimes(1));
+    expect(updateSpy).toHaveBeenCalled();
+    const [id, sent] = photoSpy.mock.calls[0];
+    expect(id).toBe('prod-photo');
+    expect((sent as File).type).toBe('image/jpeg');
+    expect(await screen.findByText('Product updated successfully.')).toBeTruthy();
+  });
+
+  it('keeps the form open and says why when the photo upload fails', async () => {
+    mockUser.current = { id: 'boss-123', username: 'test_boss', role: 'BOSS' };
+    vi.spyOn(portalApi, 'categories').mockResolvedValue({
+      results: [{ id: 'cat-1', name: 'Uniforms', slug: 'uniforms', display_order: 1, active: true }],
+      next: null,
+      previous: null,
+    } as any);
+    vi.spyOn(portalApi, 'schools').mockResolvedValue({ results: [], next: null, previous: null } as any);
+    const product = {
+      id: 'prod-photo',
+      name: 'KV Shirt',
+      selling_price: '399.00',
+      active: true,
+      category: 'cat-1',
+      school: null,
+      gender: 'unisex',
+      variants: [],
+      images: [],
+    };
+    vi.spyOn(portalApi, 'products').mockResolvedValue({ results: [product], next: null, previous: null } as any);
+    vi.spyOn(portalApi, 'updateProduct').mockResolvedValue(product as any);
+    vi.spyOn(portalApi, 'uploadProductPhoto').mockRejectedValue(new Error('Only JPG, PNG, and WebP images are allowed.'));
+
+    renderWithProviders(<UniformCatalogView />);
+    fireEvent.click((await screen.findAllByRole('button', { name: /^Edit$/i }))[0]);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(['x'], 'p.jpg', { type: 'image/jpeg' })] } });
+    fireEvent.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+    expect(
+      await screen.findByText('Item saved, but the photo did not upload: Only JPG, PNG, and WebP images are allowed.')
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Save Changes/i })).toBeTruthy();
   });
 });

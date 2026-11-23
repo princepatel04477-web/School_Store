@@ -177,6 +177,45 @@ class PortalCatalogApiTests(TestCase):
                 self.assertEqual(saved_img.format, "WEBP")
                 self.assertEqual(saved_img.size, (900, 900))
 
+            # The store can load it back through /media/products/ (no login needed).
+            self.client.credentials()
+            served = self.client.get(f"/media/products/{self.product_surat.id}/{filename}")
+            self.assertEqual(served.status_code, 200)
+            self.assertEqual(served["Content-Type"], "image/webp")
+            self.assertEqual(b"".join(served.streaming_content)[:4], b"RIFF")
+
+    def test_only_product_photos_are_served_from_media(self):
+        with override_settings(MEDIA_ROOT=self.temp_media):
+            private = Path(self.temp_media) / "customisations" / "secret.webp"
+            private.parent.mkdir(parents=True, exist_ok=True)
+            private.write_bytes(b"RIFF private")
+            self.assertEqual(self.client.get("/media/customisations/secret.webp").status_code, 404)
+            self.assertIn(self.client.get("/media/products/../customisations/secret.webp").status_code, (400, 404))
+
+    def test_photo_upload_turns_a_rotated_phone_photo_upright(self):
+        with override_settings(MEDIA_ROOT=self.temp_media):
+            self._auth(self.boss)
+            # A portrait photo stored sideways (800x1200 saved as 1200x800) with EXIF orientation 6.
+            img = Image.new("RGB", (1200, 800), (0, 0, 0))
+            img.paste((255, 0, 0), (0, 0, 600, 800))  # left half red
+            exif = Image.Exif()
+            exif[0x0112] = 6  # rotate 90 clockwise to display
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", exif=exif.tobytes())
+            upload = SimpleUploadedFile("phone.jpg", buf.getvalue(), content_type="image/jpeg")
+            res = self.client.post(
+                f"/api/products/{self.product_surat.id}/photo/", {"photo": upload}, format="multipart"
+            )
+            self.assertEqual(res.status_code, 200, res.data)
+            self.product_surat.refresh_from_db()
+            filename = self.product_surat.images[0].split("/")[-1]
+            saved = Path(self.temp_media) / "products" / str(self.product_surat.id) / filename
+            with Image.open(saved) as out:
+                out = out.convert("RGB")
+                # Upright, the red half is on top.
+                self.assertGreater(out.getpixel((450, 100))[0], 200)
+                self.assertLess(out.getpixel((450, 800))[0], 60)
+
     def test_admin_cannot_upload_photo_for_other_city_product(self):
         # Product in Pune, but admin is Surat
         pune_product = Product.objects.create(
