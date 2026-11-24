@@ -82,7 +82,7 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
 
   // Android Chrome can read the OTP from the SMS without the parent typing it
   useEffect(() => {
-    if (step !== 'otp' || !('OTPCredential' in window)) return;
+    if (step !== 'otp' || testCode || !('OTPCredential' in window)) return;
     const ac = new AbortController();
     (navigator.credentials as any)
       ?.get({ otp: { transport: ['sms'] }, signal: ac.signal })
@@ -91,7 +91,7 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
       })
       .catch(() => {});
     return () => ac.abort();
-  }, [step]);
+  }, [step, testCode]);
 
   const digits = phone.replace(/\D/g, '').slice(-10);
   const phoneValid = /^[6-9]\d{9}$/.test(digits);
@@ -123,9 +123,13 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
       await signInWithOtp(digits, code);
       await loadChildren();
     } catch (err) {
-      setError(
-        t(!(err instanceof ApiError) ? 'err.offline' : err.status === 429 ? 'signin.tooMany' : 'signin.wrongOtp')
-      );
+      let message: MessageKey = 'err.offline';
+      if (err instanceof ApiError) {
+        if (err.status === 400) message = 'signin.wrongOtp';
+        else if (err.status === 429) message = 'signin.tooMany';
+        else message = 'signin.verifyFailed';
+      }
+      setError(t(message));
       setOtp('');
     } finally {
       setBusy(false);
@@ -271,7 +275,14 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 />
-                {testCode && <p className="psi-test">{t('signin.testCode', { code: testCode })}</p>}
+                {testCode && (
+                  <p className="psi-test">
+                    {t('signin.testCode', { code: testCode })}{' '}
+                    <button type="button" className="psi-link" disabled={busy} onClick={() => void verify(testCode)}>
+                      {t('signin.useTestCode')}
+                    </button>
+                  </p>
+                )}
                 {error && <p className="psi-error" role="alert">{error}</p>}
                 <p className="psi-resend">
                   {resendIn > 0 ? (

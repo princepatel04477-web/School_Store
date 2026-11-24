@@ -1064,6 +1064,8 @@ export const messages = {
     hi: 'बहुत बार कोशिश हुई। कुछ मिनट रुकें।',
   },
   'signin.wrongOtp': { en: 'That OTP is wrong or old. Try again.', gu: 'OTP ખોટો કે જૂનો છે. ફરી પ્રયત્ન કરો.', hi: 'OTP गलत या पुराना है। फिर कोशिश करें।' },
+  'signin.useTestCode': { en: 'Use this code', gu: 'આ કોડ વાપરો', hi: 'यह कोड इस्तेमाल करें' },
+  'signin.verifyFailed': { en: 'We could not verify the code right now. Try again.', gu: 'હમણાં કોડ ચકાસી શકાયો નહીં. ફરી પ્રયત્ન કરો.', hi: 'अभी कोड की पुष्टि नहीं हो सकी। फिर कोशिश करें।' },
 
   // ---------- child photo consent ----------
   'photo.consent.listen': {
