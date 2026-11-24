@@ -139,7 +139,7 @@ export function HomeHero({ onOpenBag, onOpenLanguage }: HomeHeroProps) {
 
             {/* Sign in, or the parent's own page once signed in (staff are sent to their panel). */}
             <Link
-              to={user ? '/parent' : '/login'}
+              to={user?.role === 'PARENT' ? '/parent' : '/login'}
               className="emerald-bag-btn emerald-profile-btn"
               aria-label={user ? t('nav.myAccount') : t('nav.signIn')}
               title={user ? t('nav.myAccount') : t('nav.signIn')}

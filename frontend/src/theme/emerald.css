@@ -1475,3 +1475,75 @@ body {
 :root .footer-bottom-row {
   margin-top: 0;
 }
+
+/* ---------- Login: who is signed in on this phone ---------- */
+
+:root .login-current {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--paper-raised);
+  padding: 14px;
+  margin: 4px 0 20px;
+}
+
+:root .login-current p {
+  margin: 0;
+  font-size: 14px;
+}
+
+:root .login-current-role {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--paper-sunk);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+:root .login-current-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+:root .login-current-actions .secondary {
+  justify-content: center;
+  min-height: 44px;
+}
+
+:root .login-current .login-current-hint {
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+:root .login-card .login-mobile-cta {
+  min-height: 48px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+:root .login-staff-form {
+  margin-top: 0;
+}
+
+/* ---------- Parent page: no child added yet ---------- */
+
+:root .kids-empty {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--paper-raised);
+  padding: 16px;
+}
+
+:root .kids-empty p {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+:root .kids-empty .primary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}

@@ -29,28 +29,6 @@ interface StudentDetail {
   school_name?: string;
 }
 
-const fallbackKids: StudentDetail[] = [
-  {
-    id: '1',
-    name: 'Aarav Patel',
-    gr_number: 'GR-1042',
-    grade_name: '5',
-    class_name: '5',
-    section: 'A',
-    gender: 'Male',
-    school_name: 'DPS Surat',
-  },
-  {
-    id: '2',
-    name: 'Diya Patel',
-    gr_number: 'GR-1043',
-    grade_name: '8',
-    class_name: '8',
-    section: 'B',
-    gender: 'Female',
-    school_name: 'DPS Surat',
-  },
-];
 
 export default function Parent() {
   return (
@@ -85,10 +63,10 @@ function Dashboard() {
           gender: s.gender ? (s.gender === 'MALE' ? 'Male' : s.gender === 'FEMALE' ? 'Female' : s.gender) : '-',
           school_name: s.school_name || '-',
         }))
-      : fallbackKids;
+      : [];
 
-  const [selectedId, setSelectedId] = useState<string>(kids[0]?.id || '1');
-  const selected = kids.find((k) => k.id === selectedId) || kids[0] || fallbackKids[0];
+  const [selectedId, setSelectedId] = useState<string>('');
+  const selected: StudentDetail | undefined = kids.find((k) => k.id === selectedId) || kids[0];
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
@@ -144,6 +122,17 @@ function Dashboard() {
         <div className="section-row">
           <h2>My children</h2>
         </div>
+        {studentsData && kids.length === 0 && (
+          <div className="kids-empty">
+            <p>
+              No child added yet. Pick your school and class in the shop, or add your child with the GR number
+              when you check out.
+            </p>
+            <Link to="/" className="primary">
+              Shop for my child
+            </Link>
+          </div>
+        )}
         <div className="kids">
           {kids.map((k) => (
             <button

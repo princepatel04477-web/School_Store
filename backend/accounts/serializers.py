@@ -278,11 +278,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         login_ident = (attrs.get(self.username_field) or "").strip()
         if login_ident:
             digits_only = "".join(ch for ch in login_ident if ch.isdigit())
+            # Mobile-number parent profiles have no password ("!" prefix), so a
+            # phone number here always means the password account for it
+            by_phone = User.objects.exclude(password__startswith="!").order_by("created_at")
             user = (
                 User.objects.filter(username__iexact=login_ident).first()
-                or User.objects.filter(phone=login_ident).first()
-                or (User.objects.filter(phone=digits_only).first() if digits_only else None)
-                or (User.objects.filter(phone=digits_only[-10:]).first() if len(digits_only) >= 10 else None)
+                or by_phone.filter(phone=login_ident).first()
+                or (by_phone.filter(phone=digits_only).first() if digits_only else None)
+                or (by_phone.filter(phone=digits_only[-10:]).first() if len(digits_only) >= 10 else None)
             )
             if user:
                 attrs[self.username_field] = user.username

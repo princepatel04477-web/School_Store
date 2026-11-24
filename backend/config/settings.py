@@ -437,6 +437,10 @@ PHOTO_RETENTION_DAYS = int(os.environ.get("PHOTO_RETENTION_DAYS", "30"))
 # --------------------------------------------------------------------------- #
 # SMS (sign-in codes and order confirmations), see accounts/sms.py
 # --------------------------------------------------------------------------- #
+# Development only: with no SMS provider, parents still sign in or create an
+# account by mobile number. The code is shown on screen instead of sent by SMS,
+# so anyone can open any parent account. Turn it off before real launch.
+OTP_DEMO_MODE = os.environ.get("OTP_DEMO_MODE", "0") == "1"
 SMS_PROVIDER = os.environ.get("SMS_PROVIDER", "")  # "msg91", or "console" to only log
 MSG91_AUTH_KEY = os.environ.get("MSG91_AUTH_KEY", "")
 MSG91_OTP_TEMPLATE_ID = os.environ.get("MSG91_OTP_TEMPLATE_ID", "")

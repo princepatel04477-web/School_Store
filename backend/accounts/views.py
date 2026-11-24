@@ -64,6 +64,20 @@ class SendOTPView(APIView):
         try:
             sms.send_otp(phone, otp_code)
         except sms.SmsNotConfigured:
+            if settings.OTP_DEMO_MODE:
+                # No SMS yet: hand the code to the screen so every number works
+                cache.set(f"otp:{phone}", otp_code, timeout=OTP_TTL_SECONDS)
+                cache.set(f"otp_screen:{phone}", True, timeout=OTP_TTL_SECONDS)
+                cache.delete(f"otp_attempts:{phone}")
+                return Response(
+                    {
+                        "detail": "Demo mode: use the code shown on screen.",
+                        "phone": phone,
+                        "otp_debug": otp_code,
+                        "demo": True,
+                    },
+                    status=status.HTTP_200_OK,
+                )
             if cache.get(f"otp_demo:{phone}"):
                 return Response({"detail": "Use the demo code provided to you.", "phone": phone})
             return Response(
@@ -76,6 +90,7 @@ class SendOTPView(APIView):
                 status=status.HTTP_502_BAD_GATEWAY,
             )
         cache.set(f"otp:{phone}", otp_code, timeout=OTP_TTL_SECONDS)
+        cache.delete(f"otp_screen:{phone}")
         cache.delete(f"otp_attempts:{phone}")
         payload = {"detail": "OTP sent successfully.", "phone": phone}
         if settings.DEBUG:
@@ -111,6 +126,9 @@ class OTPLoginView(APIView):
 
         demo_key = f"otp_demo:{phone}"
         cached = cache.get(f"otp:{phone}")
+        # A code that was shown on screen (demo mode) proves nothing about who
+        # owns the number, so it never marks the number verified or links children
+        shown_on_screen = bool(cached) and bool(cache.get(f"otp_screen:{phone}"))
         is_demo = False
         if not cached:
             cached = cache.get(demo_key)
@@ -133,10 +151,14 @@ class OTPLoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         cache.delete(f"otp:{phone}")
+        cache.delete(f"otp_screen:{phone}")
         cache.delete(f"otp_attempts:{phone}")
+        unverified = is_demo or shown_on_screen
 
+        # Only parent profiles sign in here. A staff member's number gets its own
+        # parent profile; their staff account keeps its username and password.
         user = (
-            User.objects.filter(phone__endswith=phone, is_active=True)
+            User.objects.filter(phone__endswith=phone, is_active=True, role=User.Role.PARENT)
             .order_by("created_at")
             .first()
         )
@@ -155,23 +177,18 @@ class OTPLoginView(APIView):
                 phone=phone,
                 role=User.Role.PARENT,
                 is_active=True,
-                phone_verified=not is_demo,
+                phone_verified=not unverified,
             )
             user.set_unusable_password()
             user.save()
             created = True
-        elif user.role != User.Role.PARENT:
-            return Response(
-                {"detail": "Staff accounts sign in with a username and password."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        elif not user.phone_verified:
+        elif not user.phone_verified and not unverified:
             user.phone_verified = True
             user.save(update_fields=["phone_verified", "updated_at"])
 
         from schools.linking import link_children_by_phone
 
-        linked = 0 if is_demo else link_children_by_phone(user)
+        linked = 0 if unverified else link_children_by_phone(user)
         tokens = build_tokens_for_user(user)
         return Response(
             {
