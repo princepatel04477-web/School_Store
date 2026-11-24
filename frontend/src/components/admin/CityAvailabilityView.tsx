@@ -1,6 +1,6 @@
 import { useState, useMemo, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { portalApi, type StockBalance, type PortalVariant, type PortalProduct } from '../../api';
+import { portalApi, allPages, type StockBalance, type PortalVariant, type PortalProduct } from '../../api';
 import { useAuth } from '../../auth';
 import { Search, X, Package, ChevronDown, ChevronUp } from '../ui/icons';
 
@@ -85,7 +85,7 @@ export function CityAvailabilityView() {
 
   const { data: balancesData, isLoading: balancesLoading, error: balancesError } = useQuery({
     queryKey: ['portal-stock-balances', balanceParams],
-    queryFn: () => portalApi.stockBalances(balanceParams),
+    queryFn: () => allPages(portalApi.stockBalances, balanceParams),
     enabled: Boolean(activeCityId),
   });
   const balances = balancesData?.results ?? [];
@@ -99,7 +99,7 @@ export function CityAvailabilityView() {
 
   const { data: productsData, isLoading: productsLoading } = useQuery({
     queryKey: ['portal-products-stock', productParams],
-    queryFn: () => portalApi.products(productParams),
+    queryFn: () => allPages(portalApi.products, productParams),
   });
   const products = productsData?.results ?? [];
 
@@ -118,6 +118,9 @@ export function CityAvailabilityView() {
     const seenProductIds = new Set<string>();
 
     for (const p of products) {
+      // A school's own items are stocked only in that school's city; the server refuses
+      // stock for them anywhere else, so do not offer them under another city.
+      if (p.city && activeCityId && p.city !== activeCityId) continue;
       seenProductIds.add(p.id);
       const variantItems: VariantStockItem[] = [];
       let totalStock = 0;
@@ -187,7 +190,7 @@ export function CityAvailabilityView() {
 
       return matchProduct || matchVariant;
     });
-  }, [products, balanceByVariant, search]);
+  }, [products, balanceByVariant, search, activeCityId]);
 
   // Toggle expand for single product
   const toggleProductExpand = (id: string) => {

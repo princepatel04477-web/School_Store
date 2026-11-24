@@ -162,6 +162,23 @@ export type ExportJob={id:string;job_type:'ORDERS'|'STUDENTS'|'TAILOR_SHEET';job
 export type FilterOptions={school:{id:string;name:string;code:string};classes:string[];sections:string[];categories:{id:string;name:string}[];statuses:{value:string;label:string}[];placed_by_roles:{value:string;label:string}[];default_date_from:string;default_date_to:string};
 export type ImportJob={id:string;job_type:string;status:'PENDING'|'VALIDATING'|'PREVIEW_READY'|'IMPORTING'|'COMPLETED'|'FAILED';school:string;school_code:string|null;uploaded_by_name:string|null;original_filename:string;total_rows:number;valid_count:number;duplicate_count:number;error_count:number;preview:Record<string,unknown>;result:Record<string,unknown>;error_message:string;progress:number;created_at:string;completed_at:string|null};
 export type Page<T>={next:string|null;previous:string|null;results:T[]};
+/**
+ * Read every page of a staff list. The server pages with a `next` link (a cursor),
+ * so follow that link's cursor until there is none. Stops after `maxPages` as a guard.
+ */
+export async function allPages<T>(fetchPage:(params:Record<string,string>)=>Promise<Page<T>>, params:Record<string,string>, maxPages=50):Promise<Page<T>>{
+  const results:T[]=[]; const seen=new Set<string>(); let extra:Record<string,string>={};
+  for(let i=0;i<maxPages;i+=1){
+    const data=await fetchPage({...params,...extra}); results.push(...data.results);
+    if(!data.next) break;
+    const next=new URL(data.next, window.location.origin).searchParams;
+    const cursor=next.get('cursor'); const page=next.get('page');
+    const key=cursor?`c:${cursor}`:page?`p:${page}`:'';
+    if(!key||seen.has(key)) break; seen.add(key);
+    extra=cursor?{cursor}:{page:page as string};
+  }
+  return {results,next:null,previous:null};
+}
 export type StudentOrders={student:{id:string;name:string;gr_number:string;class_name:string;section:string};date_from:string;date_to:string;totals:{orders:number;units:number;gross_sales:Money};item_preview_limit:number;next:string|null;previous:string|null;results:PanelOrder[]};
 
 /** Cursor links come back as absolute URLs; keep only the path + query. */

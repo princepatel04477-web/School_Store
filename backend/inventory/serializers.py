@@ -101,8 +101,14 @@ class StockMovementCreateSerializer(serializers.Serializer):
         variant = attrs["variant"]
         variant_city_id = variant.city_id or variant.product.city_id
         if variant_city_id and variant_city_id != attrs["city"].pk:
+            product = variant.product
+            home = City.objects.filter(pk=variant_city_id).values_list("name", flat=True).first() or "another city"
+            school = product.school.name if product.school_id else product.name
             raise serializers.ValidationError(
-                {"city": "This school-specific variant is stocked in a different city."}
+                {
+                    "city": f"{product.name} is sold only by {school} in {home}. "
+                    f"Choose {home} at the top to add its stock."
+                }
             )
 
         order = attrs.get("reference_order")

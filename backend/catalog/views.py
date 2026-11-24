@@ -28,6 +28,9 @@ from .serializers import (
 
 class ProductPagination(BoundedCursorPagination):
     ordering = "id"
+    # The staff screens (Uniform Portal, city stock) show the whole catalogue;
+    # 50 a page left most items unreachable from screens that read one page.
+    max_page_size = 200
 
 
 class VariantPagination(BoundedCursorPagination):

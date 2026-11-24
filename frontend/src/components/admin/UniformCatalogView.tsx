@@ -1,6 +1,6 @@
 import { useState, useMemo, type FormEvent, type ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { portalApi, type PortalProduct, type PortalVariant, type CitySchool } from '../../api';
+import { portalApi, allPages, type PortalProduct, type PortalVariant, type CitySchool } from '../../api';
 import { Search, Plus, X, Camera, RefreshCw } from '../ui/icons';
 import { compressImage } from '../../utils/imageCompression';
 
@@ -153,16 +153,8 @@ export function UniformCatalogView() {
 
   const { data: productsData, isLoading, error } = useQuery({
     queryKey: ['portal-products', queryParams],
-    // The server sends at most 50 items a page; the store has more, so read every page.
-    queryFn: async () => {
-      const results: PortalProduct[] = [];
-      for (let page = 1; page <= 40; page += 1) {
-        const data = await portalApi.products({ ...queryParams, page: String(page) });
-        results.push(...data.results);
-        if (!data.next) break;
-      }
-      return { results, next: null, previous: null };
-    },
+    // The server sends the list a page at a time; follow its next links to show every item.
+    queryFn: () => allPages(portalApi.products, queryParams),
   });
   const products = productsData?.results ?? [];
 
