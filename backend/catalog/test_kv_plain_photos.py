@@ -22,8 +22,18 @@ class PlainFirstImagesTests(SimpleTestCase):
         self.assertEqual(plain_first_images("KV Knitted Belt with Monogram Buckle", once), once)
 
     def test_items_without_a_plain_shot_are_left_alone(self):
-        self.assertIsNone(plain_first_images("KV Grey Sleeveless Coatie (Class 1-5)", [f"{PHOTO_BASE}kv-coatie-grey.webp"]))
+        self.assertIsNone(plain_first_images("KV Navy Socks with Red Stripes (Pack of 2)", [f"{PHOTO_BASE}kv-socks-navy.webp"]))
         self.assertIsNone(plain_first_images("Standard Classic School Uniform Tie", [f"{PHOTO_BASE}tie-standard-navy.webp"]))
+
+    def test_second_batch_of_plain_shots_goes_first(self):
+        for name, file in [
+            ("KV Grey Sleeveless Coatie (Class 1-5)", "kv-coatie-grey"),
+            ("KV Girls Check Tunic (Class 1-2)", "kv-girls-1-2-tunic"),
+            ("KV Navy PT Track Pants (Class 6-12)", "kv-track-pant-navy"),
+            ("KV Grey Socks with Red Stripes (Pack of 2)", "kv-socks-grey"),
+        ]:
+            model = f"{PHOTO_BASE}{file}.webp"
+            self.assertEqual(plain_first_images(name, [model]), [plain_url(file), model])
 
     def test_hand_added_pt_shirts_get_their_house_colour(self):
         upload = f"{PHOTO_BASE.replace('/products/', '/media/products/')}x/blue-by-mistake.webp"

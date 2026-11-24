@@ -214,6 +214,18 @@ PLAIN_FILES = frozenset({
     "kv-house-tshirt-blue",
     "kv-house-tshirt-green",
     "kv-house-tshirt-yellow",
+    "kv-girls-1-2-tunic",
+    "kv-girls-3-8-shirt-summer",
+    "kv-girls-shirt-winter",
+    "kv-girls-9-12-kurta",
+    "kv-cardigan-girls-9-12",
+    "kv-girls-leggings-grey",
+    "kv-track-pant-navy",
+    "kv-hooded-jacket-half",
+    "kv-hooded-jacket-full",
+    "kv-coatie-grey",
+    "kv-sweater-v-neck",
+    "kv-socks-grey",
 })
 # The PT T-shirts the panel added by hand ("KV PT Uniform Blue", "KV Uniform Yellow"):
 # matched by house colour, since their own photos are uploads.
