@@ -19,8 +19,7 @@ from common.cache_utils import (
     versioned_cache_key,
 )
 from common.pagination import BoundedCursorPagination
-from inventory.models import StockBalance
-from inventory.services import stock_flag
+from inventory.services import stock_flags
 from schools.models import School
 
 from .images import product_gallery, product_image, product_image_alt, product_thumbnail
@@ -476,7 +475,7 @@ class PublicProductList(APIView):
         cache_key = None
         try:
             cache_key = versioned_cache_key(
-                "catalog:public:filtered",
+                "catalog:public:filtered-metadata",
                 request.build_absolute_uri(),
                 CATALOG_CACHE_VERSION_KEY,
                 SCHOOL_LIST_CACHE_VERSION_KEY,
@@ -487,22 +486,11 @@ class PublicProductList(APIView):
             cached_data = None
 
         if cached_data is not None:
-            return Response(cached_data)
+            return self.with_availability(cached_data, city_uuid)
 
-        balance_qs = StockBalance.objects.filter(city_id=city_uuid) if city_uuid else StockBalance.objects.none()
         variants = Prefetch(
             "variants",
-            queryset=(
-                ProductVariant.objects.filter(active=True)
-                .order_by("size", "id")
-                .prefetch_related(
-                    Prefetch(
-                        "stock_balances",
-                        queryset=balance_qs,
-                        to_attr="selected_city_balances",
-                    )
-                )
-            ),
+            queryset=ProductVariant.objects.filter(active=True).order_by("size", "id"),
         )
 
         category = request.query_params.get("category")
@@ -577,14 +565,6 @@ class PublicProductList(APIView):
                     {
                         "id": str(variant.id),
                         "size": variant.size,
-                        "stock_status": (
-                            stock_flag(
-                                variant.selected_city_balances[0].stock_quantity,
-                                variant.selected_city_balances[0].low_stock_threshold,
-                            )
-                            if variant.selected_city_balances
-                            else None
-                        ),
                     }
                     for variant in product.variants.all()
                 ],
@@ -601,7 +581,23 @@ class PublicProductList(APIView):
                 )
             except Exception:
                 pass
-        return response
+        return self.with_availability(response.data, city_uuid)
+
+    @staticmethod
+    def with_availability(data, city_id):
+        variant_ids = [variant["id"] for product in data["results"] for variant in product["variants"]]
+        flags = stock_flags(city_id, variant_ids, missing=None)
+        results = [
+            {
+                **product,
+                "variants": [
+                    {**variant, "stock_status": flags[variant["id"]]}
+                    for variant in product["variants"]
+                ],
+            }
+            for product in data["results"]
+        ]
+        return Response({**data, "results": results}, headers={"Cache-Control": "no-store"})
 
 
 class PublicMeasureConfigView(APIView):

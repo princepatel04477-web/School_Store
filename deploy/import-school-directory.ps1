@@ -27,10 +27,13 @@ $code = 1
 try {
     # 1. backup (plain SQL, restorable with psql -f)
     $dump = Join-Path $state ("backup-before-directory-{0}.sql" -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
-    $env:PGPASSWORD = $cfg['POSTGRES_PASSWORD']
-    & (Join-Path $root 'runtime\postgres\bin\pg_dump.exe') -h 127.0.0.1 -p $cfg['POSTGRES_PORT'] -U $cfg['POSTGRES_USER'] -d $cfg['POSTGRES_DB'] -f $dump
+    # same database the import below writes to: DATABASE_URL (e.g. self-hosted Supabase) wins over POSTGRES_*
+    . "$PSScriptRoot\db-connection.ps1"
+    $conn = Get-StoreDbConnection $cfg
+    & (Join-Path $root 'runtime\postgres\bin\pg_dump.exe') @($conn.Args) -f $dump
     if ($LASTEXITCODE -ne 0) { throw "pg_dump failed (exit $LASTEXITCODE)" }
-    Log "backup written: $dump"
+    Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
+    Log "backup of $($conn.Label) written: $dump"
 
     # 2. import
     Push-Location (Join-Path $project 'backend')
