@@ -2,16 +2,16 @@
 
 Goal: run Supabase (with the Studio dashboard) on the store server 192.168.0.125 and move the School Store database into it.
 
-**Setup:** Windows Server 2016 (Xeon Silver 4210R, 32 GB RAM, 1 TB SSD for C: and a new V: drive, 8 TB HDD for D: and E:) runs Hyper-V. Inside it, an Ubuntu 24.04 VM on the SSD runs Coolify, and Coolify runs Supabase. The store (Django) keeps running on Windows and connects to Supabase's Postgres over the LAN.
+**Setup:** Windows Server 2016 (Xeon Silver 4210R, 32 GB RAM, 1 TB SSD for C:, 8 TB HDD for D: and the owner's 1 TB partition E:) runs Hyper-V. Inside it, an Ubuntu 24.04 VM stored on E: runs Coolify, and Coolify runs Supabase. The store (Django) keeps running on Windows and connects to Supabase's Postgres over the LAN.
 
-> **Sections 1 to 3 are replaced by `docs/supabase-vm-server-runbook.md`.** It has the right order (virtualization is OFF in the BIOS and must be turned on first), the new `V:` partition on the SSD, the server's real adapter name (`Ethernet 3`), and the safety rules. Follow the runbook for those steps. The rest of this guide still applies.
+> **Sections 1 to 3 are replaced by `docs/supabase-vm-server-runbook.md`.** It has the right order (virtualization is OFF in the BIOS and must be turned on first), the VM folder `E:\VMs` (no partition changes), the server's real adapter name (`Ethernet 3`), and the safety rules. Follow the runbook for those steps. The rest of this guide still applies.
 
 | Thing | Value used in this guide | Change if needed |
 |---|---|---|
 | Store server | 192.168.0.125 | |
 | VM name | `supabase` | |
 | VM IP | 192.168.0.130 | pick any free IP on your LAN (`ping 192.168.0.130` must fail first) |
-| VM size | 6 cores, 8 GB RAM, 200 GB fixed disk on `V:` (SSD) | raise RAM later if needed (step 12) |
+| VM size | 6 cores, 8 GB RAM, 200 GB fixed disk in `E:\VMs` (HDD) | raise RAM later if needed (step 12) |
 | Supabase Postgres port for the store | 54322 | |
 | Current store database | Postgres 17.11 on 127.0.0.1:5433 | do not touch port 5432 (another app) |
 
@@ -27,7 +27,7 @@ Planned downtime: about 10 minutes for the BIOS change and another 10 for the Hy
    powershell -ExecutionPolicy Bypass -File .\deploy\backup-to-cloudflare.ps1
    ```
    If `deploy\backup.env` is not set up, use a plain dump instead (step 9.2 shows the command).
-2. Download the Ubuntu Server 24.04 LTS ISO from ubuntu.com to `V:\ISO\`.
+2. Download the Ubuntu Server 24.04 LTS ISO from ubuntu.com to `E:\ISO\`.
 
 ## 1. Turn on Hyper-V (one reboot)
 
@@ -61,13 +61,13 @@ Replace `Ethernet` with the name of the adapter that is "Up" in `Get-NetAdapter`
 ## 3. Create the VM
 
 ```powershell
-New-Item -ItemType Directory -Force V:\VMs\supabase
-New-VHD -Path V:\VMs\supabase\disk.vhdx -SizeBytes 200GB -Fixed
-New-VM -Name supabase -Generation 2 -MemoryStartupBytes 8GB -VHDPath V:\VMs\supabase\disk.vhdx -SwitchName LAN
+New-Item -ItemType Directory -Force E:\VMs\supabase
+New-VHD -Path E:\VMs\supabase\disk.vhdx -SizeBytes 200GB -Fixed
+New-VM -Name supabase -Generation 2 -MemoryStartupBytes 8GB -VHDPath E:\VMs\supabase\disk.vhdx -SwitchName LAN
 Set-VMMemory supabase -DynamicMemoryEnabled $false
 Set-VMProcessor supabase -Count 6
 Set-VMFirmware supabase -SecureBootTemplate MicrosoftUEFICertificateAuthority
-Add-VMDvdDrive supabase -Path V:\ISO\ubuntu-24.04-live-server-amd64.iso
+Add-VMDvdDrive supabase -Path E:\ISO\ubuntu-24.04-live-server-amd64.iso
 Set-VMFirmware supabase -FirstBootDevice (Get-VMDvdDrive supabase)
 Set-VM supabase -AutomaticStartAction Start -AutomaticStartDelay 60 -AutomaticStopAction ShutDown
 Start-VM supabase
@@ -75,8 +75,8 @@ vmconnect localhost supabase
 ```
 
 - Use the exact ISO file name you downloaded.
-- `New-VHD -Fixed` writes the whole 200 GB. On the SSD this takes a few minutes.
-- `V:` is the 300 GB partition on the SSD (see the runbook). The other app's data is on `D:` (HDD), so they do not compete for the same disk.
+- `New-VHD -Fixed` writes the whole 200 GB, which takes 20 to 30 minutes on the hard drive. That is expected. A fixed disk stays in one piece on the drive, which matters on an HDD.
+- `E:` is the owner's 1 TB partition on the 8 TB HDD. It already holds the store, so touch nothing outside `E:\VMs` and `E:\ISO`.
 - The `SecureBootTemplate` line is required, or Ubuntu will not boot.
 
 ## 4. Install Ubuntu
@@ -115,7 +115,7 @@ In Coolify:
 3. Before deploying, open **Environment Variables**:
    - Note the Studio login (`SERVICE_USER_ADMIN` / `SERVICE_PASSWORD_ADMIN`) and the database password (`SERVICE_PASSWORD_POSTGRES`). The names can differ slightly between Coolify versions. Look for "ADMIN" and "POSTGRES".
    - If there is a `PGRST_DB_SCHEMAS` variable, set it to `storage,graphql_public`. This stops Supabase's public REST API from serving the store's tables (see step 9.4 for why).
-4. Click **Deploy**. The first start takes a few minutes. Wait until every part shows healthy.
+4. Click **Deploy**. On the hard drive, the first start takes 5 to 10 minutes. Wait until every part shows healthy.
 5. Open the Studio link Coolify shows for the service (the `supabasekong` address, something like `http://supabasekong-xxxx.192.168.0.130.sslip.io`) and log in.
 6. In Studio's SQL editor, run `select version();` and note whether it says 15 or 17.
 
@@ -144,7 +144,7 @@ It must print the Postgres version.
   ```
   This rule is lost on reboot. To keep it, add it to a startup script, or leave it out and rely on the long password and LAN-only access.
 
-## 8. Tune Postgres (VM on SSD)
+## 8. Tune Postgres for the hard drive
 
 The store connects as `postgres`, which in Supabase is not a superuser, so run this as `supabase_admin` inside the VM:
 
@@ -156,9 +156,8 @@ sudo docker exec -it "$DB" psql -U supabase_admin -d postgres
 ```sql
 ALTER SYSTEM SET shared_buffers = '2GB';
 ALTER SYSTEM SET effective_cache_size = '5GB';
-ALTER SYSTEM SET random_page_cost = '1.1';
-ALTER SYSTEM SET effective_io_concurrency = '200';
 ALTER SYSTEM SET wal_compression = 'on';
+ALTER SYSTEM SET checkpoint_timeout = '15min';
 ALTER SYSTEM SET max_wal_size = '4GB';
 \q
 ```
@@ -167,7 +166,7 @@ ALTER SYSTEM SET max_wal_size = '4GB';
 sudo docker restart "$DB"
 ```
 
-`random_page_cost` 1.1 and `effective_io_concurrency` 200 are the usual values for an SSD.
+Leave `random_page_cost` at its default of 4, which is correct for a hard drive.
 
 These values suit an 8 GB VM. If you raise the VM to 16 GB later, change them to `4GB` and `10GB`.
 
@@ -320,9 +319,11 @@ Set-VMMemory supabase -StartupBytes 12GB
 Start-VM supabase
 ```
 
-Watch the `%util` column for the VM's disk (`sda`). On the SSD it should stay low. If it sits near 100% during busy hours, turn off Supabase's analytics and log containers in the Coolify compose file. This cuts constant disk writes, but Studio's Logs page stops working, and the Studio service's `depends_on` for analytics must be removed too.
+Watch the `%util` column for the VM's disk (`sda`). If it sits near 100% during busy hours, the hard drive is the limit:
+- Move the VM to the server's SSD (`C:`, a Samsung 860 EVO with about 800 GB free). Shut the VM down, copy `E:\VMs\supabase` to the SSD, and point the VM at the new disk path. This is the biggest upgrade.
+- Or turn off Supabase's analytics and log containers in the Coolify compose file. This cuts constant disk writes, but Studio's Logs page stops working, and the Studio service's `depends_on` for analytics must be removed too.
 
-The nightly backups land on `E:` (the HDD), so a backup survives if the SSD fails.
+The VM and the local backups are both on the same 8 TB hard drive, so the R2 copy is the one that survives if that drive fails. Keep the nightly upload to R2 working.
 
 ## Things to check yourself
 
