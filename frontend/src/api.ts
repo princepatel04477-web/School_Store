@@ -142,9 +142,10 @@ export async function uploadDirectToObjectStorage(
  * ------------------------------------------------------------------ */
 export type PanelSchool={id:string;name:string;code:string;city_name:string};
 export type Money=string; // decimals come back as strings so nothing rounds twice
-export type DashboardTotals={orders:number;units:number;gross_sales:Money;cost:Money;margin:Money;average_order_value:Money};
+export type DashboardTotals={orders:number;units:number;gross_sales:Money;cost?:Money;margin?:Money;average_order_value:Money};
 export type CategoryRow={category_id:string;category:string;orders:number;units:number;gross_sales:Money;share_pct:Money};
-export type DailyPoint={date:string;orders:number;units:number;gross_sales:Money};
+export type TrendBucket='day'|'week'|'month';
+export type DailyPoint={date:string;bucket?:TrendBucket;orders:number;units:number;gross_sales:Money};
 export type Commission={rate_set:boolean;rate:string|null;rate_display:string;basis:string;gross_sales:Money;commission_amount:Money|null;currency:string;note:string|null};
 export type Dashboard={school:PanelSchool&{commission_rate:string|null};date_from:string;date_to:string;days:number;totals:DashboardTotals;categories:CategoryRow[];daily:DailyPoint[];commission:Commission;pending_students:number;notes:string[]};
 export type PanelOrderItem={
@@ -193,6 +194,7 @@ export const panel={
   schools:()=>api<{results:PanelSchool[]}>('/panel/schools/'),
   filters:(school:string)=>api<FilterOptions>(`/panel/filters/?school=${school}`),
   dashboard:(school:string,from:string,to:string)=>api<Dashboard>(`/panel/dashboard/?school=${school}&date_from=${from}&date_to=${to}`),
+  teacherSummary:()=>api<TeacherSummary>('/panel/teacher-summary/'),
   orders:(school:string,p:Record<string,string>={})=>api<Page<PanelOrder>>(`/panel/orders/?${new URLSearchParams({school,...p})}`),
   students:(school:string,p:Record<string,string>={})=>api<Page<PanelStudent>>(`/panel/students/?${new URLSearchParams({school,...p})}`),
   pendingStudents:(school:string)=>api<{count:number;results:PanelStudent[]}>(`/panel/students/pending/?school=${school}`),
@@ -252,8 +254,17 @@ export type SizeChartItem={product_id:string;product_name:string;category:string
 /* ------------------------------------------------------------------ *
  * City Admin panel (scoped to city)
  * ------------------------------------------------------------------ */
+export type TeacherSummary={
+  school:{id:string;name:string;code:string};
+  students:{total:number;pending:number};
+  month:{date_from:string;date_to:string;orders:number;units:number;gross_sales:Money};
+  today:{orders:number;gross_sales:Money};
+  trend:{date:string;orders:number;gross_sales:Money}[];
+};
+
 export type CityDailySales={
   date:string;
+  trend:{date:string;orders:number;units:number;revenue:Money}[];
   city:{id:string;name:string;code:string};
   totals:{orders:number;units:number;revenue:Money};
   categories:{category_id:string;category_name:string;orders:number;units:number;revenue:Money}[];
@@ -391,11 +402,14 @@ export type BossKpis={
   gross_margin_pct:string;
   orders:number;
   units_sold:number;
+  average_order_value:Money;
   current_stock_value:Money;
+  previous:{date_from:string;date_to:string;revenue:Money;gross_profit:Money;orders:number;units:number};
 };
 
 export type BossRevProfitPoint={
   date:string;
+  bucket:TrendBucket;
   revenue:Money;
   cost:Money;
   profit:Money;

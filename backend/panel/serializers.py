@@ -165,6 +165,7 @@ class CategoryBreakdownSerializer(serializers.Serializer):
 
 class DashboardDailySerializer(serializers.Serializer):
     date = serializers.DateField()
+    bucket = serializers.CharField()
     orders = serializers.IntegerField()
     units = serializers.IntegerField()
     gross_sales = serializers.DecimalField(max_digits=16, decimal_places=2)

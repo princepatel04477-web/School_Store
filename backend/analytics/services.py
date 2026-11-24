@@ -25,6 +25,14 @@ from .models import DailyProductTotal, DailySalesSummary, DailySchoolTotal
 # Statuses that must never appear in revenue reporting.
 EXCLUDED_STATUSES = ("CANCELLED", "REFUNDED")
 
+# Order numbers made by the seed and load-test scripts (seed_data, seed_perf_orders,
+# the old DEMO generator). They are sample data, never sales, so no dashboard counts them.
+SAMPLE_ORDER_PREFIXES = ("ORD-SEED-", "ORD-PERF-", "DEMO")
+# The same rule inside the raw SQL; %% is a literal % once the query is given its parameters.
+_SAMPLE_ORDER_SQL = " ".join(
+    f"AND o.order_number NOT LIKE '{prefix}%%'" for prefix in SAMPLE_ORDER_PREFIXES
+)
+
 
 def _day_bounds(target_date: date) -> tuple[datetime, datetime]:
     local_tz = ZoneInfo(settings.TIME_ZONE)
@@ -51,6 +59,7 @@ def _rollup_sql(where_clause: str) -> str:
         FROM orders_order o
         INNER JOIN orders_orderitem oi ON oi.order_id = o.id
         WHERE o.status NOT IN ('CANCELLED', 'REFUNDED')
+        {_SAMPLE_ORDER_SQL}
         {where_clause}
         GROUP BY GROUPING SETS (
             (
@@ -87,6 +96,7 @@ def _product_rollup_sql(where_clause: str) -> str:
         INNER JOIN orders_orderitem oi ON oi.order_id = o.id
         INNER JOIN catalog_productvariant pv ON pv.id = oi.variant_id
         WHERE o.status NOT IN ('CANCELLED', 'REFUNDED')
+        {_SAMPLE_ORDER_SQL}
         {where_clause}
         GROUP BY
             (o.created_at AT TIME ZONE %s::text)::date,
@@ -95,6 +105,55 @@ def _product_rollup_sql(where_clause: str) -> str:
             o.school_id,
             o.city_id
     """
+
+
+def _orm_rollup_rows(target_date: date | None) -> tuple[list[tuple], list[tuple]]:
+    """
+    The rollup rows in the same tuple shapes as the Postgres SQL, built with the
+    ORM for databases without GROUPING SETS.
+    """
+    from django.db.models import Count, DecimalField, ExpressionWrapper, F, Sum
+    from django.db.models.functions import TruncDate
+
+    from orders.models import OrderItem
+
+    local_tz = ZoneInfo(settings.TIME_ZONE)
+    items = OrderItem.objects.exclude(order__status__in=EXCLUDED_STATUSES)
+    for prefix in SAMPLE_ORDER_PREFIXES:
+        items = items.exclude(order__order_number__startswith=prefix)
+    if target_date is not None:
+        start, end = _day_bounds(target_date)
+        items = items.filter(order__created_at__gte=start, order__created_at__lt=end)
+    items = items.annotate(sale_date=TruncDate("order__created_at", tzinfo=local_tz))
+
+    money = DecimalField(max_digits=16, decimal_places=2)
+    revenue = Sum(ExpressionWrapper(F("quantity") * F("unit_price_snapshot"), output_field=money))
+    cost = Sum(ExpressionWrapper(F("quantity") * F("unit_cost_snapshot"), output_field=money))
+
+    def grain(*keys):
+        return items.values("sale_date", "order__city_id", "order__school_id", *keys).annotate(
+            orders_count=Count("order_id", distinct=True),
+            units_sum=Sum("quantity"),
+            revenue_sum=revenue,
+            cost_sum=cost,
+        ).order_by()
+
+    rows: list[tuple] = []
+    for r in grain("category_id"):
+        rows.append((r["sale_date"], r["order__city_id"], r["order__school_id"], r["category_id"],
+                     r["orders_count"], r["units_sum"] or 0, r["revenue_sum"] or 0, r["cost_sum"] or 0))
+    for r in grain():
+        rows.append((r["sale_date"], r["order__city_id"], r["order__school_id"], None,
+                     r["orders_count"], r["units_sum"] or 0, r["revenue_sum"] or 0, r["cost_sum"] or 0))
+
+    prod_rows = [
+        (r["sale_date"], r["variant__product_id"], r["category_id"], r["order__school_id"],
+         r["order__city_id"], r["units_sum"] or 0, r["revenue_sum"] or 0, r["cost_sum"] or 0)
+        for r in items.values(
+            "sale_date", "variant__product_id", "category_id", "order__school_id", "order__city_id"
+        ).annotate(units_sum=Sum("quantity"), revenue_sum=revenue, cost_sum=cost).order_by()
+    ]
+    return rows, prod_rows
 
 
 def rollup_sales(target_date: date | None = None) -> dict:
@@ -121,19 +180,20 @@ def rollup_sales(target_date: date | None = None) -> dict:
     params.extend([settings.TIME_ZONE, settings.TIME_ZONE])
     prod_params.append(settings.TIME_ZONE)
 
-    if connection.vendor != "postgresql":
-        # SQLite compatibility fallback for testing/local SQLite mode
-        return {"category_rows": 0, "school_rows": 0, "product_rows": 0}
+    if connection.vendor == "postgresql":
+        sql = _rollup_sql(where_clause)
+        prod_sql = _product_rollup_sql(where_clause)
 
-    sql = _rollup_sql(where_clause)
-    prod_sql = _product_rollup_sql(where_clause)
+        with connection.cursor() as cursor:
+            cursor.execute(sql, params)
+            rows = cursor.fetchall()
 
-    with connection.cursor() as cursor:
-        cursor.execute(sql, params)
-        rows = cursor.fetchall()
-
-        cursor.execute(prod_sql, prod_params)
-        prod_rows = cursor.fetchall()
+            cursor.execute(prod_sql, prod_params)
+            prod_rows = cursor.fetchall()
+    else:
+        # Other databases (SQLite in local mode) used to skip the rollup, so every
+        # dashboard read zero there. The ORM builds the same rows, just slower.
+        rows, prod_rows = _orm_rollup_rows(target_date)
 
     category_rows: list[DailySalesSummary] = []
     school_rows: list[DailySchoolTotal] = []

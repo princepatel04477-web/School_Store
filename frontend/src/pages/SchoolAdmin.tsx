@@ -4,7 +4,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { useAuth } from '../auth';
 import {
   api, download, money, money2, num, panel, relative,
-  type CategoryRow, type Commission, type Dashboard, type ExportJob, type FilterOptions,
+  type Commission, type Dashboard, type ExportJob, type FilterOptions,
   type ImportJob, type PanelOrder, type PanelSchool, type PanelStudent, type PanelTeacher,
   type StudentOrders,
 } from '../api';
@@ -12,6 +12,7 @@ import { Overview as OverviewIcon, Receipt, User, Users, Download, Ruler } from 
 import { PanelShell, type PanelNavItem } from '../components/admin/PanelShell';
 import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
 import { SizeChartManager } from '../components/admin/SizeChartManager';
+import { CHART_COLORS, ChartSkeleton, KpiSkeleton, LIVE, LiveStamp, OrdersStrip, RankList, TrendChart } from '../components/admin/charts';
 
 /* ------------------------------------------------------------------ *
  * School scope
@@ -92,7 +93,8 @@ function Overview() {
 
   const dates = useMemo(() => {
     const today = new Date();
-    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    // Local calendar day: toISOString is UTC, a day behind in India before 05:30
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     if (custom) return custom;
     const days = Number(range);
     const from = new Date(today);
@@ -105,10 +107,11 @@ function Overview() {
     queryFn: () => panel.filters(schoolId!),
     enabled: !!schoolId,
   });
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, isFetching, dataUpdatedAt, refetch } = useQuery({
     queryKey: ['panel-dashboard', schoolId, dates.from, dates.to],
     queryFn: () => panel.dashboard(schoolId!, dates.from, dates.to),
     enabled: !!schoolId,
+    ...LIVE,
   });
 
   return (
@@ -120,6 +123,7 @@ function Overview() {
           <p className="muted">
             {data ? `${data.school.code} · ${data.school.city_name} · ${data.days} day${data.days === 1 ? '' : 's'}` : ' '}
           </p>
+          <LiveStamp updatedAt={dataUpdatedAt} fetching={isFetching} onRefresh={() => refetch()} />
         </div>
         <div className="range-picker">
           {[['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['365', '1 year']].map(([v, l]) => (
@@ -131,7 +135,12 @@ function Overview() {
       </div>
 
       {isError && <div className="empty"><h3>Could not load the dashboard</h3><p>Please refresh and try again.</p></div>}
-      {isLoading && !data && <div className="empty"><h3>Loading the dashboard…</h3></div>}
+      {isLoading && !data && (
+        <>
+          <section className="stat-grid three"><KpiSkeleton count={3} /></section>
+          <section className="card"><ChartSkeleton height={240} /></section>
+        </>
+      )}
       {data && <DashboardBody data={data} />}
     </>
   );
@@ -139,44 +148,62 @@ function Overview() {
 
 function DashboardBody({ data }: { data: Dashboard }) {
   const hasSales = Number(data.totals.gross_sales) > 0;
-  const bars = data.daily.slice(-60);
-  const max = Math.max(1, ...bars.map((d) => Number(d.gross_sales)));
+  const bucket = data.daily[0]?.bucket ?? 'day';
+  const busyDays = data.daily.filter((d) => Number(d.gross_sales) > 0).length;
   return (
     <>
-      <section className="stat-grid three">
-        <StatCard label="TOTAL ORDERS" value={num(data.totals.orders)} hint={`${num(data.totals.average_order_value)} average order`} />
-        <StatCard label="UNITS SOLD" value={num(data.totals.units)} hint="items shipped across the school" />
-        <StatCard label="GROSS SALES" value={money(data.totals.gross_sales)} hint={`${money(data.totals.margin)} margin on ${money(data.totals.cost)} cost`} accent />
+      <section className="stat-grid three lead-first">
+        <StatCard
+          label="GROSS SALES"
+          value={money(data.totals.gross_sales)}
+          hint={data.totals.margin !== undefined ? `${money(data.totals.margin)} margin on ${money(data.totals.cost)} cost` : `${data.days} day${data.days === 1 ? '' : 's'} up to ${data.date_to}`}
+          accent
+        />
+        <StatCard label="ORDERS" value={num(data.totals.orders)} hint={data.totals.orders ? `${money(data.totals.average_order_value)} average order` : 'Average order: -'} />
+        <StatCard label="UNITS SOLD" value={num(data.totals.units)} hint="Items across every order" />
+      </section>
+
+      <section className="card">
+        <div className="card-head">
+          <h2>Gross sales {bucket === 'day' ? 'by day' : bucket === 'week' ? 'by week' : 'by month'}</h2>
+          <span className="pill">{busyDays} {bucket}{busyDays === 1 ? '' : 's'} with sales</span>
+        </div>
+        {hasSales ? (
+          <>
+            <div className="chart-body">
+              <TrendChart
+                data={data.daily}
+                bucket={bucket}
+                series={[{ key: 'gross_sales', name: 'Gross sales', color: CHART_COLORS[0] }]}
+                extra={(p) => <span>Orders<em>{num(Number(p.orders))}</em></span>}
+              />
+            </div>
+            <div className="chart-body">
+              <p className="chart-sub">Orders</p>
+              <OrdersStrip data={data.daily} bucket={bucket} />
+            </div>
+          </>
+        ) : (
+          <p className="chart-empty">Nothing sold in these dates yet. The chart fills in as orders come in.</p>
+        )}
       </section>
 
       <div className="panel-grid">
         <section className="card">
           <div className="card-head">
             <h2>Sales by category</h2>
-            <span className="pill">{data.categories.length} categories</span>
           </div>
-          {hasSales ? (
-            <table className="data">
-              <thead>
-                <tr><th>Category</th><th className="r">Orders</th><th className="r">Units</th><th className="r">Gross sales</th><th className="r">Share</th></tr>
-              </thead>
-              <tbody>
-                {data.categories.map((c) => <CategoryRowView key={c.category_id} row={c} />)}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <th>Total</th>
-                  <th className="r">{num(data.totals.orders)}</th>
-                  <th className="r">{num(data.totals.units)}</th>
-                  <th className="r">{money(data.totals.gross_sales)}</th>
-                  <th className="r">100%</th>
-                </tr>
-              </tfoot>
-            </table>
-          ) : (
-            <p className="muted pad">No sales recorded in this range.</p>
-          )}
-          <p className="fine">{data.notes?.[1]}</p>
+          <RankList
+            empty="No sales in these dates."
+            rows={data.categories.map((c) => ({
+              key: String(c.category_id),
+              label: c.category,
+              sub: `${num(c.orders)} orders, ${num(c.units)} units, ${Number(c.share_pct) < 1 && Number(c.gross_sales) > 0 ? 'under 1' : Math.round(Number(c.share_pct))}% of sales`,
+              value: Number(c.gross_sales),
+              display: money(c.gross_sales),
+            }))}
+          />
+          {hasSales && <p className="fine pad-tight">An order with items in two categories counts once in each, so category orders can add up to more than the total.</p>}
         </section>
 
         <section className="card">
@@ -185,30 +212,12 @@ function DashboardBody({ data }: { data: Dashboard }) {
         </section>
       </div>
 
-      <section className="card">
-        <div className="card-head">
-          <h2>Daily gross sales</h2>
-          <span className="pill">{data.daily.length} day{data.daily.length === 1 ? '' : 's'} with sales</span>
-        </div>
-        {bars.length ? (
-          <div className="bars" role="img" aria-label="Daily gross sales">
-            {bars.map((d) => (
-              <div key={d.date} className="bar" style={{ height: `${Math.max(3, (Number(d.gross_sales) / max) * 100)}%` }}
-                title={`${d.date} · ${money(d.gross_sales)} · ${num(d.orders)} orders`} />
-            ))}
-          </div>
-        ) : (
-          <p className="muted pad">Nothing sold in this range yet.</p>
-        )}
-        <div className="bars-axis"><span>{bars[0]?.date ?? data.date_from}</span><span>{bars[bars.length - 1]?.date ?? data.date_to}</span></div>
-      </section>
-
       <section className="notice-row">
         <div className="notice">
           <b>{data.pending_students}</b> student{data.pending_students === 1 ? '' : 's'} waiting for approval
           <Link to="/school/students?pending=1" className="link-button">Review →</Link>
         </div>
-        <p className="fine">{data.notes?.[0]}</p>
+
       </section>
     </>
   );
@@ -221,21 +230,6 @@ function StatCard({ label, value, hint, accent }: { label: string; value: string
       <strong>{value}</strong>
       {hint && <small>{hint}</small>}
     </div>
-  );
-}
-
-function CategoryRowView({ row }: { row: CategoryRow }) {
-  return (
-    <tr>
-      <td>{row.category}</td>
-      <td className="r">{num(row.orders)}</td>
-      <td className="r">{num(row.units)}</td>
-      <td className="r">{money(row.gross_sales)}</td>
-      <td className="r">
-        <span className="share"><i style={{ width: `${Number(row.share_pct)}%` }} /></span>
-        {Number(row.share_pct).toFixed(1)}%
-      </td>
-    </tr>
   );
 }
 
@@ -261,7 +255,7 @@ function CommissionCard({ commission }: { commission: Commission }) {
         <div><dt>Commission rate</dt><dd>{commission.rate_display}</dd></div>
         <div><dt>Commission ({commission.currency})</dt><dd className="big">{money2(commission.commission_amount)}</dd></div>
       </dl>
-      <p className="fine">Rate is read from the school record, never hard-coded.</p>
+
     </div>
   );
 }

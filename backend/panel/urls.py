@@ -17,6 +17,7 @@ from .views import (
     DashboardView,
     ExportJobViewSet,
     TailorSheetViewSet,
+    TeacherSummaryView,
     PanelFilterOptionsView,
     PanelOrdersView,
     PanelSchoolsView,
@@ -38,6 +39,7 @@ urlpatterns = [
     path("commission/", CommissionView.as_view(), name="panel-commission"),
     path("schools/", PanelSchoolsView.as_view(), name="panel-schools"),
     path("filters/", PanelFilterOptionsView.as_view(), name="panel-filters"),
+    path("teacher-summary/", TeacherSummaryView.as_view(), name="panel-teacher-summary"),
     path("city-daily-sales/", CityDailySalesView.as_view(), name="panel-city-daily-sales"),
     # Boss panel executive endpoints (Requirements 1, 2, 6, 7)
     path("boss/kpis/", BossKpisView.as_view(), name="boss-kpis"),
