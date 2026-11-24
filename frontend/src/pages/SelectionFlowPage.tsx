@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { ArrowLeft, ChevronRight } from '../components/ui/icons';
+import { ArrowLeft } from '../components/ui/icons';
 import { seedClasses, type SeedClass } from '../data/seedData';
 import { useStoreSchools, useStoreProducts } from '../data/catalog';
 import { BranchPicker, type PickedBranch } from '../components/school/BranchPicker';
@@ -34,34 +34,15 @@ import {
   useSizeFit,
   type Fit,
 } from '../data/fit';
-import { isPtUniform, shopSection } from '../data/shopSections';
-import { CATEGORY_PHOTOS } from '../data/categoryPhotos';
+import { ACCESSORY_RANK, inShopOrder, isPtUniform, shopOrderRank, shopSection } from '../data/shopSections';
 import { LIVE_CATEGORIES, isCategoryLive } from '../data/liveCategories';
-
-// Shoes and tie, belt and socks share one Accessories row under Uniform.
-const ACCESSORY_CATEGORIES: readonly string[] = LIVE_CATEGORIES.filter((cat) => cat === 'School Shoes' || cat === 'Uniform Accessories');
-const OTHER_CATEGORIES = LIVE_CATEGORIES.filter((cat) => cat !== 'Uniform' && !ACCESSORY_CATEGORIES.includes(cat));
-
-export type AccessoryChip = 'all' | 'shoes' | 'tie' | 'belt' | 'socks';
-
-function getAccessoryType(product: { name: string; category: string }): 'shoes' | 'tie' | 'belt' | 'socks' | null {
-  if (product.category === 'School Shoes' || /shoe|oxford|sneaker|footwear/i.test(product.name)) {
-    return 'shoes';
-  }
-  if (/\b(?:tie|necktie)\b/i.test(product.name)) {
-    return 'tie';
-  }
-  if (/belt\b/i.test(product.name)) {
-    return 'belt';
-  }
-  if (/sock|socks/i.test(product.name)) {
-    return 'socks';
-  }
-  return null;
-}
 import { useBackHandler } from '../components/BackButton';
-import { CategoryPhoto } from '../components/CategoryPhoto';
 import './flow.css';
+
+// Shoes and tie, belt and socks: after one of these goes in the bag, the stationery question.
+const ACCESSORY_CATEGORIES: readonly string[] = LIVE_CATEGORIES.filter((cat) => cat === 'School Shoes' || cat === 'Uniform Accessories');
+// An old link or home tile that asks for these (?cat=…) opens the list at the tie.
+const ACCESSORY_LINKS = ['Accessories', 'School Shoes', 'Uniform Accessories'];
 
 // Memory only (nothing is saved on the phone): asked once per page load or app open.
 let stationeryAsked = false;
@@ -226,58 +207,17 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const [showCartWarning, setShowCartWarning] = useState(false);
   const [pendingTargetStep, setPendingTargetStep] = useState<number | null>(null);
 
-  // Active Category Tab on Step 4
-  // A home page category tile links here with ?cat=…, so open on that category.
+  // Step 4 is one list in a fixed order (see shopOrderRank), with no category bars.
+  // A home page tile or header link still adds ?cat=…: the list opens at that kind of item.
   const catParam = searchParams.get('cat');
-  const subParam = searchParams.get('sub')?.toLowerCase() as AccessoryChip | undefined;
-  const inAccessories = catParam === 'Accessories' || Boolean(catParam && ACCESSORY_CATEGORIES.includes(catParam));
-  // A paused category (notebooks, ID cards) opens on Uniform instead, even from an old link.
-  const activeTab = inAccessories
-    ? 'Accessories'
-    : catParam && CATEGORY_PHOTOS[catParam] && isCategoryLive(catParam)
-    ? catParam
-    : 'Uniform';
-  const defaultSub: AccessoryChip = catParam === 'School Shoes' ? 'shoes' : 'all';
-  const activeSub: AccessoryChip =
-    subParam && ['all', 'shoes', 'tie', 'belt', 'socks'].includes(subParam) ? subParam : defaultSub;
-
-  // Changing category while scrolled down jumps back to the start of that category's list
-  const tabsTopRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!tabsTopRef.current) return;
-    const top = tabsTopRef.current.getBoundingClientRect().top + window.scrollY - 60;
-    if (window.scrollY > top) scrollPageTo(top);
-  }, [activeTab]);
-  // Kept in the address, so the header's category links and these tabs stay in step
-  const selectTab = (cat: string) => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.set('cat', cat);
-        if (cat !== 'Accessories') {
-          next.delete('sub');
-        }
-        return next;
-      },
-      { replace: true }
-    );
+  const listRef = useRef<HTMLDivElement>(null);
+  /** Scrolls the list to the first item that passes the test. */
+  const scrollToItem = (test: (product: CardProduct) => boolean) => {
+    const index = step4Products.findIndex(test);
+    const card = index < 0 ? null : listRef.current?.querySelectorAll('.product-card')[index];
+    if (card) scrollPageTo(card.getBoundingClientRect().top + window.scrollY - 80);
   };
-
-  const selectAccessoryChip = (chip: AccessoryChip) => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.set('cat', 'Accessories');
-        if (chip === 'all') {
-          next.delete('sub');
-        } else {
-          next.set('sub', chip);
-        }
-        return next;
-      },
-      { replace: true }
-    );
-  };
+  const scrollToAccessories = () => scrollToItem((p) => shopOrderRank(p) >= ACCESSORY_RANK);
 
   // Product Sheet Modal
   const [activeProductForSheet, setActiveProductForSheet] = useState<CardProduct | null>(null);
@@ -375,7 +315,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const closeStationery = (goToStationery: boolean) => {
     stationeryAsked = true;
     setAskStationery(false);
-    if (goToStationery) selectTab('Stationery');
+    if (goToStationery) scrollToItem((p) => p.category === 'Stationery');
   };
 
   // Sync step param
@@ -520,41 +460,6 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     return groups;
   }, [offeredClasses]);
 
-  // How many items the server sent for these categories (null while loading).
-  const countFor = (cats: readonly string[]) =>
-    productsQuery.isSuccess ? products.filter((p) => cats.includes(shopSection(p))).length : null;
-
-  const availableChips = useMemo(() => {
-    const chips: { id: AccessoryChip; labelKey: MessageKey; count: number }[] = [];
-    const accessoryItems = products.filter((p) => ACCESSORY_CATEGORIES.includes(p.category));
-    const allCount = accessoryItems.length;
-    if (allCount > 0) {
-      chips.push({ id: 'all', labelKey: 'cat.all', count: allCount });
-    }
-    const tieCount = accessoryItems.filter((p) => getAccessoryType(p) === 'tie').length;
-    if (tieCount > 0) {
-      chips.push({ id: 'tie', labelKey: 'cat.tie', count: tieCount });
-    }
-    if (ACCESSORY_CATEGORIES.includes('School Shoes')) {
-      const shoesCount = accessoryItems.filter((p) => getAccessoryType(p) === 'shoes').length;
-      if (shoesCount > 0) {
-        chips.push({ id: 'shoes', labelKey: 'cat.shoes', count: shoesCount });
-      }
-    }
-    const socksCount = accessoryItems.filter((p) => getAccessoryType(p) === 'socks').length;
-    if (socksCount > 0) {
-      chips.push({ id: 'socks', labelKey: 'cat.socks', count: socksCount });
-    }
-    const beltCount = accessoryItems.filter((p) => getAccessoryType(p) === 'belt').length;
-    if (beltCount > 0) {
-      chips.push({ id: 'belt', labelKey: 'cat.belt', count: beltCount });
-    }
-    return chips;
-  }, [products]);
-
-  // Under Uniform: one chip per kind of accessory. "All" only matters for an old ?cat=Accessories link.
-  const accessoryChips = useMemo(() => availableChips.filter((c) => c.id !== 'all'), [availableChips]);
-
   // Every card on the page uses one photo frame, so uniforms and accessories line up:
   // tall when the school has child portraits, square when all photos are close-ups.
   const listFrame: ProductFrame = useMemo(
@@ -562,25 +467,19 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     [products]
   );
 
-  const effectiveSub = useMemo(() => {
-    if (availableChips.some((c) => c.id === activeSub)) return activeSub;
-    return availableChips[0]?.id ?? 'all';
-  }, [availableChips, activeSub]);
+  // Step 4: every item for this class and boy/girl, in the shop's fixed order.
+  const step4Products = useMemo(() => inShopOrder(products), [products]);
 
-  // Filtered Products for Step 4 (Category + Gender filter)
-  const step4Products = useMemo(() => {
-    if (activeTab === 'Uniform') {
-      return products.filter((p) => shopSection(p) === 'Uniform');
-    }
-    if (inAccessories) {
-      const accessoryItems = products.filter((p) => ACCESSORY_CATEGORIES.includes(p.category));
-      if (effectiveSub === 'all') {
-        return accessoryItems;
-      }
-      return accessoryItems.filter((p) => getAccessoryType(p) === effectiveSub);
-    }
-    return products.filter((p) => p.category === activeTab);
-  }, [products, activeTab, inAccessories, effectiveSub]);
+  // Arrived from an accessories tile or link: open the list at the tie, once.
+  const linkScrolled = useRef(false);
+  useEffect(() => {
+    if (linkScrolled.current || currentStep !== 4 || !productsQuery.isSuccess) return;
+    if (!catParam || !ACCESSORY_LINKS.includes(catParam)) return;
+    linkScrolled.current = true;
+    const timer = window.setTimeout(scrollToAccessories, 350);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, productsQuery.isSuccess, catParam]);
 
   // "Order full set": the items made for this school that can be ordered here.
   const fullSetProducts = useMemo(
@@ -596,20 +495,9 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   // An open product closes first.
   useBackHandler(() => {
     if (activeProductForSheet) closeSheet();
-    else if (currentStep === 4) {
-      if (inAccessories) selectTab('Uniform');
-      else requestStepChange(3);
-    }
+    else if (currentStep === 4) requestStepChange(3);
     else goToStep(currentStep - 1);
   }, currentStep > 1 || Boolean(activeProductForSheet));
-
-  const requiredProducts = useMemo(() => {
-    return step4Products.filter((p) => p.required);
-  }, [step4Products]);
-
-  const optionalProducts = useMemo(() => {
-    return step4Products.filter((p) => !p.required);
-  }, [step4Products]);
 
   return (
     <div className="selection-flow-page container" id="main">
@@ -852,70 +740,8 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   </div>
                 )}
 
-                {/* Uniform first and large, with the accessory chips (tie, shoes, socks,
-                    belt) right under it. A chip opens just that kind of item. */}
-                <div ref={tabsTopRef} aria-hidden="true" />
-                <div className="cat-switch" role="tablist" aria-label={t('home.shopByCategory')}>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === 'Uniform'}
-                    className={`cat-main ${activeTab === 'Uniform' ? 'is-active' : ''}`}
-                    onClick={() => selectTab('Uniform')}
-                  >
-                    <CategoryPhoto category="Uniform" className="cat-main-photo" size={48} />
-                    <span className="cat-main-text">
-                      <span className="cat-main-label">{categoryLabel('Uniform', t)}</span>
-                      <span className="cat-main-sub">{t('cat.uniformSub')}</span>
-                    </span>
-                    {countFor(['Uniform']) ? (
-                      <span className="cat-strip-count">{countFor(['Uniform'])}</span>
-                    ) : null}
-                    <ChevronRight className="cat-strip-chevron" width={18} height={18} aria-hidden="true" />
-                  </button>
-                  {accessoryChips.length > 0 && (
-                    <div className="cat-chips cat-chips--under-uniform" aria-label={t('cat.accessoriesGroup')}>
-                      {accessoryChips.map((chip) => {
-                        const on = inAccessories && effectiveSub === chip.id;
-                        return (
-                          <button
-                            key={chip.id}
-                            type="button"
-                            role="tab"
-                            aria-selected={on}
-                            className={`cat-chip ${on ? 'is-active' : ''}`}
-                            onClick={() => selectAccessoryChip(chip.id)}
-                          >
-                            {t(chip.labelKey)}
-                            {chip.count ? <span className="cat-chip-count">{chip.count}</span> : null}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {OTHER_CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      role="tab"
-                      aria-selected={activeTab === cat}
-                      className={`cat-strip ${activeTab === cat ? 'is-active' : ''}`}
-                      onClick={() => selectTab(cat)}
-                    >
-                      <span className="cat-strip-photos" aria-hidden="true">
-                        <CategoryPhoto category={cat} className="cat-strip-photo" size={36} />
-                      </span>
-                      <span className="cat-strip-text">
-                        <span className="cat-strip-label">{categoryLabel(cat, t)}</span>
-                      </span>
-                      {countFor([cat]) ? <span className="cat-strip-count">{countFor([cat])}</span> : null}
-                      <ChevronRight className="cat-strip-chevron" width={18} height={18} aria-hidden="true" />
-                    </button>
-                  ))}
-                </div>
-
                 {/* ID card preview, filled from the parent's record when signed in */}
-                {activeTab === 'ID Cards' && (
+                {products.some((p) => p.category === 'ID Cards') && (
                   <IdCardPreview school={activeSchool} className={activeClass?.name} gender={activeGender} />
                 )}
 
@@ -935,7 +761,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                 ) : step4Products.length === 0 ? (
                   <div className="flow-empty-state" style={{ padding: '48px 24px', textAlign: 'center' }}>
                     <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 8px', color: 'var(--ink)' }}>
-                      {t('flow.noItems', { cat: categoryLabel(activeTab, t), cls: classLabel(activeClass?.name, t), g: genderLabel(activeGender, t) })}
+                      {t('flow.noItems', { cat: categoryLabel('Uniform', t), cls: classLabel(activeClass?.name, t), g: genderLabel(activeGender, t) })}
                     </h3>
                     <p style={{ color: 'var(--ink-soft)', fontSize: '14px', margin: '0 0 20px' }}>
                       {t('flow.noItemsSub')}
@@ -958,54 +784,22 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                     </div>
                   </div>
                 ) : (
-                  <>
-                    {/* Required List Section */}
-                    {requiredProducts.length > 0 && (
-                      <div className="required-section-block">
-                        <div className="required-head-row">
-                          <div>
-                            <h2 className="required-heading">{t('flow.requiredFor', { cls: classLabel(activeClass?.name, t) })}</h2>
-                          </div>
-                        </div>
-
-                        <Stagger key={`req-${activeTab}`} className="products-grid">
-                          {requiredProducts.map((p, index) => (
-                            <ProductCard
-                              key={p.id}
-                              product={p}
-                              priority={index === 0}
-                              onOpenDetails={openSheet}
-                              frame={listFrame}
-                              onAdded={(item) => handleAdded(item, true)}
-                            />
-                          ))}
-                        </Stagger>
-                      </div>
-                    )}
-
-                    {/* Optional items */}
-                    {optionalProducts.length > 0 && (
-                      <div className="optional-section-block">
-                        <h2 className="optional-heading">
-                          {requiredProducts.length > 0
-                            ? t('flow.extras')
-                            : t('flow.listFor', { cls: classLabel(activeClass?.name, t) })}
-                        </h2>
-                        <Stagger key={`opt-${activeTab}`} className="products-grid">
-                          {optionalProducts.map((p, index) => (
-                            <ProductCard
-                              key={p.id}
-                              product={p}
-                              priority={index === 0 && requiredProducts.length === 0}
-                              onOpenDetails={openSheet}
-                              frame={listFrame}
-                              onAdded={(item) => handleAdded(item, true)}
-                            />
-                          ))}
-                        </Stagger>
-                      </div>
-                    )}
-                  </>
+                  // One list, in the shop's fixed order: shirts, bottoms, PT kit,
+                  // winter wear, then tie, belt and shoes.
+                  <div className="optional-section-block" ref={listRef}>
+                    <Stagger className="products-grid">
+                      {step4Products.map((p, index) => (
+                        <ProductCard
+                          key={p.id}
+                          product={p}
+                          priority={index === 0}
+                          onOpenDetails={openSheet}
+                          frame={listFrame}
+                          onAdded={(item) => handleAdded(item, true)}
+                        />
+                      ))}
+                    </Stagger>
+                  </div>
                 )}
                 </>
               </div>
@@ -1090,11 +884,11 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         onConfirm={() => {
           if (!added) return;
           if (added.match) openSheet(added.match);
-          else selectTab('Accessories');
+          else scrollToAccessories();
           setAdded(null);
         }}
         onCancel={() => {
-          if (added) selectTab('Accessories');
+          if (added) scrollToAccessories();
           setAdded(null);
         }}
       >
