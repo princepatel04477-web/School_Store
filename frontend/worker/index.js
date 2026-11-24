@@ -127,6 +127,7 @@ export default {
       url.pathname === '/api/auth/token/' ||
       url.pathname === '/api/auth/token/refresh/' ||
       url.pathname === '/api/auth/me/';
+    const isParentOtp = url.pathname.startsWith('/api/auth/otp/');
     const isPublicRetail =
       url.pathname.startsWith('/api/public/schools/') ||
       url.pathname.startsWith('/api/public/mockups/');
@@ -168,6 +169,17 @@ export default {
       }
       const upstreamUrl = new URL(url.pathname + url.search, origin);
       const res = await fetch(upstreamUrl.toString(), init);
+
+      // A live OTP must be issued and verified by the same backend.
+      // Preserve Django's structured SMS error even when its status is 502 or 503.
+      if (isParentOtp) {
+        if (TUNNEL_DOWN.has(res.status) && !res.headers.get('content-type')?.includes('application/json')) {
+          return attachCors(offline(), request);
+        }
+        const out = attachCors(new Response(res.body, res), request);
+        out.headers.set('x-served-by', 'local');
+        return out;
+      }
 
       // If Django returns 401 on auth (e.g. retailer account in D1) or 404 on retail/public assets, fall back to showcase
       if (
