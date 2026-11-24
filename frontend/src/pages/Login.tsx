@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 import { homeFor } from '../App';
+import { BackButton } from '../components/BackButton';
 
 export default function Login() {
   const nav = useNavigate();
@@ -34,7 +35,10 @@ export default function Login() {
   return (
     <div className="login-page">
       <div className="login-art">
-        <span className="brand-mark">S</span>
+        <div className="login-art-bar">
+          <BackButton className="login-back-btn" />
+          <span className="brand-mark">S</span>
+        </div>
         <p>
           Everything your<br />
           <strong>school day</strong> needs.

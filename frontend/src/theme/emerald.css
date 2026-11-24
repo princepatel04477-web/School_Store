@@ -354,6 +354,35 @@ h4,
   font-style: normal;
 }
 
+/* Logo and phone back button share one row at the top of the green panel */
+:root .login-art-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 25vh;
+}
+
+:root .login-art .login-art-bar .brand-mark {
+  margin: 0;
+}
+
+@media (max-width: 767.98px) {
+  :root .round-back-btn.login-back-btn {
+    display: inline-grid;
+  }
+}
+
+@media (max-width: 699.98px) {
+  /* The panel grows with its text, so the headline never spills onto the form */
+  :root .login-art {
+    height: auto;
+    min-height: 180px;
+  }
+  :root .login-art-bar {
+    margin-bottom: 18px;
+  }
+}
+
 /* ---------- Staff panels keep their layout, with the emerald palette only ---------- */
 
 /* ---------- Emerald page top (info pages, legal pages, 404) ---------- */
