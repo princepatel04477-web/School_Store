@@ -848,3 +848,65 @@
 .sheet-photos-dot.is-active::before {
   background: var(--brand, #275b4c);
 }
+
+/* Arrows and a "1 / 2" count over the photos, so parents see there is a second photo. */
+.sheet-photos-stage {
+  position: relative;
+}
+.sheet-photos-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ink, #14231d);
+  background: var(--paper-raised, #ffffff);
+  border: 1px solid var(--line, #dfe5dd);
+  border-radius: var(--radius-sm, 3px);
+  cursor: pointer;
+}
+.sheet-photos-arrow--prev {
+  left: 0;
+}
+.sheet-photos-arrow--next {
+  right: 0;
+}
+.sheet-photos-arrow:hover {
+  color: var(--brand, #275b4c);
+}
+.sheet-photos-count {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  padding: 2px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink, #14231d);
+  background: var(--paper-raised, #ffffff);
+  border: 1px solid var(--line, #dfe5dd);
+  border-radius: var(--radius-sm, 3px);
+  pointer-events: none;
+}
+/* In the enlarged photo view: larger arrows at the screen edges, the count at the bottom. */
+.sheet-photos-arrow--viewer {
+  width: 48px;
+  height: 48px;
+}
+.sheet-photos-arrow--viewer.sheet-photos-arrow--prev {
+  left: max(8px, env(safe-area-inset-left));
+}
+.sheet-photos-arrow--viewer.sheet-photos-arrow--next {
+  right: max(8px, env(safe-area-inset-right));
+}
+.sheet-photos-count--viewer {
+  top: auto;
+  right: auto;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ChevronDown, ChevronUp } from '../ui/icons';
+import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from '../ui/icons';
 import { motion } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
 import { useStoreState } from '../../store/storeState';
@@ -85,8 +85,8 @@ export function ProductSheet({
   }, [product?.id]);
   const showPhoto = (index: number) => {
     const track = photoTrack.current;
-    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (track) track.scrollTo?.({ left: index * track.clientWidth, behavior: still ? 'auto' : 'smooth' });
+    // The arrows and dots switch at once; a finger swipe keeps its own glide.
+    if (track) track.scrollTo?.({ left: index * track.clientWidth, behavior: 'auto' });
     setPhotoIndex(index);
   };
 
@@ -131,6 +131,8 @@ export function ProductSheet({
   const shownPhoto = Math.min(photoIndex, Math.max(photos.length - 1, 0));
   const hero = product.heroUrl || product.imageUrl;
   const enlarged = photos.length > 1 ? photos[shownPhoto] : hero ? { src: hero, alt: product.imageAlt } : null;
+  /** The arrows: one photo back or on, wrapping round at either end. */
+  const stepPhoto = (step: number) => showPhoto((shownPhoto + step + photos.length) % photos.length);
 
   const handleAdd = (): boolean => {
     if (product.sizes.length > 1 && !selectedSizeId) {
@@ -196,29 +198,41 @@ export function ProductSheet({
                 {photos.length > 1 ? (
                   // Several photos: swipe sideways (plain shot first, then the child wearing it).
                   <div className="sheet-photos">
-                    <div
-                      ref={photoTrack}
-                      className="sheet-photos-track"
-                      onScroll={(event) => {
-                        const track = event.currentTarget;
-                        setPhotoIndex(Math.round(track.scrollLeft / Math.max(track.clientWidth, 1)));
-                      }}
-                    >
-                      {photos.map((photo, index) => (
-                        <div className="sheet-photos-slide" key={photo.src}>
-                          <ProductImage
-                            id={`${product.id}-${index}`}
-                            name={product.name}
-                            category={product.category}
-                            imageUrl={photo.src}
-                            alt={photo.alt ?? product.imageAlt}
-                            imageSize={1000}
-                            priority={index === 0}
-                          />
-                          <button type="button" className="sheet-photo-trigger" aria-label={t('product.enlargePhoto')}
-                            aria-haspopup="dialog" onClick={() => photoDialog.current?.showModal()} />
-                        </div>
-                      ))}
+                    <div className="sheet-photos-stage">
+                      <div
+                        ref={photoTrack}
+                        className="sheet-photos-track"
+                        onScroll={(event) => {
+                          const track = event.currentTarget;
+                          setPhotoIndex(Math.round(track.scrollLeft / Math.max(track.clientWidth, 1)));
+                        }}
+                      >
+                        {photos.map((photo, index) => (
+                          <div className="sheet-photos-slide" key={photo.src}>
+                            <ProductImage
+                              id={`${product.id}-${index}`}
+                              name={product.name}
+                              category={product.category}
+                              imageUrl={photo.src}
+                              alt={photo.alt ?? product.imageAlt}
+                              imageSize={1000}
+                              priority={index === 0}
+                            />
+                            <button type="button" className="sheet-photo-trigger" aria-label={t('product.enlargePhoto')}
+                              aria-haspopup="dialog" onClick={() => photoDialog.current?.showModal()} />
+                          </div>
+                        ))}
+                      </div>
+                      {/* Arrows to the previous and next photo; the last one wraps to the first. */}
+                      <button type="button" className="sheet-photos-arrow sheet-photos-arrow--prev"
+                        aria-label={t('product.prevPhoto')} onClick={() => stepPhoto(-1)}>
+                        <ChevronLeft width={22} height={22} />
+                      </button>
+                      <button type="button" className="sheet-photos-arrow sheet-photos-arrow--next"
+                        aria-label={t('product.nextPhoto')} onClick={() => stepPhoto(1)}>
+                        <ChevronRight width={22} height={22} />
+                      </button>
+                      <span className="sheet-photos-count" aria-hidden="true">{shownPhoto + 1} / {photos.length}</span>
                     </div>
                     <div className="sheet-photos-dots">
                       {photos.map((photo, index) => (
@@ -255,6 +269,21 @@ export function ProductSheet({
                 onClick={(event) => { if (event.target === event.currentTarget) photoDialog.current?.close(); }}>
                 {enlarged && (
                   <img src={enlarged.src} alt={enlarged.alt || product.imageAlt || product.name} loading="lazy" />
+                )}
+                {photos.length > 1 && (
+                  <>
+                    <button type="button" className="sheet-photos-arrow sheet-photos-arrow--prev sheet-photos-arrow--viewer"
+                      aria-label={t('product.prevPhoto')} onClick={() => stepPhoto(-1)}>
+                      <ChevronLeft width={24} height={24} />
+                    </button>
+                    <button type="button" className="sheet-photos-arrow sheet-photos-arrow--next sheet-photos-arrow--viewer"
+                      aria-label={t('product.nextPhoto')} onClick={() => stepPhoto(1)}>
+                      <ChevronRight width={24} height={24} />
+                    </button>
+                    <span className="sheet-photos-count sheet-photos-count--viewer" aria-live="polite">
+                      {t('product.photoOf', { n: shownPhoto + 1, total: photos.length })}
+                    </span>
+                  </>
                 )}
                 <button type="button" className="sheet-photo-close" aria-label={t('common.close')}
                   onClick={() => photoDialog.current?.close()}>×</button>

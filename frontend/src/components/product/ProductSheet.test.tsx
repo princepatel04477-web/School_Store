@@ -40,6 +40,27 @@ describe('ProductSheet photos', () => {
     expect(getByLabelText('Photo 2 of 2').getAttribute('aria-current')).toBe('true');
   });
 
+  it('has arrows and a count that wrap round', () => {
+    const { container, getAllByLabelText } = render(
+      <ProductSheet
+        isOpen
+        onClose={() => {}}
+        product={shirt([
+          { src: '/products/plain/kv-boys-1-5-shirt-summer.webp' },
+          { src: '/products/kv-boys-1-5-shirt-summer.webp' },
+        ])}
+      />
+    );
+    const count = () => container.querySelector('.sheet-photos-stage .sheet-photos-count')?.textContent;
+    expect(count()).toBe('1 / 2');
+    fireEvent.click(getAllByLabelText('Next photo')[0]);
+    expect(count()).toBe('2 / 2');
+    fireEvent.click(getAllByLabelText('Next photo')[0]);
+    expect(count()).toBe('1 / 2');
+    fireEvent.click(getAllByLabelText('Previous photo')[0]);
+    expect(count()).toBe('2 / 2');
+  });
+
   it('keeps one photo without dots when the item has one', () => {
     const { container } = render(
       <ProductSheet isOpen onClose={() => {}} product={shirt([{ src: '/products/kv-coatie-grey.webp' }])} />
