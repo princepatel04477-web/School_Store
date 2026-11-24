@@ -44,6 +44,13 @@ class MeView(APIView):
         user = User.objects.select_related("city", "school").get(pk=request.user.id)
         return Response(UserSerializer(user).data)
 
+    def patch(self, request):
+        user = User.objects.get(pk=request.user.id)
+        if "notify_order_updates" in request.data:
+            user.notify_order_updates = bool(request.data["notify_order_updates"])
+            user.save(update_fields=["notify_order_updates", "updated_at"])
+        return Response(UserSerializer(user).data)
+
 
 class SendOTPView(APIView):
     permission_classes = [permissions.AllowAny]

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
-import { Navigate, Route, Routes, Link, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './auth';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -41,8 +41,29 @@ const BossPanel = lazy(() => import('./pages/BossPanel'));
 const Retailer = lazy(() => import('./pages/Retailer'));
 const AdminPortal = lazy(() => import('./pages/AdminPortal'));
 
+const OrdersTab = lazy(() =>
+  import('./pages/native/OrdersTab').then((m) => ({ default: m.OrdersTab }))
+);
+const MeasureTab = lazy(() =>
+  import('./pages/native/MeasureTab').then((m) => ({ default: m.MeasureTab }))
+);
+const ProfileTab = lazy(() =>
+  import('./pages/native/ProfileTab').then((m) => ({ default: m.ProfileTab }))
+);
+
 import { ComingSoonPage, NotFoundPage } from './pages/InfoPages';
 import { PrivacyPage, TermsPage, RefundPage } from './pages/LegalPages';
+import { isNativeApp } from './native/nativePlatform';
+import { hideSplashScreen } from './native/splash';
+import { openExternalUrl } from './native/externalLinks';
+import { NativeNavigation } from './components/native/NativeNavigation';
+import { useStoreState } from './store/storeState';
+import { checkAppVersion } from './native/appVersion';
+import { UpdatePrompt } from './components/native/UpdatePrompt';
+import { initPushNotifications } from './native/push';
+import { OfflineBanner } from './components/native/OfflineBanner';
+import { OfflineScreen } from './components/native/OfflineScreen';
+import { useNetworkStatus } from './native/network';
 
 export const homeFor = (role?: string, cityId?: string | null) =>
   role === 'BOSS'
@@ -71,6 +92,7 @@ export default function App() {
   const [bagOpen, setBagOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isPortal =
     location.pathname.startsWith('/boss') ||
@@ -88,6 +110,61 @@ export default function App() {
   // instead of re-tinting every page. Pass !isPortal here to bring school tints back.
   useSchoolTheme(false);
 
+  const [updateRequired, setUpdateRequired] = useState<{ url: string; version: string } | null>(null);
+  const network = useNetworkStatus();
+  const [offlineEmpty, setOfflineEmpty] = useState(false);
+
+  useEffect(() => {
+    if (!network.connected) {
+      const hasSelection = Boolean(localStorage.getItem('schoolstore_active_selection'));
+      const hasCart = Boolean(localStorage.getItem('schoolstore_cart'));
+      const hasCatalogueCache = Boolean(localStorage.getItem('schoolstore_offline_query_cache_v1'));
+      if (!hasSelection && !hasCart && !hasCatalogueCache) {
+        setOfflineEmpty(true);
+      }
+    } else {
+      setOfflineEmpty(false);
+    }
+  }, [network.connected]);
+
+  useEffect(() => {
+    hideSplashScreen();
+    if (isNativeApp()) {
+      initPushNotifications((orderId) => {
+        navigate(`/parent?order=${orderId}`);
+      });
+      checkAppVersion().then((res) => {
+        if (res.forceUpdate) {
+          setUpdateRequired({ url: res.updateUrl, version: res.latestVersion });
+        }
+      });
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    const handleClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement).closest('a');
+      if (!target) return;
+      const href = target.getAttribute('href');
+      if (!href) return;
+      const isExternal =
+        target.target === '_blank' ||
+        href.startsWith('http://') ||
+        href.startsWith('https://') ||
+        href.startsWith('tel:') ||
+        href.startsWith('mailto:') ||
+        href.startsWith('whatsapp:');
+      if (isExternal) {
+        if (href.startsWith(window.location.origin) && !target.target) return;
+        e.preventDefault();
+        openExternalUrl(href);
+      }
+    };
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
+
   // The store starts in English. Parents switch from the language link in the
   // top bar or the menu; the chooser only opens when they ask for it.
   const { hasChosen, setLang } = useLang();
@@ -97,12 +174,28 @@ export default function App() {
   }, [setLang]);
   const closeLanguage = () => setLangOpen(false);
 
+  const isNative = isNativeApp();
+  const { totalCount } = useStoreState();
+
+  if (offlineEmpty) {
+    return <OfflineScreen onRetry={() => window.location.reload()} />;
+  }
+
   return (
     <ErrorBoundary>
       <SmoothScroll>
-        <div className="store-application-root">
-        {/* Render global Header for storefront (home and about have their own emerald headers) */}
-        {!isPortal && !isHome && !isAbout && (
+        <div className={`store-application-root ${isNative ? 'is-native-shell' : ''}`}>
+        <OfflineBanner />
+        {/* Render Native Navigation (Top Bar and Bottom Tab Bar) when in native app */}
+        {isNative && (
+          <NativeNavigation
+            onOpenBag={() => setBagOpen(true)}
+            bagCount={totalCount}
+          />
+        )}
+
+        {/* Global Header for the website (home and about have their own emerald headers; the app has its own bars) */}
+        {!isPortal && !isHome && !isAbout && !isNative && (
           <Header
             onOpenBag={() => setBagOpen(true)}
             onOpenLanguage={() => setLangOpen(true)}
@@ -139,6 +232,11 @@ export default function App() {
               />
               <Route path="/checkout" element={<CheckoutPage />} />
 
+              {/* Native App Main Tabs & Quick Navigation */}
+              <Route path="/orders" element={<OrdersTab />} />
+              <Route path="/measure" element={<MeasureTab />} />
+              <Route path="/profile" element={<ProfileTab />} />
+
               {/* Informational pages */}
               <Route
                 path="/about"
@@ -173,8 +271,8 @@ export default function App() {
           </Suspense>
         </PageTransition>
 
-        {/* Global Footer for storefront */}
-        {!isPortal && <Footer />}
+        {/* Global Footer for storefront when NOT native app */}
+        {!isPortal && !isNative && <Footer />}
 
         {!isPortal && <LanguageChooser open={langOpen} onClose={closeLanguage} />}
         {!isPortal && <WelcomePopup blocked={langOpen || !hasChosen} skip={location.pathname !== '/'} />}
@@ -189,6 +287,14 @@ export default function App() {
         <Suspense fallback={null}>
           <BagDrawer isOpen={bagOpen} onClose={() => setBagOpen(false)} />
         </Suspense>
+
+        {/* Blocking Update Prompt for Native App */}
+        {updateRequired && (
+          <UpdatePrompt
+            updateUrl={updateRequired.url}
+            latestVersion={updateRequired.version}
+          />
+        )}
       </div>
       </SmoothScroll>
     </ErrorBoundary>
@@ -198,30 +304,36 @@ export default function App() {
 export function Shell({ children, title }: { children: ReactNode; title: string }) {
   const { user, signOut } = useAuth();
   const home = homeFor(user?.role, user?.city);
+  const isNative = isNativeApp();
+
   return (
     <div className="app">
-      <header>
-        <Link to={home} className="brand">
-          <span className="brand-mark">S</span>
-          <span>School<span className="ink">Store</span></span>
-        </Link>
-        <div className="header-right">
-          <span className="avatar">{user?.username?.slice(0, 1).toUpperCase()}</span>
-          <button className="icon-btn" onClick={signOut} aria-label="Sign out">↗</button>
-        </div>
-      </header>
+      {!isNative && (
+        <header>
+          <Link to={home} className="brand">
+            <span className="brand-mark">S</span>
+            <span>School<span className="ink">Store</span></span>
+          </Link>
+          <div className="header-right">
+            <span className="avatar">{user?.username?.slice(0, 1).toUpperCase()}</span>
+            <button className="icon-btn" onClick={signOut} aria-label="Sign out">↗</button>
+          </div>
+        </header>
+      )}
       <main>
         <div className="eyebrow">{user?.role === 'PARENT' ? 'PARENT SPACE' : 'SCHOOL STAFF'}</div>
         <h1>{title}</h1>
         {children}
       </main>
-      <nav className="bottom-nav">
-        <Link to={home}>⌂<small>Home</small></Link>
-        <Link to={user?.role === 'PARENT' ? '/parent/orders' : '/teacher/students'}>
-          ▣<small>{user?.role === 'PARENT' ? 'Orders' : 'Students'}</small>
-        </Link>
-        <Link to="#" onClick={(e) => { e.preventDefault(); signOut(); }}>↗<small>Sign out</small></Link>
-      </nav>
+      {!isNative && (
+        <nav className="bottom-nav">
+          <Link to={home}>⌂<small>Home</small></Link>
+          <Link to={user?.role === 'PARENT' ? '/parent/orders' : '/teacher/students'}>
+            ▣<small>{user?.role === 'PARENT' ? 'Orders' : 'Students'}</small>
+          </Link>
+          <Link to="#" onClick={(e) => { e.preventDefault(); signOut(); }}>↗<small>Sign out</small></Link>
+        </nav>
+      )}
     </div>
   );
 }

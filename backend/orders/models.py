@@ -223,13 +223,28 @@ class OrderItem(UUIDModel):
     # From the optional camera step: numbers only, the photo never leaves the phone.
     fit_shoulder_cm = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
     fit_shoulder_confidence = models.DecimalField(max_digits=4, decimal_places=3, null=True, blank=True)
-    # CAMERA or MANUAL (see schools.StudentMeasurement.Source); blank when no measurement was used.
+    # CAMERA, MANUAL, or ESTIMATE; blank when no measurement was used.
     fit_source = models.CharField(max_length=10, blank=True, default="")
+    fit_model_version = models.CharField(max_length=40, blank=True, default="")
     fit_shoulder_edited = models.BooleanField(default=False)
     recommended_size = models.CharField(max_length=50, blank=True, default="")
     recommended_alt_size = models.CharField(max_length=50, blank=True, default="")
     recommendation_status = models.CharField(max_length=20, blank=True, default="")
     chosen_size = models.CharField(max_length=50, blank=True, default="")
+
+    class FitFeedback(models.TextChoices):
+        TOO_TIGHT = "TOO_TIGHT", "Too tight"
+        FITS_WELL = "FITS_WELL", "Fits well"
+        TOO_LOOSE = "TOO_LOOSE", "Too loose"
+
+    fit_feedback = models.CharField(
+        max_length=12,
+        choices=FitFeedback.choices,
+        blank=True,
+        default="",
+        help_text="Parent fit feedback: TOO_TIGHT, FITS_WELL, TOO_LOOSE.",
+    )
+    fit_feedback_answered_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         indexes = [
@@ -317,6 +332,21 @@ class OrderItemExchange(UUIDModel):
     def __str__(self) -> str:
         return f"{self.order_item} {self.from_size} -> {self.to_size} ({self.reason})"
 
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding
+        super().save(*args, **kwargs)
+        if is_new and self.order_item_id:
+            item = self.order_item
+            if self.reason == self.Reason.TOO_SMALL:
+                item.fit_feedback = OrderItem.FitFeedback.TOO_TIGHT
+                item.fit_feedback_answered_at = self.created_at or timezone.now()
+                item.save(update_fields=["fit_feedback", "fit_feedback_answered_at"])
+            elif self.reason == self.Reason.TOO_BIG:
+                item.fit_feedback = OrderItem.FitFeedback.TOO_LOOSE
+                item.fit_feedback_answered_at = self.created_at or timezone.now()
+                item.save(update_fields=["fit_feedback", "fit_feedback_answered_at"])
+
+
 
 class OrderStatusEvent(UUIDModel):
     order = models.ForeignKey(
@@ -395,3 +425,27 @@ class PhotoConsent(UUIDModel):
     def __str__(self) -> str:
         state = "withdrawn" if self.withdrawn_at else "live"
         return f"{self.purpose} {state} for {self.student_id}"
+
+
+class DeviceToken(UUIDModel):
+    """FCM device token for mobile push notifications."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="device_tokens",
+    )
+    token = models.CharField(max_length=255, unique=True, db_index=True)
+    platform = models.CharField(max_length=20, default="android")
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-last_seen_at"]
+        indexes = [
+            models.Index(fields=["user", "platform"], name="idx_device_user_platform"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user} ({self.platform}): {self.token[:12]}..."
+

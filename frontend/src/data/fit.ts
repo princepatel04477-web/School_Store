@@ -16,7 +16,7 @@ import limits from '../../../shared/fit_limits.json';
 
 export const FIT_LIMITS = { height: limits.height_cm, weight: limits.weight_kg, shoulder: limits.shoulder_cm };
 
-export type FitSource = 'CAMERA' | 'MANUAL';
+export type FitSource = 'CAMERA' | 'MANUAL' | 'ESTIMATE';
 
 export interface Fit {
   heightCm: number;
@@ -26,6 +26,8 @@ export interface Fit {
   /** Only for a camera reading: how sure the phone was, 0 to 1. */
   shoulderConfidence?: number;
   source?: FitSource;
+  /** Model version string when source is ESTIMATE. */
+  modelVersion?: string;
   /** The parent changed the shoulder width the camera measured. */
   shoulderEdited?: boolean;
   /** ISO date and time it was measured. */
@@ -42,6 +44,7 @@ export function fitPayload(fit: Fit) {
       ? { shoulder_confidence: fit.shoulderConfidence }
       : {}),
     source: fit.source ?? (fit.shoulderConfidence !== undefined ? 'CAMERA' : 'MANUAL'),
+    ...(fit.modelVersion ? { model_version: fit.modelVersion } : {}),
     shoulder_edited: Boolean(fit.shoulderEdited),
   };
 }
@@ -234,6 +237,67 @@ export function useSizeFit(productIds: string[], answer: FitAnswer, className?: 
     enabled: enabled && ids.length > 0,
     staleTime: 10 * 60 * 1000,
     retry: 1,
+  });
+}
+
+export interface EstimateResponse {
+  shoulder_cm: number | null;
+  shoulder_low_cm: number | null;
+  shoulder_high_cm: number | null;
+  confidence: 'high' | 'medium' | 'low';
+  recommended_size: string;
+  alt_size: string;
+  reason: string;
+  model_version: string;
+}
+
+export function useEstimateFit(params: {
+  schoolId?: string;
+  classId?: string;
+  className?: string;
+  gender?: string | null;
+  productId?: string;
+  heightCm?: number | null;
+  weightKg?: number | null;
+  enabled?: boolean;
+}) {
+  const { schoolId, classId, className, gender, productId, heightCm, weightKg, enabled = true } = params;
+  const isComplete =
+    heightCm != null &&
+    !Number.isNaN(heightCm) &&
+    heightCm >= FIT_LIMITS.height.min &&
+    heightCm <= FIT_LIMITS.height.max &&
+    weightKg != null &&
+    !Number.isNaN(weightKg) &&
+    weightKg >= FIT_LIMITS.weight.min &&
+    weightKg <= FIT_LIMITS.weight.max;
+
+  return useQuery({
+    queryKey: [
+      'fit-estimate',
+      schoolId ?? '',
+      classId ?? '',
+      className ?? '',
+      gender ?? '',
+      productId ?? '',
+      heightCm ?? '',
+      weightKg ?? '',
+    ],
+    queryFn: () =>
+      api<EstimateResponse>('/public/fit/estimate/', {
+        method: 'POST',
+        body: JSON.stringify({
+          school_id: schoolId,
+          class_id: classId,
+          class_name: className,
+          gender,
+          product_id: productId,
+          height_cm: heightCm,
+          weight_kg: weightKg,
+        }),
+      }),
+    enabled: enabled && isComplete,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

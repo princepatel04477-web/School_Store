@@ -36,6 +36,10 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "customisation_data",
             "customisation_display",
             "measurement",
+            "chosen_size",
+            "recommended_size",
+            "fit_feedback",
+            "fit_feedback_answered_at",
         )
         read_only_fields = (
             "id",
@@ -45,6 +49,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "category",
             "unit_price_snapshot",
             "customisation_display",
+            "fit_feedback",
+            "fit_feedback_answered_at",
         )
 
     def get_measurement(self, obj):
@@ -200,8 +206,11 @@ class OrderFitInputSerializer(serializers.Serializer):
     # Optional. From the camera (numbers only, with the phone's confidence) or typed.
     shoulder_cm = serializers.CharField(max_length=10, required=False, allow_null=True)
     shoulder_confidence = serializers.CharField(max_length=10, required=False, allow_null=True)
-    source = serializers.ChoiceField(choices=("CAMERA", "MANUAL"), required=False, allow_blank=True)
+    source = serializers.ChoiceField(
+        choices=("CAMERA", "MANUAL", "ESTIMATE"), required=False, allow_blank=True
+    )
     shoulder_edited = serializers.BooleanField(required=False, default=False)
+    model_version = serializers.CharField(max_length=40, required=False, allow_blank=True)
 
 
 class OrderCreateItemInputSerializer(serializers.Serializer):
@@ -220,6 +229,7 @@ class LineFit(NamedTuple):
     check: object  # catalog.sizing.FitCheck
     source: str
     shoulder_edited: bool
+    model_version: str = ""
 
 
 def _checked_fit(raw: dict, field: str) -> LineFit:
@@ -238,7 +248,8 @@ def _checked_fit(raw: dict, field: str) -> LineFit:
         source = "CAMERA" if check.shoulder_confidence is not None else "MANUAL"
     # Only a camera reading can have been changed by the parent.
     edited = bool(raw.get("shoulder_edited")) and source == "CAMERA"
-    return LineFit(check, source, edited)
+    model_version = raw.get("model_version") or ""
+    return LineFit(check, source, edited, model_version)
 
 
 class OrderCreateSerializer(serializers.Serializer):
@@ -559,6 +570,7 @@ class OrderCreateSerializer(serializers.Serializer):
         order_item.fit_shoulder_confidence = check.shoulder_confidence
         order_item.fit_source = line_fit.source
         order_item.fit_shoulder_edited = line_fit.shoulder_edited
+        order_item.fit_model_version = line_fit.model_version
         if chart:
             recommendation = suggest(chart, check)
             order_item.recommended_size = recommendation.size

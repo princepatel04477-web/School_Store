@@ -5,6 +5,7 @@ import { Shell } from '../App';
 import { ListenButton } from '../components/ListenButton';
 import { SelectionFlow } from '../components/SelectionFlow';
 import { Cart, Timeline, type CartItem } from '../components/Store';
+import { FitFeedbackPrompt } from '../components/orders/FitFeedbackPrompt';
 import { api, deleteChildPhotos, Order, Product } from '../api';
 import { useLang } from '../i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -365,6 +366,7 @@ function Dashboard() {
 }
 
 function Orders() {
+  const queryClient = useQueryClient();
   const { data } = useQuery({
     queryKey: ['orders'],
     queryFn: () => api<any>('/orders/').catch(() => []),
@@ -399,6 +401,12 @@ function Orders() {
               {o.student_name} · <strong>₹{o.total}</strong>
             </p>
             <Timeline order={o} />
+            <FitFeedbackPrompt
+              orderId={o.id}
+              orderStatus={o.status}
+              orderCreatedAt={o.created_at}
+              onFeedbackSubmitted={() => queryClient.invalidateQueries({ queryKey: ['orders'] })}
+            />
           </article>
         ))
       ) : (

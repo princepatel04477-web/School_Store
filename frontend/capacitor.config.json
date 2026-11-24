@@ -1,17 +1,29 @@
 {
-  "appId": "com.schoolstore.app",
-  "appName": "SchoolStore",
-  "webDir": "dist",
-  "backgroundColor": "#0E5E3E",
+  "appId": "com.colorbenz.schoolstore",
+  "appName": "School Store",
+  "webDir": "dist-app",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
   "plugins": {
-    "StatusBar": {
-      "backgroundColor": "#0E5E3E",
-      "style": "LIGHT"
-    },
     "SplashScreen": {
-      "backgroundColor": "#0E5E3E",
-      "splashFullScreen": true,
-      "splashImmersive": true
+      "launchAutoHide": false,
+      "backgroundColor": "#2F5D50",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "backgroundColor": "#2F5D50",
+      "style": "DARK",
+      "overlaysWebView": false
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
     }
   }
 }

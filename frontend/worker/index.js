@@ -21,10 +21,42 @@ const OFFLINE_PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"
 h1{font-size:28px;margin:0 0 8px}p{margin:0;color:#55695d}</style></head>
 <body><main><h1>SchoolStore is offline</h1><p>The store server is not reachable right now. Please try again in a minute.</p></main></body></html>`;
 
-function offline() {
+function getCorsHeaders(request) {
+  const origin = request.headers.get('Origin') || '';
+  const allowed = [
+    'https://localhost',
+    'capacitor://localhost',
+    'http://localhost:5173',
+  ];
+  const isAllowed =
+    allowed.includes(origin) ||
+    origin.endsWith('.workers.dev') ||
+    origin.endsWith('.trycloudflare.com');
+  const allowOrigin = isAllowed ? origin : (origin || '*');
+  return {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers':
+      request.headers.get('Access-Control-Request-Headers') ||
+      'Content-Type, Authorization, X-Requested-With',
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Max-Age': '86400',
+  };
+}
+
+function offline(request) {
+  const headers = {
+    'content-type': 'text/html; charset=utf-8',
+    'retry-after': '60',
+    'cache-control': 'no-store',
+    'x-served-by': 'none',
+  };
+  if (request) {
+    Object.assign(headers, getCorsHeaders(request));
+  }
   return new Response(OFFLINE_PAGE, {
     status: 503,
-    headers: { 'content-type': 'text/html; charset=utf-8', 'retry-after': '60', 'cache-control': 'no-store', 'x-served-by': 'none' },
+    headers,
   });
 }
 
@@ -55,6 +87,17 @@ async function forwardToShowcase(env, request, bodyBytes) {
   return env.SHOWCASE.fetch(request.url, init);
 }
 
+function attachCors(res, request) {
+  const origin = request.headers.get('Origin');
+  if (!origin) return res;
+  const out = new Response(res.body, res);
+  const cors = getCorsHeaders(request);
+  for (const [k, v] of Object.entries(cors)) {
+    out.headers.set(k, v);
+  }
+  return out;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -70,10 +113,23 @@ export default {
       return out;
     }
 
+    // Handle OPTIONS CORS preflight directly for API and server paths
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: getCorsHeaders(request),
+      });
+    }
+
     // Retailer endpoints (/api/retail/...) live on Cloudflare Showcase (D1 + KV).
     const isRetail = url.pathname.startsWith('/api/retail/');
-    const isAuth = url.pathname === '/api/auth/token/' || url.pathname === '/api/auth/token/refresh/' || url.pathname === '/api/auth/me/';
-    const isPublicRetail = url.pathname.startsWith('/api/public/schools/') || url.pathname.startsWith('/api/public/mockups/');
+    const isAuth =
+      url.pathname === '/api/auth/token/' ||
+      url.pathname === '/api/auth/token/refresh/' ||
+      url.pathname === '/api/auth/me/';
+    const isPublicRetail =
+      url.pathname.startsWith('/api/public/schools/') ||
+      url.pathname.startsWith('/api/public/mockups/');
 
     const bodyBytes = ['POST', 'PUT', 'PATCH'].includes(request.method)
       ? await request.arrayBuffer()
@@ -83,7 +139,7 @@ export default {
       try {
         const scRes = await forwardToShowcase(env, request, bodyBytes);
         if (scRes) {
-          const out = new Response(scRes.body, scRes);
+          const out = attachCors(new Response(scRes.body, scRes), request);
           out.headers.set('x-served-by', 'showcase');
           return out;
         }
@@ -94,9 +150,9 @@ export default {
     if (!origin) {
       if ((isAuth || isRetail || isPublicRetail) && env.SHOWCASE) {
         const scRes = await forwardToShowcase(env, request, bodyBytes);
-        if (scRes) return scRes;
+        if (scRes) return attachCors(scRes, request);
       }
-      return offline();
+      return offline(request);
     }
 
     try {
@@ -114,29 +170,34 @@ export default {
       const res = await fetch(upstreamUrl.toString(), init);
 
       // If Django returns 401 on auth (e.g. retailer account in D1) or 404 on retail/public assets, fall back to showcase
-      if (((isAuth && res.status === 401) || ((isRetail || isPublicRetail) && res.status === 404) || TUNNEL_DOWN.has(res.status)) && env.SHOWCASE) {
+      if (
+        ((isAuth && res.status === 401) ||
+          ((isRetail || isPublicRetail) && res.status === 404) ||
+          TUNNEL_DOWN.has(res.status)) &&
+        env.SHOWCASE
+      ) {
         try {
           const scRes = await forwardToShowcase(env, request, bodyBytes);
           if (scRes && (scRes.ok || (TUNNEL_DOWN.has(res.status) && scRes.status !== 404))) {
-            const out = new Response(scRes.body, scRes);
+            const out = attachCors(new Response(scRes.body, scRes), request);
             out.headers.set('x-served-by', 'showcase-fallback');
             return out;
           }
         } catch (_) {}
       }
 
-      if (TUNNEL_DOWN.has(res.status)) return offline();
-      const out = new Response(res.body, res);
+      if (TUNNEL_DOWN.has(res.status)) return offline(request);
+      const out = attachCors(new Response(res.body, res), request);
       out.headers.set('x-served-by', 'local');
       return out;
     } catch (_) {
       if ((isAuth || isRetail || isPublicRetail) && env.SHOWCASE) {
         try {
           const scRes = await forwardToShowcase(env, request, bodyBytes);
-          if (scRes) return scRes;
+          if (scRes) return attachCors(scRes, request);
         } catch (_) {}
       }
-      return offline();
+      return offline(request);
     }
   },
 };

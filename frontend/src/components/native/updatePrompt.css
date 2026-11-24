@@ -1,0 +1,47 @@
+/* Blocking App Update Prompt */
+
+.update-prompt-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 33, 61, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 99999;
+}
+
+.update-prompt-card {
+  background: var(--paper-raised, #FFFFFF);
+  border-radius: var(--radius-lg, 8px);
+  padding: 32px 24px;
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+}
+
+.update-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--highlight-soft, rgba(46, 139, 87, 0.1));
+  color: var(--brand, #2F5D50);
+  margin-bottom: 16px;
+}
+
+.update-prompt-card h2 {
+  font-size: 20px;
+  margin: 0 0 10px 0;
+  color: var(--ink, #15181E);
+}
+
+.update-prompt-card p {
+  font-size: 14px;
+  color: var(--ink-soft, #545C66);
+  line-height: 1.5;
+  margin: 0 0 24px 0;
+}

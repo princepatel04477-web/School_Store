@@ -421,6 +421,12 @@ class SizingSample(UUIDModel):
         default="",
         help_text="TOO_SMALL / TOO_BIG from the last size exchange, NOT_SIZE, or blank.",
     )
+    fit_feedback = models.CharField(
+        max_length=12,
+        blank=True,
+        default="",
+        help_text="TOO_TIGHT, FITS_WELL, TOO_LOOSE copied on anonymisation.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -431,6 +437,33 @@ class SizingSample(UUIDModel):
 
     def __str__(self) -> str:
         return f"{self.month:%Y-%m} {self.recommended_size} -> {self.final_size}"
+
+
+class ShoulderEstimateModel(UUIDModel):
+    """
+    Trained ordinary least squares model estimating shoulder width from height and weight.
+    Stores model coefficients, sigma per gender, and performance metrics.
+    No child identity or personal data is ever stored here.
+    """
+    version = models.CharField(max_length=40, db_index=True)
+    trained_at = models.DateTimeField(auto_now_add=True)
+    gender = models.CharField(max_length=16, default="all")
+    coefficients = models.JSONField(default=dict, help_text="b0, b1_height, b2_bmi, b3_female, b4_class, sigmas, etc.")
+    sigma_cm = models.FloatField(help_text="Residual standard deviation in cm")
+    n_real = models.PositiveIntegerField(default=0)
+    n_chart = models.PositiveIntegerField(default=0)
+    rmse_cm = models.FloatField(default=0.0)
+    active = models.BooleanField(default=False, db_index=True)
+
+    class Meta:
+        ordering = ["-trained_at"]
+        indexes = [
+            models.Index(fields=["active", "gender"], name="idx_shoulder_active_gender"),
+        ]
+
+    def __str__(self) -> str:
+        status = "ACTIVE" if self.active else "INACTIVE"
+        return f"ShoulderEstimateModel {self.version} ({self.gender}) - {status} [n_real={self.n_real}, n_chart={self.n_chart}]"
 
 
 @receiver(m2m_changed, sender=Product.grades.through)

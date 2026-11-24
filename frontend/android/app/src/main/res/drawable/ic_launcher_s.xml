@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SchoolStore "S" mark (same as frontend/public/favicon.svg), sized for the adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M50.72 74Q44.41 74 39.23 71.94L41.09 61.47H43.65L43.68 67.72Q44.67 69.15 46.76 70.1Q48.85 71.06 51.21 71.06Q55.45 71.06 57.75 69.29Q60.05 67.52 60.05 64.38Q60.05 62.81 59.350 61.65Q58.65 60.48 57.5 59.54Q56.35 58.59 54.9 57.76Q53.45 56.94 51.92 56.08Q50.4 55.22 48.94 54.22Q47.49 53.22 46.34 51.91Q45.19 50.6 44.49 48.91Q43.8 47.23 43.8 44.96Q43.8 39.61 47.68 36.81Q51.56 34 59 34Q63.97 34 68.77 35.25L67.14 44.52H64.55L64.35 38.83Q61.99 37.02 58.22 37.02Q54.93 37.02 53.06 38.45Q51.18 39.87 51.18 42.34Q51.18 44.09 52.44 45.56Q53.71 47.02 56.38 48.51Q60.28 50.69 62.01 51.83Q63.74 52.98 64.93 54.29Q66.12 55.6 66.83 57.26Q67.550 58.91 67.55 61.12Q67.55 67.4 63.23 70.7Q58.91 74 50.72 74Z" />
+</vector>

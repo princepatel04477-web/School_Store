@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { auth, User, logout } from './api';
+import { auth, User, logout, getStoredToken, setStoredTokens } from './api';
 import { storeState } from './store/storeState';
 
 type C = {
@@ -27,21 +27,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (localStorage.getItem('access')) {
-      auth.me()
-        .then((u) => {
-          setUser(u);
-        })
-        .catch(() => logout())
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+    let mounted = true;
+    getStoredToken('access').then((access) => {
+      if (!mounted) return;
+      if (access) {
+        auth.me()
+          .then((u) => {
+            if (!mounted) return;
+            setUser(u);
+            storeState.mergeOnSignIn(u);
+          })
+          .catch(() => logout())
+          .finally(() => { if (mounted) setLoading(false); });
+      } else {
+        setLoading(false);
+      }
+    });
+    return () => { mounted = false; };
   }, []);
 
   const save = async (tokens: { access: string; refresh: string; user?: User }) => {
-    localStorage.setItem('access', tokens.access);
-    localStorage.setItem('refresh', tokens.refresh);
+    await setStoredTokens({ access: tokens.access, refresh: tokens.refresh });
     const signedIn = tokens.user ?? (await auth.me());
     setUser(signedIn);
     storeState.mergeOnSignIn(signedIn);

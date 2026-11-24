@@ -32,6 +32,7 @@ class UserSerializer(serializers.ModelSerializer):
             "phone",
             "phone_verified",
             "must_change_password",
+            "notify_order_updates",
             "city",
             "city_name",
             "school",
