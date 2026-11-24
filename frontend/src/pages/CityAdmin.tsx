@@ -342,6 +342,7 @@ function CityInventoryView() {
             setStockModal(null);
             refetchBalances();
             queryClient.invalidateQueries({ queryKey: ['variant-movements'] });
+            queryClient.invalidateQueries({ queryKey: ['store', 'products'] });
           }}
         />
       )}
@@ -368,7 +369,7 @@ function StockMovementModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [quantity, setQuantity] = useState<number>(mode === 'STOCK_IN' ? 10 : 0);
+  const [quantity, setQuantity] = useState<number | ''>('');
   const [reason, setReason] = useState<string>(mode === 'STOCK_IN' ? 'RESTOCK' : 'ADJUSTMENT');
   const [customNote, setCustomNote] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -383,8 +384,8 @@ function StockMovementModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
-    if (quantity === 0) {
-      setErrorMsg('Quantity change cannot be zero.');
+    if (quantity === '' || !Number.isInteger(quantity) || quantity === 0 || (mode === 'STOCK_IN' && quantity < 1)) {
+      setErrorMsg(mode === 'STOCK_IN' ? 'Enter a positive whole number of units.' : 'Enter a nonzero whole number of units.');
       return;
     }
     mutation.mutate({
@@ -415,7 +416,9 @@ function StockMovementModal({
             <input
               type="number"
               value={quantity}
-              onChange={(e) => setQuantity(parseInt(e.target.value, 10) || 0)}
+              onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+              min={mode === 'STOCK_IN' ? 1 : undefined}
+              step={1}
               required
             />
           </label>

@@ -53,7 +53,7 @@ export function CityAvailabilityView() {
     hasBalanceRow: boolean;
   } | null>(null);
 
-  const [quantityInput, setQuantityInput] = useState<number | ''>(50);
+  const [quantityInput, setQuantityInput] = useState<number | ''>('');
   const [movementReason, setMovementReason] = useState<string>('RESTOCK');
   const [movementError, setMovementError] = useState('');
   const [movementSuccess, setMovementSuccess] = useState('');
@@ -223,7 +223,7 @@ export function CityAvailabilityView() {
       currentQty: item.stockQuantity,
       hasBalanceRow: item.hasBalanceRow,
     });
-    setQuantityInput(50);
+    setQuantityInput('');
     setMovementReason(item.hasBalanceRow ? 'RESTOCK' : 'INITIAL_STOCK');
     setMovementError('');
     setMovementSuccess('');
@@ -243,6 +243,7 @@ export function CityAvailabilityView() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portal-stock-balances'] });
+      queryClient.invalidateQueries({ queryKey: ['store', 'products'] });
     },
   });
 
@@ -261,6 +262,7 @@ export function CityAvailabilityView() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portal-stock-balances'] });
+      queryClient.invalidateQueries({ queryKey: ['store', 'products'] });
     },
   });
 
@@ -268,18 +270,22 @@ export function CityAvailabilityView() {
   const movementMutation = useMutation({
     mutationFn: async () => {
       if (!targetVariant) return;
-      if (quantityInput === '' || Number(quantityInput) === 0) {
-        throw new Error('Quantity change must not be zero.');
+      if (quantityInput === '' || !Number.isInteger(quantityInput) || quantityInput === 0) {
+        throw new Error('Enter a nonzero whole number of units for this size.');
+      }
+      if (movementReason === 'INITIAL_STOCK' && quantityInput < 1) {
+        throw new Error('Initial stock must be at least one unit.');
       }
       return portalApi.addStockMovement({
         variant: targetVariant.id,
         city: activeCityId,
-        quantity_change: Number(quantityInput),
+        quantity_change: quantityInput,
         reason: movementReason,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portal-stock-balances'] });
+      queryClient.invalidateQueries({ queryKey: ['store', 'products'] });
       setMovementSuccess('Stock updated successfully.');
       setTimeout(() => {
         setModalOpen(false);
@@ -793,7 +799,7 @@ export function CityAvailabilityView() {
 
                 <div className="portal-form-group">
                   <label className="portal-form-label">
-                    Quantity Delta * (Positive to add, negative to subtract)
+                    {movementReason === 'INITIAL_STOCK' ? 'Initial quantity for this size' : 'Quantity change (positive to add, negative to subtract)'}
                   </label>
                   <input
                     type="number"
@@ -803,7 +809,9 @@ export function CityAvailabilityView() {
                     onChange={(e) =>
                       setQuantityInput(e.target.value === '' ? '' : Number(e.target.value))
                     }
-                    placeholder="e.g. 50 or -10"
+                    min={movementReason === 'INITIAL_STOCK' ? 1 : undefined}
+                    step={1}
+                    placeholder="Enter units"
                   />
                   <div style={{ fontSize: '11px', color: 'var(--ink-soft)' }}>
                     New calculated balance will be:{' '}

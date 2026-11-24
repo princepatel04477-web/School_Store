@@ -98,6 +98,9 @@ class StockMovementCreateSerializer(serializers.Serializer):
         elif not city:
             raise serializers.ValidationError({"city": "City is required for this stock movement."})
 
+        if attrs["reason"] == StockMovement.Reason.INITIAL_STOCK and attrs["quantity_change"] < 1:
+            raise serializers.ValidationError({"quantity_change": "Initial stock must be at least one unit."})
+
         variant = attrs["variant"]
         variant_city_id = variant.city_id or variant.product.city_id
         if variant_city_id and variant_city_id != attrs["city"].pk:

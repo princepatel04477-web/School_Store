@@ -220,12 +220,13 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const scrollToAccessories = () => scrollToItem((p) => shopOrderRank(p) >= ACCESSORY_RANK);
 
   // Product Sheet Modal
-  const [activeProductForSheet, setActiveProductForSheet] = useState<CardProduct | null>(null);
+  const [activeProductId, setActiveProductId] = useState<string | null>(null);
+  const activeProductForSheet = products.find((product) => product.id === activeProductId) ?? null;
   // An open product gets its own history entry (?item=), so the phone's back button
   // and the round back button close the product first instead of leaving the list.
   const itemParam = searchParams.get('item');
   const openSheet = (item: CardProduct) => {
-    setActiveProductForSheet(item);
+    setActiveProductId(item.id);
     if (itemParam === item.id) return;
     setSearchParams(
       (prev) => {
@@ -237,7 +238,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     );
   };
   const closeSheet = () => {
-    setActiveProductForSheet(null);
+    setActiveProductId(null);
     if (!new URLSearchParams(window.location.search).get('item')) return;
     const entry = (window.history.state as { usr?: { sheetEntry?: boolean } } | null)?.usr;
     if (entry?.sheetEntry) {
@@ -255,7 +256,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   };
   // The phone's back button took ?item= away: close the product.
   useEffect(() => {
-    if (!itemParam) setActiveProductForSheet(null);
+    if (!itemParam) setActiveProductId(null);
   }, [itemParam]);
   // A reloaded page opens on the list, so an ?item= left in the address is dropped.
   useEffect(() => {

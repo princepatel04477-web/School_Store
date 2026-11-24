@@ -222,7 +222,8 @@ export function useStoreProducts(
   return useQuery({
     queryKey: ['store', 'products', schoolId, className, gender, cityId ?? ''],
     enabled: Boolean(schoolId && className && gender),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchInterval: 30_000,
     queryFn: async () => {
       const params = new URLSearchParams({ school: schoolId!, class: className!, gender: gender! });
       if (cityId) params.set('city', cityId);
