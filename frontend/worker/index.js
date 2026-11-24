@@ -73,6 +73,7 @@ export default {
     // Retailer endpoints (/api/retail/...) live on Cloudflare Showcase (D1 + KV).
     const isRetail = url.pathname.startsWith('/api/retail/');
     const isAuth = url.pathname === '/api/auth/token/' || url.pathname === '/api/auth/token/refresh/' || url.pathname === '/api/auth/me/';
+    const isParentOtp = url.pathname.startsWith('/api/auth/otp/');
     const isPublicRetail = url.pathname.startsWith('/api/public/schools/') || url.pathname.startsWith('/api/public/mockups/');
 
     const bodyBytes = ['POST', 'PUT', 'PATCH'].includes(request.method)
@@ -112,6 +113,17 @@ export default {
       }
       const upstreamUrl = new URL(url.pathname + url.search, origin);
       const res = await fetch(upstreamUrl.toString(), init);
+
+      // A live OTP must be issued and verified by the same backend.
+      // Preserve Django's structured SMS error even when its status is 502 or 503.
+      if (isParentOtp) {
+        if (TUNNEL_DOWN.has(res.status) && !res.headers.get('content-type')?.includes('application/json')) {
+          return offline();
+        }
+        const out = new Response(res.body, res);
+        out.headers.set('x-served-by', 'local');
+        return out;
+      }
 
       // If Django returns 401 on auth (e.g. retailer account in D1) or 404 on retail/public assets, fall back to showcase
       if (((isAuth && res.status === 401) || ((isRetail || isPublicRetail) && res.status === 404) || TUNNEL_DOWN.has(res.status)) && env.SHOWCASE) {
