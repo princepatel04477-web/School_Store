@@ -189,6 +189,13 @@ async function api(request, env, path) {
     const q = (url.searchParams.get('search') || '').toLowerCase();
     return json(DATA.schools.filter((s) => !q || s.name.toLowerCase().includes(q)));
   }
+  if ((path === '/public/schools/delivered/' || path === '/public/schools/logos/') && method === 'GET') {
+    const delivered = (DATA.schools || [])
+      .filter((s) => s.show_logo_public && s.logo_url)
+      .map((s) => ({ id: s.id, name: s.name, logo_url: s.logo_url }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return json(delivered, 200, { 'cache-control': 'public, max-age=300' });
+  }
   const citiesMatch = path.match(/^\/public\/schools\/([^/]+)\/cities\/$/);
   if (citiesMatch) return DATA.cities[citiesMatch[1]] ? json(DATA.cities[citiesMatch[1]]) : json({ detail: 'School not found.' }, 404);
   if (path === '/public/products/' && method === 'GET') {

@@ -11,6 +11,7 @@ import { useLang } from '../i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import '../components/photoConsent.css';
 import type { Fit } from '../data/fit';
+import { LIVE_CATEGORIES } from '../data/liveCategories';
 
 interface StudentDetail {
   id: string;
@@ -118,7 +119,7 @@ function Dashboard() {
       }
     : null;
 
-  const [activeCategory, setActiveCategory] = useState<'Uniform' | 'School Shoes' | 'Uniform Accessories' | 'Stationery' | 'ID Cards'>('Uniform');
+  const [activeCategory, setActiveCategory] = useState<'PT Uniform' | 'Uniform' | 'School Shoes' | 'Uniform Accessories' | 'Stationery' | 'ID Cards'>('Uniform');
 
   return (
     <>
@@ -327,7 +328,7 @@ function Dashboard() {
         </div>
       </div>
       <div className="chips">
-        {(['Uniform', 'School Shoes', 'Uniform Accessories', 'Stationery', 'ID Cards'] as const).map((cat) => (
+        {LIVE_CATEGORIES.map((cat) => (
           <button
             key={cat}
             className={activeCategory === cat ? 'chip active' : 'chip'}
@@ -345,7 +346,10 @@ function Dashboard() {
         cartItemCount={cartItems.length}
         onClearCart={() => setCartItems([])}
         onOrder={handleAddItem}
-        onNavigateCategory={(cat) => setActiveCategory(cat as any)}
+        onNavigateCategory={(cat) => {
+          const next = LIVE_CATEGORIES.find((live) => live === cat);
+          if (next) setActiveCategory(next);
+        }}
       />
 
       <Cart

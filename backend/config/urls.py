@@ -1,3 +1,4 @@
+import mimetypes
 from pathlib import Path
 
 from django.conf import settings
@@ -6,6 +7,19 @@ from django.core.cache import cache
 from django.db import connection
 from django.http import HttpResponse, JsonResponse
 from django.urls import include, path, re_path
+from django.views.static import serve as serve_file
+
+
+# Windows (the store server) does not know .webp, and would send it as a plain download.
+mimetypes.add_type("image/webp", ".webp")
+
+
+def product_photo(request, path):
+    """Product photos uploaded from the staff portal (catalog.views ProductViewSet.photo).
+
+    Only media/products is public: media/customisations holds private parent uploads.
+    """
+    return serve_file(request, path, document_root=Path(settings.MEDIA_ROOT) / "products")
 
 
 def health_check(request):
@@ -36,6 +50,7 @@ urlpatterns = [
     path("api/", include("orders.urls")),
     path("api/", include("retail.urls")),
     path("api/panel/", include("panel.urls")),
+    re_path(r"^media/products/(?P<path>.+\.webp)$", product_photo, name="product_photo"),
 ]
 
 

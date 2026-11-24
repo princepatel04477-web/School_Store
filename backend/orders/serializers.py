@@ -393,6 +393,16 @@ class OrderCreateSerializer(serializers.Serializer):
                 {"items": f"No stock balance is configured for this city's variant(s): {', '.join(missing)}."}
             )
 
+        from catalog.models import ProductCityPrice
+        city_prices = {
+            cp.product_id: cp.selling_price
+            for cp in ProductCityPrice.objects.filter(
+                city_id=city_id,
+                active=True,
+                product_id__in=[v.product_id for v in variants.values()],
+            )
+        }
+
         subtotal = Decimal("0.00")
         for variant_id in variant_ids:
             variant = variants[variant_id]
@@ -402,7 +412,8 @@ class OrderCreateSerializer(serializers.Serializer):
                 raise serializers.ValidationError(
                     {"items": f"Insufficient stock for SKU {variant.sku} in this city."}
                 )
-            subtotal += variant.product.selling_price * quantity
+            effective_price = city_prices.get(variant.product_id, variant.product.selling_price)
+            subtotal += effective_price * quantity
 
         order_number = f"ORD-{uuid.uuid4().hex[:16].upper()}"
         try:
@@ -472,7 +483,7 @@ class OrderCreateSerializer(serializers.Serializer):
                 variant=variant,
                 category_id=variant.product.category_id,
                 quantity=quantity,
-                unit_price_snapshot=variant.product.selling_price,
+                unit_price_snapshot=city_prices.get(variant.product_id, variant.product.selling_price),
                 unit_cost_snapshot=variant.product.cost_price,
                 customisation_data=item.get("customisation_data") or {},
                 chosen_size=variant.size,

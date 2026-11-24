@@ -1,3 +1,5 @@
+import { uniformSizeGuide } from '../data/sizes';
+import { matchesListedClass, isShopProductVisible, shopSection, sectionPhoto } from '../data/shopSections';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X } from './ui/icons';
 import { CategoryOutlineIllustration } from './product/CategoryOutlineIllustration';
@@ -16,6 +18,7 @@ import { CLASSES } from '../data/classes';
 import { useStoreState } from '../store/storeState';
 import { CustomisationForm, photoPurposeForCategory } from './CustomisationForm';
 import { Popup } from './Popup';
+import { isCategoryLive } from '../data/liveCategories';
 
 export interface SchoolItem {
   id: string;
@@ -67,8 +70,9 @@ interface SelectionFlowProps {
   publicView?: boolean;
 }
 
-const SESSION_STORAGE_KEY = 'school_store_selection_flow';
-const STATIONERY_PROMPT_SESSION_KEY = 'school_store_stationery_prompt_dismissed';
+// Memory only (never saved to the phone): the choices and the "asked about stationery"
+// note last until the page or app is closed.
+let stationeryPromptDismissed = false;
 
 export function SelectionFlow({
   category = 'Uniform',
@@ -83,24 +87,8 @@ export function SelectionFlow({
   const { cart: storeCart, clearCart: clearStoreCart } = useStoreState();
   const activeCartCount = cartItemCount !== undefined ? cartItemCount : storeCart.length;
 
-  // Try restoring from sessionStorage
-  const [selection, setSelection] = useState<SelectionState>(() => {
-    try {
-      const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          school: parsed.school || null,
-          city: parsed.city || null,
-          grade: parsed.grade || null,
-          gender: parsed.gender === 'boy' || parsed.gender === 'girl' ? parsed.gender : null,
-        };
-      }
-    } catch {
-      // ignore
-    }
-    return { school: null, city: null, grade: null, gender: null };
-  });
+  // Always starts empty: nothing is restored from the phone.
+  const [selection, setSelection] = useState<SelectionState>({ school: null, city: null, grade: null, gender: null });
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(() => {
     if (selection.school && selection.city && selection.grade && selection.gender) return 5;
@@ -133,33 +121,19 @@ export function SelectionFlow({
   const isAccessoriesFlow = category.toLowerCase().includes('accessories');
 
   const triggerStationeryPrompt = useCallback(() => {
-    if (!isAccessoriesFlow) return;
-    try {
-      if (sessionStorage.getItem(STATIONERY_PROMPT_SESSION_KEY) === '1') {
-        return;
-      }
-    } catch {
-      // ignore
-    }
+    if (!isAccessoriesFlow || !isCategoryLive('Stationery')) return;
+    if (stationeryPromptDismissed) return;
     setShowStationeryPrompt(true);
   }, [isAccessoriesFlow]);
 
   const handleStationeryConfirm = () => {
-    try {
-      sessionStorage.setItem(STATIONERY_PROMPT_SESSION_KEY, '1');
-    } catch {
-      // ignore
-    }
+    stationeryPromptDismissed = true;
     setShowStationeryPrompt(false);
     onNavigateCategory?.('Stationery');
   };
 
   const handleStationeryDismiss = () => {
-    try {
-      sessionStorage.setItem(STATIONERY_PROMPT_SESSION_KEY, '1');
-    } catch {
-      // ignore
-    }
+    stationeryPromptDismissed = true;
     setShowStationeryPrompt(false);
   };
 
@@ -200,7 +174,9 @@ export function SelectionFlow({
   // The size the child had last time (shoes, tie, belt, socks: Prompt 24), unless
   // the measurement suggests one.
   const lastSizes = useLastSizes(measureStudentId).data;
-  const sizeToPick = suggestedSize ?? (selectedProduct ? lastSizes?.[selectedProduct.id] : undefined);
+  const gradeGuide = selectedProduct && uniformSizeGuide(selectedProduct.category,
+    selectedProduct.variants.map(v => ({ ...v, inStock: v.stock_status === 'IN_STOCK' || v.stock_status === 'LOW_STOCK' })), selection.grade?.name);
+  const sizeToPick = (measurement ? suggestedSize : undefined) ?? (gradeGuide?.availableId ? gradeGuide.label : undefined) ?? suggestedSize ?? (selectedProduct ? lastSizes?.[selectedProduct.id] : undefined);
   useEffect(() => {
     if (!selectedProduct || !sizeToPick) return;
     const match = selectedProduct.variants.find((v) => v.size === sizeToPick);
@@ -212,15 +188,6 @@ export function SelectionFlow({
     selectedProduct.variants.length <= 1 ||
     selectedProduct.variants.every((v) => !v.size || ['standard', 'one size', 'free size', 'no size', ''].includes(v.size.trim().toLowerCase()))
   );
-
-  // Persist selection to sessionStorage
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(selection));
-    } catch {
-      // ignore
-    }
-  }, [selection]);
 
   // Query: Step 1 Schools (Sorted A-Z by DB, search query supported)
   const { data: schools = [], isLoading: loadingSchools } = useQuery({
@@ -281,7 +248,7 @@ export function SelectionFlow({
       }
       let url = `/public/products/?school=${selection.school.id}&city=${selection.city.id}&grade=${selection.grade.id}&gender=${selection.gender}`;
       if (category && category !== 'All') {
-        url += `&category=${encodeURIComponent(category)}`;
+        url += `&category=${encodeURIComponent(category === 'PT Uniform' ? 'Uniform' : category)}`;
       }
       if (isAccessoriesFlow && productTypeFilter !== 'ALL') {
         url += `&product_type=${productTypeFilter}`;
@@ -291,7 +258,9 @@ export function SelectionFlow({
     enabled: !!(selection.school?.id && selection.city?.id && selection.grade?.id && selection.gender && step === 5),
   });
 
-  const productsList = productsData?.results || [];
+  const productsList = (productsData?.results ?? []).filter((p) =>
+    isShopProductVisible(p) && matchesListedClass(p.name, selection.grade?.name) && (category === 'All' || shopSection(p) === category) &&
+    (!p.gender || p.gender === 'unisex' || p.gender === selection.gender));
 
   // Auto-skip logic for Step 2 if school has only 1 city
   useEffect(() => {
@@ -427,7 +396,8 @@ export function SelectionFlow({
   // Add to cart helper
   const openProductCustomisation = (p: Product, variantId?: string) => {
     setSelectedProduct(p);
-    setSelectedVariantId(variantId || p.variants[0]?.id || '');
+    const guide = uniformSizeGuide(p.category, p.variants.map(v => ({ ...v, inStock: v.stock_status === 'IN_STOCK' || v.stock_status === 'LOW_STOCK' })), selection.grade?.name);
+    setSelectedVariantId(variantId || guide?.availableId || (guide ? '' : p.variants[0]?.id) || '');
     setCustomValues({});
     setFormError('');
   };
@@ -1016,7 +986,7 @@ export function SelectionFlow({
                 return (
                   <article className="product" key={p.id}>
                     <div className={'product-image ' + p.category.toLowerCase().replace(' ', '-')}>
-                      <CategoryOutlineIllustration category={p.category} />
+                       {p.thumbnail || p.image ? <img src={sectionPhoto(p.thumbnail || p.image, selection.gender, selection.grade?.name)} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : <CategoryOutlineIllustration category={p.category} />}
                     </div>
                     <div className="product-body">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
@@ -1156,6 +1126,7 @@ export function SelectionFlow({
                     </button>
                   )}
                 </div>
+                {gradeGuide && <p>Class default size: {gradeGuide.label}</p>}
                 <select
                   value={selectedVariantId}
                   onChange={(e) => setSelectedVariantId(e.target.value)}
@@ -1177,14 +1148,17 @@ export function SelectionFlow({
                       ? '-- Choose belt length / size --'
                       : '-- Choose size --'}
                   </option>
+                  {gradeGuide?.choices.filter(s => s.id.startsWith('unavailable-')).map(s => (
+                    <option disabled key={s.id}>{s.size} (Unavailable)</option>
+                  ))}
                   {selectedProduct.variants.map((v) => (
-                    <option key={v.id} value={v.id}>
+                    <option key={v.id} value={v.id} disabled={Boolean(gradeGuide && !gradeGuide.choices.find(s => s.id === v.id)?.inStock)}>
                       {isShoeProduct && !v.size.toLowerCase().includes('size')
                         ? `Shoe Size ${v.size}`
                         : isBelt && !v.size.toLowerCase().includes('size') && !v.size.includes('"')
                         ? `Belt Size ${v.size}`
                         : `Size: ${v.size}`}{' '}
-                      ({v.stock_status || 'In stock'})
+                      ({v.stock_status || (gradeGuide ? 'Unavailable' : 'In stock')})
                     </option>
                   ))}
                 </select>

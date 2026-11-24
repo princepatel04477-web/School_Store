@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
 import { useStoreState } from '../../store/storeState';
-import { ProductImage } from './ProductImage';
+import { ProductImage, type ProductFrame } from './ProductImage';
 import { QuantityStepper } from './QuantityStepper';
 import { AddToBagButton } from './AddToBagButton';
 import { EASING, DURATION_FAST } from '../../motion/motionConfig';
@@ -12,16 +12,27 @@ import './product.css';
 import { useLang } from '../../i18n';
 
 /** Real store items add a photo and whether the parent can order them here. */
-export type CardProduct = SeedProduct & { imageUrl?: string; needsDetails?: boolean };
+export type CardProduct = SeedProduct & {
+  imageUrl?: string;
+  heroUrl?: string;
+  imageAlt?: string;
+  /** Every photo of the item, in order; the item's page swipes between them. */
+  gallery?: { src: string; thumb?: string; alt?: string }[];
+  needsDetails?: boolean;
+};
 
 export interface ProductCardProps {
   product: CardProduct;
   onOpenDetails?: (product: CardProduct) => void;
   /** After a one-size item goes in the bag from the card (Prompt 24's next step). */
   onAdded?: (product: CardProduct) => void;
+  /** The first card on the page loads at once; the rest load as they scroll into view. */
+  priority?: boolean;
+  /** One photo frame for every card in the list (see ProductImage). */
+  frame?: ProductFrame;
 }
 
-export function ProductCard({ product, onOpenDetails, onAdded }: ProductCardProps) {
+export function ProductCard({ product, onOpenDetails, onAdded, priority = false, frame }: ProductCardProps) {
   const { cart, addItem, updateQuantity } = useStoreState();
   const { t } = useLang();
 
@@ -46,6 +57,7 @@ export function ProductCard({ product, onOpenDetails, onAdded }: ProductCardProp
       productId: product.id,
       variantId: chosenSize.id,
       name: product.name,
+      ...(product.imageUrl ? { image: product.imageUrl } : {}),
       category: product.category,
       pricePaise: product.pricePaise,
       size: chosenSize.size,
@@ -78,7 +90,15 @@ export function ProductCard({ product, onOpenDetails, onAdded }: ProductCardProp
         onClick={() => onOpenDetails && onOpenDetails(product)}
       >
         <motion.div layoutId={`product-image-${product.id}`}>
-          <ProductImage id={product.id} name={product.name} category={product.category} imageUrl={product.imageUrl} />
+          <ProductImage
+            id={product.id}
+            name={product.name}
+            category={product.category}
+            imageUrl={product.imageUrl}
+            alt={product.imageAlt}
+            priority={priority}
+            frame={frame}
+          />
         </motion.div>
         {product.required && (
           <span className="required-badge">{t('product.required')}</span>

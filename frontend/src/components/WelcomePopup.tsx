@@ -2,22 +2,15 @@ import { useEffect, useState } from 'react';
 import { Popup } from './Popup';
 import { useLang } from '../i18n';
 
-const SEEN_KEY = 'schoolstore_welcome_seen';
+// Memory only (nothing is saved on the phone): the note shows once per page load or app open.
+let seen = false;
 
 function alreadySeen(): boolean {
-  try {
-    return sessionStorage.getItem(SEEN_KEY) === '1';
-  } catch {
-    return false;
-  }
+  return seen;
 }
 
 function markSeen() {
-  try {
-    sessionStorage.setItem(SEEN_KEY, '1');
-  } catch {
-    // storage blocked: the note may show again next visit, which is harmless
-  }
+  seen = true;
 }
 
 /**
@@ -25,22 +18,31 @@ function markSeen() {
  * another dialog (the first-visit language chooser) is open, so the two never
  * stack, and it opens after the page has painted, so it never holds up loading.
  */
-export function WelcomePopup({ blocked }: { blocked: boolean }) {
+export function WelcomePopup({ blocked, skip = false }: { blocked: boolean; skip?: boolean }) {
   const { t } = useLang();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (blocked || alreadySeen()) return;
+    if (alreadySeen()) return;
+    // Only the home page greets. A parent who opens the shop, the checkout or the
+    // payment return page directly (or refreshes there) goes straight to the page.
+    if (skip) {
+      markSeen();
+      return;
+    }
+    if (blocked) return;
     markSeen();
     setOpen(true);
-  }, [blocked]);
+  }, [blocked, skip]);
 
   return (
     <Popup
       isOpen={open}
       onClose={() => setOpen(false)}
-      message={t('welcome.message')}
-      confirmLabel={t('common.close')}
+      className="popup--welcome"
+      title={t('welcome.title')}
+      message={t('welcome.body')}
+      confirmLabel={t('welcome.start')}
       cancelLabel={null}
     />
   );

@@ -6,6 +6,9 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { useAuth } from '../auth';
 import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
 import { SizeChartManager } from '../components/admin/SizeChartManager';
+import { CHART_COLORS, ChartSkeleton, KpiSkeleton, LIVE, LiveStamp, OrdersStrip, RankList, TrendChart, longDate } from '../components/admin/charts';
+
+const dayLabel = (iso: string) => longDate(iso);
 import { TailorSheetButton, TailorSheetCard } from '../components/admin/TailorSheetCard';
 import {
   cityAdmin, money, num, relative,
@@ -22,6 +25,7 @@ const NAV: PanelNavItem[] = [
   { to: 'orders', label: 'Orders', icon: Receipt },
   { to: 'schools', label: 'Schools', icon: SchoolBuilding },
   { to: 'size-charts', label: 'Size Charts', icon: Ruler },
+  { to: '/portal', label: 'Uniform Portal', icon: Package },
 ];
 
 export default function CityAdmin() {
@@ -45,21 +49,29 @@ export default function CityAdmin() {
  * 1. Daily Sales View (Requirement 2 & 6: indexed by (date, city), no cost/margin)
  * ------------------------------------------------------------------ */
 function CityDailySalesViewComponent() {
-  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  // Local calendar day: toISOString is UTC, a day behind in India before 05:30
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, []);
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
 
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error, refetch, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ['city-daily-sales', selectedDate],
     queryFn: () => cityAdmin.dailySales(selectedDate),
+    ...LIVE,
   });
+  const trend = data?.trend ?? [];
+  const trendHasSales = trend.some((p) => Number(p.revenue) > 0);
 
   return (
     <div>
       <div className="page-head">
         <div>
-          <div className="eyebrow">DAILY ROLLUP · {data?.city?.name ?? 'CITY'}</div>
-          <h1>Daily Sales Summary</h1>
-          <p className="muted">Read from DailySalesSummary via (date, city) index. Gross sales only.</p>
+          <div className="eyebrow">CITY DASHBOARD · {data?.city?.name ?? 'CITY'}</div>
+          <h1>Daily sales</h1>
+          <p className="muted">Sales across every school in your city, from confirmed orders.</p>
+          <LiveStamp updatedAt={dataUpdatedAt} fetching={isFetching} onRefresh={() => refetch()} />
         </div>
         <div className="range-picker">
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '13px' }}>
@@ -74,97 +86,84 @@ function CityDailySalesViewComponent() {
         </div>
       </div>
 
-      {isLoading && <div className="card pad">Loading daily sales…</div>}
+      {isLoading && (
+        <>
+          <div className="stat-grid three"><KpiSkeleton count={3} /></div>
+          <div className="card"><ChartSkeleton height={220} /></div>
+        </>
+      )}
       {error && <div className="card pad error">Failed to load sales: {(error as Error).message}</div>}
 
       {data && (
         <>
-          <div className="stat-grid three">
+          <div className="stat-grid three lead-first">
             <div className="stat accent">
-              <span>ORDERS PLACED</span>
+              <span>GROSS SALES</span>
+              <strong>{money(data.totals.revenue)}</strong>
+              <small>{dayLabel(data.date)}, item prices on confirmed orders</small>
+            </div>
+            <div className="stat">
+              <span>ORDERS</span>
               <strong>{num(data.totals.orders)}</strong>
-              <small>On {data.date}</small>
+              <small>{num(data.schools.length)} school{data.schools.length === 1 ? '' : 's'} ordered from</small>
             </div>
             <div className="stat">
               <span>UNITS SOLD</span>
               <strong>{num(data.totals.units)}</strong>
-              <small>Across all city schools</small>
+              <small>Across every school in the city</small>
             </div>
-            <div className="stat">
-              <span>GROSS SALES REVENUE</span>
-              <strong>{money(data.totals.revenue)}</strong>
-              <small>Gross revenue (excl. profit/cost)</small>
+          </div>
+
+          <div className="card">
+            <div className="card-head">
+              <h2>Gross sales, last 30 days</h2>
             </div>
+            {trendHasSales ? (
+              <>
+                <div className="chart-body">
+                  <TrendChart
+                    data={trend}
+                    height={220}
+                    series={[{ key: 'revenue', name: 'Gross sales', color: CHART_COLORS[0] }]}
+                    extra={(p) => <span>Orders<em>{num(Number(p.orders))}</em></span>}
+                  />
+                </div>
+                <div className="chart-body">
+                  <p className="chart-sub">Orders</p>
+                  <OrdersStrip data={trend} />
+                </div>
+              </>
+            ) : (
+              <p className="chart-empty">No sales in the 30 days up to {data.date}.</p>
+            )}
           </div>
 
           <div className="panel-grid">
             <div className="card">
-              <div className="card-head">
-                <h2>Category Breakdown</h2>
-                <span className="badge s-approved">{data.categories.length} Categories</span>
-              </div>
-              <div className="table-scroll">
-                <table className="data">
-                  <thead>
-                    <tr>
-                      <th>Category</th>
-                      <th className="r">Orders</th>
-                      <th className="r">Units</th>
-                      <th className="r">Gross Sales</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.categories.length === 0 ? (
-                      <tr><td colSpan={4} className="muted" style={{ textAlign: 'center', padding: '24px' }}>No category sales recorded for this date.</td></tr>
-                    ) : (
-                      data.categories.map((c) => (
-                        <tr key={c.category_id}>
-                          <td><b>{c.category_name}</b></td>
-                          <td className="r mono">{num(c.orders)}</td>
-                          <td className="r mono">{num(c.units)}</td>
-                          <td className="r mono"><b>{money(c.revenue)}</b></td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <div className="card-head"><h2>By category</h2></div>
+              <RankList
+                empty="No category sales on this date."
+                rows={data.categories.map((c) => ({
+                  key: c.category_id,
+                  label: c.category_name,
+                  sub: `${num(c.orders)} orders, ${num(c.units)} units`,
+                  value: Number(c.revenue),
+                  display: money(c.revenue),
+                }))}
+              />
             </div>
-
             <div className="card">
-              <div className="card-head">
-                <h2>School Breakdown</h2>
-                <span className="badge s-confirmed">{data.schools.length} Schools</span>
-              </div>
-              <div className="table-scroll">
-                <table className="data">
-                  <thead>
-                    <tr>
-                      <th>School</th>
-                      <th className="r">Orders</th>
-                      <th className="r">Units</th>
-                      <th className="r">Revenue</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.schools.length === 0 ? (
-                      <tr><td colSpan={4} className="muted" style={{ textAlign: 'center', padding: '24px' }}>No school sales for this date.</td></tr>
-                    ) : (
-                      data.schools.map((s) => (
-                        <tr key={s.school_id}>
-                          <td>
-                            <b>{s.school_name}</b>
-                            <small className="gr">{s.school_code}</small>
-                          </td>
-                          <td className="r mono">{num(s.orders)}</td>
-                          <td className="r mono">{num(s.units)}</td>
-                          <td className="r mono"><b>{money(s.revenue)}</b></td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <div className="card-head"><h2>By school</h2></div>
+              <RankList
+                empty="No school sales on this date."
+                rows={data.schools.map((sc) => ({
+                  key: sc.school_id,
+                  label: sc.school_name,
+                  sub: `${sc.school_code}, ${num(sc.orders)} orders, ${num(sc.units)} units`,
+                  value: Number(sc.revenue),
+                  display: money(sc.revenue),
+                }))}
+              />
             </div>
           </div>
         </>
@@ -341,6 +340,7 @@ function CityInventoryView() {
             setStockModal(null);
             refetchBalances();
             queryClient.invalidateQueries({ queryKey: ['variant-movements'] });
+            queryClient.invalidateQueries({ queryKey: ['store', 'products'] });
           }}
         />
       )}
@@ -367,7 +367,7 @@ function StockMovementModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [quantity, setQuantity] = useState<number>(mode === 'STOCK_IN' ? 10 : 0);
+  const [quantity, setQuantity] = useState<number | ''>('');
   const [reason, setReason] = useState<string>(mode === 'STOCK_IN' ? 'RESTOCK' : 'ADJUSTMENT');
   const [customNote, setCustomNote] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -382,8 +382,8 @@ function StockMovementModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
-    if (quantity === 0) {
-      setErrorMsg('Quantity change cannot be zero.');
+    if (quantity === '' || !Number.isInteger(quantity) || quantity === 0 || (mode === 'STOCK_IN' && quantity < 1)) {
+      setErrorMsg(mode === 'STOCK_IN' ? 'Enter a positive whole number of units.' : 'Enter a nonzero whole number of units.');
       return;
     }
     mutation.mutate({
@@ -414,7 +414,9 @@ function StockMovementModal({
             <input
               type="number"
               value={quantity}
-              onChange={(e) => setQuantity(parseInt(e.target.value, 10) || 0)}
+              onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+              min={mode === 'STOCK_IN' ? 1 : undefined}
+              step={1}
               required
             />
           </label>
@@ -1237,6 +1239,8 @@ function AddSchoolModal({
   const [contactPhone, setContactPhone] = useState<string>('');
   const [homeDelivery, setHomeDelivery] = useState<boolean>(true);
   const [schoolPickup, setSchoolPickup] = useState<boolean>(true);
+  const [logoUrl, setLogoUrl] = useState<string>('');
+  const [showLogoPublic, setShowLogoPublic] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const mutation = useMutation({
@@ -1249,9 +1253,11 @@ function AddSchoolModal({
         contact_phone: contactPhone,
         home_delivery_enabled: homeDelivery,
         school_pickup_enabled: schoolPickup,
+        logo_url: logoUrl.trim() || null,
+        show_logo_public: showLogoPublic,
       }),
     onSuccess: () => onSuccess(),
-    onError: (err: any) => setErrorMsg(err.message || 'Failed to add school.'),
+    onError: (err: unknown) => setErrorMsg(err instanceof Error ? err.message : 'Failed to add school.'),
   });
 
   return (
@@ -1296,6 +1302,16 @@ function AddSchoolModal({
               <input type="text" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
             </label>
           </div>
+
+          <label>
+            <span>School Logo URL:</span>
+            <input type="text" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="e.g. /brand/schools/dps.svg or https://..." />
+          </label>
+
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '8px 0', fontSize: '13px' }}>
+            <input type="checkbox" checked={showLogoPublic} onChange={(e) => setShowLogoPublic(e.target.checked)} style={{ marginTop: '2px' }} />
+            <span>Show logo on About page (the school has given written permission)</span>
+          </label>
 
           <div style={{ display: 'flex', gap: '16px', margin: '8px 0' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

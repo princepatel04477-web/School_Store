@@ -1,5 +1,6 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import type { Fit } from '../data/fit';
+import { removeSaved } from './persist';
 
 export interface CartItem {
   id: string; // product id + variant id
@@ -24,42 +25,29 @@ export interface StoredSelection {
   schoolCode?: string;
   cityId?: string;
   cityName?: string;
+  stateName?: string;
+  /** The campus picked in the shop (state, then city, then branch). */
+  branchId?: string;
+  branchName?: string;
   gradeId?: string;
   gradeName?: string;
   gender?: 'boy' | 'girl' | null;
 }
 
 const CART_STORAGE_KEY = 'schoolstore_cart';
-const SELECTION_STORAGE_KEY = 'schoolstore_active_selection';
 
-// Real items and schools have server ids (UUIDs). Bags and choices saved by the
-// earlier demo store hold sample ids the server would refuse, so they are dropped.
-const SERVER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
+// Start every full app load with an empty bag. Cart state remains available while the app
+// is open, but stale items from an earlier visit must not be restored on refresh.
 function loadStoredCart(): CartItem[] {
-  try {
-    const raw = localStorage.getItem(CART_STORAGE_KEY);
-    const items: CartItem[] = raw ? JSON.parse(raw) : [];
-    return items.filter((item) => SERVER_ID.test(item.variantId));
-  } catch {
-    return [];
-  }
+  removeSaved(CART_STORAGE_KEY);
+  return [];
 }
 
-function loadStoredSelection(): StoredSelection | null {
-  try {
-    const raw = localStorage.getItem(SELECTION_STORAGE_KEY);
-    const selection: StoredSelection | null = raw ? JSON.parse(raw) : null;
-    return selection && SERVER_ID.test(selection.schoolId) ? selection : null;
-  } catch {
-    return null;
-  }
-}
-
-// Simple pub/sub store for Cart & Selection state across components
+// Simple pub/sub store for Cart & Selection state across components.
+// The chosen school, class and boy/girl are never written to disk: they live in memory only.
 type Listener = () => void;
 let cartState: CartItem[] = loadStoredCart();
-let selectionState: StoredSelection | null = loadStoredSelection();
+let selectionState: StoredSelection | null = null;
 let lastRemovedItem: { item: CartItem; index: number } | null = null;
 const listeners = new Set<Listener>();
 
@@ -81,11 +69,6 @@ export const storeState = {
 
   setSelection: (sel: StoredSelection | null) => {
     selectionState = sel;
-    if (sel) {
-      localStorage.setItem(SELECTION_STORAGE_KEY, JSON.stringify(sel));
-    } else {
-      localStorage.removeItem(SELECTION_STORAGE_KEY);
-    }
     notify();
   },
 
@@ -105,7 +88,6 @@ export const storeState = {
     } else {
       cartState = [...cartState, { ...item, id }];
     }
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartState));
     notify();
   },
 
@@ -115,7 +97,6 @@ export const storeState = {
       return;
     }
     cartState = cartState.map((c) => (c.id === id ? { ...c, quantity: qty } : c));
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartState));
     notify();
   },
 
@@ -124,7 +105,6 @@ export const storeState = {
     if (idx > -1) {
       lastRemovedItem = { item: cartState[idx], index: idx };
       cartState = cartState.filter((c) => c.id !== id);
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartState));
       notify();
     }
   },
@@ -136,14 +116,13 @@ export const storeState = {
       copy.splice(index, 0, item);
       cartState = copy;
       lastRemovedItem = null;
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartState));
       notify();
     }
   },
 
   clearCart: () => {
     cartState = [];
-    localStorage.removeItem(CART_STORAGE_KEY);
+    removeSaved(CART_STORAGE_KEY);
     notify();
   },
 
@@ -161,7 +140,6 @@ export const storeState = {
         });
       }
     }
-    // Guest cart in localStorage remains active and associated with the account
     notify();
   },
 };

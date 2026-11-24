@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft } from '../components/ui/icons';
 import { formatINR } from '../utils/formatINR';
 import { useStoreState } from '../store/storeState';
-import { siteConfig } from '../siteConfig';
+import { SHOP_LINK, siteConfig } from '../siteConfig';
 import { useStoreSchools } from '../data/catalog';
 import { fitPayload } from '../data/fit';
 import { buildOrderMessage, whatsappOrderUrl } from '../services/whatsappOrder';
@@ -14,6 +14,7 @@ import { classLabel } from '../i18n/labels';
 import type { ParentChild } from '../api';
 import { ParentSignInSheet } from '../components/parent/ParentSignInSheet';
 import { scrollPageTo } from '../motion/SmoothScroll';
+import { hasStoreHistory } from '../components/BackButton';
 import { isNativeApp } from '../native/nativePlatform';
 import { requestPushPermissionAfterOrder } from '../native/push';
 import { useNetworkStatus } from '../native/network';
@@ -110,7 +111,9 @@ export function CheckoutPage() {
     const errs: Record<string, string> = {};
     if (!parentName.trim()) errs.parentName = t('co.err.name');
     if (mode === 'account') {
-      if (!child) errs.child = t('co.err.child');
+      // Before sign-in there is no child to choose yet, so ask for the sign-in first.
+      if (!isParent) errs.child = t('co.err.signIn');
+      else if (!child) errs.child = t('co.err.child');
       else if (wrongSchool) errs.child = t('co.err.otherSchool');
     } else {
       if (!/^\d{10}$/.test(parentMobile.trim())) errs.parentMobile = t('co.err.mobile');
@@ -323,7 +326,7 @@ export function CheckoutPage() {
         <button
           type="button"
           className="checkout-back-link"
-          onClick={() => navigate(-1)}
+          onClick={() => (hasStoreHistory() ? navigate(-1) : navigate(SHOP_LINK))}
         >
           <ArrowLeft width={16} height={16} /> {t('co.back')}
         </button>
@@ -483,15 +486,19 @@ export function CheckoutPage() {
                   </>
                 )}
 
-                <button
-                  type="button"
-                  className="btn btn-primary step-next-btn"
-                  onClick={() => {
-                    if (validateStep1()) setActiveStep(2);
-                  }}
-                >
-                  {t('co.next')}
-                </button>
+                {/* Before sign-in "Next" can only answer "sign in first", and two big
+                    green buttons on a phone left parents unsure which to press. */}
+                {(mode !== 'account' || isParent) && (
+                  <button
+                    type="button"
+                    className="btn btn-primary step-next-btn"
+                    onClick={() => {
+                      if (validateStep1()) setActiveStep(2);
+                    }}
+                  >
+                    {t('co.next')}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="step-summary-view">

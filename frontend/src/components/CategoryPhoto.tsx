@@ -7,18 +7,20 @@ import { CATEGORY_FALLBACK_PHOTOS, CATEGORY_PHOTOS } from '../data/categoryPhoto
  */
 export function CategoryPhoto({
   category,
+  photo,
   className,
   size,
   fallback = null,
   lazy = false,
 }: {
   category: string;
+  photo?: string;
   className?: string;
   size: number;
   fallback?: ReactNode;
   lazy?: boolean;
 }) {
-  const sources = [CATEGORY_PHOTOS[category], CATEGORY_FALLBACK_PHOTOS[category]].filter(Boolean);
+  const sources = [photo || CATEGORY_PHOTOS[category], CATEGORY_FALLBACK_PHOTOS[category]].filter(Boolean);
   const [attempt, setAttempt] = useState(0);
   if (attempt >= sources.length) return <>{fallback}</>;
   return (
@@ -30,6 +32,7 @@ export function CategoryPhoto({
       width={size}
       height={size}
       loading={lazy ? 'lazy' : undefined}
+      decoding="async"
       onError={() => setAttempt((n) => n + 1)}
     />
   );

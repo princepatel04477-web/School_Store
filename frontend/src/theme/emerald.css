@@ -1,0 +1,1448 @@
+/*
+ * Emerald theme for the whole store.
+ * The home page's emerald stage (P1) set the look: deep emerald, saffron accent,
+ * mint surfaces, Baloo 2 headings in sentence case, crisp cards with 1px borders.
+ * Loaded after every other stylesheet, so pages inherit it through the tokens and
+ * only the few spots with their own colours are restyled here.
+ * A picked school still re-tints --brand at runtime (theme/schoolTheme.ts).
+ */
+
+:root {
+  /* Surfaces: mint frame, white cards */
+  --paper: #f2f7f4;
+  --paper-raised: #ffffff;
+  --paper-sunk: #e4efe9;
+
+  /* Inks: emerald-black text */
+  --ink: #12352a;
+  --ink-soft: #3d5c50;
+  --ink-faint: #56705f;
+
+  --line: #d3e5db;
+
+  /* The store anchor (header, footer, logo) is now emerald instead of navy */
+  --navy: #0e5e3e;
+
+  --brand: #0e5e3e;
+  --on-brand: #ffffff;
+
+  /* House colours become the emerald family plus saffron */
+  --house-red: #0e5e3e;
+  --house-blue: #14825a;
+  --house-green: #2f6f55;
+  --house-yellow: #ffb766;
+  --on-house-yellow: #12352a;
+
+  --highlight: #14825a;
+  --highlight-ink: #0e5e3e;
+  --highlight-soft: rgba(14, 94, 62, 0.1);
+  --highlight-glow: rgba(14, 94, 62, 0.3);
+
+  /* Saffron accent for calls to action and small highlights */
+  --saffron: #ffb766;
+  --saffron-ink: #a85300; /* saffron for text on white (5:1) */
+
+  /* Client rule: crisp corners, 6px at most (3px, 4px for buttons and inputs, 6px for cards) */
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+
+  /* Client rule: no drop shadows. Surfaces are separated by a 1px var(--line) border. */
+  --shadow-sm: none;
+  --shadow-md: none;
+}
+
+/* ---------- Type: Baloo 2 headings in sentence case ---------- */
+
+/* Plain element selectors (no :root) so headings with their own colour, like the
+   white hero headline, keep it. */
+h1,
+h2,
+h3,
+h4,
+.display-font {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* The old condensed sports-day capitals become the emerald stage's rounded headings */
+:root .display-condensed {
+  font-stretch: normal;
+  text-transform: none;
+  letter-spacing: -0.015em;
+  line-height: 1.02;
+  font-weight: 800;
+}
+
+:root .eyebrow {
+  color: var(--highlight-ink);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+:root .label {
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);
+}
+
+/* ---------- Buttons ---------- */
+
+:root .btn,
+:root .primary,
+:root .secondary {
+  border-radius: var(--radius-md);
+}
+
+:root .btn-primary,
+:root .primary {
+  border-radius: var(--radius-md);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  box-shadow: none;
+}
+
+:root .btn-primary:focus-visible,
+:root .primary:focus-visible,
+:root .btn:focus-visible {
+  outline: 3px solid var(--emerald-sparkle, #ffd964);
+  outline-offset: 2px;
+}
+
+/* ---------- Cards and inputs pick up the rounded, soft look ---------- */
+
+:root .card,
+:root .cart-card,
+:root .form-card,
+:root .order-card,
+:root .product,
+:root .featured-school-card,
+:root .modal {
+  border-radius: var(--radius-lg);
+}
+
+:root input[type='text'],
+:root input[type='search'],
+:root input[type='tel'],
+:root input[type='email'],
+:root input[type='password'],
+:root input[type='number'],
+:root select,
+:root textarea {
+  border-radius: var(--radius-md);
+}
+
+/* ---------- Header and footer ---------- */
+
+:root .site-header {
+  box-shadow: none;
+}
+
+:root .site-header .site-brand .brand-mark,
+:root .footer-brand .brand-mark {
+  border-radius: var(--radius-lg);
+}
+
+:root .footer-brand .brand-mark {
+  color: var(--emerald-bg, #0e5e3e);
+}
+
+/* ---------- Home sections below Our story ---------- */
+
+:root .cat-tile {
+  border-radius: var(--radius-lg);
+}
+
+:root .cat-tile-media {
+  border-radius: var(--radius-lg);
+}
+
+:root .cat-tile.house-4 {
+  --tile: #12352a;
+}
+
+/* "What do you need?" fits however many categories are live (3 while notebooks and
+   ID cards are paused, 5 when they come back). Phones: two across, and an odd last
+   tile runs the full width with its photo on the left. */
+@media (max-width: 639px) {
+  /* Each tile sits in a .stagger-item wrapper, which is the grid item. */
+  :root .editorial-category-grid > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  :root .editorial-category-grid > :last-child:nth-child(odd) .cat-tile {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-4);
+  }
+  :root .editorial-category-grid > :last-child:nth-child(odd) .cat-tile-media {
+    width: 46%;
+    flex: 0 0 46%;
+  }
+  :root .editorial-category-grid > :last-child:nth-child(odd) .cat-tile-body {
+    flex: 1;
+    padding: 0 4px;
+  }
+}
+
+/* Desktop: one row, the tiles share the full width whatever their number. */
+@media (min-width: 1024px) {
+  :root .editorial-category-grid {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+  :root .editorial-category-grid .cat-tile-media {
+    aspect-ratio: 4 / 3;
+  }
+}
+
+:root .featured-school-card {
+  box-shadow: var(--shadow-sm);
+}
+
+:root .featured-school-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+:root .for-schools-band {
+  background-color: var(--emerald-bg, #0e5e3e);
+}
+
+:root .for-schools-btn {
+  border-radius: var(--radius-md);
+  background-color: var(--saffron);
+  color: var(--ink);
+  font-family: var(--font-heading);
+  font-weight: 800;
+}
+
+:root .for-schools-btn:hover {
+  background-color: #ffc887;
+  color: var(--ink);
+}
+
+/* ---------- Big headings: rounded Baloo in sentence case, not condensed capitals ---------- */
+
+:root .home-page .section-head-split h2,
+:root .home-page .section-head h2,
+:root .for-schools-title,
+:root .cat-tile .cat-title,
+:root .cat-tab,
+:root .gender-card-title,
+:root .sheet-nav-label,
+:root .hero-heading {
+  font-stretch: normal;
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+
+:root .footer-wordmark text {
+  font-stretch: normal;
+  text-transform: none;
+  letter-spacing: -0.02em;
+  fill: color-mix(in oklab, #ffffff 12%, var(--navy));
+}
+
+/* ---------- Shop flow (state, city, school, class, items) ---------- */
+
+:root .step-heading {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.015em;
+}
+
+:root .school-select-card,
+:root .class-tile,
+:root .gender-card,
+:root .school-filter-search,
+:root .school-search-field {
+  border-radius: var(--radius-lg);
+}
+
+:root .school-select-card,
+:root .class-tile,
+:root .gender-card {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--line);
+}
+
+:root .school-select-card:hover,
+:root .class-tile:hover,
+:root .gender-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--highlight);
+}
+
+:root .school-select-card.is-selected,
+:root .class-tile.is-selected {
+  background-color: var(--emerald-bg, #0e5e3e);
+  border-color: var(--emerald-bg, #0e5e3e);
+  color: #ffffff;
+}
+
+:root .school-select-card.is-selected .school-select-name,
+:root .school-select-card.is-selected .school-select-meta,
+:root .class-tile.is-selected .class-tile-name {
+  color: #ffffff;
+}
+
+:root .school-select-name,
+:root .class-tile-name {
+  font-family: var(--font-heading);
+  font-weight: 800;
+}
+
+/* The row arrow becomes the store's round emerald arrow button */
+:root .school-select-arrow {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--emerald-bg, #0e5e3e);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+:root .school-select-card.is-selected .school-select-arrow {
+  background: var(--saffron);
+  color: var(--ink);
+}
+
+:root .cat-tab {
+  border-radius: var(--radius-md);
+}
+
+:root .cat-tab.is-active {
+  background-color: var(--emerald-bg, #0e5e3e);
+  color: #ffffff;
+}
+
+:root .flow-empty-state {
+  border-radius: var(--radius-lg);
+}
+
+/* ---------- Bag and checkout ---------- */
+
+:root .order-num-label,
+:root .bag-child-head {
+  letter-spacing: 0.08em;
+}
+
+/* ---------- Mobile menu sheet ---------- */
+
+:root .mobile-menu-sheet {
+  background-color: var(--paper);
+}
+
+:root .sheet-nav-label {
+  font-family: var(--font-heading);
+  font-weight: 800;
+}
+
+/* ---------- Login ---------- */
+
+:root .login-art {
+  background-color: var(--emerald-bg, #0e5e3e);
+  background-image: radial-gradient(circle at 92% -10%, #14825a 0 28%, transparent 28.2%),
+    radial-gradient(circle at 92% -10%, #11704b 0 42%, transparent 42.2%);
+}
+
+:root .login-art strong {
+  color: var(--saffron);
+  font-style: normal;
+}
+
+/* ---------- Staff panels keep their layout, with the emerald palette only ---------- */
+
+/* ---------- Emerald page top (info pages, legal pages, 404) ---------- */
+
+.em-page {
+  background: var(--emerald-bg, #0e5e3e);
+  overflow-x: clip;
+}
+
+.em-band {
+  position: relative;
+  overflow: hidden;
+  color: #ffffff;
+  padding: clamp(28px, 6vw, 64px) 0 clamp(48px, 8vw, 88px);
+}
+
+.em-band-circle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.em-band-circle--outer {
+  width: clamp(320px, 50vw, 640px);
+  height: clamp(320px, 50vw, 640px);
+  right: clamp(-200px, -12vw, -120px);
+  top: clamp(-320px, -22vw, -140px);
+  background: var(--emerald-circle-outer, #11704b);
+}
+
+.em-band-circle--inner {
+  width: clamp(210px, 33vw, 420px);
+  height: clamp(210px, 33vw, 420px);
+  right: clamp(-90px, -5vw, -60px);
+  top: clamp(-200px, -14vw, -80px);
+  background: var(--emerald-circle-inner, #14825a);
+}
+
+.em-band-inner {
+  position: relative;
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-inline: clamp(20px, 5vw, 48px);
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.em-band-eyebrow {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--emerald-soft-green, #cdebdc);
+}
+
+.em-band-title {
+  margin: 6px 0 0;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: clamp(36px, 9vw, 64px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.em-band-sub {
+  margin: 10px 0 0;
+  max-width: 34ch;
+  font-size: clamp(15px, 1.4vw, 18px);
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--emerald-soft-green, #cdebdc);
+}
+
+.em-band-art {
+  display: block;
+  width: clamp(110px, 28vw, 220px);
+  margin-bottom: clamp(-88px, -8vw, -48px);
+}
+
+.em-band-art img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.25));
+}
+
+.em-sheet {
+  position: relative;
+  z-index: 1;
+  background: var(--paper);
+  border-radius: 6px 6px 0 0;
+  box-shadow: none;
+  padding: clamp(28px, 5vw, 56px) 0 calc(clamp(40px, 6vw, 72px) + env(safe-area-inset-bottom));
+}
+
+.em-sheet-inner {
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-inline: clamp(20px, 5vw, 48px);
+  box-sizing: border-box;
+}
+
+.em-note {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.em-note p {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+:root .legal {
+  padding-block: 0;
+  max-width: 72ch;
+}
+
+
+:root .school-select-arrow svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Partner band: the small label reads on emerald */
+:root .for-schools-label {
+  color: var(--emerald-soft-green, #cdebdc);
+}
+
+/* Selection summary and small pills: mint chips with emerald text */
+:root .selection-summary-bar {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+:root .selection-summary-bar .pill {
+  background: var(--paper-sunk);
+  color: var(--highlight-ink);
+  border-radius: var(--radius-md);
+  font-weight: 800;
+}
+
+/* ---------- Products ---------- */
+
+:root .product-card {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+:root .product-card-title {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+:root .product-card-price {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  color: var(--highlight-ink);
+}
+
+:root .product-card-action .btn,
+:root .product-card-action button {
+  border-radius: var(--radius-md);
+  border-color: var(--highlight);
+  color: var(--highlight-ink);
+  font-weight: 800;
+}
+
+/* No coloured left-border callouts: mint card with an emerald icon instead */
+:root .size-guide-notice,
+:root .fit-rec-note {
+  border-left: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--paper-sunk);
+}
+
+/* =====================================================================
+   Motion layer and the less-generic home sections (18 Nov)
+   - Cards arrive one after another (Stagger), photos wipe up inside them.
+   - Cards answer the pointer: lift on hover, press in on tap.
+   - Headlines reveal word by word (SplitReveal).
+   - Everything here stands still with reduced motion.
+   ===================================================================== */
+
+:root {
+  --em-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Stagger's wrapper box: the card inside fills it, so grids lay out as before */
+.stagger-item {
+  display: grid;
+  min-width: 0;
+}
+.stagger-item > * {
+  min-width: 0;
+}
+
+/* Route change: the saffron sweep across the very top */
+.route-sweep {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--saffron);
+  transform-origin: 0 50%;
+  z-index: 2000;
+  pointer-events: none;
+  animation: route-sweep 0.8s var(--em-ease) both;
+}
+@keyframes route-sweep {
+  0% { transform: scaleX(0); opacity: 1; }
+  70% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+
+/* A page opened from a link fades in. It starts visible enough to read, so a slow
+   phone never shows an empty screen while the fade runs.
+   Fill "backwards", not "both": a filled animation keeps the wrapper a stacking layer
+   after it ends, and the site header then covered every full-screen panel inside it
+   (the product page's Back bar was hidden). */
+.page-enter {
+  animation: page-enter 0.22s ease-out backwards;
+}
+@keyframes page-enter {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+
+/* Nothing may widen the page sideways on a phone: a sliding step or a wide
+   chip row made the whole page wobble left and right under the parent's thumb.
+   clip (not hidden) keeps the sticky header working. */
+html,
+body {
+  overflow-x: clip;
+}
+
+/* Shop steps slide in from the side the parent is heading. */
+.step-enter {
+  animation: step-enter-forward 0.28s var(--em-ease) backwards;
+}
+.step-enter--backward {
+  animation-name: step-enter-backward;
+}
+@keyframes step-enter-forward {
+  from { opacity: 0.35; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes step-enter-backward {
+  from { opacity: 0.35; transform: translateX(-24px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-sweep { display: none; }
+  .page-enter,
+  .step-enter { animation: none; }
+}
+
+/* ---------- Cards: hover and press ---------- */
+:root :is(.cat-tile, .school-select-card, .class-tile, .gender-card, .product-card, .about-problem-card) {
+  transition:
+    translate 0.45s var(--em-ease),
+    box-shadow 0.45s var(--em-ease),
+    scale 0.2s var(--em-ease),
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+:root .cat-tile-media img {
+  transition: scale 0.9s var(--em-ease);
+}
+
+:root .cat-tile .cat-arrow,
+:root .school-row-arrow {
+  transition: translate 0.35s var(--em-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root :is(.school-select-card, .gender-card, .product-card):hover {
+    translate: 0 -6px;
+    box-shadow: var(--shadow-md);
+  }
+  :root .class-tile:hover {
+    translate: 0 -3px;
+  }
+  :root .cat-tile:hover {
+    translate: none;
+    box-shadow: none;
+  }
+  :root .cat-tile:hover .cat-tile-media img {
+    scale: none;
+  }
+  :root .cat-tile:hover .cat-arrow,
+  :root .school-row:hover .school-row-arrow {
+    translate: 5px 0;
+  }
+}
+
+:root :is(.cat-tile, .school-select-card, .class-tile, .gender-card, .product-card, .school-row):active {
+  scale: 0.98;
+  transition-duration: 0.1s;
+}
+
+/* ---------- Flow lists that are not staggered: class tiles, boy/girl cards ---------- */
+@keyframes em-rise {
+  from {
+    opacity: 0;
+    translate: 0 22px;
+  }
+}
+
+/* "backwards" so the hover lift still works once the entrance is done */
+:root :is(.class-tile, .gender-card) {
+  animation: em-rise 0.55s var(--em-ease) backwards;
+}
+:root .classes-tiles-grid > :nth-child(2) { animation-delay: 40ms; }
+:root .classes-tiles-grid > :nth-child(3) { animation-delay: 80ms; }
+:root .classes-tiles-grid > :nth-child(4) { animation-delay: 120ms; }
+:root .classes-tiles-grid > :nth-child(5) { animation-delay: 160ms; }
+:root .classes-tiles-grid > :nth-child(n + 6) { animation-delay: 200ms; }
+:root .class-group-block:nth-child(2) .class-tile { animation-delay: 120ms; }
+:root .class-group-block:nth-child(3) .class-tile { animation-delay: 200ms; }
+:root .class-group-block:nth-child(4) .class-tile { animation-delay: 260ms; }
+:root .gender-cards-grid > :nth-child(2) { animation-delay: 90ms; }
+
+/* ---------- Home: headings without the label-and-rule stack ---------- */
+:root .home-page .section-head {
+  margin-bottom: var(--space-8);
+}
+
+/* ---------- Home: schools as a ruled list ---------- */
+:root .school-rows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border-top: 1px solid var(--line);
+}
+
+@media (min-width: 768px) {
+  :root .school-rows {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 56px;
+  }
+}
+
+:root .school-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 72px;
+  padding: 12px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: scale 0.2s var(--em-ease);
+}
+
+:root .school-row .school-crest,
+:root .school-row > :first-child {
+  flex: 0 0 auto;
+}
+
+:root .school-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+:root .school-row-name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.0625rem;
+  line-height: 1.25;
+  transition: color 0.2s ease;
+}
+
+:root .school-row-meta {
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+
+:root .school-row-arrow {
+  flex: 0 0 auto;
+  color: var(--brand);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root .school-row:hover .school-row-name {
+    color: var(--brand);
+  }
+}
+
+:root .school-row:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---------- Home: the promise, set big ---------- */
+:root .promise {
+  padding-block: var(--space-12) var(--space-16);
+}
+
+:root .promise-line {
+  margin: 0;
+  max-width: 24ch;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: clamp(1.625rem, 1.1rem + 2.4vw, 3rem);
+  line-height: 1.14;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+/* ---------- Home: partner band without the stripe and label ---------- */
+:root .for-schools-band {
+  padding-block: var(--space-16);
+}
+
+/* ---------- Our story: icons stand on their own, no white tile behind them ---------- */
+:root .about-problem-icon {
+  width: auto;
+  height: auto;
+  border: 0;
+  background: none;
+  border-radius: 0;
+  justify-content: start;
+  margin-bottom: 4px;
+}
+:root .about-problem-icon svg {
+  width: 36px;
+  height: 36px;
+}
+
+/* ---------- Reduced motion: nothing moves ---------- */
+@media (prefers-reduced-motion: reduce) {
+  :root :is(.class-tile, .gender-card) {
+    animation: none;
+  }
+  :root :is(.cat-tile, .school-select-card, .class-tile, .gender-card, .product-card, .school-row):is(:hover, :active) {
+    translate: none;
+    scale: none;
+  }
+  :root .cat-tile:hover .cat-tile-media img {
+    scale: none;
+  }
+}
+
+/* =====================================================================
+   18 Nov, round 2: fixed top bar on home, hero button, welcome note,
+   the state picker with landmarks, and ruled city/school lists.
+   ===================================================================== */
+
+/* ---------- Home: the top bar stays on screen all the time ---------- */
+:root .emerald-header-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 900;
+  background-color: var(--emerald-bg, #0e5e3e);
+  /* Paint the bar edge to edge while the logo and buttons keep the page width */
+  box-shadow: 0 0 0 100vmax var(--emerald-bg, #0e5e3e);
+  clip-path: inset(0 -100vmax);
+}
+
+/* The hero makes room for the bar it no longer holds in its flow */
+:root .emerald-hero {
+  padding-top: calc(64px + env(safe-area-inset-top, 0px));
+}
+@media (min-width: 768px) {
+  :root .emerald-hero {
+    padding-top: 68px;
+  }
+}
+@media (min-width: 1024px) {
+  :root .emerald-hero {
+    padding-top: 72px;
+  }
+}
+
+/* ---------- Welcome note: a small tricolour mark above the title ---------- */
+:root .popup--welcome {
+  padding-top: 34px;
+}
+:root .popup--welcome::before {
+  content: '';
+  display: block;
+  width: 72px;
+  height: 8px;
+  margin: 0 auto 18px;
+  border-radius: 999px;
+  border: 1px solid #e6e6e6;
+  background: linear-gradient(
+    to right,
+    var(--tricolour-saffron, #ff9933) 0 33.33%,
+    #fff 33.33% 66.66%,
+    var(--tricolour-green, #138808) 66.66% 100%
+  );
+}
+:root .popup--welcome .popup-title {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  color: var(--ink);
+}
+:root .popup--welcome .popup-message {
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+/* ---------- Shop step 1: bigger words ---------- */
+:root .step-school-panel .step-subtitle {
+  font-size: 1.0625rem;
+}
+
+/* ---------- States: landmark medallions with big names ---------- */
+:root .state-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px 12px;
+  margin-top: 12px;
+}
+@media (min-width: 640px) {
+  :root .state-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  :root .state-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 28px 20px;
+  }
+}
+
+:root .state-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 8px 4px 10px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: scale 0.2s var(--em-ease);
+}
+
+:root .state-tile-mark {
+  display: grid;
+  place-items: center;
+  width: 92px;
+  height: 92px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  background-color: #e1eee7;
+  color: var(--brand);
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    translate 0.4s var(--em-ease);
+}
+
+:root .state-emblem--initials {
+  display: grid;
+  place-items: center;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+}
+
+:root .state-tile-name {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.1875rem;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+:root .state-tile-meta {
+  font-size: 0.9375rem;
+  color: var(--ink-soft);
+}
+
+@media (min-width: 1024px) {
+  :root .state-tile-name {
+    font-size: 1.3125rem;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root .state-tile:hover .state-tile-mark {
+    background-color: var(--brand);
+    color: var(--saffron);
+    translate: 0 -4px;
+  }
+}
+
+:root .state-tile.is-selected .state-tile-mark {
+  background-color: var(--brand);
+  color: var(--saffron);
+}
+
+:root .state-tile:active {
+  scale: 0.96;
+  transition-duration: 0.1s;
+}
+
+:root .state-tile:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* ---------- Cities and schools: ruled lists ---------- */
+:root .pick-rows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+}
+@media (min-width: 900px) {
+  :root .pick-rows {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 48px;
+  }
+}
+
+:root .pick-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 78px;
+  padding: 14px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: scale 0.2s var(--em-ease);
+}
+
+:root .pick-row > img,
+:root .pick-row > :first-child:not(.pick-row-text) {
+  flex: 0 0 auto;
+}
+
+:root .pick-row .branch-photo {
+  border-radius: var(--radius-lg);
+  object-fit: cover;
+}
+
+:root .pick-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+:root .pick-row-name {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  transition: color 0.2s ease;
+}
+
+:root .pick-row-meta {
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+:root .pick-row-arrow {
+  flex: 0 0 auto;
+  color: var(--brand);
+  transition: translate 0.35s var(--em-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root .pick-row:hover .pick-row-name {
+    color: var(--brand);
+  }
+  :root .pick-row:hover .pick-row-arrow {
+    translate: 5px 0;
+  }
+}
+
+:root .pick-row.is-selected .pick-row-name {
+  color: var(--brand);
+}
+
+:root .pick-row:active {
+  scale: 0.985;
+  transition-duration: 0.1s;
+}
+
+:root .pick-row:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-lg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root :is(.state-tile, .pick-row):is(:hover, :active),
+  :root .state-tile:hover .state-tile-mark,
+  :root .pick-row:hover .pick-row-arrow {
+    translate: none;
+    scale: none;
+  }
+}
+
+/* ---------- Phones: round back button in the top bar ---------- */
+:root .round-back-btn {
+  display: none;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: var(--radius-md);
+  /* Solid white on the green bar, so parents read it as a button, not part of the logo */
+  border: 1px solid #ffffff;
+  background-color: #ffffff;
+  color: var(--emerald-bg, #0e5e3e);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 0.2s ease,
+    scale 0.15s var(--em-ease);
+}
+
+:root .round-back-btn:active {
+  scale: 0.9;
+  background-color: #dcefe5;
+}
+
+:root .round-back-btn:focus-visible {
+  outline: 2px solid var(--saffron);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767.98px) {
+  :root .header-back-btn {
+    display: inline-grid;
+  }
+  /* The back button now leads the bar, so the menu button keeps its own spacing */
+  :root .header-back-btn + .mobile-menu-trigger {
+    margin-left: -4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root .round-back-btn:active {
+    scale: none;
+  }
+}
+
+/* ---------- States: line-art landmarks, no circle behind them (19 Nov) ---------- */
+:root .state-tile-mark {
+  width: auto;
+  height: auto;
+  margin-bottom: 6px;
+  border-radius: 0;
+  background: none;
+  color: #4b5751;
+}
+:root .state-tile.is-selected .state-tile-mark {
+  background: none;
+  color: var(--brand);
+}
+:root .state-tile-name {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 1.0625rem;
+  color: #3d4842;
+}
+@media (min-width: 1024px) {
+  :root .state-tile-name {
+    font-size: 1.125rem;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  :root .state-tile:hover .state-tile-mark {
+    background: none;
+    color: var(--brand);
+  }
+  :root .state-tile:hover .state-tile-name {
+    color: var(--brand);
+  }
+}
+
+
+/* ---------- Home: All Schools Collapsible Accordion ---------- */
+:root .schools-accordion-section {
+  padding-block: var(--space-8);
+}
+
+:root .schools-accordion-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+:root .schools-toggle-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background-color: var(--line-subtle, #e8f0ec);
+  color: var(--brand, #0e5e3e);
+  transition: transform 0.25s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+:root .schools-toggle-badge.is-open {
+  transform: rotate(180deg);
+  background-color: var(--brand, #0e5e3e);
+  color: #ffffff;
+}
+
+:root .schools-chevron-icon {
+  display: block;
+}
+
+/* ---------- Home: Store Policy & Guarantee Section ---------- */
+:root .store-policy-section {
+  padding-block: var(--space-12) var(--space-16);
+  border-top: 1px solid var(--line);
+}
+
+:root .policy-head {
+  margin-bottom: var(--space-8);
+}
+
+:root .policy-eyebrow {
+  display: inline-block;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brand, #0e5e3e);
+  margin-bottom: 6px;
+}
+
+:root .policy-title {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: clamp(1.75rem, 1.2rem + 2.2vw, 2.75rem);
+  color: var(--navy, #0e5e3e);
+  margin: 0;
+}
+
+:root .store-policy-grid {
+  /* One ruled list, not a row of 3 feature cards (client rule). */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 760px;
+  background: var(--paper-raised, #ffffff);
+  border: 1px solid var(--line, #e2e8e5);
+  border-radius: var(--radius-lg, 6px);
+}
+
+:root .policy-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 16px;
+  row-gap: 4px;
+  align-items: start;
+  padding: clamp(16px, 3vw, 22px) clamp(16px, 3vw, 24px);
+}
+
+:root .policy-card + .policy-card {
+  border-top: 1px solid var(--line, #e2e8e5);
+}
+
+:root .policy-card > :not(.policy-icon-tile) {
+  grid-column: 2;
+}
+
+:root .policy-icon-tile {
+  grid-row: 1 / span 2;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md, 6px);
+  background: color-mix(in oklab, var(--brand, #0e5e3e) 12%, transparent);
+  color: var(--brand, #0e5e3e);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+:root .policy-card-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: var(--ink, #1f2923);
+  line-height: 1.3;
+}
+
+:root .policy-card-desc {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--ink-soft, #56645d);
+}
+
+/* ---------- Home: For Schools Band Enhancements ---------- */
+:root .for-schools-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+:root .for-schools-label {
+  display: inline-block;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--emerald-soft-green, #cdebdc);
+}
+
+:root .for-schools-title {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: clamp(2rem, 1.4rem + 3vw, 3.75rem);
+  line-height: 1.05;
+  color: var(--emerald-white, #ffffff);
+  margin: 0;
+}
+
+:root .for-schools-lead {
+  font-family: var(--font-body);
+  font-size: clamp(1rem, 0.95rem + 0.3vw, 1.1875rem);
+  line-height: 1.6;
+  color: color-mix(in oklab, var(--emerald-white, #ffffff) 90%, transparent);
+  max-width: 54ch;
+  margin: 6px 0 0 0;
+}
+
+:root .for-schools-pillars {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  margin-top: 16px;
+}
+
+@media (min-width: 768px) {
+  :root .for-schools-pillars {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+}
+
+:root .for-schools-pillar {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--emerald-soft-green, #cdebdc);
+}
+
+:root .pillar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--saffron, #ffb766);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+:root .for-schools-cta-wrap {
+  margin-top: 24px;
+}
+
+/* ---------- State logos: colourful SVG files, 96px phones / 112px desktop ---------- */
+:root img.state-emblem {
+  display: block;
+  width: 96px;
+  height: 96px;
+  transition: translate 0.35s var(--em-ease);
+}
+@media (min-width: 1024px) {
+  :root img.state-emblem {
+    width: 112px;
+    height: 112px;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  :root .state-tile:hover img.state-emblem {
+    translate: 0 -4px;
+  }
+}
+:root .state-tile.is-selected img.state-emblem {
+  translate: 0 -4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root .state-tile img.state-emblem {
+    translate: none;
+  }
+}
+
+/* ---------- Footer: two link columns, no brand row or wordmark (19 Nov) ---------- */
+:root .site-footer {
+  padding-top: var(--space-10, 40px);
+}
+:root .footer-grid--two {
+  grid-template-columns: 1fr 1fr;
+  border-top: 0;
+}
+@media (min-width: 768px) {
+  :root .footer-grid--two {
+    grid-template-columns: repeat(2, minmax(0, 280px));
+    gap: 0 64px;
+    border-bottom: 1px solid var(--footer-line);
+  }
+}
+:root .footer-bottom-row {
+  margin-top: var(--space-6, 24px);
+}
+:root .footer-grid--two {
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+  border: 0;
+}
+:root .footer-grid--two > .footer-col {
+  border: 0;
+  padding: 0;
+  grid-column: auto;
+}
+@media (min-width: 768px) {
+  :root .footer-grid--two {
+    grid-template-columns: repeat(2, minmax(0, 280px));
+    gap: 0 64px;
+    border-bottom: 0;
+  }
+}
+:root .footer-content {
+  padding-bottom: var(--space-8, 32px);
+}
+:root .footer-bottom-row {
+  margin-top: 0;
+}

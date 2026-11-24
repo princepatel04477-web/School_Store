@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <circle cx="50" cy="50" r="46" fill="#7B1E34" stroke="#E5A93C" stroke-width="4"/>
+  <circle cx="50" cy="50" r="39" fill="none" stroke="#FFFFFF" stroke-width="1.5"/>
+  <path d="M50 24 C40 38 32 46 32 58 C32 68 40 76 50 76 C60 76 68 68 68 58 C68 46 60 38 50 24 Z" fill="#E5A93C"/>
+  <path d="M50 36 C44 46 40 52 40 60 C40 66 44 70 50 70 C56 70 60 66 60 60 C60 52 56 46 50 36 Z" fill="#FFFFFF"/>
+  <text x="50" y="64" text-anchor="middle" font-family="'Baloo 2', sans-serif" font-weight="800" font-size="12" fill="#7B1E34">FHS</text>
+</svg>

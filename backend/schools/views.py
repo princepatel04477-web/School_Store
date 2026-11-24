@@ -67,7 +67,7 @@ class CityViewSet(
         user = self.request.user
         if not user or not user.is_authenticated:
             return qs.none()
-        if user.role == "BOSS" or getattr(user, "is_superuser", False):
+        if user.role == "BOSS" or getattr(user, "is_superuser", False) or (user.role == "ADMIN" and not user.city_id):
             return qs
         if user.city_id:
             return qs.filter(id=user.city_id)
@@ -81,7 +81,7 @@ class SchoolViewSet(
 ):
     cache_version_key = SCHOOL_LIST_CACHE_VERSION_KEY
     cache_namespace = "schools:schools"
-    queryset = School.objects.select_related("city").order_by("name")
+    queryset = School.objects.select_related("city").prefetch_related("grades").order_by("name")
     serializer_class = SchoolSerializer
     permission_classes = [RoleScopedPermission]
     read_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER", "PARENT")
@@ -100,6 +100,29 @@ class SchoolViewSet(
                 return qs.filter(id=user.school_id)
             return qs.none()
         return super().scope_queryset(qs)
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        city_id = self.request.query_params.get("city")
+        search = self.request.query_params.get("search")
+        active = self.request.query_params.get("active")
+        if city_id:
+            qs = qs.filter(city_id=city_id)
+        if search:
+            qs = qs.filter(
+                Q(name__icontains=search.strip()) | Q(code__icontains=search.strip())
+            )
+        if active is not None:
+            if str(active).lower() in ("true", "1"):
+                qs = qs.filter(active=True)
+            elif str(active).lower() in ("false", "0"):
+                qs = qs.filter(active=False)
+        return qs
+
+    def perform_destroy(self, instance):
+        # Soft delete: setting active to false, never a hard delete
+        instance.active = False
+        instance.save(update_fields=["active", "updated_at"])
 
 
 class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):

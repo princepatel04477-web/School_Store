@@ -3,6 +3,7 @@ export * from './SmoothScroll';
 export * from './Reveal';
 export * from './Stagger';
 export * from './TextReveal';
+export * from './SplitReveal';
 export * from './ImageCurtain';
 export * from './Parallax';
 export * from './Magnetic';

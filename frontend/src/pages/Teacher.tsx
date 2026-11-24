@@ -3,15 +3,11 @@ import { Link, Route, Routes, useParams } from 'react-router-dom';
 import { Shell } from '../App';
 import { SelectionFlow } from '../components/SelectionFlow';
 import { Cart, type CartItem } from '../components/Store';
-import { api, type Product } from '../api';
+import { api, money, num, panel, type Product } from '../api';
+import { KpiSkeleton, LIVE, LiveStamp, OrdersStrip } from '../components/admin/charts';
+import { Skeleton } from '../components/ui/Skeleton';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Fit } from '../data/fit';
-
-const demoStudents = [
-  { id: '1', name: 'Anaya Patel', gr: 'DPS-1042', gr_number: 'DPS-1042', class_name: '6', grade_name: '6', section: 'A', gender: 'FEMALE', school_name: 'DPS Surat' },
-  { id: '2', name: 'Kabir Shah', gr: 'DPS-1077', gr_number: 'DPS-1077', class_name: '6', grade_name: '6', section: 'A', gender: 'MALE', school_name: 'DPS Surat' },
-  { id: '3', name: 'Meera Joshi', gr: 'DPS-0880', gr_number: 'DPS-0880', class_name: '4', grade_name: '4', section: 'B', gender: 'FEMALE', school_name: 'DPS Surat' },
-];
 
 export default function Teacher() {
   return (
@@ -26,20 +22,52 @@ export default function Teacher() {
 }
 
 function TeacherHome() {
+  const { data, isLoading, isError, isFetching, dataUpdatedAt, refetch } = useQuery({
+    queryKey: ['teacher-summary'],
+    queryFn: () => panel.teacherSummary(),
+    ...LIVE,
+  });
+  const month = data ? new Date(`${data.month.date_from}T00:00:00`).toLocaleDateString('en-IN', { month: 'long' }) : '';
+  const trendHasSales = (data?.trend ?? []).some((p) => Number(p.gross_sales) > 0);
+
   return (
     <>
+      {isError && <div className="notice"><b>Could not load your school's numbers</b><p>Check your connection and tap Refresh.</p></div>}
       <div className="stat-grid">
-        <div>
-          <span>STUDENTS</span>
-          <strong>248</strong>
-          <small>+12 this term</small>
-        </div>
-        <div>
-          <span>ORDERS THIS MONTH</span>
-          <strong>86</strong>
-          <small>₹42,380 total</small>
-        </div>
+        {!data ? (
+          isLoading ? <KpiSkeleton count={2} /> : null
+        ) : (
+          <>
+            <div>
+              <span>STUDENTS</span>
+              <strong>{num(data.students.total)}</strong>
+              <small>
+                {data.students.pending
+                  ? `${num(data.students.pending)} waiting for approval`
+                  : `On the ${data.school.name} roster`}
+              </small>
+            </div>
+            <div>
+              <span>ORDERS IN {month.toUpperCase()}</span>
+              <strong>{num(data.month.orders)}</strong>
+              <small>{money(data.month.gross_sales)} total, {num(data.today.orders)} today</small>
+            </div>
+          </>
+        )}
       </div>
+      {data && (
+        <div className="teacher-trend">
+          <div className="teacher-trend-head">
+            <b>School orders, last 30 days</b>
+            <LiveStamp updatedAt={dataUpdatedAt} fetching={isFetching} onRefresh={() => refetch()} />
+          </div>
+          {trendHasSales ? (
+            <OrdersStrip data={data.trend} height={140} />
+          ) : (
+            <p className="chart-empty">No orders in the last 30 days yet.</p>
+          )}
+        </div>
+      )}
       <div className="action-list">
         <Link to="students">
           <div>
@@ -48,18 +76,6 @@ function TeacherHome() {
           </div>
           <span>→</span>
         </Link>
-        <Link to="students?import=1">
-          <span className="action-icon yellow">↥</span>
-          <div>
-            <b>Import student list</b>
-            <small>Excel · preview before confirming</small>
-          </div>
-          <span>→</span>
-        </Link>
-      </div>
-      <div className="notice">
-        <b>Tip for a smooth day</b>
-        <p>Keep your student list updated before the uniform rush starts.</p>
       </div>
     </>
   );
@@ -68,20 +84,16 @@ function TeacherHome() {
 function Students() {
   const [q, setQ] = useState('');
   const [cls, setCls] = useState('All');
-  const [show, setShow] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
 
-  const { data } = useQuery({
-    queryKey: ['students', q, cls],
-    queryFn: () => api<any>(`/students/?search=${encodeURIComponent(q)}&class=${cls}`).catch(() => demoStudents),
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['students', q],
+    queryFn: () => api<any>(`/students/?search=${encodeURIComponent(q)}`),
   });
 
-  const list = (data?.results || data || demoStudents).filter(
-    (s: any) =>
-      (s.name || '').toLowerCase().includes(q.toLowerCase()) &&
-      (cls === 'All' || s.class_name === cls || s.grade_name === cls)
-  );
+  const all: any[] = data?.results || (Array.isArray(data) ? data : []);
+  const classLabel = (s: any) => `${s.grade_name || s.class_name || ''}${s.section ? ` ${s.section}` : ''}`.trim();
+  const classes = ['All', ...Array.from(new Set(all.map(classLabel).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))];
+  const list = all.filter((s) => cls === 'All' || classLabel(s) === cls);
 
   return (
     <>
@@ -90,9 +102,6 @@ function Students() {
           <span className="eyebrow">STUDENT ROSTER</span>
           <h2>Students</h2>
         </div>
-        <button className="text-button" onClick={() => setShow(!show)}>
-          + Add
-        </button>
       </div>
       <div className="search">
         <span>⌕</span>
@@ -102,34 +111,30 @@ function Students() {
           placeholder="Search by name or GR number"
         />
       </div>
-      <div className="chips">
-        {['All', '6 A', '4 B'].map((x) => (
-          <button
-            className={cls === x ? 'chip active' : 'chip'}
-            onClick={() => setCls(x)}
-            key={x}
-          >
-            {x}
-          </button>
-        ))}
-      </div>
-      {show && (
-        <form
-          className="form-card"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setShow(false);
-          }}
-        >
-          <h3>Add a student</h3>
-          <input placeholder="Student full name" required />
-          <input placeholder="GR number" required />
-          <div className="form-row">
-            <input placeholder="Class / Grade" required />
-            <input placeholder="Section" required />
-          </div>
-          <button className="primary full">Save student</button>
-        </form>
+      {classes.length > 2 && (
+        <div className="chips">
+          {classes.map((x) => (
+            <button
+              className={cls === x ? 'chip active' : 'chip'}
+              onClick={() => setCls(x)}
+              key={x}
+            >
+              {x}
+            </button>
+          ))}
+        </div>
+      )}
+      {isError && <div className="notice"><b>Could not load the roster</b><p>Check your connection and try again.</p></div>}
+      {isLoading && (
+        <div className="student-list" aria-label="Loading students">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} height="64px" style={{ marginBottom: 8 }} />)}
+        </div>
+      )}
+      {!isLoading && !isError && list.length === 0 && (
+        <div className="notice">
+          <b>{q ? 'No student matches that search' : 'No students on the roster yet'}</b>
+          <p>{q ? 'Try the GR number or part of the name.' : 'The school admin adds students from the school panel.'}</p>
+        </div>
       )}
       <div className="student-list">
         {list.map((s: any) => (
@@ -138,41 +143,12 @@ function Students() {
             <div>
               <b>{s.name}</b>
               <small>
-                {s.gr || s.gr_number} · Grade {s.grade_name || s.class_name || '-'} {s.section ? `(${s.section})` : ''} · {s.gender || 'Unspecified'}
+                {s.gr || s.gr_number} · Grade {s.grade_name || s.class_name || '-'} {s.section ? `(${s.section})` : ''} · {s.gender === 'FEMALE' ? 'Girl' : s.gender === 'MALE' ? 'Boy' : '-'}
               </small>
             </div>
             <span style={{ fontSize: '13px', color: '#275b4c', fontWeight: 600 }}>Order on behalf →</span>
           </Link>
         ))}
-      </div>
-      <div className="import-card">
-        <div>
-          <b>Import from Excel</b>
-          <small>
-            {confirmed
-              ? 'Import queued · job progress will appear here'
-              : file
-              ? `${file.name} · preview ready`
-              : 'Upload, preview and confirm changes'}
-          </small>
-        </div>
-        {!file && !confirmed ? (
-          <label className="secondary">
-            Choose file
-            <input
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              hidden
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-            />
-          </label>
-        ) : file && !confirmed ? (
-          <button className="secondary" onClick={() => setConfirmed(true)}>
-            Preview & confirm
-          </button>
-        ) : (
-          <span className="status">Queued</span>
-        )}
       </div>
     </>
   );
@@ -187,18 +163,11 @@ function TeacherOrder() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   // Fetch target student details for accurate school, grade, and gender resolution
-  const { data: studentData } = useQuery({
+  const { data: student, isLoading, isError } = useQuery({
     queryKey: ['teacher-student', id],
-    queryFn: async () => {
-      if (!id) return null;
-      return api<any>(`/students/${id}/`).catch(() => {
-        return demoStudents.find((s) => s.id === id) || demoStudents[0];
-      });
-    },
+    queryFn: () => api<any>(`/students/${id}/`),
     enabled: !!id,
   });
-
-  const student = studentData || demoStudents.find((s) => s.id === id) || demoStudents[0];
 
   const studentProfile = student
     ? {
@@ -230,6 +199,17 @@ function TeacherOrder() {
   const handleRemoveItem = (itemId: string) => {
     setCartItems((prev) => prev.filter((it) => it.id !== itemId));
   };
+
+  if (isLoading || isError || !student) {
+    return (
+      <>
+        <Link to="/teacher/students" className="back">← All students</Link>
+        {isLoading ? <Skeleton height="76px" /> : (
+          <div className="notice"><b>Could not find this student</b><p>Go back to the roster and pick the student again.</p></div>
+        )}
+      </>
+    );
+  }
 
   return (
     <>
@@ -270,7 +250,7 @@ function TeacherOrder() {
           <span className="eyebrow">ORDERING ON BEHALF OF</span>
           <h2 style={{ margin: '2px 0 4px', fontSize: '18px' }}>{student.name}</h2>
           <small style={{ color: '#55695d' }}>
-            GR: {student.gr || student.gr_number || '-'} · Grade {student.grade_name || student.class_name || '-'} · {student.school_name || 'DPS Surat'} · {student.gender ? (student.gender.toUpperCase() === 'MALE' ? 'Boy' : 'Girl') : 'Student'}
+            GR: {student.gr || student.gr_number || '-'} · Grade {student.grade_name || student.class_name || '-'} · {student.school_name || '-'} · {student.gender ? (student.gender.toUpperCase() === 'MALE' ? 'Boy' : 'Girl') : 'Student'}
           </small>
         </div>
       </div>

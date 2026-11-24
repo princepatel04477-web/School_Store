@@ -1,21 +1,19 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { Search, Check, ArrowRight, ArrowLeft } from '../components/ui/icons';
-import { motion } from 'motion/react';
+import { useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { ArrowLeft } from '../components/ui/icons';
 import { seedClasses, type SeedClass } from '../data/seedData';
-import { useStoreSchools, useStoreProducts, type StoreSchool } from '../data/catalog';
+import { useStoreSchools, useStoreProducts } from '../data/catalog';
+import { BranchPicker, type PickedBranch } from '../components/school/BranchPicker';
 import type { CardProduct } from '../components/product/ProductCard';
 import { useStoreState, storeState } from '../store/storeState';
 import { resolveFlowStep } from '../store/flowStep';
 import { scrollPageTo } from '../motion/SmoothScroll';
-import { SchoolCrest } from '../components/school/SchoolCrest';
 import { ProductCard } from '../components/product/ProductCard';
+import { frameForImage, type ProductFrame } from '../components/product/ProductImage';
 import { ProductSheet } from '../components/product/ProductSheet';
 import { IdCardPreview } from '../components/idcard/IdCardPreview';
 import { StepTransition } from '../motion/StepTransition';
-import { Thread } from '../motion/Thread';
-import { Stagger, Reveal, Hairline } from '../motion';
-import { EASING } from '../motion/motionConfig';
+import { Stagger, Reveal, Hairline, SplitReveal } from '../motion';
 import { useLang, type MessageKey } from '../i18n';
 import { categoryLabel, classLabel, genderLabel } from '../i18n/labels';
 import { ListenButton } from '../components/ListenButton';
@@ -36,9 +34,18 @@ import {
   useSizeFit,
   type Fit,
 } from '../data/fit';
-import { CATEGORY_PHOTOS } from '../data/categoryPhotos';
-import { CategoryPhoto } from '../components/CategoryPhoto';
+import { ACCESSORY_RANK, inShopOrder, isPtUniform, shopOrderRank, shopSection } from '../data/shopSections';
+import { LIVE_CATEGORIES, isCategoryLive } from '../data/liveCategories';
+import { useBackHandler } from '../components/BackButton';
 import './flow.css';
+
+// Shoes and tie, belt and socks: after one of these goes in the bag, the stationery question.
+const ACCESSORY_CATEGORIES: readonly string[] = LIVE_CATEGORIES.filter((cat) => cat === 'School Shoes' || cat === 'Uniform Accessories');
+// An old link or home tile that asks for these (?cat=…) opens the list at the tie.
+const ACCESSORY_LINKS = ['Accessories', 'School Shoes', 'Uniform Accessories'];
+
+// Memory only (nothing is saved on the phone): asked once per page load or app open.
+let stationeryAsked = false;
 
 const GROUP_KEYS: Record<string, MessageKey> = {
   'Pre-primary': 'grp.preprimary',
@@ -46,6 +53,17 @@ const GROUP_KEYS: Record<string, MessageKey> = {
   Middle: 'grp.middle',
   Secondary: 'grp.secondary',
 };
+
+/** "Add the matching …" names the item it opens: a girl's shirt matches a skirt, not a trouser. */
+function matchLabelKey(name: string): MessageKey {
+  if (/skirt|pinafore/i.test(name)) return 'match.addSkirt';
+  if (/shorts/i.test(name)) return 'match.addShorts';
+  if (/kurta|kameez/i.test(name)) return 'match.addKurta';
+  return garmentKind(name) === 'bottom' ? 'match.addBottom' : 'match.addTop';
+}
+
+/** Kept on each shop history entry: the step the entry before it shows. */
+type FlowEntryState = { fromStep?: number };
 
 export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -55,9 +73,6 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const [fullSetOpen, setFullSetOpen] = useState(false);
 
   const [stepDirection, setStepDirection] = useState<'forward' | 'backward'>('forward');
-
-  // School Search query
-  const [schoolQuery, setSchoolQuery] = useState('');
 
   // Selected School, Class, and Gender State
   // Read URL params or fallback to active stored selection. A link to another school
@@ -75,19 +90,36 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     () => schools.find((s) => s.id === activeSchoolId) || null,
     [schools, activeSchoolId]
   );
+  // The classes this school has, as chosen in the uniform portal. None chosen: every class.
+  const offeredClasses = useMemo(() => {
+    const names = activeSchool?.grades;
+    return names && names.length > 0 ? seedClasses.filter((c) => names.includes(c.name)) : seedClasses;
+  }, [activeSchool]);
+  // A saved or linked class the school no longer has counts as not chosen.
   const activeClass = useMemo(
-    () => seedClasses.find((c) => c.id === activeClassId) || null,
-    [activeClassId]
+    () => offeredClasses.find((c) => c.id === activeClassId) || null,
+    [offeredClasses, activeClassId]
   );
   // A saved school that has left the store counts as no school; a linked one gets its own message.
   const savedSchoolGone = schoolsQuery.isSuccess && !activeSchool && !linkedSchoolId;
+  // The campus the parent picked (state, then city, then branch), kept with the saved choice.
+  const activeBranch = selection?.schoolId === activeSchoolId && selection?.branchId ? selection : null;
+  // A chain (one uniform, many campuses) has no city of its own, so the parent must pick the branch.
+  const needsBranch = Boolean(activeSchool && !activeSchool.cityId && !activeBranch);
+  const schoolLabel = activeBranch?.branchName || activeSchool?.name || '';
+  const cityLabel = activeBranch?.cityName || activeSchool?.city || '';
   const stepParam = resolveFlowStep(searchParams.get('step'), {
-    school: Boolean(activeSchoolId) && !savedSchoolGone,
+    school: Boolean(activeSchoolId) && !savedSchoolGone && !needsBranch,
     grade: Boolean(activeClass),
     gender: Boolean(activeGender),
   });
   const [currentStep, setCurrentStep] = useState<number>(stepParam);
-  const productsQuery = useStoreProducts(activeSchool?.id, activeClass?.name, activeGender);
+  const productsQuery = useStoreProducts(
+    activeSchool?.id,
+    activeClass?.name,
+    activeGender,
+    activeBranch?.cityId || activeSchool?.cityId
+  );
   const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
 
   // The child's measurement (Prompt 21): measured once on any shirt or
@@ -139,6 +171,18 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     [products]
   );
 
+  // The school part of the saved choice: the school, and its branch if one was picked.
+  const schoolAnswer = () => ({
+    schoolId: activeSchool!.id,
+    schoolName: activeSchool!.name,
+    schoolCode: activeSchool!.code,
+    cityId: activeBranch?.cityId || activeSchool!.cityId,
+    cityName: cityLabel,
+    stateName: activeBranch?.stateName,
+    branchId: activeBranch?.branchId,
+    branchName: activeBranch?.branchName,
+  });
+
   // A link from the school (?school=…&class=…) counts as the parent's choice, so the
   // bag and checkout know which school and class the order is for.
   useEffect(() => {
@@ -151,10 +195,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       return;
     }
     setSelection({
-      schoolId: activeSchool.id,
-      schoolName: activeSchool.name,
-      schoolCode: activeSchool.code,
-      cityName: activeSchool.city,
+      ...schoolAnswer(),
       gradeId: activeClass?.id,
       gradeName: activeClass?.name,
       gender: activeGender,
@@ -166,32 +207,70 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const [showCartWarning, setShowCartWarning] = useState(false);
   const [pendingTargetStep, setPendingTargetStep] = useState<number | null>(null);
 
-  // Active Category Tab on Step 4
-  // A home page category tile links here with ?cat=…, so open on that category.
+  // Step 4 is one list in a fixed order (see shopOrderRank), with no category bars.
+  // A home page tile or header link still adds ?cat=…: the list opens at that kind of item.
   const catParam = searchParams.get('cat');
-  const activeTab = catParam && CATEGORY_PHOTOS[catParam] ? catParam : 'Uniform';
+  const listRef = useRef<HTMLDivElement>(null);
+  /** Scrolls the list to the first item that passes the test. */
+  const scrollToItem = (test: (product: CardProduct) => boolean) => {
+    const index = step4Products.findIndex(test);
+    const card = index < 0 ? null : listRef.current?.querySelectorAll('.product-card')[index];
+    if (card) scrollPageTo(card.getBoundingClientRect().top + window.scrollY - 80);
+  };
+  const scrollToAccessories = () => scrollToItem((p) => shopOrderRank(p) >= ACCESSORY_RANK);
 
-  // Changing category while scrolled down jumps back to the start of that category's list
-  const tabsTopRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!tabsTopRef.current) return;
-    const top = tabsTopRef.current.getBoundingClientRect().top + window.scrollY - 60;
-    if (window.scrollY > top) scrollPageTo(top);
-  }, [activeTab]);
-  // Kept in the address, so the header's category links and these tabs stay in step
-  const selectTab = (cat: string) => {
+  // Product Sheet Modal
+  const [activeProductId, setActiveProductId] = useState<string | null>(null);
+  const activeProductForSheet = products.find((product) => product.id === activeProductId) ?? null;
+  // An open product gets its own history entry (?item=), so the phone's back button
+  // and the round back button close the product first instead of leaving the list.
+  const itemParam = searchParams.get('item');
+  const openSheet = (item: CardProduct) => {
+    setActiveProductId(item.id);
+    if (itemParam === item.id) return;
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        next.set('cat', cat);
+        next.set('item', item.id);
+        return next;
+      },
+      { replace: Boolean(itemParam), state: { sheetEntry: true } }
+    );
+  };
+  const closeSheet = () => {
+    setActiveProductId(null);
+    if (!new URLSearchParams(window.location.search).get('item')) return;
+    const entry = (window.history.state as { usr?: { sheetEntry?: boolean } } | null)?.usr;
+    if (entry?.sheetEntry) {
+      navigate(-1);
+      return;
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('item');
         return next;
       },
       { replace: true }
     );
   };
-
-  // Product Sheet Modal
-  const [activeProductForSheet, setActiveProductForSheet] = useState<CardProduct | null>(null);
+  // The phone's back button took ?item= away: close the product.
+  useEffect(() => {
+    if (!itemParam) setActiveProductId(null);
+  }, [itemParam]);
+  // A reloaded page opens on the list, so an ?item= left in the address is dropped.
+  useEffect(() => {
+    if (!itemParam) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('item');
+        return next;
+      },
+      { replace: true }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // After an item goes in the bag, guide the parent on (Prompt 24): the
   // matching shirt or trouser, then shoes, then tie, belt and socks, then
@@ -199,7 +278,6 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const { cart: bagLines } = useStoreState();
   const [added, setAdded] = useState<{ product: CardProduct; match: CardProduct | null } | null>(null);
   const [askStationery, setAskStationery] = useState(false);
-  const STATIONERY_ASKED = 'school_store_stationery_prompt_dismissed';
   const nextTab: Record<string, string> = { Uniform: 'School Shoes', 'School Shoes': 'Uniform Accessories' };
   const matchFor = (product: CardProduct): CardProduct | null => {
     const kind = garmentKind(product.name);
@@ -210,7 +288,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     const preferred = want === 'bottom' ? /trouser|pant/i : /shirt/i;
     const candidates = products.filter(
       (p) =>
-        p.category === 'Uniform' &&
+        shopSection(p) === shopSection(product) && isPtUniform(p) === isPtUniform(product) &&
         p.sizes.length > 1 &&
         garmentKind(p.name) === want &&
         pairs.test(p.name) &&
@@ -220,19 +298,14 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     return candidates.find((p) => preferred.test(p.name)) ?? candidates[0] ?? null;
   };
   const handleAdded = (product: CardProduct, fromCard = false) => {
-    setActiveProductForSheet(null);
-    if (product.category === 'Uniform' || product.category === 'School Shoes') {
-      setAdded({ product, match: product.category === 'Uniform' ? matchFor(product) : null });
+    closeSheet();
+    if (isPtUniform(product)) return;
+    if (product.category === 'Uniform') {
+      setAdded({ product, match: matchFor(product) });
       return;
     }
-    if (product.category === 'Uniform Accessories') {
-      let asked = false;
-      try {
-        asked = sessionStorage.getItem(STATIONERY_ASKED) === '1';
-      } catch {
-        // storage blocked: ask
-      }
-      if (!asked) {
+    if (ACCESSORY_CATEGORIES.includes(product.category) && isCategoryLive('Stationery')) {
+      if (!stationeryAsked) {
         setAskStationery(true);
         return;
       }
@@ -241,13 +314,9 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     if (!fromCard) onOpenBag?.();
   };
   const closeStationery = (goToStationery: boolean) => {
-    try {
-      sessionStorage.setItem(STATIONERY_ASKED, '1');
-    } catch {
-      // storage blocked: may ask again next visit
-    }
+    stationeryAsked = true;
     setAskStationery(false);
-    if (goToStationery) selectTab('Stationery');
+    if (goToStationery) scrollToItem((p) => p.category === 'Stationery');
   };
 
   // Sync step param
@@ -258,14 +327,32 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     }
   }, [stepParam]);
 
+  // Write the step shown into this history entry. An address without one opens at the
+  // furthest step the saved answers allow, so Back to it used to jump forward again.
+  // Built from the live address so it never undoes the school picker's own update.
+  const location = useLocation();
+  useEffect(() => {
+    const live = new URLSearchParams(window.location.search);
+    if (live.get('step') === String(stepParam)) return;
+    live.set('step', String(stepParam));
+    navigate({ search: `?${live}` }, { replace: true, state: location.state });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepParam]);
+
   const goToStep = (step: number) => {
     setStepDirection(step > currentStep ? 'forward' : 'backward');
+    // The previous history entry is that step: go back to it, as the phone's back button
+    // would, instead of adding an entry the phone's back button would then return from.
+    if ((location.state as FlowEntryState | null)?.fromStep === step) {
+      navigate(-1);
+      return;
+    }
     setCurrentStep(step);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('step', String(step));
       return next;
-    });
+    }, { state: { fromStep: currentStep } satisfies FlowEntryState });
   };
 
   const requestStepChange = (targetStep: number) => {
@@ -286,22 +373,39 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     }
   };
 
-  const handleSelectSchool = (school: StoreSchool) => {
+  const handleSelectBranch = ({ branch, city, state }: PickedBranch) => {
     setSelection({
-      schoolId: school.id,
-      schoolName: school.name,
-      schoolCode: school.code,
-      cityName: school.city,
+      schoolId: branch.school.id,
+      schoolName: branch.school.name,
+      schoolCode: branch.school.code,
+      cityId: city.id,
+      cityName: city.name,
+      stateName: state,
+      branchId: branch.id,
+      branchName: branch.name,
       gradeId: undefined,
       gradeName: undefined,
       gender: null,
     });
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      next.set('school', school.id);
+      next.set('school', branch.school.id);
       next.delete('class');
       next.delete('gender');
       next.set('step', '2');
+      return next;
+    }, { state: { fromStep: 1 } satisfies FlowEntryState });
+  };
+
+  // "Show all schools" on a picker opened for one school (from the home page search).
+  const clearLinkedSchool = () => {
+    setSelection(null);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('school');
+      next.delete('class');
+      next.delete('gender');
+      next.set('step', '1');
       return next;
     });
   };
@@ -309,10 +413,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   const handleSelectClass = (cls: SeedClass) => {
     if (activeSchool) {
       setSelection({
-        schoolId: activeSchool.id,
-        schoolName: activeSchool.name,
-        schoolCode: activeSchool.code,
-        cityName: activeSchool.city,
+        ...schoolAnswer(),
         gradeId: cls.id,
         gradeName: cls.name,
         gender: null,
@@ -324,16 +425,13 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       next.delete('gender');
       next.set('step', '3');
       return next;
-    });
+    }, { state: { fromStep: 2 } satisfies FlowEntryState });
   };
 
   const handleSelectGender = (gender: 'boy' | 'girl') => {
     if (activeSchool && activeClass) {
       setSelection({
-        schoolId: activeSchool.id,
-        schoolName: activeSchool.name,
-        schoolCode: activeSchool.code,
-        cityName: activeSchool.city,
+        ...schoolAnswer(),
         gradeId: activeClass.id,
         gradeName: activeClass.name,
         gender,
@@ -344,17 +442,8 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       next.set('gender', gender);
       next.set('step', '4');
       return next;
-    });
+    }, { state: { fromStep: 3 } satisfies FlowEntryState });
   };
-
-  // Filtered Schools for Step 1
-  const filteredSchools = useMemo(() => {
-    const q = schoolQuery.trim().toLowerCase();
-    if (!q) return schools;
-    return schools.filter(
-      (s) => s.name.toLowerCase().includes(q) || s.city.toLowerCase().includes(q)
-    );
-  }, [schoolQuery, schools]);
 
   // Grouped Classes for Step 2
   const groupedClasses = useMemo(() => {
@@ -364,188 +453,70 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       Middle: [],
       Secondary: [],
     };
-    seedClasses.forEach((cls) => {
+    offeredClasses.forEach((cls) => {
       if (groups[cls.group]) {
         groups[cls.group].push(cls);
       }
     });
     return groups;
-  }, []);
+  }, [offeredClasses]);
 
-  // Filtered Products for Step 4 (Category + Gender filter)
-  const step4Products = useMemo(() => {
-    // The server already sends only this school, class and boy/girl's items.
-    return products.filter((p) => p.category === activeTab);
-  }, [products, activeTab]);
+  // Every card on the page uses one photo frame, so uniforms and accessories line up:
+  // tall when most cards show a child wearing the item, square when most show the
+  // item alone (plain shots and close-ups). The other photos show whole inside it.
+  const listFrame: ProductFrame = useMemo(() => {
+    const portraits = products.filter((p) => frameForImage(p.imageUrl) === 'portrait').length;
+    return portraits * 2 > products.length ? 'portrait' : 'square';
+  }, [products]);
+
+  // Step 4: every item for this class and boy/girl, in the shop's fixed order.
+  const step4Products = useMemo(() => inShopOrder(products), [products]);
+
+  // Arrived from an accessories tile or link: open the list at the tie, once.
+  const linkScrolled = useRef(false);
+  useEffect(() => {
+    if (linkScrolled.current || currentStep !== 4 || !productsQuery.isSuccess) return;
+    if (!catParam || !ACCESSORY_LINKS.includes(catParam)) return;
+    linkScrolled.current = true;
+    const timer = window.setTimeout(scrollToAccessories, 350);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, productsQuery.isSuccess, catParam]);
 
   // "Order full set": the items made for this school that can be ordered here.
   const fullSetProducts = useMemo(
-    () => products.filter((p) => p.official && !p.needsDetails && p.sizes.some((size) => size.inStock)),
+    () =>
+      products.filter(
+        (p) => !isPtUniform(p) && isCategoryLive(p.category) && p.official && !p.needsDetails && p.sizes.some((size) => size.inStock)
+      ),
     [products]
   );
 
-  const requiredProducts = useMemo(() => {
-    return step4Products.filter((p) => p.required);
-  }, [step4Products]);
-
-  const optionalProducts = useMemo(() => {
-    return step4Products.filter((p) => !p.required);
-  }, [step4Products]);
+  // The round back button in the top bar goes back one step, like the links on each step
+  // (step 4 asks first if going back would clear the bag).
+  // An open product closes first.
+  useBackHandler(() => {
+    if (activeProductForSheet) closeSheet();
+    else if (currentStep === 4) requestStepChange(3);
+    else goToStep(currentStep - 1);
+  }, currentStep > 1 || Boolean(activeProductForSheet));
 
   return (
     <div className="selection-flow-page container" id="main">
-      {/* Top Stepper Nav */}
-      <div className="flow-stepper-wrap">
-        <div className="flow-stepper" role="navigation" aria-label={t('flow.progress')}>
-          {/* Step 1 Node */}
-          <button
-            type="button"
-            className={`step-node ${currentStep >= 1 ? 'is-active' : ''} ${currentStep > 1 ? 'is-complete' : ''}`}
-            onClick={() => requestStepChange(1)}
-            aria-current={currentStep === 1 ? 'step' : undefined}
-          >
-            <span className="step-node-bubble">
-              {currentStep > 1 ? <Check width={14} height={14} /> : '1'}
-            </span>
-            <span className="step-node-label">{t('flow.school')}</span>
-          </button>
-
-          {/* Stepper Thread Connector */}
-          <div className="stepper-connector">
-            <Thread animate={currentStep >= 2} />
-          </div>
-
-          {/* Step 2 Node */}
-          <button
-            type="button"
-            className={`step-node ${currentStep >= 2 ? 'is-active' : ''} ${currentStep > 2 ? 'is-complete' : ''}`}
-            onClick={() => activeSchool && requestStepChange(2)}
-            disabled={!activeSchool}
-            aria-current={currentStep === 2 ? 'step' : undefined}
-          >
-            <span className="step-node-bubble">
-              {currentStep > 2 ? <Check width={14} height={14} /> : '2'}
-            </span>
-            <span className="step-node-label">{t('flow.class')}</span>
-          </button>
-
-          {/* Stepper Thread Connector */}
-          <div className="stepper-connector">
-            <Thread animate={currentStep >= 3} />
-          </div>
-
-          {/* Step 3 Node: Boy / Girl */}
-          <button
-            type="button"
-            className={`step-node ${currentStep >= 3 ? 'is-active' : ''} ${currentStep > 3 ? 'is-complete' : ''}`}
-            onClick={() => activeSchool && activeClass && requestStepChange(3)}
-            disabled={!activeSchool || !activeClass}
-            aria-current={currentStep === 3 ? 'step' : undefined}
-          >
-            <span className="step-node-bubble">
-              {currentStep > 3 ? <Check width={14} height={14} /> : '3'}
-            </span>
-            <span className="step-node-label">{t('flow.boyGirl')}</span>
-          </button>
-
-          {/* Stepper Thread Connector */}
-          <div className="stepper-connector">
-            <Thread animate={currentStep >= 4} />
-          </div>
-
-          {/* Step 4 Node: Items */}
-          <button
-            type="button"
-            className={`step-node ${currentStep === 4 ? 'is-active' : ''}`}
-            onClick={() => activeSchool && activeClass && activeGender && goToStep(4)}
-            disabled={!activeSchool || !activeClass || !activeGender}
-            aria-current={currentStep === 4 ? 'step' : undefined}
-          >
-            <span className="step-node-bubble">4</span>
-            <span className="step-node-label">{t('flow.items')}</span>
-          </button>
-        </div>
-
-        {/* Mobile Stepper Header */}
-        <div className="mobile-stepper-title">
-          <span>
-            {t('flow.stepOf', { n: currentStep })} ·{' '}
-            {currentStep === 1
-              ? t('flow.school')
-              : currentStep === 2
-              ? t('flow.class')
-              : currentStep === 3
-              ? t('flow.boyGirl')
-              : t('flow.items')}
-          </span>
-        </div>
-      </div>
-
       {/* Main Stepped Content with Directional Animation */}
       <StepTransition stepKey={currentStep} direction={stepDirection}>
         {/* ================= STEP 1: SCHOOL ================= */}
         {currentStep === 1 && (
-          <div className="step-panel step-school-panel">
-            <div className="step-title-row">
-              <h1 className="step-heading">{t('flow.s1.title')}</h1>
-              <p className="step-subtitle">{t('flow.s1.sub')}</p>
-              <ListenButton text={`${t('flow.s1.title')}. ${t('flow.s1.sub')}`} />
-            </div>
-
-            <div className="school-filter-search">
-              <Search className="search-filter-icon" width={20} height={20} />
-              <input
-                type="text"
-                placeholder={t('flow.s1.search')}
-                aria-label={t('flow.s1.search')}
-                className="school-search-field"
-                value={schoolQuery}
-                onChange={(e) => setSchoolQuery(e.target.value)}
-              />
-            </div>
-
-            {schoolsQuery.isLoading ? (
-              <div className="flow-empty-state" role="status">
-                <p>{t('flow.loadingSchools')}</p>
-              </div>
-            ) : schoolsQuery.isError ? (
-              <div className="flow-empty-state" role="alert">
-                <h3>{t('flow.schoolsError')}</h3>
-                <p>{t('common.checkInternet')}</p>
-                <button type="button" className="btn btn-primary" onClick={() => schoolsQuery.refetch()}>
-                  {t('common.tryAgain')}
-                </button>
-              </div>
-            ) : filteredSchools.length > 0 ? (
-              <Stagger className="schools-select-grid">
-                {filteredSchools.map((s) => {
-                  const isSelected = activeSchool?.id === s.id;
-                  return (
-                    <div
-                      key={s.id}
-                      className={`school-select-card ${isSelected ? 'is-selected' : ''}`}
-                      onClick={() => handleSelectSchool(s)}
-                    >
-                      <SchoolCrest id={s.id} color={s.color} name={s.name} code={s.code} size={52} />
-                      <div className="school-select-details">
-                        <h3 className="school-select-name">{s.name}</h3>
-                        <span className="school-select-meta">{[s.city, s.board].filter(Boolean).join(' · ')}</span>
-                      </div>
-                      <ArrowRight className="school-select-arrow" width={18} height={18} />
-                    </div>
-                  );
-                })}
-              </Stagger>
-            ) : (
-              <div className="flow-empty-state">
-                <h3>{t('flow.noSchool')}</h3>
-                <p>{t('flow.noSchoolSub')}</p>
-                <Link to="/contact?reason=request-school" className="plain-link">
-                  {t('home.requestSchool')} →
-                </Link>
-              </div>
-            )}
-          </div>
+          <BranchPicker
+            // Opened from a link or the home page search for one school: only its branches.
+            schoolId={linkedSchoolId && !activeBranch ? linkedSchoolId : undefined}
+            schoolName={linkedSchoolId && !activeBranch ? activeSchool?.name : undefined}
+            onClearSchool={clearLinkedSchool}
+            selectedBranchId={activeBranch?.branchId}
+            initialState={activeBranch?.stateName}
+            initialCityId={activeBranch?.cityId}
+            onSelect={handleSelectBranch}
+          />
         )}
 
         {/* ================= STEP 2: CLASS ================= */}
@@ -577,20 +548,20 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
           <div className="step-panel step-class-panel">
             <button
               type="button"
-              className="step-back-btn"
+              className="step-back-btn step-back-btn--boxed"
               onClick={() => goToStep(1)}
             >
-              <ArrowLeft width={16} height={16} /> {t('home.changeSchool')}
+              <ArrowLeft width={16} height={16} /> {t('flow.backTo', { step: t('flow.school') })}
             </button>
 
             <div className="step-title-row">
-              <span className="label">{activeSchool.name}</span>
-              <h1 className="step-heading">{t('flow.s2.title')}</h1>
+              <span className="label">{schoolLabel}</span>
+              <SplitReveal as="h1" immediate className="step-heading">{t('flow.s2.title')}</SplitReveal>
               <ListenButton text={t('flow.s2.title')} />
             </div>
 
             <div className="class-groups-container">
-              {Object.entries(groupedClasses).map(([groupTitle, classesInGroup]) => (
+              {Object.entries(groupedClasses).filter(([, classesInGroup]) => classesInGroup.length > 0).map(([groupTitle, classesInGroup]) => (
                 <div key={groupTitle} className="class-group-block">
                   <span className="label class-group-label">{t(GROUP_KEYS[groupTitle] ?? 'grp.primary')}</span>
                   <div className="classes-tiles-grid">
@@ -619,15 +590,15 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
           <div className="step-panel step-gender-panel">
             <button
               type="button"
-              className="step-back-btn"
+              className="step-back-btn step-back-btn--boxed"
               onClick={() => goToStep(2)}
             >
-              <ArrowLeft width={16} height={16} /> {t('flow.changeClass')} ({classLabel(activeClass.name, t)})
+              <ArrowLeft width={16} height={16} /> {t('flow.backTo', { step: t('flow.class') })}
             </button>
 
             <div className="step-title-row">
-              <span className="label">{activeSchool.name} · {classLabel(activeClass.name, t)}</span>
-              <h1 className="step-heading">{t('flow.s3.title')}</h1>
+              <span className="label">{schoolLabel} · {classLabel(activeClass.name, t)}</span>
+              <SplitReveal as="h1" immediate className="step-heading">{t('flow.s3.title')}</SplitReveal>
               <ListenButton text={t('flow.s3.title')} />
             </div>
 
@@ -692,6 +663,14 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         {/* ================= STEP 4: ITEMS ================= */}
         {currentStep === 4 && activeSchool && (
           <div className="step-panel step-items-panel">
+            <button
+              type="button"
+              className="step-back-btn step-back-btn--boxed"
+              onClick={() => requestStepChange(3)}
+            >
+              <ArrowLeft width={16} height={16} /> {t('flow.backTo', { step: t('flow.boyGirl') })}
+            </button>
+
             {/* Summary Bar above product list */}
             <div
               className="selection-summary-bar"
@@ -710,10 +689,10 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
             >
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
-                  {activeSchool.name}
+                  {schoolLabel}
                 </span>
                 <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
-                  {activeSchool.city}
+                  {cityLabel}
                 </span>
                 {activeClass && (
                   <span className="pill" style={{ background: 'var(--brand-tint, #edf6ef)', color: 'var(--brand, #275b4c)', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
@@ -744,9 +723,9 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
               <div className="items-main-col">
                 <div className="step-title-row">
                   <span className="label">
-                    {activeSchool.name} · {classLabel(activeClass?.name, t)} · {genderLabel(activeGender, t)}
+                    {schoolLabel} · {classLabel(activeClass?.name, t)} · {genderLabel(activeGender, t)}
                   </span>
-                  <h1 className="step-heading">{t('flow.s4.title')}</h1>
+                  <SplitReveal as="h1" immediate className="step-heading">{t('flow.s4.title')}</SplitReveal>
                   <ListenButton text={`${t('flow.s4.title')}. ${t('flow.s4.listen')}`} />
                 </div>
 
@@ -755,7 +734,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   <div className="fullset-banner">
                     <div>
                       <strong>{t('set.bannerTitle')}</strong>
-                      <span>{t('set.bannerSub', { count: fullSetProducts.length, school: activeSchool.name })}</span>
+                      <span>{t('set.bannerSub', { count: fullSetProducts.length, school: schoolLabel })}</span>
                     </div>
                     <button type="button" className="btn btn-primary" onClick={() => setFullSetOpen(true)}>
                       {t('set.open')}
@@ -763,39 +742,8 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                   </div>
                 )}
 
-                {/* Sticky Category Tabs */}
-                <div ref={tabsTopRef} aria-hidden="true" />
-                <div className="category-tabs-sticky" role="tablist" aria-label={t('home.shopByCategory')}>
-                  {(['Uniform', 'School Shoes', 'Uniform Accessories', 'Stationery', 'ID Cards'] as const).map(
-                    (cat) => {
-                      const count = productsQuery.isSuccess ? products.filter((p) => p.category === cat).length : null;
-                      return (
-                        <button
-                          key={cat}
-                          type="button"
-                          role="tab"
-                          aria-selected={activeTab === cat}
-                          className={`cat-tab ${activeTab === cat ? 'is-active' : ''}`}
-                          onClick={() => selectTab(cat)}
-                        >
-                          {activeTab === cat && (
-                            <motion.span
-                              layoutId="cat-tab-indicator"
-                              className="cat-tab-indicator"
-                              transition={{ duration: 0.2, ease: EASING }}
-                            />
-                          )}
-                          <CategoryPhoto category={cat} className="cat-tab-photo" size={56} />
-                          <span className="cat-tab-label">{categoryLabel(cat, t)}</span>
-                          {count ? <span className="cat-tab-count">{count}</span> : null}
-                        </button>
-                      );
-                    }
-                  )}
-                </div>
-
                 {/* ID card preview, filled from the parent's record when signed in */}
-                {activeTab === 'ID Cards' && (
+                {products.some((p) => p.category === 'ID Cards') && (
                   <IdCardPreview school={activeSchool} className={activeClass?.name} gender={activeGender} />
                 )}
 
@@ -815,7 +763,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                 ) : step4Products.length === 0 ? (
                   <div className="flow-empty-state" style={{ padding: '48px 24px', textAlign: 'center' }}>
                     <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 8px', color: 'var(--ink)' }}>
-                      {t('flow.noItems', { cat: categoryLabel(activeTab, t), cls: classLabel(activeClass?.name, t), g: genderLabel(activeGender, t) })}
+                      {t('flow.noItems', { cat: categoryLabel('Uniform', t), cls: classLabel(activeClass?.name, t), g: genderLabel(activeGender, t) })}
                     </h3>
                     <p style={{ color: 'var(--ink-soft)', fontSize: '14px', margin: '0 0 20px' }}>
                       {t('flow.noItemsSub')}
@@ -838,50 +786,22 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
                     </div>
                   </div>
                 ) : (
-                  <>
-                    {/* Required List Section */}
-                    {requiredProducts.length > 0 && (
-                      <div className="required-section-block">
-                        <div className="required-head-row">
-                          <div>
-                            <h2 className="required-heading">{t('flow.requiredFor', { cls: classLabel(activeClass?.name, t) })}</h2>
-                          </div>
-                        </div>
-
-                        <Stagger key={`req-${activeTab}`} className="products-grid">
-                          {requiredProducts.map((p) => (
-                            <ProductCard
-                              key={p.id}
-                              product={p}
-                              onOpenDetails={(item) => setActiveProductForSheet(item)}
-                              onAdded={(item) => handleAdded(item, true)}
-                            />
-                          ))}
-                        </Stagger>
-                      </div>
-                    )}
-
-                    {/* Optional items */}
-                    {optionalProducts.length > 0 && (
-                      <div className="optional-section-block">
-                        <h2 className="optional-heading">
-                          {requiredProducts.length > 0
-                            ? t('flow.extras')
-                            : t('flow.listFor', { cls: classLabel(activeClass?.name, t) })}
-                        </h2>
-                        <Stagger key={`opt-${activeTab}`} className="products-grid">
-                          {optionalProducts.map((p) => (
-                            <ProductCard
-                              key={p.id}
-                              product={p}
-                              onOpenDetails={(item) => setActiveProductForSheet(item)}
-                              onAdded={(item) => handleAdded(item, true)}
-                            />
-                          ))}
-                        </Stagger>
-                      </div>
-                    )}
-                  </>
+                  // One list, in the shop's fixed order: shirts, bottoms, PT kit,
+                  // winter wear, then tie, belt and shoes.
+                  <div className="optional-section-block" ref={listRef}>
+                    <Stagger className="products-grid">
+                      {step4Products.map((p, index) => (
+                        <ProductCard
+                          key={p.id}
+                          product={p}
+                          priority={index === 0}
+                          onOpenDetails={openSheet}
+                          frame={listFrame}
+                          onAdded={(item) => handleAdded(item, true)}
+                        />
+                      ))}
+                    </Stagger>
+                  </div>
                 )}
                 </>
               </div>
@@ -938,7 +858,7 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
       <ProductSheet
         product={activeProductForSheet}
         isOpen={!!activeProductForSheet}
-        onClose={() => setActiveProductForSheet(null)}
+        onClose={closeSheet}
         onOpenBag={onOpenBag}
         fit={activeProductForSheet ? fits?.[activeProductForSheet.id] : undefined}
         fitLoading={sizeFit.isLoading}
@@ -959,18 +879,18 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
         message={added?.product.name ?? ''}
         confirmLabel={
           added?.match
-            ? t(garmentKind(added.match.name) === 'bottom' ? 'match.addBottom' : 'match.addTop')
-            : t(added?.product.category === 'School Shoes' ? 'match.accessories' : 'match.shoes')
+            ? t(matchLabelKey(added.match.name))
+            : t('match.accessories')
         }
         cancelLabel={added?.match ? t('match.continue') : null}
         onConfirm={() => {
           if (!added) return;
-          if (added.match) setActiveProductForSheet(added.match);
-          else selectTab(nextTab[added.product.category] ?? 'Uniform Accessories');
+          if (added.match) openSheet(added.match);
+          else scrollToAccessories();
           setAdded(null);
         }}
         onCancel={() => {
-          if (added) selectTab(nextTab[added.product.category] ?? 'Uniform Accessories');
+          if (added) scrollToAccessories();
           setAdded(null);
         }}
       >

@@ -283,6 +283,12 @@ CELERY_BEAT_SCHEDULE = {
         "task": "orders.purge_delivered_child_photos",
         "schedule": crontab(hour=2, minute=15),
     },
+    # Rebuild the last 7 days of dashboard rollups from the orders, so late
+    # cancellations and status changes never leave a chart out of date.
+    "nightly-sales-recompute": {
+        "task": "analytics.nightly_sales_recompute",
+        "schedule": crontab(hour=2, minute=40),
+    },
     "retrain-shoulder-model": {
         "task": "catalog.retrain_shoulder_model",
         "schedule": crontab(hour=3, minute=0, day_of_week=0),  # Sunday 03:00 IST

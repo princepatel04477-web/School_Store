@@ -89,19 +89,29 @@ class StockMovementCreateSerializer(serializers.Serializer):
         actor = request.user
         city = attrs.get("city")
         if actor.role == "ADMIN":
-            if not actor.city_id:
-                raise PermissionDenied("A city-scoped Admin must have an assigned city.")
-            if city and city.pk != actor.city_id:
-                raise PermissionDenied("Admins can only adjust stock in their own city.")
-            attrs["city"] = City.objects.get(pk=actor.city_id)
+            if actor.city_id:
+                if city and city.pk != actor.city_id:
+                    raise PermissionDenied("Admins can only adjust stock in their own city.")
+                attrs["city"] = City.objects.get(pk=actor.city_id)
+            elif not city:
+                raise serializers.ValidationError({"city": "City is required for this stock movement."})
         elif not city:
             raise serializers.ValidationError({"city": "City is required for this stock movement."})
+
+        if attrs["reason"] == StockMovement.Reason.INITIAL_STOCK and attrs["quantity_change"] < 1:
+            raise serializers.ValidationError({"quantity_change": "Initial stock must be at least one unit."})
 
         variant = attrs["variant"]
         variant_city_id = variant.city_id or variant.product.city_id
         if variant_city_id and variant_city_id != attrs["city"].pk:
+            product = variant.product
+            home = City.objects.filter(pk=variant_city_id).values_list("name", flat=True).first() or "another city"
+            school = product.school.name if product.school_id else product.name
             raise serializers.ValidationError(
-                {"city": "This school-specific variant is stocked in a different city."}
+                {
+                    "city": f"{product.name} is sold only by {school} in {home}. "
+                    f"Choose {home} at the top to add its stock."
+                }
             )
 
         order = attrs.get("reference_order")

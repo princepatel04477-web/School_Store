@@ -29,6 +29,8 @@ export default {
       const r = new URL(referer);
       upstream.headers.set('referer', origin.origin + r.pathname + r.search);
     }
-    return fetch(upstream);
+    // On the same Cloudflare account as the live Worker, a plain fetch to its workers.dev
+    // address is refused (Cloudflare's 404 page), so go through the service binding.
+    return env.LIVE ? env.LIVE.fetch(upstream) : fetch(upstream);
   },
 };

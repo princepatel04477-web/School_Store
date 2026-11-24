@@ -144,10 +144,12 @@
 }
 
 .bag-remove-link {
+  min-height: 44px;
+  padding: 0 var(--space-2);
   background: transparent;
   border: none;
   color: var(--ink-soft);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   text-decoration: underline;
   cursor: pointer;
 }
@@ -238,6 +240,7 @@
   font-weight: 600;
   cursor: pointer;
   margin-bottom: var(--space-2);
+  min-height: 44px;
 }
 
 .checkout-title {
@@ -580,7 +583,7 @@
 .confirmed-badge {
   width: 64px;
   height: 64px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-lg);
   background-color: var(--brand-tint);
   color: var(--brand);
   display: grid;

@@ -3,9 +3,10 @@ import { Link, useLocation } from 'react-router-dom';
 import { Search, ShoppingBag, Menu, X, ArrowRight, User } from './ui/icons';
 import { motion, AnimatePresence, useAnimate, useReducedMotion } from 'motion/react';
 import { useAuth } from '../auth';
-import { siteConfig } from '../siteConfig';
+import { siteConfig, SHOP_LINK } from '../siteConfig';
 import { useStoreState } from '../store/storeState';
 import { SchoolCrest } from './school/SchoolCrest';
+import { BackButton } from './BackButton';
 import { EASING, DURATION_FAST } from '../motion/motionConfig';
 import { prefetchFlowPage, prefetchBagDrawer } from '../utils/prefetch';
 import { useLang } from '../i18n';
@@ -97,13 +98,16 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
               >
                 <SchoolCrest id={selection.schoolId} name={selection.schoolName} code={selection.schoolCode} size={20} />
                 <span className="pill-school-info">
-                  {selection.schoolName} {selection.gradeName ? `· ${classLabel(selection.gradeName, t)}` : ''}
+                  {selection.branchName || selection.schoolName} {selection.gradeName ? `· ${classLabel(selection.gradeName, t)}` : ''}
                 </span>
                 <Link to="/flow?step=1" className="pill-change-link" aria-label={t('nav.changeSchool')}>
                   {t('nav.change')}
                 </Link>
               </div>
             )}
+            <Link to="/about" className="utility-link">
+              {t('nav.aboutUs')}
+            </Link>
             <Link to="/size-guide" className="utility-link">
               {t('nav.sizeGuide')}
             </Link>
@@ -122,6 +126,9 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
 
       <header className="site-header">
         <div className="header-inner container">
+          {/* Phones: round back button */}
+          <BackButton className="header-back-btn" />
+
           {/* Mobile menu button */}
           <button
             type="button"
@@ -149,7 +156,7 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
                 return (
                   <Link
                     key={cat.slug}
-                    to={`/shop?cat=${encodeURIComponent(cat.slug)}`}
+                    to={`${SHOP_LINK}?cat=${encodeURIComponent(cat.slug)}`}
                     className={`nav-link ${isActive ? 'is-active' : ''}`}
                     aria-current={isActive ? 'page' : undefined}
                     onMouseEnter={prefetchFlowPage}
@@ -186,6 +193,16 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
                 {t('nav.signIn')}
               </Link>
             )}
+
+            {/* A direct, always-visible profile entry for phone users. */}
+            <Link
+              to={user ? '/parent' : '/login'}
+              className="mobile-profile-btn"
+              aria-label={user ? t('nav.myAccount') : t('nav.signIn')}
+              title={user ? t('nav.myAccount') : t('nav.signIn')}
+            >
+              <User width={20} height={20} strokeWidth={1.5} />
+            </Link>
 
             <button
               type="button"
@@ -251,7 +268,7 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
               {siteConfig.categories.map((cat, i) => (
                 <Link
                   key={cat.slug}
-                  to={`/shop?cat=${encodeURIComponent(cat.slug)}`}
+                  to={`${SHOP_LINK}?cat=${encodeURIComponent(cat.slug)}`}
                   className="sheet-nav-item"
                   onClick={closeMenu}
                 >
@@ -265,6 +282,9 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
             </nav>
 
             <div className="sheet-secondary">
+              <Link to="/about" className="sheet-secondary-item" onClick={closeMenu}>
+                {t('nav.aboutUs')}
+              </Link>
               <Link to="/size-guide" className="sheet-secondary-item" onClick={closeMenu}>
                 {t('nav.sizeGuide')}
               </Link>

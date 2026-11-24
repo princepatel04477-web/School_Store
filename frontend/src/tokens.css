@@ -63,10 +63,22 @@
   /* Feedback */
   --danger: #B42318;
 
-  /* Typography: one variable family, width does the work */
-  /* Gujarati and Hindi use the fonts already on the phone (no download) */
-  --font-display: 'Anek Latin', 'Noto Sans Gujarati', 'Noto Sans Devanagari', 'Nirmala UI', 'Shruti', 'Mangal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-body: 'Anek Latin', 'Noto Sans Gujarati', 'Noto Sans Devanagari', 'Nirmala UI', 'Shruti', 'Mangal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Emerald Stage Tokens (P1 Stage) */
+  --emerald-bg: #0E5E3E;
+  --emerald-circle-outer: #11704B;
+  --emerald-circle-inner: #14825A;
+  --emerald-soft-green: #CDEBDC;
+  --emerald-saffron: #FFB766;
+  --emerald-sparkle: #FFD964;
+  --emerald-dark: #12352A;
+  --tricolour-saffron: #FF9933;
+  --tricolour-white: #FFFFFF;
+  --tricolour-green: #138808;
+
+  /* Typography: Headings "Baloo 2", Body "Nunito" */
+  --font-heading: 'Baloo 2', 'Baloo Bhai 2', 'Noto Sans Devanagari', 'Noto Sans Gujarati', sans-serif;
+  --font-display: 'Baloo 2', 'Baloo Bhai 2', 'Anek Latin', 'Noto Sans Gujarati', 'Noto Sans Devanagari', sans-serif;
+  --font-body: 'Nunito', 'Anek Latin', 'Noto Sans Gujarati', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --stretch-condensed: 75%;
   --stretch-numeric: 82%;
 

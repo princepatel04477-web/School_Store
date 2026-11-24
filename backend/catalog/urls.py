@@ -2,12 +2,16 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .public import (
+    PublicCityBranchesView,
     PublicAppVersionView,
     PublicGradeListView,
+    PublicStateCitiesView,
+    PublicStateListView,
     PublicMeasureConfigView,
     PublicProductList,
     PublicSchoolCitiesView,
     PublicSchoolListView,
+    PublicDeliveredSchoolListView,
     PublicSizeFitView,
 )
 from .estimate_views import PublicFitEstimateView
@@ -16,6 +20,7 @@ from .storefront import StudentCatalogueView, StudentProductDetailView
 from .views import (
     CartValidateView,
     CategoryViewSet,
+    ProductCityPriceViewSet,
     ProductVariantViewSet,
     ProductViewSet,
 )
@@ -24,13 +29,19 @@ router = DefaultRouter()
 router.register("categories", CategoryViewSet, basename="category")
 router.register("products", ProductViewSet, basename="product")
 router.register("variants", ProductVariantViewSet, basename="variant")
+router.register("city-prices", ProductCityPriceViewSet, basename="city-price")
 router.register("size-chart-imports", SizeChartImportViewSet, basename="size-chart-import")
 router.register("size-charts", SizeChartViewSet, basename="size-chart")
 
 urlpatterns = [
     path("public/schools/", PublicSchoolListView.as_view(), name="public-schools"),
+    path("public/schools/delivered/", PublicDeliveredSchoolListView.as_view(), name="public-schools-delivered"),
+    path("public/schools/logos/", PublicDeliveredSchoolListView.as_view(), name="public-schools-logos"),
     path("public/schools/<uuid:school_id>/cities/", PublicSchoolCitiesView.as_view(), name="public-school-cities"),
-    path("public/grades/", PublicGradeListView.as_view(), name="public-grades"),
+    path("public/states/", PublicStateListView.as_view(), name="public-states"),
+    path("public/cities/", PublicStateCitiesView.as_view(), name="public-state-cities"),
+    path("public/cities/<uuid:city_id>/branches/", PublicCityBranchesView.as_view(), name="public-city-branches"),
+    path("public/grades/",PublicGradeListView.as_view(), name="public-grades"),
     path("public/products/", PublicProductList.as_view(), name="public-products"),
     path("public/size-fit/", PublicSizeFitView.as_view(), name="public-size-fit"),
     path("public/fit/estimate/", PublicFitEstimateView.as_view(), name="public-fit-estimate"),

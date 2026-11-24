@@ -313,8 +313,8 @@
   top: 34px;
   right: -30px;
   transform: rotate(35deg);
-  background-color: var(--house-yellow);
-  color: var(--on-house-yellow);
+  background-color: var(--brand);
+  color: white;
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.16em;

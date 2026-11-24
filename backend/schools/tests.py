@@ -1111,3 +1111,55 @@ class RosterPhoneLinkingTests(StudentManagementTestBase):
         self.assertEqual(res.status_code, 200, res.data)
         self.child.refresh_from_db()
         self.assertEqual(self.child.parent_id, self.parent_a.id)
+
+
+class SchoolClassesTests(StudentManagementTestBase):
+    """The uniform portal picks which classes a school has; the shop lists only those."""
+
+    def test_new_school_has_no_classes_chosen(self):
+        response = login(self.boss).get(f"/api/schools/{self.school_a.id}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["grades"], [])
+
+    def test_portal_saves_classes_in_school_order(self):
+        client = login(self.boss)
+        response = client.patch(
+            f"/api/schools/{self.school_a.id}/",
+            {"grades": ["Class 3", "Class 1", "Nursery"]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["grades"], ["Nursery", "Class 1", "Class 3"])
+        self.assertEqual(
+            sorted(self.school_a.grades.values_list("name", flat=True)),
+            ["Class 1", "Class 3", "Nursery"],
+        )
+
+        # Clearing them means every class again.
+        response = client.patch(f"/api/schools/{self.school_a.id}/", {"grades": []}, format="json")
+        self.assertEqual(response.json()["grades"], [])
+
+    def test_unknown_class_is_refused(self):
+        response = login(self.boss).patch(
+            f"/api/schools/{self.school_a.id}/", {"grades": ["Class 13"]}, format="json"
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_other_fields_keep_the_classes(self):
+        client = login(self.boss)
+        client.patch(f"/api/schools/{self.school_a.id}/", {"grades": ["Class 2"]}, format="json")
+        client.patch(f"/api/schools/{self.school_a.id}/", {"address": "New road"}, format="json")
+        self.assertEqual(list(self.school_a.grades.values_list("name", flat=True)), ["Class 2"])
+
+    def test_shop_school_list_shows_the_new_classes_at_once(self):
+        shop = APIClient()
+        before = {s["id"]: s for s in shop.get("/api/public/schools/").json()}
+        self.assertEqual(before[str(self.school_a.id)]["grades"], [])
+
+        login(self.boss).patch(
+            f"/api/schools/{self.school_a.id}/", {"grades": ["Class 4", "Class 2"]}, format="json"
+        )
+        # The cached list is replaced, not served stale.
+        after = {s["id"]: s for s in shop.get("/api/public/schools/").json()}
+        self.assertEqual(after[str(self.school_a.id)]["grades"], ["Class 2", "Class 4"])
+        self.assertEqual(after[str(self.school_b.id)]["grades"], [])

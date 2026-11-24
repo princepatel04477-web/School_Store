@@ -49,6 +49,45 @@ class PublicCatalogTests(TestCase):
         names = [s["name"] for s in schools]
         self.assertEqual(names, sorted(names))
 
+    def test_public_delivered_schools_returns_only_consented_with_logos(self):
+        # Setup: self.dps has logo and consent, fountainhead has no logo, another has logo but no consent
+        self.dps.logo_url = "https://example.com/dps-logo.png"
+        self.dps.show_logo_public = True
+        self.dps.save()
+
+        # School with logo but NO consent
+        no_consent = School.objects.create(
+            name="No Consent Academy",
+            code="NCA-TEST",
+            city=self.surat,
+            logo_url="https://example.com/nca-logo.png",
+            show_logo_public=False,
+            active=True,
+        )
+
+        # School with consent but NO logo
+        no_logo = School.objects.create(
+            name="No Logo High",
+            code="NLH-TEST",
+            city=self.surat,
+            logo_url="",
+            show_logo_public=True,
+            active=True,
+        )
+
+        res = APIClient().get("/api/public/schools/delivered/")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        ids = [s["id"] for s in data]
+        self.assertIn(str(self.dps.id), ids)
+        self.assertNotIn(str(no_consent.id), ids)
+        self.assertNotIn(str(no_logo.id), ids)
+
+        # Check fields: id, name, logo_url
+        dps_entry = next(s for s in data if s["id"] == str(self.dps.id))
+        self.assertEqual(set(dps_entry.keys()), {"id", "name", "logo_url"})
+        self.assertEqual(dps_entry["logo_url"], "https://example.com/dps-logo.png")
+
     def test_public_schools_carry_city_and_delivery_options(self):
         schools = {s["code"]: s for s in APIClient().get("/api/public/schools/").json()}
         dps = schools["DPS-SUR"]
@@ -674,3 +713,82 @@ class StudentCatalogueTests(TestCase):
     def test_parent_cannot_shop_for_someone_elses_child(self):
         res = self.jwt_client(self.other_parent).get(self.catalogue_url(self.boy))
         self.assertEqual(res.status_code, 403)
+
+
+@override_settings(CACHES=LOCMEM)
+class SchoolDeactivationCascadeTests(TestCase):
+    """Deactivating a school switches its uniforms off; reactivating brings them back."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.city = City.objects.create(name="Cascade City", code="CSC")
+        cls.school = School.objects.create(name="Cascade School", code="CSC-01", city=cls.city)
+        cls.other = School.objects.create(name="Other School", code="CSC-02", city=cls.city)
+        cls.category = Category.objects.create(name="Uniform", slug="cascade-uniform")
+        cls.boss = User.objects.create_user(
+            username="cascade_boss", password="x", role="BOSS"
+        )
+
+    def _product(self, school, name, active=True):
+        product = Product.objects.create(
+            category=self.category,
+            school=school,
+            name=name,
+            gender=Product.Gender.UNISEX,
+            cost_price=Decimal("100.00"),
+            selling_price=Decimal("200.00"),
+            active=active,
+        )
+        ProductVariant.objects.create(product=product, size="32", sku=f"{name}-32", active=active)
+        return product
+
+    def _client(self):
+        client = APIClient()
+        token = build_tokens_for_user(self.boss)["access"]
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        return client
+
+    def test_portal_deactivate_and_reactivate_follow_the_school(self):
+        shirt = self._product(self.school, "CSC-SHIRT")
+        retired = self._product(self.school, "CSC-OLD", active=False)
+        elsewhere = self._product(self.other, "CSC-ELSEWHERE")
+        generic = self._product(None, "CSC-GENERIC")
+        client = self._client()
+
+        res = client.patch(f"/api/schools/{self.school.pk}/", {"active": False}, format="json")
+        self.assertEqual(res.status_code, 200, res.content)
+        shirt.refresh_from_db()
+        self.assertFalse(shirt.active)
+        self.assertFalse(shirt.variants.get().active)
+        for untouched in (elsewhere, generic):
+            untouched.refresh_from_db()
+            self.assertTrue(untouched.active)
+            self.assertTrue(untouched.variants.get().active)
+
+        res = client.patch(f"/api/schools/{self.school.pk}/", {"active": True}, format="json")
+        self.assertEqual(res.status_code, 200, res.content)
+        shirt.refresh_from_db()
+        retired.refresh_from_db()
+        self.assertTrue(shirt.active)
+        self.assertTrue(shirt.variants.get().active)
+        # Switched off by hand before the school went off: stays off.
+        self.assertFalse(retired.active)
+        self.assertFalse(retired.variants.get().active)
+
+    def test_delete_endpoint_also_switches_uniforms_off(self):
+        shirt = self._product(self.school, "CSC-DEL")
+        res = self._client().delete(f"/api/schools/{self.school.pk}/")
+        self.assertEqual(res.status_code, 204, res.content)
+        shirt.refresh_from_db()
+        self.assertFalse(shirt.active)
+
+    def test_item_removed_while_school_is_off_stays_off(self):
+        shirt = self._product(self.school, "CSC-GONE")
+        self.school.active = False
+        self.school.save()
+        res = self._client().delete(f"/api/products/{shirt.pk}/")
+        self.assertEqual(res.status_code, 204, res.content)
+        self.school.active = True
+        self.school.save()
+        shirt.refresh_from_db()
+        self.assertFalse(shirt.active)

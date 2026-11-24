@@ -9,6 +9,7 @@ import { useSchoolTheme } from './theme/schoolTheme';
 import { hasChosenLanguage, useLang } from './i18n';
 import { LanguageChooser } from './components/LanguageChooser';
 import { WelcomePopup } from './components/WelcomePopup';
+import { PageSkeleton } from './components/ui/Skeleton';
 
 // Lazy Loaded Components
 const BagDrawer = lazy(() =>
@@ -28,6 +29,9 @@ const SelectionFlowPage = lazy(() =>
 const CheckoutPage = lazy(() =>
   import('./pages/CheckoutPage').then((m) => ({ default: m.CheckoutPage }))
 );
+const AboutPage = lazy(() =>
+  import('./pages/AboutPage').then((m) => ({ default: m.AboutPage }))
+);
 const Login = lazy(() => import('./pages/Login'));
 const Parent = lazy(() => import('./pages/Parent'));
 const Teacher = lazy(() => import('./pages/Teacher'));
@@ -35,6 +39,7 @@ const SchoolAdmin = lazy(() => import('./pages/SchoolAdmin'));
 const CityAdmin = lazy(() => import('./pages/CityAdmin'));
 const BossPanel = lazy(() => import('./pages/BossPanel'));
 const Retailer = lazy(() => import('./pages/Retailer'));
+const AdminPortal = lazy(() => import('./pages/AdminPortal'));
 
 const OrdersTab = lazy(() =>
   import('./pages/native/OrdersTab').then((m) => ({ default: m.OrdersTab }))
@@ -60,7 +65,7 @@ import { OfflineBanner } from './components/native/OfflineBanner';
 import { OfflineScreen } from './components/native/OfflineScreen';
 import { useNetworkStatus } from './native/network';
 
-export const homeFor = (role?: string) =>
+export const homeFor = (role?: string, cityId?: string | null) =>
   role === 'BOSS'
     ? '/boss'
     : role === 'PARENT'
@@ -68,7 +73,7 @@ export const homeFor = (role?: string) =>
     : role === 'TEACHER'
     ? '/teacher'
     : role === 'ADMIN'
-    ? '/city'
+    ? (cityId ? '/city' : '/portal')
     : role === 'RETAILER'
     ? '/retailer'
     : '/school';
@@ -77,7 +82,7 @@ function Guard({ children, roles }: { children: ReactNode; roles?: string[] }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="splash">Loading your store…</div>;
   if (!user) return <Navigate to="/login" replace />;
-  if (roles && !roles.includes(user.role)) return <Navigate to={homeFor(user.role)} replace />;
+  if (roles && !roles.includes(user.role)) return <Navigate to={homeFor(user.role, user.city)} replace />;
   return <>{children}</>;
 }
 
@@ -95,9 +100,15 @@ export default function App() {
     location.pathname.startsWith('/school') ||
     location.pathname.startsWith('/teacher') ||
     location.pathname.startsWith('/retailer') ||
+    location.pathname.startsWith('/portal') ||
     location.pathname.startsWith('/login');
 
-  useSchoolTheme(!isPortal);
+  const isHome = location.pathname === '/';
+  const isAbout = location.pathname === '/about';
+
+  // The whole store wears the emerald theme; a school's own colour stays on its crest
+  // instead of re-tinting every page. Pass !isPortal here to bring school tints back.
+  useSchoolTheme(false);
 
   const [updateRequired, setUpdateRequired] = useState<{ url: string; version: string } | null>(null);
   const network = useNetworkStatus();
@@ -183,14 +194,14 @@ export default function App() {
           />
         )}
 
-        {/* Render global Header for storefront when NOT native app */}
-        {!isPortal && !isNative && (
+        {/* Global Header for the website (home and about have their own emerald headers; the app has its own bars) */}
+        {!isPortal && !isHome && !isAbout && !isNative && (
           <Header
             onOpenBag={() => setBagOpen(true)}
             onOpenLanguage={() => setLangOpen(true)}
             onOpenSearch={() => {
               // Phones, and pages without the home search: the full-screen search sheet
-              const input = document.querySelector('.hero-search-input') as HTMLInputElement | null;
+              const input = document.querySelector('.emerald-search-input, .hero-search-input') as HTMLInputElement | null;
               if (!input || window.matchMedia('(max-width: 639px)').matches) return setSearchOpen(true);
               scrollPageTo(0, true);
               input.focus();
@@ -199,10 +210,18 @@ export default function App() {
         )}
 
         <PageTransition>
-          <Suspense fallback={<div className="splash">Loading…</div>}>
+          <Suspense fallback={<PageSkeleton />}>
             <Routes>
               {/* Public Storefront Routes */}
-              <Route path="/" element={<HomePage />} />
+              <Route
+                path="/"
+                element={
+                  <HomePage
+                    onOpenBag={() => setBagOpen(true)}
+                    onOpenLanguage={() => setLangOpen(true)}
+                  />
+                }
+              />
               <Route
                 path="/shop"
                 element={<SelectionFlowPage onOpenBag={() => setBagOpen(true)} />}
@@ -219,7 +238,15 @@ export default function App() {
               <Route path="/profile" element={<ProfileTab />} />
 
               {/* Informational pages */}
-              <Route path="/about" element={<ComingSoonPage title="About SchoolStore" />} />
+              <Route
+                path="/about"
+                element={
+                  <AboutPage
+                    onOpenBag={() => setBagOpen(true)}
+                    onOpenLanguage={() => setLangOpen(true)}
+                  />
+                }
+              />
               <Route path="/for-schools" element={<ComingSoonPage title="For Partner Schools" />} />
               <Route path="/contact" element={<ComingSoonPage title="Contact Us" />} />
               <Route path="/help" element={<ComingSoonPage title="Help & FAQs" />} />
@@ -236,6 +263,7 @@ export default function App() {
               <Route path="/parent/*" element={<Guard roles={['PARENT']}><Parent /></Guard>} />
               <Route path="/teacher/*" element={<Guard roles={['TEACHER', 'SCHOOL_ADMIN']}><Teacher /></Guard>} />
               <Route path="/retailer/*" element={<Guard roles={['RETAILER']}><Retailer /></Guard>} />
+              <Route path="/portal/*" element={<Guard roles={['BOSS', 'ADMIN']}><AdminPortal /></Guard>} />
 
               {/* Fallback 404 */}
               <Route path="*" element={<NotFoundPage />} />
@@ -247,7 +275,7 @@ export default function App() {
         {!isPortal && !isNative && <Footer />}
 
         {!isPortal && <LanguageChooser open={langOpen} onClose={closeLanguage} />}
-        {!isPortal && <WelcomePopup blocked={langOpen || !hasChosen} />}
+        {!isPortal && <WelcomePopup blocked={langOpen || !hasChosen} skip={location.pathname !== '/'} />}
 
         {searchOpen && (
           <Suspense fallback={null}>
@@ -275,7 +303,7 @@ export default function App() {
 
 export function Shell({ children, title }: { children: ReactNode; title: string }) {
   const { user, signOut } = useAuth();
-  const home = homeFor(user?.role);
+  const home = homeFor(user?.role, user?.city);
   const isNative = isNativeApp();
 
   return (

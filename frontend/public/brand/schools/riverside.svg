@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <circle cx="50" cy="50" r="46" fill="#006666" stroke="#48D1CC" stroke-width="4"/>
+  <circle cx="50" cy="50" r="39" fill="none" stroke="#FFFFFF" stroke-width="1.5"/>
+  <path d="M30 52 Q40 42 50 52 T70 52" stroke="#FFFFFF" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M30 62 Q40 52 50 62 T70 62" stroke="#48D1CC" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <circle cx="50" cy="34" r="8" fill="#F4C430"/>
+  <text x="50" y="82" text-anchor="middle" font-family="'Baloo 2', sans-serif" font-weight="800" font-size="10" fill="#FFFFFF" letter-spacing="1">RIVERSIDE</text>
+</svg>

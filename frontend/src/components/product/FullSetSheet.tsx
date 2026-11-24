@@ -4,7 +4,7 @@ import { formatINR } from '../../utils/formatINR';
 import { useStoreState } from '../../store/storeState';
 import { useLang } from '../../i18n';
 import { categoryLabel, classLabel } from '../../i18n/labels';
-import { suggestSizeId } from '../../data/sizes';
+import { suggestSizeId, uniformSizeGuide } from '../../data/sizes';
 import { preselectSizeId, suggestedSizeIds, type ProductFit } from '../../data/fit';
 import { RecommendationNote } from '../fit/SizeChartTable';
 import type { StoreProduct } from '../../data/catalog';
@@ -42,7 +42,7 @@ export function FullSetSheet({
   const initial = useMemo(() => {
     const sizes: Record<string, string> = {};
     products.forEach((p) => {
-      const suggested = preselectSizeId(p.sizes, fits?.[p.id]) ?? suggestSizeId(p.sizes, className);
+      const suggested = uniformSizeGuide(p.category, p.sizes, className)?.availableId ?? preselectSizeId(p.sizes, fits?.[p.id]) ?? suggestSizeId(p.sizes, className);
       if (suggested) sizes[p.id] = suggested;
     });
     return sizes;
@@ -85,6 +85,7 @@ export function FullSetSheet({
         productId: p.id,
         variantId: size.id,
         name: p.name,
+        ...(p.imageUrl ? { image: p.imageUrl } : {}),
         category: p.category,
         pricePaise: p.pricePaise,
         size: size.size,
@@ -131,7 +132,7 @@ export function FullSetSheet({
                 className={`fullset-row ${isSkipped ? 'is-skipped' : ''} ${showMissing && needsSize ? 'is-missing' : ''}`}
               >
                 <div className="fullset-media">
-                  <ProductImage id={p.id} name={p.name} category={p.category} imageUrl={p.imageUrl} />
+                  <ProductImage id={p.id} name={p.name} category={p.category} imageUrl={p.imageUrl} alt={p.imageAlt} />
                 </div>
                 <div className="fullset-info">
                   <span className="fullset-cat">{categoryLabel(p.category, t)}</span>
@@ -140,7 +141,7 @@ export function FullSetSheet({
 
                   {!isSkipped && p.sizes.length > 1 && (
                     <div className="fullset-sizes" role="group" aria-label={t('product.size')}>
-                      {p.sizes.map((s) => (
+                      {(uniformSizeGuide(p.category, p.sizes, className)?.choices ?? p.sizes).map((s) => (
                         <button
                           key={s.id}
                           type="button"

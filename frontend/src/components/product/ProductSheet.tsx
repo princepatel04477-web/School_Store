@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import { ArrowLeft, ChevronDown, ChevronUp } from '../ui/icons';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from '../ui/icons';
 import { motion } from 'motion/react';
 import { formatINR } from '../../utils/formatINR';
 import { useStoreState } from '../../store/storeState';
 import { ProductImage } from './ProductImage';
+import { uniformSizeGuide } from '../../data/sizes';
 import { SizeSelector } from './SizeSelector';
 import { SizeGuide } from './SizeGuide';
 import { SizeGuideNotice } from './SizeGuideNotice';
@@ -73,12 +74,27 @@ export function ProductSheet({
   const [openDelivery, setOpenDelivery] = useState(false);
   const [openExchange, setOpenExchange] = useState(false);
 
+  const photoDialog = useRef<HTMLDialogElement>(null);
   const [chartOpen, setChartOpen] = useState(false);
+  // Several photos swipe sideways; the dots and the enlarged view follow the one shown.
+  const photoTrack = useRef<HTMLDivElement>(null);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  useEffect(() => {
+    setPhotoIndex(0);
+    photoTrack.current?.scrollTo?.({ left: 0 });
+  }, [product?.id]);
+  const showPhoto = (index: number) => {
+    const track = photoTrack.current;
+    // The arrows and dots switch at once; a finger swipe keeps its own glide.
+    if (track) track.scrollTo?.({ left: index * track.clientWidth, behavior: 'auto' });
+    setPhotoIndex(index);
+  };
 
   // Each product opens on its suggested size (if in stock), or the size the
   // child had last time, never the last product's choice.
   const lastSizeId = product?.sizes.find((s) => s.size === lastSize && s.inStock)?.id;
-  const preselected = product ? preselectSizeId(product.sizes, fit) ?? lastSizeId ?? '' : '';
+  const guide = product && uniformSizeGuide(product.category, product.sizes, className);
+  const preselected = product ? (measurement ? preselectSizeId(product.sizes, fit) : undefined) ?? guide?.availableId ?? lastSizeId ?? preselectSizeId(product.sizes, fit) ?? '' : '';
   useEffect(() => {
     setSelectedSizeId(preselected);
     setSizeError(undefined);
@@ -87,7 +103,7 @@ export function ProductSheet({
   // Escape key closes the sheet
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen && !sizeGuideOpen) {
+      if (e.key === 'Escape' && isOpen && !sizeGuideOpen && !photoDialog.current?.open) {
         onClose();
       }
     };
@@ -111,6 +127,13 @@ export function ProductSheet({
   const hasChart = Boolean(fit && fit.chart.length > 0);
   const sizePage = usesMeasurement(product) && Boolean(onSaveMeasurement);
 
+  const photos = product.gallery ?? [];
+  const shownPhoto = Math.min(photoIndex, Math.max(photos.length - 1, 0));
+  const hero = product.heroUrl || product.imageUrl;
+  const enlarged = photos.length > 1 ? photos[shownPhoto] : hero ? { src: hero, alt: product.imageAlt } : null;
+  /** The arrows: one photo back or on, wrapping round at either end. */
+  const stepPhoto = (step: number) => showPhoto((shownPhoto + step + photos.length) % photos.length);
+
   const handleAdd = (): boolean => {
     if (product.sizes.length > 1 && !selectedSizeId) {
       setSizeError(t('product.pickSize'));
@@ -124,6 +147,7 @@ export function ProductSheet({
       productId: product.id,
       variantId: chosenSize.id,
       name: product.name,
+      ...(product.imageUrl ? { image: product.imageUrl } : {}),
       category: product.category,
       pricePaise: product.pricePaise,
       size: chosenSize.size,
@@ -170,9 +194,100 @@ export function ProductSheet({
           <div className="sheet-content-grid">
             {/* Gallery Left */}
             <div className="sheet-gallery-col">
-              <motion.div layoutId={`product-image-${product.id}`} style={{ width: '100%' }}>
-                <ProductImage id={product.id} name={product.name} category={product.category} imageUrl={product.imageUrl} priority />
+              <motion.div layoutId={`product-image-${product.id}`} style={{ width: '100%', position: 'relative' }}>
+                {photos.length > 1 ? (
+                  // Several photos: swipe sideways (plain shot first, then the child wearing it).
+                  <div className="sheet-photos">
+                    <div className="sheet-photos-stage">
+                      <div
+                        ref={photoTrack}
+                        className="sheet-photos-track"
+                        onScroll={(event) => {
+                          const track = event.currentTarget;
+                          setPhotoIndex(Math.round(track.scrollLeft / Math.max(track.clientWidth, 1)));
+                        }}
+                      >
+                        {photos.map((photo, index) => (
+                          <div className="sheet-photos-slide" key={photo.src}>
+                            <ProductImage
+                              id={`${product.id}-${index}`}
+                              name={product.name}
+                              category={product.category}
+                              imageUrl={photo.src}
+                              alt={photo.alt ?? product.imageAlt}
+                              imageSize={1000}
+                              priority={index === 0}
+                            />
+                            <button type="button" className="sheet-photo-trigger" aria-label={t('product.enlargePhoto')}
+                              aria-haspopup="dialog" onClick={() => photoDialog.current?.showModal()} />
+                          </div>
+                        ))}
+                      </div>
+                      {/* Arrows to the previous and next photo; the last one wraps to the first. */}
+                      <button type="button" className="sheet-photos-arrow sheet-photos-arrow--prev"
+                        aria-label={t('product.prevPhoto')} onClick={() => stepPhoto(-1)}>
+                        <ChevronLeft width={22} height={22} />
+                      </button>
+                      <button type="button" className="sheet-photos-arrow sheet-photos-arrow--next"
+                        aria-label={t('product.nextPhoto')} onClick={() => stepPhoto(1)}>
+                        <ChevronRight width={22} height={22} />
+                      </button>
+                      <span className="sheet-photos-count" aria-hidden="true">{shownPhoto + 1} / {photos.length}</span>
+                    </div>
+                    <div className="sheet-photos-dots">
+                      {photos.map((photo, index) => (
+                        <button
+                          key={photo.src}
+                          type="button"
+                          className={`sheet-photos-dot ${index === shownPhoto ? 'is-active' : ''}`}
+                          aria-label={t('product.photoOf', { n: index + 1, total: photos.length })}
+                          aria-current={index === shownPhoto}
+                          onClick={() => showPhoto(index)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <ProductImage
+                      id={product.id}
+                      name={product.name}
+                      category={product.category}
+                      imageUrl={product.heroUrl ?? product.imageUrl}
+                      alt={product.imageAlt}
+                      imageSize={product.heroUrl ? 1000 : 400}
+                      priority
+                    />
+                    {hero && (
+                      <button type="button" className="sheet-photo-trigger" aria-label={t('product.enlargePhoto')}
+                        aria-haspopup="dialog" onClick={() => photoDialog.current?.showModal()} />
+                    )}
+                  </>
+                )}
               </motion.div>
+              <dialog ref={photoDialog} className="sheet-photo-viewer" aria-label={product.name}
+                onClick={(event) => { if (event.target === event.currentTarget) photoDialog.current?.close(); }}>
+                {enlarged && (
+                  <img src={enlarged.src} alt={enlarged.alt || product.imageAlt || product.name} loading="lazy" />
+                )}
+                {photos.length > 1 && (
+                  <>
+                    <button type="button" className="sheet-photos-arrow sheet-photos-arrow--prev sheet-photos-arrow--viewer"
+                      aria-label={t('product.prevPhoto')} onClick={() => stepPhoto(-1)}>
+                      <ChevronLeft width={24} height={24} />
+                    </button>
+                    <button type="button" className="sheet-photos-arrow sheet-photos-arrow--next sheet-photos-arrow--viewer"
+                      aria-label={t('product.nextPhoto')} onClick={() => stepPhoto(1)}>
+                      <ChevronRight width={24} height={24} />
+                    </button>
+                    <span className="sheet-photos-count sheet-photos-count--viewer" aria-live="polite">
+                      {t('product.photoOf', { n: shownPhoto + 1, total: photos.length })}
+                    </span>
+                  </>
+                )}
+                <button type="button" className="sheet-photo-close" aria-label={t('common.close')}
+                  onClick={() => photoDialog.current?.close()}>×</button>
+              </dialog>
             </div>
 
             {/* Details Right */}
@@ -188,6 +303,8 @@ export function ProductSheet({
               <div className="product-sheet-price">{formatINR(product.pricePaise)}</div>
               <p className="product-sheet-desc">{product.description}</p>
 
+              {guide && <p>{t('size.classDefault', { size: guide.label })}</p>}
+              {!orderable && guide && <SizeSelector sizes={guide.choices.map(s => ({ ...s, inStock: false }))} selectedSizeId="" onSelectSize={() => {}} />}
               {!orderable ? (
                 <p className="card-unavailable sheet-unavailable">
                   {product.needsDetails ? t('product.needsPhoto') : t('product.outOfStock')}
@@ -202,7 +319,7 @@ export function ProductSheet({
               {product.sizes.length > 0 && (
                 <div ref={sizeRowRef}>
                 <SizeSelector
-                  sizes={product.sizes}
+                  sizes={guide?.choices ?? product.sizes}
                   selectedSizeId={selectedSizeId}
                   onSelectSize={(id) => {
                     setSelectedSizeId(id);

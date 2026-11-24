@@ -1,18 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import { X, Overview, BarChart as BarChartIcon, Users, SchoolBuilding, Eye, Ruler, ShoppingBag, ShieldCheck } from '../components/ui/icons';
+import { useMemo, useState } from 'react';
+import { X, Overview, BarChart as BarChartIcon, Users, SchoolBuilding, Eye, Ruler, ShoppingBag, ShieldCheck, Package } from '../components/ui/icons';
 import { PanelShell, type PanelNavItem } from '../components/admin/PanelShell';
 import { Link, Route, Routes, useNavigate } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useIsFetching, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { bossPanel, cityAdmin, money, num, type CitySchool, type User } from '../api';
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-} from 'recharts';
-import {
-  bossPanel, cityAdmin, money, num,
-  type BossCategoryPoint, type BossCityPoint, type BossFilterOptions,
-  type BossKpis, type BossProductPoint, type BossRevProfitPoint,
-  type BossSchoolPoint, type BossStockCatPoint, type CitySchool, type User,
-} from '../api';
+  CHART_COLORS, ChartLegend, ChartSkeleton, Delta, KpiSkeleton, KpiTile, LIVE, ListSkeleton,
+  LiveStamp, OrdersStrip, RankList, TrendChart,
+} from '../components/admin/charts';
 import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
 import { SizeChartManager } from '../components/admin/SizeChartManager';
 import { SizeAdviceAccuracyCard } from '../components/admin/SizeAdviceAccuracyCard';
@@ -20,34 +15,30 @@ import { RetailersManager } from '../components/admin/retail/RetailersManager';
 import { SchoolRequestsReview } from '../components/admin/retail/SchoolRequestsReview';
 
 const NAV: PanelNavItem[] = [
-  { to: '', label: 'Executive Overview', icon: Overview, end: true },
-  { to: 'analytics', label: 'Detailed Charts', icon: BarChartIcon },
+  { to: '', label: 'Overview', icon: Overview, end: true },
+  { to: 'analytics', label: 'Rankings', icon: BarChartIcon },
   { to: 'management', label: 'Staff & Cities', icon: Users },
   { to: 'schools', label: 'School Commissions', icon: SchoolBuilding },
   { to: 'view-as', label: 'View As (Audit)', icon: Eye },
   { to: 'size-charts', label: 'Size Charts', icon: Ruler },
   { to: 'school-requests', label: 'School Requests', icon: ShieldCheck },
   { to: 'retailers', label: 'Retailers', icon: ShoppingBag },
+  { to: '/portal', label: 'Uniform Portal', icon: Package },
 ];
-
-/**
- * Chart colours: the store's house colours in an order that passes the colour-blind and
- * contrast checks (dataviz validator, light surface). Revenue is always slot 1, profit slot 2.
- * Yellow is under 3:1 on white, so every chart that uses it keeps its legend.
- */
-const COLORS = ['#2E5EAA', '#E0A100', '#D7263D', '#13896F', '#E0703A', '#5C88D6'];
-const REVENUE = COLORS[0];
-const PROFIT = COLORS[1];
-const GRID = '#DCE0E5';
-const TICK = { fontSize: 11, fill: '#545C66' };
-const TOOLTIP_STYLE = { border: '1px solid #DCE0E5', borderRadius: 4, boxShadow: 'none', fontSize: 12 };
 
 /** Each shop category keeps its own colour, whatever order the data comes in. */
 const CATEGORY_ORDER = ['Uniform', 'School Shoes', 'Uniform Accessories', 'Stationery', 'ID Cards'];
 const categoryColor = (name: string) => {
   const slot = CATEGORY_ORDER.indexOf(name);
-  return COLORS[slot >= 0 ? slot : COLORS.length - 1];
+  return CHART_COLORS[slot >= 0 ? slot : CHART_COLORS.length - 1];
 };
+const shareText = (part: number, total: number) => {
+  if (!total || !part) return '0%';
+  const pct = (part / total) * 100;
+  return pct < 1 ? 'under 1%' : `${Math.round(pct)}%`;
+};
+const REVENUE = CHART_COLORS[0];
+const PROFIT = CHART_COLORS[1];
 
 export default function BossPanel() {
   return (
@@ -68,31 +59,40 @@ export default function BossPanel() {
 
 
 /* ------------------------------------------------------------------ *
- * Reusable Filters Bar for Boss Panel
+ * Filters shared by both Boss dashboards
  * ------------------------------------------------------------------ */
+const RANGES = [['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['365', '1 year']] as const;
+const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const daysBack = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - (n - 1));
+  return isoDay(d);
+};
+const spanDays = (from: string, to: string) =>
+  Math.round((Date.parse(`${to}T00:00:00`) - Date.parse(`${from}T00:00:00`)) / 86_400_000) + 1;
+
 function useBossFilterState() {
   const { data: filterOpts } = useQuery({
-    queryKey: ['boss-filter-options'],
+    queryKey: ['boss', 'filter-options'],
     queryFn: () => bossPanel.filters(),
+    staleTime: 5 * 60_000,
   });
 
-  const [dateFrom, setDateFrom] = useState<string>('');
-  const [dateTo, setDateTo] = useState<string>('');
+  const [range, setRange] = useState<string>('30');
+  const [dateFrom, setDateFrom] = useState<string>(() => daysBack(30));
+  const [dateTo, setDateTo] = useState<string>(() => isoDay(new Date()));
   const [cityId, setCityId] = useState<string>('');
   const [schoolId, setSchoolId] = useState<string>('');
   const [categoryId, setCategoryId] = useState<string>('');
 
-  useEffect(() => {
-    if (filterOpts && !dateFrom && !dateTo) {
-      setDateFrom(filterOpts.default_from);
-      setDateTo(filterOpts.default_to);
-    }
-  }, [filterOpts, dateFrom, dateTo]);
+  const pickRange = (days: string) => {
+    setRange(days);
+    setDateFrom(daysBack(Number(days)));
+    setDateTo(isoDay(new Date()));
+  };
 
   const queryParams = useMemo(() => {
-    const p: Record<string, string> = {};
-    if (dateFrom) p.date_from = dateFrom;
-    if (dateTo) p.date_to = dateTo;
+    const p: Record<string, string> = { date_from: dateFrom, date_to: dateTo };
     if (cityId) p.city = cityId;
     if (schoolId) p.school = schoolId;
     if (categoryId) p.category = categoryId;
@@ -101,27 +101,22 @@ function useBossFilterState() {
 
   return {
     filterOpts,
+    range, pickRange, setRange,
     dateFrom, setDateFrom,
     dateTo, setDateTo,
     cityId, setCityId,
     schoolId, setSchoolId,
     categoryId, setCategoryId,
     queryParams,
+    days: spanDays(dateFrom, dateTo),
   };
 }
 
-function BossFilterBar({
-  state,
-}: {
-  state: ReturnType<typeof useBossFilterState>;
-}) {
+function BossFilterBar({ state }: { state: ReturnType<typeof useBossFilterState> }) {
   const {
-    filterOpts,
-    dateFrom, setDateFrom,
-    dateTo, setDateTo,
-    cityId, setCityId,
-    schoolId, setSchoolId,
-    categoryId, setCategoryId,
+    filterOpts, range, pickRange, setRange,
+    dateFrom, setDateFrom, dateTo, setDateTo,
+    cityId, setCityId, schoolId, setSchoolId, categoryId, setCategoryId,
   } = state;
 
   const filteredSchools = useMemo(() => {
@@ -129,240 +124,202 @@ function BossFilterBar({
     if (!cityId) return filterOpts.schools;
     return filterOpts.schools.filter((s) => s.city_id === cityId);
   }, [filterOpts, cityId]);
+  const activeCount = [cityId, schoolId, categoryId, range ? '' : 'dates'].filter(Boolean).length;
 
   return (
-    <div className="card" style={{ marginBottom: '20px' }}>
+    <div className="card" style={{ marginBottom: '16px' }}>
+      <div className="pad" style={{ paddingBottom: 'var(--space-3)' }}>
+        <div className="dash-range" role="group" aria-label="Date range">
+          {RANGES.map(([v, l]) => (
+            <button key={v} type="button" className={range === v ? 'chip active' : 'chip'} onClick={() => pickRange(v)}>{l}</button>
+          ))}
+        </div>
+      </div>
+      <details className="dash-more">
+        <summary>
+          More filters{activeCount ? ` (${activeCount} on)` : ''}
+          <small>City, school, category, exact dates</small>
+        </summary>
       <div className="filters" style={{ borderBottom: 0 }}>
         <label>
-          <span>City:</span>
+          <span>City</span>
           <select value={cityId} onChange={(e) => { setCityId(e.target.value); setSchoolId(''); }}>
-            <option value="">All Cities</option>
+            <option value="">All cities</option>
             {filterOpts?.cities.map((c) => (
               <option key={c.id} value={c.id}>{c.name} ({c.code})</option>
             ))}
           </select>
         </label>
-
         <label>
-          <span>School:</span>
+          <span>School</span>
           <select value={schoolId} onChange={(e) => setSchoolId(e.target.value)}>
-            <option value="">All Schools</option>
+            <option value="">All schools</option>
             {filteredSchools.map((s) => (
               <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
             ))}
           </select>
         </label>
-
         <label>
-          <span>Category:</span>
+          <span>Category</span>
           <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">All Categories</option>
+            <option value="">All categories</option>
             {filterOpts?.categories.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
         </label>
-
         <label>
-          <span>From Date:</span>
-          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          <span>From</span>
+          <input type="date" value={dateFrom} max={dateTo} onChange={(e) => { setDateFrom(e.target.value); setRange(''); }} />
         </label>
-
         <label>
-          <span>To Date:</span>
-          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          <span>To</span>
+          <input type="date" value={dateTo} min={dateFrom} onChange={(e) => { setDateTo(e.target.value); setRange(''); }} />
         </label>
-
         {(cityId || schoolId || categoryId) && (
           <button
+            type="button"
             className="link-button"
-            style={{ alignSelf: 'center', marginTop: '14px' }}
-            onClick={() => {
-              setCityId('');
-              setSchoolId('');
-              setCategoryId('');
-            }}
+            style={{ alignSelf: 'end', minHeight: 44 }}
+            onClick={() => { setCityId(''); setSchoolId(''); setCategoryId(''); }}
           >
-            Reset Filters
+            Clear filters
           </button>
         )}
-      </div>
+        </div>
+      </details>
     </div>
   );
 }
 
+/** The live stamp for whichever Boss queries are on screen. */
+function BossLive({ updatedAt }: { updatedAt: number }) {
+  const queryClient = useQueryClient();
+  const fetching = useIsFetching({ queryKey: ['boss'] }) > 0;
+  return (
+    <LiveStamp
+      updatedAt={updatedAt}
+      fetching={fetching}
+      onRefresh={() => queryClient.invalidateQueries({ queryKey: ['boss'] })}
+    />
+  );
+}
+
 /* ------------------------------------------------------------------ *
- * 1. Boss Overview (KPIs + Primary Visualizations)
+ * 1. Boss overview: headline numbers, the sales trend, where it came from
  * ------------------------------------------------------------------ */
 function BossOverviewView() {
   const filterState = useBossFilterState();
-  const { queryParams } = filterState;
+  const { queryParams, days } = filterState;
 
-  const { data: kpis, isLoading: kpiLoading } = useQuery({
-    queryKey: ['boss-kpis', queryParams],
-    queryFn: () => bossPanel.kpis(queryParams),
-    enabled: !!queryParams.date_from,
-  });
+  const kpisQ = useQuery({ queryKey: ['boss', 'kpis', queryParams], queryFn: () => bossPanel.kpis(queryParams), ...LIVE });
+  const trendQ = useQuery({ queryKey: ['boss', 'trend', queryParams], queryFn: () => bossPanel.revenueProfit(queryParams), ...LIVE });
+  const catQ = useQuery({ queryKey: ['boss', 'categories', queryParams], queryFn: () => bossPanel.categories(queryParams), ...LIVE });
+  const cityQ = useQuery({ queryKey: ['boss', 'cities', queryParams], queryFn: () => bossPanel.cities(queryParams), ...LIVE });
 
-  const { data: trendData } = useQuery({
-    queryKey: ['boss-chart-trend', queryParams],
-    queryFn: () => bossPanel.revenueProfit(queryParams),
-    enabled: !!queryParams.date_from,
-  });
-
-  const { data: catData } = useQuery({
-    queryKey: ['boss-chart-cats', queryParams],
-    queryFn: () => bossPanel.categories(queryParams),
-    enabled: !!queryParams.date_from,
-  });
-
-  const { data: cityData } = useQuery({
-    queryKey: ['boss-chart-cities', queryParams],
-    queryFn: () => bossPanel.cities(queryParams),
-    enabled: !!queryParams.date_from,
-  });
+  const kpis = kpisQ.data;
+  const trend = trendQ.data ?? [];
+  const bucket = trend[0]?.bucket ?? 'day';
+  const hasSales = trend.some((p) => Number(p.revenue) > 0);
+  const catTotal = (catQ.data ?? []).reduce((sum, c) => sum + Number(c.revenue), 0);
 
   return (
     <div>
       <div className="page-head">
         <div>
-          <div className="eyebrow">EXECUTIVE DASHBOARD</div>
-          <h1>Business Performance Overview</h1>
-          <p className="muted">
-            All metrics computed from rollups. Profit = Revenue − Cost. Zero table scans on orders.
-          </p>
+          <div className="eyebrow">OWNER DASHBOARD</div>
+          <h1>Business overview</h1>
+          <p className="muted">Every school and city, from confirmed orders. Cancelled and refunded orders are left out.</p>
         </div>
+        <BossLive updatedAt={kpisQ.dataUpdatedAt} />
       </div>
 
       <BossFilterBar state={filterState} />
 
-      {/* KPI Cards (Requirement 1, 4, 7) */}
-      <div className="stat-grid four" style={{ marginBottom: '16px' }}>
-        <div className="stat accent">
-          <span>GROSS REVENUE</span>
-          <strong>{money(kpis?.revenue)}</strong>
-          <small>Total customer sales</small>
-        </div>
-        <div className="stat">
-          <span>GROSS PROFIT</span>
-          <strong>{money(kpis?.gross_profit)}</strong>
-          <small>Revenue − Cost</small>
-        </div>
-        <div className="stat">
-          <span>GROSS MARGIN %</span>
-          <strong>{kpis?.gross_margin_pct ?? '-'}%</strong>
-          <small>Profit / Revenue</small>
-        </div>
-        <div className="stat">
-          <span>TOTAL COST</span>
-          <strong>{money(kpis?.cost)}</strong>
-          <small>Inventory cost of sold goods</small>
-        </div>
+      {kpisQ.isError && <div className="card pad error">Could not load the numbers. Tap Refresh to try again.</div>}
+
+      <div className="stat-grid four">
+        {!kpis ? <KpiSkeleton count={4} /> : (
+          <>
+            <KpiTile accent label="Revenue" value={money(kpis.revenue)} hint={<Delta now={kpis.revenue} before={kpis.previous.revenue} days={days} format={money} />} />
+            <KpiTile
+              label="Gross profit"
+              value={money(kpis.gross_profit)}
+              hint={<><small>{Number(kpis.revenue) > 0 ? `${kpis.gross_margin_pct}% margin` : 'Margin: -'}</small><Delta now={kpis.gross_profit} before={kpis.previous.gross_profit} days={days} format={money} /></>}
+            />
+            <KpiTile
+              label="Orders"
+              value={num(kpis.orders)}
+              hint={<><small>{kpis.orders ? `${money(kpis.average_order_value)} average order` : 'Average order: -'}</small><Delta now={kpis.orders} before={kpis.previous.orders} days={days} /></>}
+            />
+            <KpiTile
+              label="Units sold"
+              value={num(kpis.units_sold)}
+              hint={<><small>Stock on hand {money(kpis.current_stock_value)} at cost</small><Delta now={kpis.units_sold} before={kpis.previous.units} days={days} /></>}
+            />
+          </>
+        )}
       </div>
 
-      <div className="stat-grid three" style={{ marginBottom: '24px' }}>
-        <div className="stat">
-          <span>ORDERS PLACED</span>
-          <strong>{num(kpis?.orders)}</strong>
-          <small>Distinct order volume</small>
-        </div>
-        <div className="stat">
-          <span>UNITS SOLD</span>
-          <strong>{num(kpis?.units_sold)}</strong>
-          <small>Total item quantity</small>
-        </div>
-        <div className="stat">
-          <span>CURRENT STOCK VALUE</span>
-          <strong>{money(kpis?.current_stock_value)}</strong>
-          <small>Cached inventory valuation (stock × cost)</small>
-        </div>
-      </div>
-
-      {/* Primary Charts (Requirement 2) */}
-      <div className="panel-grid">
-        {/* Revenue & Profit Over Time Area Chart */}
-        <div className="card">
-          <div className="card-head">
-            <h2>Revenue &amp; Profit Over Time</h2>
-            <span className="badge s-approved">Daily Timeline</span>
-          </div>
-          <div style={{ height: '320px', padding: '16px' }}>
-            {trendData && trendData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trendData}>
-                  <CartesianGrid vertical={false} stroke={GRID} />
-                  <XAxis dataKey="date" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} />
-                  <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${Number(v).toLocaleString('en-IN')}`} />
-                  <Tooltip formatter={(value: any) => [money(value), '']} contentStyle={TOOLTIP_STYLE} cursor={{ stroke: GRID }} />
-                  <Legend />
-                  <Area type="monotone" dataKey="revenue" name="Revenue" stroke={REVENUE} strokeWidth={2} fill={REVENUE} fillOpacity={0.1} />
-                  <Area type="monotone" dataKey="profit" name="Profit" stroke={PROFIT} strokeWidth={2} fill={PROFIT} fillOpacity={0.12} />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="empty slim">No revenue data for this period.</div>
-            )}
-          </div>
-        </div>
-
-        {/* Sales by Category Donut Chart */}
-        <div className="card">
-          <div className="card-head">
-            <h2>Sales by Category</h2>
-            <span className="badge s-confirmed">Share</span>
-          </div>
-          <div style={{ height: '320px', padding: '16px' }}>
-            {catData && catData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    /* Money arrives as a string; the donut sums its slices, so it needs numbers */
-                    data={catData.map((c) => ({ ...c, revenue: Number(c.revenue) }))}
-                    dataKey="revenue"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={95}
-                    stroke="#FFFFFF"
-                    strokeWidth={2}
-                  >
-                    {catData.map((c) => (
-                      <Cell key={c.category_id} fill={categoryColor(c.name)} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(val: any) => [money(val), 'Revenue']} contentStyle={TOOLTIP_STYLE} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="empty slim">No category sales recorded.</div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Sales by City Bar Chart */}
-      <div className="card" style={{ marginTop: '20px' }}>
+      <div className="card">
         <div className="card-head">
-          <h2>Sales by City</h2>
-          <span className="badge s-processing">Regional Breakdown</span>
+          <h2>Revenue and profit</h2>
+          {hasSales && <ChartLegend items={[{ name: 'Revenue', color: REVENUE }, { name: 'Profit', color: PROFIT, line: true }]} />}
         </div>
-        <div style={{ height: '260px', padding: '16px' }}>
-          {cityData && cityData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={cityData} barGap={2}>
-                <CartesianGrid vertical={false} stroke={GRID} />
-                <XAxis dataKey="name" tick={{ ...TICK, fontSize: 12 }} tickLine={false} axisLine={{ stroke: GRID }} />
-                <YAxis tick={TICK} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${Number(v).toLocaleString('en-IN')}`} />
-                <Tooltip formatter={(val: any) => [money(val), '']} contentStyle={TOOLTIP_STYLE} cursor={{ fill: '#F1F3F5' }} />
-                <Legend />
-                <Bar dataKey="revenue" name="Revenue" fill={REVENUE} radius={[4, 4, 0, 0]} maxBarSize={56} />
-                <Bar dataKey="profit" name="Profit" fill={PROFIT} radius={[4, 4, 0, 0]} maxBarSize={56} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="empty slim">No city sales data found.</div>
+        {trendQ.isLoading ? <ChartSkeleton height={300} /> : !hasSales ? (
+          <p className="chart-empty">No sales in these dates yet. The chart fills in as orders come in.</p>
+        ) : (
+          <>
+            <div className="chart-body">
+              <TrendChart
+                data={trend}
+                bucket={bucket}
+                height={280}
+                series={[
+                  { key: 'revenue', name: 'Revenue', color: REVENUE },
+                  { key: 'profit', name: 'Profit', color: PROFIT, kind: 'line' },
+                ]}
+                extra={(p) => <span>Orders<em>{num(Number(p.orders))}</em></span>}
+              />
+            </div>
+            <div className="chart-body">
+              <p className="chart-sub">Orders {bucket === 'day' ? 'per day' : bucket === 'week' ? 'per week' : 'per month'}</p>
+              <OrdersStrip data={trend} bucket={bucket} />
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="panel-grid">
+        <div className="card">
+          <div className="card-head"><h2>Sales by category</h2></div>
+          {catQ.isLoading ? <ListSkeleton rows={4} /> : (
+            <RankList
+              empty="No category sales in these dates."
+              rows={(catQ.data ?? []).map((c) => ({
+                key: c.category_id,
+                label: c.name,
+                sub: `${num(c.units)} units, ${shareText(Number(c.revenue), catTotal)} of sales`,
+                value: Number(c.revenue),
+                display: money(c.revenue),
+                color: categoryColor(c.name),
+              }))}
+            />
+          )}
+        </div>
+        <div className="card">
+          <div className="card-head"><h2>Sales by city</h2></div>
+          {cityQ.isLoading ? <ListSkeleton rows={3} /> : (
+            <RankList
+              empty="No city sales in these dates."
+              rows={(cityQ.data ?? []).map((c) => ({
+                key: c.city_id,
+                label: c.name,
+                sub: `${num(c.orders)} orders, ${money(c.profit)} profit`,
+                value: Number(c.revenue),
+                display: money(c.revenue),
+              }))}
+            />
           )}
         </div>
       </div>
@@ -371,127 +328,89 @@ function BossOverviewView() {
 }
 
 /* ------------------------------------------------------------------ *
- * 2. Detailed Analytics (Top Schools, Top Products, Stock by Category)
+ * 2. Rankings: top schools, top products, stock on hand
  * ------------------------------------------------------------------ */
 function BossAnalyticsChartsView() {
   const filterState = useBossFilterState();
   const { queryParams } = filterState;
 
-  const { data: topSchools } = useQuery({
-    queryKey: ['boss-chart-top-schools', queryParams],
-    queryFn: () => bossPanel.topSchools(queryParams),
-    enabled: !!queryParams.date_from,
-  });
-
-  const { data: topProducts } = useQuery({
-    queryKey: ['boss-chart-top-products', queryParams],
-    queryFn: () => bossPanel.topProducts(queryParams),
-    enabled: !!queryParams.date_from,
-  });
-
-  const { data: stockCats } = useQuery({
-    queryKey: ['boss-chart-stock-cats', queryParams],
-    queryFn: () => bossPanel.stockCategories(queryParams),
-    enabled: !!queryParams.date_from,
-  });
+  const schoolsQ = useQuery({ queryKey: ['boss', 'top-schools', queryParams], queryFn: () => bossPanel.topSchools(queryParams), ...LIVE });
+  const productsQ = useQuery({ queryKey: ['boss', 'top-products', queryParams], queryFn: () => bossPanel.topProducts(queryParams), ...LIVE });
+  const stockQ = useQuery({ queryKey: ['boss', 'stock-cats', queryParams], queryFn: () => bossPanel.stockCategories(queryParams), ...LIVE });
+  const stock = stockQ.data ?? [];
 
   return (
     <div>
       <div className="page-head">
         <div>
-          <div className="eyebrow">DEEP DIVE ANALYTICS</div>
-          <h1>Operational Rankings &amp; Stock Levels</h1>
-          <p className="muted">Top performing schools, best-selling products, and on-hand inventory by category.</p>
+          <div className="eyebrow">RANKINGS</div>
+          <h1>Top schools, products and stock</h1>
+          <p className="muted">Best sellers for the dates you pick. Stock is what is on the shelves right now.</p>
         </div>
+        <BossLive updatedAt={schoolsQ.dataUpdatedAt} />
       </div>
 
       <BossFilterBar state={filterState} />
 
       <div className="panel-grid">
-        {/* Top Schools by Revenue */}
         <div className="card">
-          <div className="card-head">
-            <h2>Top Schools by Revenue</h2>
-            <span className="badge s-approved">Top 15</span>
-          </div>
-          <div style={{ height: '360px', padding: '16px' }}>
-            {topSchools && topSchools.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topSchools} layout="vertical" margin={{ left: 40, right: 20 }}>
-                  <CartesianGrid horizontal={false} stroke={GRID} />
-                  <XAxis type="number" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} tickFormatter={(v) => `₹${Number(v).toLocaleString('en-IN')}`} />
-                  <YAxis type="category" dataKey="name" tick={TICK} tickLine={false} axisLine={false} width={120} interval={0} />
-                  <Tooltip formatter={(v: any) => [money(v), 'Revenue']} contentStyle={TOOLTIP_STYLE} cursor={{ fill: '#F1F3F5' }} />
-                  <Bar dataKey="revenue" fill={REVENUE} radius={[0, 4, 4, 0]} maxBarSize={22} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="empty slim">No school revenue data.</div>
-            )}
-          </div>
+          <div className="card-head"><h2>Top schools by revenue</h2></div>
+          {schoolsQ.isLoading ? <ListSkeleton /> : (
+            <RankList
+              empty="No school sales in these dates."
+              rows={(schoolsQ.data ?? []).map((s) => ({
+                key: s.school_id,
+                label: s.name,
+                sub: `${s.code}, ${num(s.orders)} orders`,
+                value: Number(s.revenue),
+                display: money(s.revenue),
+              }))}
+            />
+          )}
         </div>
-
-        {/* Top Products by Units Sold (Requirement 5) */}
         <div className="card">
-          <div className="card-head">
-            <h2>Top Products by Units Sold</h2>
-            <span className="badge s-processing">From DailyProductTotal</span>
-          </div>
-          <div style={{ height: '360px', padding: '16px' }}>
-            {topProducts && topProducts.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topProducts} layout="vertical" margin={{ left: 40, right: 20 }}>
-                  <CartesianGrid horizontal={false} stroke={GRID} />
-                  <XAxis type="number" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} />
-                  <YAxis type="category" dataKey="name" tick={TICK} tickLine={false} axisLine={false} width={130} interval={0} />
-                  <Tooltip formatter={(v: any) => [num(v), 'Units Sold']} contentStyle={TOOLTIP_STYLE} cursor={{ fill: '#F1F3F5' }} />
-                  <Bar dataKey="units" fill={REVENUE} radius={[0, 4, 4, 0]} maxBarSize={22} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="empty slim">No product units data available.</div>
-            )}
-          </div>
+          <div className="card-head"><h2>Top products by units</h2></div>
+          {productsQ.isLoading ? <ListSkeleton /> : (
+            <RankList
+              empty="No products sold in these dates."
+              rows={(productsQ.data ?? []).map((p) => ({
+                key: p.product_id,
+                label: p.name,
+                sub: `${p.category}, ${money(p.revenue)}`,
+                value: p.units,
+                display: `${num(p.units)} units`,
+                color: categoryColor(p.category),
+              }))}
+            />
+          )}
         </div>
       </div>
 
-      {/* Stock Level by Category Bar Chart (Requirement 2) */}
-      <div className="card" style={{ marginTop: '20px' }}>
-        <div className="card-head">
-          <h2>Stock Level &amp; Valuation by Category</h2>
-          <span className="badge s-delivered">On-hand Inventory</span>
-        </div>
-        {stockCats && stockCats.length > 0 ? (
-          /* Units and rupees have different scales, so each gets its own chart (never two y-axes) */
-          <div className="chart-pair">
-            {([
-              { key: 'units', name: 'Units on Hand', format: (v: any) => num(v) },
-              { key: 'stock_value', name: 'Stock Value', format: (v: any) => money(v) },
-            ] as const).map((m) => (
-              <div key={m.key} className="chart-pair-item">
-                <h3 className="chart-pair-title">{m.name}</h3>
-                <div style={{ height: '240px' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={stockCats}>
-                      <CartesianGrid vertical={false} stroke={GRID} />
-                      <XAxis dataKey="name" tick={TICK} tickLine={false} axisLine={{ stroke: GRID }} interval={0} />
-                      <YAxis
-                        tick={TICK}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={m.key === 'stock_value' ? (v) => `₹${Number(v).toLocaleString('en-IN')}` : undefined}
-                      />
-                      <Tooltip formatter={(v: any) => [m.format(v), m.name]} contentStyle={TOOLTIP_STYLE} cursor={{ fill: '#F1F3F5' }} />
-                      <Bar dataKey={m.key} name={m.name} fill={REVENUE} radius={[4, 4, 0, 0]} maxBarSize={48} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            ))}
-          </div>
+      <div className="card">
+        <div className="card-head"><h2>Stock on hand by category</h2></div>
+        {stockQ.isLoading ? <ListSkeleton rows={4} /> : stock.length === 0 ? (
+          <p className="chart-empty">No stock recorded yet.</p>
         ) : (
-          <div className="pad">
-            <div className="empty slim">No stock records found.</div>
+          /* Units and rupees have different scales, so each gets its own list */
+          <div className="chart-pair">
+            <div className="chart-pair-item" style={{ padding: 0 }}>
+              <p className="chart-sub" style={{ margin: '16px 16px 0' }}>Units</p>
+              <RankList
+                empty=""
+                rows={[...stock].sort((a, b) => b.units - a.units).map((c) => ({
+                  key: c.category_id, label: c.name, value: c.units, display: num(c.units), color: categoryColor(c.name),
+                }))}
+              />
+            </div>
+            <div className="chart-pair-item" style={{ padding: 0 }}>
+              <p className="chart-sub" style={{ margin: '16px 16px 0' }}>Value at cost</p>
+              <RankList
+                empty=""
+                rows={[...stock].sort((a, b) => Number(b.stock_value) - Number(a.stock_value)).map((c) => ({
+                  key: c.category_id, label: c.name, value: Number(c.stock_value), display: money(c.stock_value), color: categoryColor(c.name),
+                }))}
+              />
+            </div>
           </div>
         )}
       </div>

@@ -5,7 +5,8 @@ from uuid import UUID
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db.models import Prefetch, Q
+from django.db.models import Count, Prefetch, Q, Value
+from django.db.models.functions import Coalesce, NullIf
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.renderers import JSONRenderer
@@ -19,11 +20,10 @@ from common.cache_utils import (
     versioned_cache_key,
 )
 from common.pagination import BoundedCursorPagination
-from inventory.models import StockBalance
-from inventory.services import stock_flag
+from inventory.services import stock_flags
 from schools.models import School
 
-from .images import product_thumbnail
+from .images import product_gallery, product_image, product_image_alt, product_thumbnail
 from .models import Product, ProductVariant
 
 
@@ -59,7 +59,12 @@ class PublicSchoolListView(APIView):
             except Exception:
                 pass
 
-        qs = School.objects.filter(active=True).select_related("city").order_by("name")
+        qs = (
+            School.objects.filter(active=True)
+            .select_related("city")
+            .prefetch_related(Prefetch("grades", queryset=Grade.objects.order_by("sort_order").only("id", "name")))
+            .order_by("name")
+        )
         if search:
             qs = qs.filter(name__icontains=search)
 
@@ -72,6 +77,8 @@ class PublicSchoolListView(APIView):
                 "city_name": s.city.name if s.city_id else "",
                 "home_delivery": s.home_delivery_enabled,
                 "school_pickup": s.school_pickup_enabled,
+                # Classes the school has, in school order. Empty: every class.
+                "grades": [g.name for g in s.grades.all()],
             }
             for s in qs.only(
                 "id", "name", "code", "home_delivery_enabled", "school_pickup_enabled", "city__id", "city__name"
@@ -79,6 +86,54 @@ class PublicSchoolListView(APIView):
         ]
 
         if cache_key and not search:
+            try:
+                cache.set(cache_key, data, timeout=600)
+            except Exception:
+                pass
+
+        return Response(data)
+
+
+class PublicDeliveredSchoolListView(APIView):
+    """
+    Public endpoint for About page logo slider:
+    return only schools where show_logo_public = true AND logo_url IS NOT NULL;
+    fields id, name, logo_url; sorted by name; cached like the existing public endpoints.
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [PublicCatalogThrottle]
+
+    def get(self, request):
+        cache_key = None
+        try:
+            cache_key = versioned_cache_key(
+                "catalog:public:schools:delivered",
+                "all",
+                SCHOOL_LIST_CACHE_VERSION_KEY,
+            )
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return Response(cached)
+        except Exception:
+            pass
+
+        qs = (
+            School.objects.filter(active=True, show_logo_public=True)
+            .exclude(Q(logo_url__isnull=True) | Q(logo_url=""))
+            .order_by("name")
+        )
+
+        data = [
+            {
+                "id": str(s.id),
+                "name": s.name,
+                "logo_url": s.logo_url,
+            }
+            for s in qs.only("id", "name", "logo_url")
+        ]
+
+        if cache_key:
             try:
                 cache.set(cache_key, data, timeout=600)
             except Exception:
@@ -141,6 +196,154 @@ class PublicSchoolCitiesView(APIView):
                 pass
 
         return Response(data)
+
+
+def _cached(namespace: str, key: str, build):
+    """Serve `build()` from the school-list cache, which School/City/Branch saves bump."""
+    cache_key = None
+    try:
+        cache_key = versioned_cache_key(namespace, key, SCHOOL_LIST_CACHE_VERSION_KEY)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+    except Exception:
+        cache_key = None
+    data = build()
+    if cache_key:
+        try:
+            cache.set(cache_key, data, timeout=600)
+        except Exception:
+            pass
+    return data
+
+
+def _open_branches(request):
+    """Open branches, limited to one school when the shop passes ?school=<uuid>."""
+    qs = SchoolBranch.objects.filter(active=True, school__active=True, city__active=True)
+    school = (request.query_params.get("school") or "").strip()
+    if school:
+        try:
+            qs = qs.filter(school_id=UUID(school))
+        except ValueError as exc:
+            raise ValidationError({"school": "Provide a valid school UUID."}) from exc
+    return qs, school
+
+
+class PublicStateListView(APIView):
+    """
+    Shop step 1: states that have at least one open branch, A to Z.
+    GET /api/public/states/[?school=<uuid>] -> [{"name": "Haryana", "city_count": 22}]
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [PublicCatalogThrottle]
+
+    def get(self, request):
+        branches, school = _open_branches(request)
+
+        def build():
+            rows = (
+                branches
+                .exclude(city__state="")
+                .values("city__state")
+                .annotate(city_count=Count("city_id", distinct=True))
+                .order_by("city__state")
+            )
+            return [{"name": r["city__state"], "city_count": r["city_count"]} for r in rows]
+
+        return Response(_cached("catalog:public:states", school or "all", build))
+
+
+class PublicStateCitiesView(APIView):
+    """
+    Shop step 2: cities in a state with at least one open branch, A to Z.
+    GET /api/public/cities/?state=Haryana[&school=<uuid>] -> [{"id", "name", "code", "state", "branch_count"}]
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [PublicCatalogThrottle]
+
+    def get(self, request):
+        state = (request.query_params.get("state") or "").strip()
+        if not state:
+            raise ValidationError({"state": "State parameter is required."})
+        branches, school = _open_branches(request)
+
+        def build():
+            rows = (
+                branches
+                .filter(city__state__iexact=state)
+                .values("city_id", "city__name", "city__code", "city__state")
+                .annotate(branch_count=Count("id"))
+                .order_by("city__name")
+            )
+            return [
+                {
+                    "id": str(r["city_id"]),
+                    "name": r["city__name"],
+                    "code": r["city__code"],
+                    "state": r["city__state"],
+                    "branch_count": r["branch_count"],
+                }
+                for r in rows
+            ]
+
+        return Response(_cached("catalog:public:state_cities", f"{state.lower()}:{school}", build))
+
+
+class PublicCityBranchesView(APIView):
+    """
+    Shop step 3: open school branches in a city, A to Z by campus name.
+    GET /api/public/cities/<city_id>/branches/[?search=][&school=<uuid>]
+
+    Each row carries the school (which owns the catalogue) so the shop can go
+    straight on to class and gender.
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [PublicCatalogThrottle]
+
+    def get(self, request, city_id):
+        if not City.objects.filter(pk=city_id, active=True).exists():
+            raise NotFound("City not found.")
+        search = (request.query_params.get("search") or "").strip()
+        branches, school = _open_branches(request)
+
+        def build():
+            qs = (
+                branches
+                .filter(city_id=city_id)
+                .select_related("school")
+                .annotate(sort_name=Coalesce(NullIf("name", Value("")), "school__name"))
+                .order_by("sort_name", "id")
+            )
+            if search:
+                qs = qs.filter(
+                    Q(name__icontains=search)
+                    | Q(school__name__icontains=search)
+                    | Q(address__icontains=search)
+                    | Q(pincode__startswith=search)
+                    | Q(udise_code__startswith=search)
+                )
+            return [
+                {
+                    "id": str(b.id),
+                    "name": b.display_name,
+                    "address": b.address,
+                    "pincode": b.pincode,
+                    "udise_code": b.udise_code or "",
+                    "photo": request.build_absolute_uri(b.photo.url) if b.photo else None,
+                    "school": {"id": str(b.school_id), "name": b.school.name, "code": b.school.code},
+                }
+                for b in qs.only(
+                    "id", "name", "address", "pincode", "udise_code", "photo", "school_id",
+                    "school__name", "school__code",
+                )
+            ]
+
+        if search:
+            return Response(build())
+        return Response(_cached("catalog:public:city_branches", f"{city_id}:{school}", build))
 
 
 class PublicGradeListView(APIView):
@@ -273,7 +476,7 @@ class PublicProductList(APIView):
         cache_key = None
         try:
             cache_key = versioned_cache_key(
-                "catalog:public:filtered",
+                "catalog:public:filtered-metadata",
                 request.build_absolute_uri(),
                 CATALOG_CACHE_VERSION_KEY,
                 SCHOOL_LIST_CACHE_VERSION_KEY,
@@ -284,22 +487,11 @@ class PublicProductList(APIView):
             cached_data = None
 
         if cached_data is not None:
-            return Response(cached_data)
+            return self.with_availability(cached_data, city_uuid)
 
-        balance_qs = StockBalance.objects.filter(city_id=city_uuid) if city_uuid else StockBalance.objects.none()
         variants = Prefetch(
             "variants",
-            queryset=(
-                ProductVariant.objects.filter(active=True)
-                .order_by("size", "id")
-                .prefetch_related(
-                    Prefetch(
-                        "stock_balances",
-                        queryset=balance_qs,
-                        to_attr="selected_city_balances",
-                    )
-                )
-            ),
+            queryset=ProductVariant.objects.filter(active=True).order_by("size", "id"),
         )
 
         category = request.query_params.get("category")
@@ -347,6 +539,12 @@ class PublicProductList(APIView):
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(qs, request, view=self)
 
+        city_price_map = {}
+        if city_uuid and page:
+            from catalog.models import ProductCityPrice
+            for cp in ProductCityPrice.objects.filter(city_id=city_uuid, active=True, product__in=page):
+                city_price_map[cp.product_id] = float(cp.selling_price)
+
         # Requirement 9: Returns only card fields
         data = [
             {
@@ -358,21 +556,16 @@ class PublicProductList(APIView):
                 "gender": product.gender,
                 "needs_review": product.needs_review,
                 "school": product.school.name if product.school else None,
-                "price": float(product.selling_price),
+                "price": city_price_map.get(product.id, float(product.selling_price)),
                 "thumbnail": product_thumbnail(product.images),
+                "image": product_image(product.images),
+                "image_alt": product_image_alt(product.images),
+                "images": product_gallery(product.images),
                 "customisation_schema": product.customisation_schema,
                 "variants": [
                     {
                         "id": str(variant.id),
                         "size": variant.size,
-                        "stock_status": (
-                            stock_flag(
-                                variant.selected_city_balances[0].stock_quantity,
-                                variant.selected_city_balances[0].low_stock_threshold,
-                            )
-                            if variant.selected_city_balances
-                            else None
-                        ),
                     }
                     for variant in product.variants.all()
                 ],
@@ -389,7 +582,23 @@ class PublicProductList(APIView):
                 )
             except Exception:
                 pass
-        return response
+        return self.with_availability(response.data, city_uuid)
+
+    @staticmethod
+    def with_availability(data, city_id):
+        variant_ids = [variant["id"] for product in data["results"] for variant in product["variants"]]
+        flags = stock_flags(city_id, variant_ids, missing=None)
+        results = [
+            {
+                **product,
+                "variants": [
+                    {**variant, "stock_status": flags[variant["id"]]}
+                    for variant in product["variants"]
+                ],
+            }
+            for product in data["results"]
+        ]
+        return Response({**data, "results": results}, headers={"Cache-Control": "no-store"})
 
 
 class PublicMeasureConfigView(APIView):

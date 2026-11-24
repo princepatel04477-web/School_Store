@@ -28,6 +28,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import User
+from analytics.models import DailySchoolTotal
+from analytics.series import fill_series
 from common.models import ImportJob
 from common.pagination import BoundedCursorPagination, BoundedPageNumberPagination
 from common.permissions import RoleScopedPermission
@@ -661,6 +663,9 @@ class PanelFilterOptionsView(SchoolScopedMixin, APIView):
         )
 
 
+CITY_TREND_DAYS = 30
+
+
 class CityDailySalesView(APIView):
     """
     Requirement 2: Daily sales for staff admin scoped to one city.
@@ -757,8 +762,35 @@ class CityDailySalesView(APIView):
             for st in school_summaries
         ]
 
+        # The 30 days up to the chosen date, one point a day, zero on quiet days
+        trend_start = target_date - dt.timedelta(days=CITY_TREND_DAYS - 1)
+        trend_rows = (
+            DailySchoolTotal.objects.filter(
+                city_id=city_id, date__gte=trend_start, date__lte=target_date
+            )
+            .values("date")
+            .annotate(orders=Sum("orders"), units=Sum("units"), revenue=Sum("revenue"))
+            .order_by("date")
+        )
+        _, trend = fill_series(
+            trend_rows,
+            trend_start,
+            target_date,
+            {"orders": 0, "units": 0, "revenue": Decimal("0.00")},
+            bucket="day",
+        )
+
         return Response({
             "date": target_date.isoformat(),
+            "trend": [
+                {
+                    "date": p["date"].isoformat(),
+                    "orders": int(p["orders"]),
+                    "units": int(p["units"]),
+                    "revenue": str(p["revenue"]),
+                }
+                for p in trend
+            ],
             "city": {
                 "id": str(city.id),
                 "name": city.name,
@@ -771,6 +803,69 @@ class CityDailySalesView(APIView):
             },
             "categories": categories,
             "schools": schools_data,
+        })
+
+
+class TeacherSummaryView(SchoolScopedMixin, APIView):
+    """
+    The teacher's home screen: the school's roster size and this month's sales,
+    all real counts (the screen used to show fixed sample numbers).
+    """
+
+    read_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER")
+
+    def get(self, request):
+        school = self.get_school()
+        today = timezone.localdate()
+        month_start = today.replace(day=1)
+        trend_start = today - dt.timedelta(days=CITY_TREND_DAYS - 1)
+
+        roster = Student.objects.filter(school_id=school.id).aggregate(
+            total=Count("id"),
+            pending=Count("id", filter=Q(approval_status=Student.ApprovalStatus.PENDING)),
+        )
+        month = summary_totals(school, month_start, today)
+        today_totals = summary_totals(school, today, today)
+        trend_rows = (
+            DailySchoolTotal.objects.filter(
+                school_id=school.id, date__gte=trend_start, date__lte=today
+            )
+            .values("date")
+            .annotate(orders=Sum("orders"), gross_sales=Sum("revenue"))
+            .order_by("date")
+        )
+        _, trend = fill_series(
+            trend_rows,
+            trend_start,
+            today,
+            {"orders": 0, "gross_sales": Decimal("0.00")},
+            bucket="day",
+        )
+        return Response({
+            "school": {"id": str(school.id), "name": school.name, "code": school.code},
+            "students": {
+                "total": roster["total"] or 0,
+                "pending": roster["pending"] or 0,
+            },
+            "month": {
+                "date_from": month_start.isoformat(),
+                "date_to": today.isoformat(),
+                "orders": month["orders"],
+                "units": month["units"],
+                "gross_sales": str(month["gross_sales"]),
+            },
+            "today": {
+                "orders": today_totals["orders"],
+                "gross_sales": str(today_totals["gross_sales"]),
+            },
+            "trend": [
+                {
+                    "date": p["date"].isoformat(),
+                    "orders": int(p["orders"]),
+                    "gross_sales": str(p["gross_sales"]),
+                }
+                for p in trend
+            ],
         })
 
 

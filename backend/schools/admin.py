@@ -21,7 +21,8 @@ class GradeAdmin(admin.ModelAdmin):
 class SchoolBranchInline(admin.TabularInline):
     model = SchoolBranch
     extra = 1
-    fields = ("city", "active")
+    fields = ("name", "city", "pincode", "phone", "active")
+    show_change_link = True
 
 
 @admin.register(School)
@@ -30,26 +31,53 @@ class SchoolAdmin(admin.ModelAdmin):
         "name",
         "code",
         "city",
+        "show_logo_public",
         "commission_rate",
         "home_delivery_enabled",
         "school_pickup_enabled",
         "active",
         "created_at",
     )
-    list_filter = ("active", "city", "home_delivery_enabled", "school_pickup_enabled")
+    list_filter = ("active", "show_logo_public", "city", "home_delivery_enabled", "school_pickup_enabled")
     search_fields = ("name", "code")
     readonly_fields = ("id", "created_at", "updated_at")
     list_select_related = ("city",)
+    fields = (
+        "name",
+        "code",
+        "city",
+        "logo",
+        "logo_url",
+        "show_logo_public",
+        "active",
+        "commission_rate",
+        "home_delivery_enabled",
+        "school_pickup_enabled",
+        "address",
+        "contact_email",
+        "contact_phone",
+        "board",
+        "pincode",
+        "udise_code",
+    )
     inlines = [SchoolBranchInline]
 
 
 @admin.register(SchoolBranch)
 class SchoolBranchAdmin(admin.ModelAdmin):
-    list_display = ("school", "city", "active", "created_at")
-    list_filter = ("active", "city", "school")
-    search_fields = ("school__name", "school__code", "city__name")
-    readonly_fields = ("id", "created_at", "updated_at")
+    list_display = ("display_name", "school", "city", "udise_code", "pincode", "active", "created_at")
+    list_filter = ("active", "city__state", "school")
+    search_fields = ("name", "udise_code", "school__name", "school__code", "city__name", "address", "pincode")
+    readonly_fields = ("id", "maps_place_id", "created_at", "updated_at")
     list_select_related = ("school", "city")
+    autocomplete_fields = ("city",)
+    fieldsets = (
+        (None, {"fields": ("school", "city", "name", "udise_code", "active")}),
+        ("Location", {"fields": ("address", "pincode", "latitude", "longitude")}),
+        ("Contact", {"fields": ("phone", "website")}),
+        ("Photo", {"fields": ("photo",)}),
+        ("Source", {"fields": ("id", "maps_place_id", "created_at", "updated_at")}),
+    )
 
 
 @admin.register(Student)

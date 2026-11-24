@@ -54,12 +54,26 @@ export default defineConfig(({ mode }) => ({
     allowedHosts: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: process.env.VITE_API_PROXY_TARGET || 'https://school-store.aqualite.workers.dev',
         changeOrigin: true,
       },
       // With the slash, so /mediapipe (the on-phone pose model) is not sent to Django.
       '/media/': {
-        target: 'http://127.0.0.1:8000',
+        target: process.env.VITE_API_PROXY_TARGET || 'https://school-store.aqualite.workers.dev',
+        changeOrigin: true,
+      },
+    },
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 4173,
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_PROXY_TARGET || 'https://school-store.aqualite.workers.dev',
+        changeOrigin: true,
+      },
+      '/media/': {
+        target: process.env.VITE_API_PROXY_TARGET || 'https://school-store.aqualite.workers.dev',
         changeOrigin: true,
       },
     },

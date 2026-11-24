@@ -55,7 +55,7 @@
   display: grid;
   place-items: center;
   border: 1px solid var(--line);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   background-color: var(--paper-raised);
   cursor: pointer;
 }

@@ -28,6 +28,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from analytics.models import DailyProductTotal, DailySalesSummary, DailySchoolTotal
+from analytics.series import fill_series
 from catalog.models import Category, Product
 from common.permissions import RoleScopedPermission
 from inventory.models import StockBalance
@@ -119,47 +120,46 @@ class BossKpisView(APIView):
         if cached is not None:
             return Response(cached)
 
-        # If filtered by category, we must read from DailySalesSummary.
-        # If not filtered by category, distinct orders count comes from DailySchoolTotal.
-        if category_id:
-            qs = DailySalesSummary.objects.filter(
-                date__gte=date_from, date__lte=date_to, category_id=category_id
-            )
+        def totals(start: dt.date, end: dt.date) -> dict:
+            # A category filter reads DailySalesSummary; otherwise DailySchoolTotal,
+            # whose order count is exact for orders that span two categories.
+            if category_id:
+                qs = DailySalesSummary.objects.filter(
+                    date__gte=start, date__lte=end, category_id=category_id
+                )
+            else:
+                qs = DailySchoolTotal.objects.filter(date__gte=start, date__lte=end)
             if city_id:
                 qs = qs.filter(city_id=city_id)
             if school_id:
                 qs = qs.filter(school_id=school_id)
-
             agg = qs.aggregate(
-                orders=Sum("orders"),
-                units=Sum("units"),
-                revenue=Sum("revenue"),
-                cost=Sum("cost"),
+                orders=Sum("orders"), units=Sum("units"), revenue=Sum("revenue"), cost=Sum("cost")
             )
-        else:
-            qs = DailySchoolTotal.objects.filter(date__gte=date_from, date__lte=date_to)
-            if city_id:
-                qs = qs.filter(city_id=city_id)
-            if school_id:
-                qs = qs.filter(school_id=school_id)
+            return {
+                "orders": int(agg["orders"] or 0),
+                "units": int(agg["units"] or 0),
+                "revenue": agg["revenue"] or Decimal("0.00"),
+                "cost": agg["cost"] or Decimal("0.00"),
+            }
 
-            agg = qs.aggregate(
-                orders=Sum("orders"),
-                units=Sum("units"),
-                revenue=Sum("revenue"),
-                cost=Sum("cost"),
-            )
+        now = totals(date_from, date_to)
+        # The same number of days straight before, for the change shown under each card.
+        span = date_to - date_from
+        prev_to = date_from - dt.timedelta(days=1)
+        prev = totals(prev_to - span, prev_to)
 
-        orders = int(agg["orders"] or 0)
-        units = int(agg["units"] or 0)
-        revenue = agg["revenue"] or Decimal("0.00")
-        cost = agg["cost"] or Decimal("0.00")
+        orders = now["orders"]
+        units = now["units"]
+        revenue = now["revenue"]
+        cost = now["cost"]
         gross_profit = revenue - cost
         margin_pct = (
             ((gross_profit / revenue) * 100).quantize(Decimal("0.1"))
             if revenue > 0
             else Decimal("0.0")
         )
+        avg_order = (revenue / orders).quantize(Decimal("0.01")) if orders else Decimal("0.00")
 
         stock_val = _get_stock_value(city_id=city_id, category_id=category_id)
 
@@ -172,7 +172,16 @@ class BossKpisView(APIView):
             "gross_margin_pct": str(margin_pct),
             "orders": orders,
             "units_sold": units,
+            "average_order_value": str(avg_order),
             "current_stock_value": str(stock_val),
+            "previous": {
+                "date_from": (prev_to - span).isoformat(),
+                "date_to": prev_to.isoformat(),
+                "revenue": str(prev["revenue"]),
+                "gross_profit": str(prev["revenue"] - prev["cost"]),
+                "orders": prev["orders"],
+                "units": prev["units"],
+            },
         }
 
         cache.set(cache_key, data, timeout=60)
@@ -217,27 +226,34 @@ class BossRevenueProfitTimeView(APIView):
         rows = (
             qs.values("date")
             .annotate(
-                rev=Sum("revenue"),
-                cst=Sum("cost"),
-                ord=Sum("orders"),
-                unt=Sum("units"),
+                revenue=Sum("revenue"),
+                cost=Sum("cost"),
+                orders=Sum("orders"),
+                units=Sum("units"),
             )
             .order_by("date")
         )
+        # Every day (or week / month on long ranges) gets a point, zero when nothing
+        # sold, so quiet days show as dips instead of one line between two sales.
+        bucket, filled = fill_series(
+            rows,
+            date_from,
+            date_to,
+            {"revenue": Decimal("0.00"), "cost": Decimal("0.00"), "orders": 0, "units": 0},
+        )
 
-        points = []
-        for r in rows:
-            rev = r["rev"] or Decimal("0.00")
-            cst = r["cst"] or Decimal("0.00")
-            profit = rev - cst
-            points.append({
-                "date": r["date"].isoformat(),
-                "revenue": str(rev),
-                "cost": str(cst),
-                "profit": str(profit),
-                "orders": r["ord"] or 0,
-                "units": r["unt"] or 0,
-            })
+        points = [
+            {
+                "date": p["date"].isoformat(),
+                "bucket": bucket,
+                "revenue": str(p["revenue"]),
+                "cost": str(p["cost"]),
+                "profit": str(p["revenue"] - p["cost"]),
+                "orders": int(p["orders"]),
+                "units": int(p["units"]),
+            }
+            for p in filled
+        ]
 
         cache.set(cache_key, points, timeout=60)
         return Response(points)

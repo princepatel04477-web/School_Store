@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { matchesListedClass, isShopProductVisible, sectionPhoto } from './shopSections';
 import { api } from '../api';
 import type { SeedProduct, SeedSchool } from './seedData';
 
@@ -12,10 +13,27 @@ export interface StoreSchool extends SeedSchool {
   cityId?: string;
   homeDelivery: boolean;
   schoolPickup: boolean;
+  /** Classes the school has ("Nursery", "Class 1", ...). Empty: every class. */
+  grades?: string[];
+}
+
+export interface ProductPhoto {
+  /** Full-size file, for the item's page. */
+  src: string;
+  /** Card-size file. */
+  thumb?: string;
+  alt?: string;
 }
 
 export interface StoreProduct extends SeedProduct {
+  /** The small photo for cards and lists. */
   imageUrl?: string;
+  /** The full-size photo for the item's own page. */
+  heroUrl?: string;
+  /** What the photo shows, read out by screen readers. */
+  imageAlt?: string;
+  /** Every photo of the item, in order (plain shot first, then the child wearing it). */
+  gallery?: ProductPhoto[];
   /** Needs a photo or details the parent can't give here (ID card, photo notebook). */
   needsDetails: boolean;
   /** Made for this school (its own shirt, tie, belt…), as opposed to a general item. */
@@ -30,6 +48,7 @@ type PublicSchool = {
   city_name?: string;
   home_delivery?: boolean;
   school_pickup?: boolean;
+  grades?: string[];
 };
 
 type PublicVariant = { id: string; size: string; stock_status: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK' | null };
@@ -43,6 +62,9 @@ type PublicProduct = {
   school: string | null;
   price: number;
   thumbnail: string | null;
+  image?: string | null;
+  image_alt?: string | null;
+  images?: { image: string; thumbnail?: string | null; alt?: string | null }[];
   customisation_schema: CustomisationField[] | { fields?: CustomisationField[] } | null;
   variants: PublicVariant[];
 };
@@ -71,6 +93,7 @@ function toSchool(school: PublicSchool): StoreSchool {
     cityId: school.city || undefined,
     homeDelivery: school.home_delivery ?? true,
     schoolPickup: school.school_pickup ?? true,
+    grades: school.grades ?? [],
   };
 }
 
@@ -92,6 +115,11 @@ function toProduct(product: PublicProduct): StoreProduct {
       inStock: variant.stock_status === 'IN_STOCK' || variant.stock_status === 'LOW_STOCK',
     })),
     imageUrl: product.thumbnail || undefined,
+    heroUrl: product.image || undefined,
+    imageAlt: product.image_alt || undefined,
+    gallery: (product.images ?? [])
+      .filter((photo) => photo.image)
+      .map((photo) => ({ src: photo.image, thumb: photo.thumbnail || undefined, alt: photo.alt || undefined })),
     needsDetails: needsDetails(product.customisation_schema),
     official: Boolean(product.school),
   };
@@ -105,14 +133,100 @@ export function useStoreSchools() {
   });
 }
 
-/** Every approved item for one school, class and boy/girl, across all pages. */
-export function useStoreProducts(schoolId?: string, className?: string, gender?: 'boy' | 'girl' | null) {
+export interface StoreDeliveredSchool {
+  id: string;
+  name: string;
+  logo_url: string;
+}
+
+export function useStoreDeliveredSchools() {
   return useQuery({
-    queryKey: ['store', 'products', schoolId, className, gender],
+    queryKey: ['store', 'schools', 'delivered'],
+    queryFn: () => api<StoreDeliveredSchool[]>('/public/schools/delivered/'),
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+// ---------- State, then city, then branch ----------
+
+export interface StoreState {
+  name: string;
+  cityCount: number;
+}
+
+export interface StoreCity {
+  id: string;
+  name: string;
+  state: string;
+  branchCount: number;
+}
+
+/** One campus. Its school owns the uniform list; its city decides stock. */
+export interface StoreBranch {
+  id: string;
+  name: string;
+  address: string;
+  pincode: string;
+  /** Government UDISE+ code; empty for campuses not on UDISE+ (standalone preschools). */
+  udise_code: string;
+  photo: string | null;
+  school: { id: string; name: string; code: string };
+}
+
+const withSchool = (path: string, schoolId?: string) =>
+  schoolId ? `${path}${path.includes('?') ? '&' : '?'}school=${encodeURIComponent(schoolId)}` : path;
+
+/** States with at least one open branch (of one school, when given). */
+export function useStoreStates(schoolId?: string) {
+  return useQuery({
+    queryKey: ['store', 'states', schoolId ?? ''],
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () =>
+      (await api<{ name: string; city_count: number }[]>(withSchool('/public/states/', schoolId))).map(
+        (s): StoreState => ({ name: s.name, cityCount: s.city_count })
+      ),
+  });
+}
+
+export function useStoreCities(state?: string, schoolId?: string) {
+  return useQuery({
+    queryKey: ['store', 'cities', state, schoolId ?? ''],
+    enabled: Boolean(state),
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () =>
+      (
+        await api<{ id: string; name: string; state: string; branch_count: number }[]>(
+          withSchool(`/public/cities/?state=${encodeURIComponent(state!)}`, schoolId)
+        )
+      ).map((c): StoreCity => ({ id: c.id, name: c.name, state: c.state, branchCount: c.branch_count })),
+  });
+}
+
+export function useStoreBranches(cityId?: string, schoolId?: string) {
+  return useQuery({
+    queryKey: ['store', 'branches', cityId, schoolId ?? ''],
+    enabled: Boolean(cityId),
+    staleTime: 10 * 60 * 1000,
+    queryFn: () => api<StoreBranch[]>(withSchool(`/public/cities/${cityId}/branches/`, schoolId)),
+  });
+}
+
+/** Every approved item for one school, class and boy/girl, across all pages. */
+export function useStoreProducts(
+  schoolId?: string,
+  className?: string,
+  gender?: 'boy' | 'girl' | null,
+  /** The branch's city, for stock. Without it the server uses the school's own city. */
+  cityId?: string
+) {
+  return useQuery({
+    queryKey: ['store', 'products', schoolId, className, gender, cityId ?? ''],
     enabled: Boolean(schoolId && className && gender),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchInterval: 30_000,
     queryFn: async () => {
       const params = new URLSearchParams({ school: schoolId!, class: className!, gender: gender! });
+      if (cityId) params.set('city', cityId);
       const products: PublicProduct[] = [];
       let path: string | null = `/public/products/?${params}`;
       // The list is paged; a school's class list is small, so a few pages at most.
@@ -121,7 +235,18 @@ export function useStoreProducts(schoolId?: string, className?: string, gender?:
         products.push(...page.results);
         path = page.next ? page.next.slice(page.next.indexOf('/public/')) : null;
       }
-      return products.map(toProduct);
+      return products.filter(p => isShopProductVisible(p) && matchesListedClass(p.name, className)).map(toProduct)
+        .filter((p) => !p.gender || p.gender === 'unisex' || p.gender === gender)
+        .map((p) => ({
+          ...p,
+          imageUrl: sectionPhoto(p.imageUrl, gender, className),
+          heroUrl: sectionPhoto(p.heroUrl, gender, className),
+          gallery: p.gallery?.map((photo) => ({
+            ...photo,
+            src: sectionPhoto(photo.src, gender, className) ?? photo.src,
+            thumb: sectionPhoto(photo.thumb, gender, className),
+          })),
+        }));
     },
   });
 }

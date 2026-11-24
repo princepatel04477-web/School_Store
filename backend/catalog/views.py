@@ -1,21 +1,36 @@
+import io
+import uuid
+from pathlib import Path
+from PIL import Image, ImageOps
+
+from django.conf import settings
+from django.db.models import Q
 from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.response import Response
 
 from common.cache_mixin import VersionedListCacheMixin
-from common.cache_utils import CATALOG_CACHE_VERSION_KEY
+from common.cache_utils import CATALOG_CACHE_VERSION_KEY, invalidate_catalog_cache
 from common.pagination import BoundedCursorPagination
 from common.permissions import RoleScopedPermission
 from common.scoping import ScopedQuerysetMixin
 
-from .models import Category, Product, ProductVariant
+from .models import Category, Product, ProductVariant, ProductCityPrice
 from .serializers import (
     CategorySerializer,
     ProductSerializer,
     ProductVariantSerializer,
+    ProductCityPriceSerializer,
 )
 
 
 class ProductPagination(BoundedCursorPagination):
     ordering = "id"
+    # The staff screens (Uniform Portal, city stock) show the whole catalogue;
+    # 50 a page left most items unreachable from screens that read one page.
+    max_page_size = 200
 
 
 class VariantPagination(BoundedCursorPagination):
@@ -60,16 +75,125 @@ class ProductViewSet(
         qs = super().get_queryset()
         category_id = self.request.query_params.get("category")
         school_id = self.request.query_params.get("school")
+        gender = self.request.query_params.get("gender")
+        active = self.request.query_params.get("active")
+        search = self.request.query_params.get("search")
+        class_param = self.request.query_params.get("class") or self.request.query_params.get("grade")
+
         if category_id:
             qs = qs.filter(category_id=category_id)
         if school_id:
             qs = qs.filter(school_id=school_id)
+        if gender:
+            qs = qs.filter(gender=gender)
+        if active is not None:
+            if str(active).lower() in ("true", "1"):
+                qs = qs.filter(active=True)
+            elif str(active).lower() in ("false", "0"):
+                qs = qs.filter(active=False)
+        if search:
+            qs = qs.filter(name__icontains=search.strip())
+        if class_param:
+            import re
+            m = re.search(r"\d+", str(class_param))
+            if m:
+                c_num = int(m.group())
+                qs = qs.filter(
+                    Q(grades__name__icontains=str(class_param))
+                    | (Q(class_from__lte=c_num) & Q(class_to__gte=c_num))
+                ).distinct()
         return qs
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="photo",
+        parser_classes=[MultiPartParser, FormParser],
+    )
+    def photo(self, request, pk=None):
+        product = self.get_object()
+        user = request.user
+        if not user or not user.is_authenticated:
+            raise PermissionDenied("Authentication required.")
+        if user.role not in ("BOSS", "ADMIN") and not getattr(user, "is_superuser", False):
+            raise PermissionDenied("Only Boss and City Admins can upload product photos.")
+
+        if user.role == "ADMIN" and user.city_id:
+            if product.city_id and product.city_id != user.city_id:
+                raise PermissionDenied("Admins can only manage products for their own city.")
+            if product.school and product.school.city_id and product.school.city_id != user.city_id:
+                raise PermissionDenied("Admins can only manage products for schools in their own city.")
+
+        upload_file = (
+            request.FILES.get("photo")
+            or request.FILES.get("file")
+            or request.FILES.get("image")
+        )
+        if not upload_file:
+            raise ValidationError({"photo": "No image file provided in request."})
+
+        max_bytes = 8 * 1024 * 1024  # 8 MB
+        if upload_file.size > max_bytes:
+            raise ValidationError({"photo": "File size exceeds the 8 MB limit."})
+
+        raw_bytes = upload_file.read()
+        if len(raw_bytes) > max_bytes:
+            raise ValidationError({"photo": "File size exceeds the 8 MB limit."})
+
+        # Validate with Pillow (Image.verify())
+        try:
+            stream = io.BytesIO(raw_bytes)
+            with Image.open(stream) as img:
+                img.verify()
+                fmt = (img.format or "").upper()
+                if fmt not in ("JPEG", "JPG", "PNG", "WEBP"):
+                    raise ValidationError(
+                        {"photo": "Only JPG, PNG, and WebP images are allowed."}
+                    )
+        except (ValidationError, Exception) as exc:
+            if isinstance(exc, ValidationError):
+                raise
+            raise ValidationError({"photo": "Uploaded file is not a valid image."})
+
+        # Process: square, 900x900, WebP at quality 84
+        stream.seek(0)
+        with Image.open(stream) as img:
+            # Phone cameras store rotation in EXIF; apply it so the photo is upright.
+            img = ImageOps.exif_transpose(img)
+            if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+                img = img.convert("RGBA")
+            else:
+                img = img.convert("RGB")
+
+            fitted = ImageOps.fit(img, (900, 900), method=Image.Resampling.LANCZOS)
+
+            dest_dir = Path(settings.MEDIA_ROOT) / "products" / str(product.id)
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            filename = f"{uuid.uuid4()}.webp"
+            dest_path = dest_dir / filename
+
+            fitted.save(dest_path, format="WEBP", quality=84)
+
+        photo_url = f"https://school-store.aqualite.workers.dev/media/products/{product.id}/{filename}"
+        current_images = list(product.images or [])
+        if photo_url in current_images:
+            current_images.remove(photo_url)
+        current_images.insert(0, photo_url)
+        product.images = current_images
+        product.save()
+        invalidate_catalog_cache()
+
+        serializer = self.get_serializer(product)
+        return Response(serializer.data)
 
     def perform_update(self, serializer):
         old_price = serializer.instance.selling_price
         old_cost = serializer.instance.cost_price
-        prod = serializer.save()
+        extra = {}
+        if "active" in serializer.validated_data:
+            # Switched on or off by hand: it stops following its school.
+            extra["paused_by_school"] = False
+        prod = serializer.save(**extra)
         if prod.selling_price != old_price or prod.cost_price != old_cost:
             from common.audit import log_audit_event
             from common.models import AuditLog
@@ -87,6 +211,20 @@ class ProductViewSet(
                 },
                 request=self.request,
             )
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if getattr(user, "role", None) == "ADMIN" and user.city_id:
+            if instance.city_id and instance.city_id != user.city_id:
+                raise PermissionDenied("Admins can only delete products for their own city.")
+            if instance.school and instance.school.city_id and instance.school.city_id != user.city_id:
+                raise PermissionDenied("Admins can only delete products for schools in their own city.")
+
+        instance.active = False
+        instance.paused_by_school = False
+        instance.save(update_fields=["active", "paused_by_school", "updated_at"])
+        instance.variants.all().update(active=False, paused_by_school=False)
+        invalidate_catalog_cache()
 
 
 
@@ -111,11 +249,24 @@ class ProductVariantViewSet(
     scope_parent_field = None
     include_null_scope_for_catalog = False
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        product_id = self.request.query_params.get("product")
+        school_id = self.request.query_params.get("school")
+        if product_id:
+            qs = qs.filter(product_id=product_id)
+        if school_id:
+            qs = qs.filter(school_id=school_id)
+        return qs
+
     def perform_update(self, serializer):
-        old_price = serializer.instance.price
-        old_cost = serializer.instance.cost_price
-        variant = serializer.save()
-        if variant.price != old_price or variant.cost_price != old_cost:
+        old_price = getattr(serializer.instance, "price", None)
+        old_cost = getattr(serializer.instance, "cost_price", None)
+        extra = {"paused_by_school": False} if "active" in serializer.validated_data else {}
+        variant = serializer.save(**extra)
+        new_price = getattr(variant, "price", None)
+        new_cost = getattr(variant, "cost_price", None)
+        if (old_price is not None and new_price != old_price) or (old_cost is not None and new_cost != old_cost):
             from common.audit import log_audit_event
             from common.models import AuditLog
             log_audit_event(
@@ -126,12 +277,22 @@ class ProductVariantViewSet(
                 details={
                     "sku": variant.sku,
                     "old_price": str(old_price),
-                    "new_price": str(variant.price),
+                    "new_price": str(new_price),
                     "old_cost_price": str(old_cost),
-                    "new_cost_price": str(variant.cost_price),
+                    "new_cost_price": str(new_cost),
                 },
                 request=self.request,
             )
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if getattr(user, "role", None) == "ADMIN" and user.city_id:
+            if instance.city_id and instance.city_id != user.city_id:
+                raise PermissionDenied("Admins can only delete variants for their own city.")
+        instance.active = False
+        instance.paused_by_school = False
+        instance.save(update_fields=["active", "paused_by_school", "updated_at"])
+        invalidate_catalog_cache()
 
 
 from rest_framework.views import APIView
@@ -226,5 +387,71 @@ class CartValidateView(APIView):
                 "product_id": str(product.id),
             }
         )
+
+
+class ProductCityPriceViewSet(viewsets.ModelViewSet):
+    queryset = ProductCityPrice.objects.select_related(
+        "product", "city", "product__school"
+    ).order_by("city__name", "product__name")
+    serializer_class = ProductCityPriceSerializer
+    permission_classes = [RoleScopedPermission]
+    read_roles = ("BOSS", "ADMIN")
+    write_roles = ("BOSS", "ADMIN")
+    scope_city_field = "city_id"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if getattr(user, "role", None) == "ADMIN" and user.city_id:
+            qs = qs.filter(city_id=user.city_id)
+
+        city = self.request.query_params.get("city")
+        product = self.request.query_params.get("product")
+        school = self.request.query_params.get("school")
+        if city:
+            qs = qs.filter(city_id=city)
+        if product:
+            qs = qs.filter(product_id=product)
+        if school:
+            qs = qs.filter(product__school_id=school)
+        return qs
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        city = serializer.validated_data.get("city")
+        if getattr(user, "role", None) == "ADMIN" and user.city_id:
+            if city.id != user.city_id:
+                raise PermissionDenied("Admins can only set prices for their own city.")
+
+        # Upsert: if an override already exists for this (product, city), update it
+        product = serializer.validated_data["product"]
+        existing = ProductCityPrice.objects.filter(product=product, city=city).first()
+        if existing:
+            existing.selling_price = serializer.validated_data["selling_price"]
+            if "cost_price" in serializer.validated_data:
+                existing.cost_price = serializer.validated_data["cost_price"]
+            if "active" in serializer.validated_data:
+                existing.active = serializer.validated_data["active"]
+            existing.save()
+            serializer.instance = existing
+        else:
+            serializer.save()
+        invalidate_catalog_cache()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        if getattr(user, "role", None) == "ADMIN" and user.city_id:
+            if serializer.instance.city_id != user.city_id:
+                raise PermissionDenied("Admins can only update prices for their own city.")
+        serializer.save()
+        invalidate_catalog_cache()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if getattr(user, "role", None) == "ADMIN" and user.city_id:
+            if instance.city_id != user.city_id:
+                raise PermissionDenied("Admins can only delete prices for their own city.")
+        instance.delete()
+        invalidate_catalog_cache()
 
 

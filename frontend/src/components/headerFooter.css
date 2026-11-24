@@ -343,6 +343,15 @@
   place-items: center;
 }
 
+.mobile-profile-btn {
+  display: none;
+  color: var(--bar-ink);
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  place-items: center;
+}
+
 .bag-btn {
   position: relative;
 }
@@ -555,13 +564,21 @@
     display: none;
   }
   .utility-inner {
-    min-height: 32px;
+    min-height: 44px;
   }
-  /* Sign in and My Account live in the menu on phones. Search stays:
-     it opens the full-screen school search. */
+  .utility-lang {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  /* Keep a profile shortcut beside search and the bag. The menu retains its
+     sign-in/account link as well. */
   .action-signin-link,
   .action-account-btn {
     display: none;
+  }
+  .mobile-profile-btn {
+    display: inline-grid;
   }
   .brand-wordmark {
     font-size: var(--text-xl);
@@ -576,11 +593,26 @@
   .bag-btn {
     margin-right: -12px;
   }
+  .footer-legal-links a,
+  .plain-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
 }
 
 @media (max-width: 380px) {
   .brand-wordmark {
     font-size: var(--text-lg);
+  }
+}
+
+/* Shop, checkout and other inner pages carry a back button and a menu button
+   as well: there the word cannot fit and showed as "School...". The S mark
+   alone is the logo on those bars. */
+@media (max-width: 440px) {
+  .header-inner:has(.header-back-btn) .brand-wordmark {
+    display: none;
   }
 }
 
@@ -716,7 +748,9 @@
     gap: 0;
   }
   .footer-list a {
-    display: block;
+    display: flex;
+    align-items: center;
+    min-height: 44px;
     padding: 10px 0;
   }
 }

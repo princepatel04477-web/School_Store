@@ -26,6 +26,7 @@ from django.conf import settings
 from django.db.models import Exists, OuterRef, QuerySet, Sum
 from django.utils import timezone
 
+from analytics.series import fill_series
 from analytics.models import DailySalesSummary, DailySchoolTotal
 from catalog.models import Category
 from orders.models import Order, OrderItem
@@ -297,7 +298,10 @@ DAILY_TREND_LIMIT = 400
 
 
 def daily_trend(school: School, start: dt.date, end: dt.date) -> list[dict]:
-    """One point per day for the sparkline, still read from the rollup."""
+    """
+    One point per day (per week / month on long ranges) across the whole range,
+    zero on days without sales, still read from the rollup.
+    """
     rows = (
         DailySchoolTotal.objects.filter(
             school_id=school.id, date__gte=start, date__lte=end
@@ -310,15 +314,10 @@ def daily_trend(school: School, start: dt.date, end: dt.date) -> list[dict]:
         )
         .order_by("date")[:DAILY_TREND_LIMIT]
     )
-    return [
-        {
-            "date": row["date"].isoformat(),
-            "orders": int(row["orders"] or 0),
-            "units": int(row["units"] or 0),
-            "gross_sales": row["gross_sales"] or Decimal("0.00"),
-        }
-        for row in rows
-    ]
+    bucket, points = fill_series(
+        rows, start, end, {"orders": 0, "units": 0, "gross_sales": Decimal("0.00")}
+    )
+    return [{**p, "bucket": bucket} for p in points]
 
 
 def commission_payload(school: School, gross_sales: Decimal) -> dict:

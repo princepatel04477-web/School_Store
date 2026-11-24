@@ -67,6 +67,13 @@ try {
         $t = Get-Content $tmp -Raw
         if ($t) { $t.Trim() } else { '' }
     }
+    # After an unclean shutdown PostgreSQL opens its port while still recovering
+    # ("the database system is starting up"), so wait until it answers a query.
+    $ready = $false
+    for ($i = 0; $i -lt 60 -and -not $ready; $i++) {
+        if ((Scalar "SELECT 1") -eq '1') { $ready = $true } else { Start-Sleep -Seconds 3 }
+    }
+    if (-not $ready) { throw "PostgreSQL is not accepting queries - see $data\postgres.log" }
 
     # 3. role + database + demo data (first run)
     if ((Scalar "SELECT 1 FROM pg_roles WHERE rolname='$dbUser'") -ne '1') {

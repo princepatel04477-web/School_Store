@@ -1,3 +1,12 @@
+import { isCategoryLive } from './data/liveCategories';
+
+/**
+ * The one way into the shop. Every "Shop", "Find your school" and category link
+ * (Uniform, Shoes, Tie, belt & socks) goes here, so nobody lands mid-flow on a
+ * different page; the parent picks their state, city and school first.
+ */
+export const SHOP_LINK = '/shop';
+
 // Real contact details. Leave a field empty until it is real: empty ones are hidden
 // everywhere, and online ordering stays closed until WHATSAPP_NUMBER is set
 // (a made-up number would send parents' calls and orders to a stranger).
@@ -18,13 +27,12 @@ export const siteConfig = {
   supportEmail: SUPPORT_EMAIL,
   supportEmailHref: SUPPORT_EMAIL ? `mailto:${SUPPORT_EMAIL}` : '',
   hours: 'Mon – Sat, 9:00 AM – 6:00 PM IST',
-  businessName: 'SchoolStore Retail India Private Limited',
+  businessName: 'School Store Retail by Colorbenz',
   address: ADDRESS,
   categories: [
     { label: 'Uniform', slug: 'Uniform' },
-    { label: 'Shoes', slug: 'School Shoes' },
     { label: 'Accessories', slug: 'Uniform Accessories' },
     { label: 'Stationery', slug: 'Stationery' },
     { label: 'ID Cards', slug: 'ID Cards' },
-  ],
+  ].filter((category) => isCategoryLive(category.slug)),
 };

@@ -37,13 +37,13 @@ def stock_flag(quantity, threshold) -> str:
     return IN_STOCK
 
 
-def stock_flags(city_id, variant_ids) -> dict:
+def stock_flags(city_id, variant_ids, *, missing=OUT_OF_STOCK) -> dict:
     """Fresh per-variant availability flags for one city — one indexed query.
 
-    Variants with no balance row for the city count as OUT_OF_STOCK.
+    Variants with no balance row use the caller's default status.
     Raw quantities are intentionally not returned to the catalogue.
     """
-    flags = {str(variant_id): OUT_OF_STOCK for variant_id in variant_ids}
+    flags = dict.fromkeys(map(str, variant_ids), missing)
     if not city_id or not variant_ids:
         return flags
     rows = StockBalance.objects.filter(

@@ -7,6 +7,40 @@ from common.models import UUIDModel
 from common.cache_utils import invalidate_catalog_cache
 
 
+def _add_update_field(save_kwargs, field):
+    fields = save_kwargs.get("update_fields")
+    if fields is not None and field not in fields:
+        save_kwargs["update_fields"] = [*fields, field]
+
+
+def sync_school_catalog(school_id, active):
+    """Switch a school's own uniforms off with the school, and back on with it.
+
+    Only items this switch turned off come back, so an item someone
+    deactivated by hand stays off when the school is reactivated.
+    Generic items (no school) are never touched.
+    """
+    from django.utils import timezone
+
+    now = timezone.now()
+    if active:
+        products = Product.objects.filter(school_id=school_id, paused_by_school=True).update(
+            active=True, paused_by_school=False, updated_at=now
+        )
+        variants = ProductVariant.objects.filter(school_id=school_id, paused_by_school=True).update(
+            active=True, paused_by_school=False, updated_at=now
+        )
+    else:
+        products = Product.objects.filter(school_id=school_id, active=True).update(
+            active=False, paused_by_school=True, updated_at=now
+        )
+        variants = ProductVariant.objects.filter(school_id=school_id, active=True).update(
+            active=False, paused_by_school=True, updated_at=now
+        )
+    invalidate_catalog_cache()
+    return products, variants
+
+
 class Category(UUIDModel):
     name = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(max_length=100, unique=True)
@@ -116,6 +150,10 @@ class Product(UUIDModel):
         help_text="JSON schema for optional/required order-line customisation data.",
     )
     active = models.BooleanField(default=True)
+    paused_by_school = models.BooleanField(
+        default=False,
+        help_text="Switched off because its school was deactivated; switched back on with the school.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -161,6 +199,10 @@ class Product(UUIDModel):
             self.city_id = self.school.city_id
         else:
             self.city_id = None
+        if self.active and self.paused_by_school:
+            # Switched back on by hand: it no longer waits for its school.
+            self.paused_by_school = False
+            _add_update_field(kwargs, "paused_by_school")
         super().save(*args, **kwargs)
         invalidate_catalog_cache()
 
@@ -203,6 +245,7 @@ class ProductVariant(UUIDModel):
     size = models.CharField(max_length=50)
     sku = models.CharField(max_length=80, unique=True)
     active = models.BooleanField(default=True)
+    paused_by_school = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -220,6 +263,9 @@ class ProductVariant(UUIDModel):
             self.city_id = self.product.city_id or (
                 self.product.school.city_id if self.product.school_id else None
             )
+        if self.active and self.paused_by_school:
+            self.paused_by_school = False
+            _add_update_field(kwargs, "paused_by_school")
         super().save(*args, **kwargs)
         invalidate_catalog_cache()
 
@@ -229,6 +275,43 @@ class ProductVariant(UUIDModel):
 
     def __str__(self) -> str:
         return f"{self.sku} ({self.product.name} - {self.size})"
+
+
+class ProductCityPrice(UUIDModel):
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="city_prices",
+    )
+    city = models.ForeignKey(
+        "schools.City",
+        on_delete=models.CASCADE,
+        related_name="product_city_prices",
+    )
+    selling_price = models.DecimalField(max_digits=10, decimal_places=2)
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["city__name", "product__name"]
+        unique_together = [("product", "city")]
+        indexes = [
+            models.Index(fields=["product", "city"], name="idx_prod_city_price"),
+            models.Index(fields=["city", "active"], name="idx_city_price_active"),
+        ]
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        invalidate_catalog_cache()
+
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        invalidate_catalog_cache()
+
+    def __str__(self) -> str:
+        return f"{self.product.name} @ {self.city.name}: Rs {self.selling_price}"
 
 
 def _range_ok(low: str, high: str) -> Q:

@@ -1,5 +1,6 @@
 import { Preferences } from '@capacitor/preferences';
 import { isNativeApp } from './native/nativePlatform';
+import { purgeSavedData } from './store/persist';
 
 export type Role='PARENT'|'TEACHER'|'SCHOOL_ADMIN'|'ADMIN'|'BOSS'|'RETAILER';
 export type User={id:string;username:string;role:Role;city?:string|null;city_name?:string|null;school?:{name:string}|string|null;school_name?:string|null;school_code?:string|null;phone?:string;email?:string;first_name?:string;last_name?:string;is_active?:boolean;created_at?:string};
@@ -144,10 +145,13 @@ export async function upload<T>(path:string, form:FormData):Promise<T>{
   const res=await fetch(toUrl(path),{method:'POST',headers,body:form});
   if(!res.ok){
     const data=await res.json().catch(()=>({}));
-    throw new ApiError(data.detail||'Upload failed',res.status,data);
+    throw new ApiError(data.detail||firstFieldError(data)||(res.status===413?'The file is too large.':`Upload failed (error ${res.status}).`),res.status,data);
   }
   return res.json();
 }
+
+/** DRF field errors look like {photo: ["..."]}: the first message, for display. */
+function firstFieldError(data:unknown):string|undefined{if(!data||typeof data!=='object') return undefined; for(const v of Object.values(data as Record<string,unknown>)){const m=Array.isArray(v)?v[0]:v; if(typeof m==='string'&&m) return m;} return undefined;}
 
 /** Stream a protected file with the bearer token attached (no token in the URL). */
 export async function download(path:string, filename:string):Promise<void>{
@@ -167,12 +171,15 @@ export async function download(path:string, filename:string):Promise<void>{
   URL.revokeObjectURL(url);
 }
 
+/** Signs out: forgets the push token and the login, and wipes what a signed-in parent saved on this device. */
 export async function logout():Promise<void>{
   try {
     const { unregisterDeviceToken } = await import('./native/push');
     await unregisterDeviceToken();
-  } catch {}
+  } catch { /* no push on the web */ }
   await clearStoredTokens();
+  purgeSavedData();
+  try{sessionStorage.clear();}catch{/* storage blocked */}
   window.location.href='/login';
 }
 export const auth={login:(username:string,password:string)=>api<{access:string;refresh:string;user:User}>('/auth/token/',{method:'POST',body:JSON.stringify({username,password})}),register:(body:unknown)=>api<{access:string;refresh:string;user:User}>('/auth/register/',{method:'POST',body:JSON.stringify(body)}),me:()=>api<User>('/auth/me/'),
@@ -271,9 +278,10 @@ export async function uploadDirectToObjectStorage(
  * ------------------------------------------------------------------ */
 export type PanelSchool={id:string;name:string;code:string;city_name:string};
 export type Money=string; // decimals come back as strings so nothing rounds twice
-export type DashboardTotals={orders:number;units:number;gross_sales:Money;cost:Money;margin:Money;average_order_value:Money};
+export type DashboardTotals={orders:number;units:number;gross_sales:Money;cost?:Money;margin?:Money;average_order_value:Money};
 export type CategoryRow={category_id:string;category:string;orders:number;units:number;gross_sales:Money;share_pct:Money};
-export type DailyPoint={date:string;orders:number;units:number;gross_sales:Money};
+export type TrendBucket='day'|'week'|'month';
+export type DailyPoint={date:string;bucket?:TrendBucket;orders:number;units:number;gross_sales:Money};
 export type Commission={rate_set:boolean;rate:string|null;rate_display:string;basis:string;gross_sales:Money;commission_amount:Money|null;currency:string;note:string|null};
 export type Dashboard={school:PanelSchool&{commission_rate:string|null};date_from:string;date_to:string;days:number;totals:DashboardTotals;categories:CategoryRow[];daily:DailyPoint[];commission:Commission;pending_students:number;notes:string[]};
 export type PanelOrderItem={
@@ -291,6 +299,23 @@ export type ExportJob={id:string;job_type:'ORDERS'|'STUDENTS'|'TAILOR_SHEET';job
 export type FilterOptions={school:{id:string;name:string;code:string};classes:string[];sections:string[];categories:{id:string;name:string}[];statuses:{value:string;label:string}[];placed_by_roles:{value:string;label:string}[];default_date_from:string;default_date_to:string};
 export type ImportJob={id:string;job_type:string;status:'PENDING'|'VALIDATING'|'PREVIEW_READY'|'IMPORTING'|'COMPLETED'|'FAILED';school:string;school_code:string|null;uploaded_by_name:string|null;original_filename:string;total_rows:number;valid_count:number;duplicate_count:number;error_count:number;preview:Record<string,unknown>;result:Record<string,unknown>;error_message:string;progress:number;created_at:string;completed_at:string|null};
 export type Page<T>={next:string|null;previous:string|null;results:T[]};
+/**
+ * Read every page of a staff list. The server pages with a `next` link (a cursor),
+ * so follow that link's cursor until there is none. Stops after `maxPages` as a guard.
+ */
+export async function allPages<T>(fetchPage:(params:Record<string,string>)=>Promise<Page<T>>, params:Record<string,string>, maxPages=50):Promise<Page<T>>{
+  const results:T[]=[]; const seen=new Set<string>(); let extra:Record<string,string>={};
+  for(let i=0;i<maxPages;i+=1){
+    const data=await fetchPage({...params,...extra}); results.push(...data.results);
+    if(!data.next) break;
+    const next=new URL(data.next, window.location.origin).searchParams;
+    const cursor=next.get('cursor'); const page=next.get('page');
+    const key=cursor?`c:${cursor}`:page?`p:${page}`:'';
+    if(!key||seen.has(key)) break; seen.add(key);
+    extra=cursor?{cursor}:{page:page as string};
+  }
+  return {results,next:null,previous:null};
+}
 export type StudentOrders={student:{id:string;name:string;gr_number:string;class_name:string;section:string};date_from:string;date_to:string;totals:{orders:number;units:number;gross_sales:Money};item_preview_limit:number;next:string|null;previous:string|null;results:PanelOrder[]};
 
 /** Cursor links come back as absolute URLs; keep only the path + query. */
@@ -305,6 +330,7 @@ export const panel={
   schools:()=>api<{results:PanelSchool[]}>('/panel/schools/'),
   filters:(school:string)=>api<FilterOptions>(`/panel/filters/?school=${school}`),
   dashboard:(school:string,from:string,to:string)=>api<Dashboard>(`/panel/dashboard/?school=${school}&date_from=${from}&date_to=${to}`),
+  teacherSummary:()=>api<TeacherSummary>('/panel/teacher-summary/'),
   orders:(school:string,p:Record<string,string>={})=>api<Page<PanelOrder>>(`/panel/orders/?${new URLSearchParams({school,...p})}`),
   students:(school:string,p:Record<string,string>={})=>api<Page<PanelStudent>>(`/panel/students/?${new URLSearchParams({school,...p})}`),
   pendingStudents:(school:string)=>api<{count:number;results:PanelStudent[]}>(`/panel/students/pending/?school=${school}`),
@@ -364,8 +390,17 @@ export type SizeChartItem={product_id:string;product_name:string;category:string
 /* ------------------------------------------------------------------ *
  * City Admin panel (scoped to city)
  * ------------------------------------------------------------------ */
+export type TeacherSummary={
+  school:{id:string;name:string;code:string};
+  students:{total:number;pending:number};
+  month:{date_from:string;date_to:string;orders:number;units:number;gross_sales:Money};
+  today:{orders:number;gross_sales:Money};
+  trend:{date:string;orders:number;gross_sales:Money}[];
+};
+
 export type CityDailySales={
   date:string;
+  trend:{date:string;orders:number;units:number;revenue:Money}[];
   city:{id:string;name:string;code:string};
   totals:{orders:number;units:number;revenue:Money};
   categories:{category_id:string;category_name:string;orders:number;units:number;revenue:Money}[];
@@ -413,6 +448,10 @@ export type CitySchool={
   address:string;
   contact_email:string;
   contact_phone:string;
+  logo_url?:string|null;
+  show_logo_public?:boolean;
+  /** Classes the school has ("Nursery", "Class 1", ...). Empty: every class. */
+  grades?:string[];
   created_at:string;
 };
 
@@ -499,11 +538,14 @@ export type BossKpis={
   gross_margin_pct:string;
   orders:number;
   units_sold:number;
+  average_order_value:Money;
   current_stock_value:Money;
+  previous:{date_from:string;date_to:string;revenue:Money;gross_profit:Money;orders:number;units:number};
 };
 
 export type BossRevProfitPoint={
   date:string;
+  bucket:TrendBucket;
   revenue:Money;
   cost:Money;
   profit:Money;
@@ -681,3 +723,109 @@ export function fieldErrors(err:unknown):Record<string,string>{
   }
   return out;
 }
+
+/* ------------------------------------------------------------------ *
+ * Uniform Portal (Schools, Uniforms, Stock)
+ * ------------------------------------------------------------------ */
+export type PortalVariant = {
+  id: string;
+  product: string;
+  product_name?: string;
+  category_name?: string;
+  school?: string | null;
+  city?: string | null;
+  size: string;
+  sku: string;
+  active: boolean;
+  created_at: string;
+};
+
+export type PortalProduct = {
+  id: string;
+  category: string;
+  category_name?: string;
+  school: string | null;
+  school_name?: string | null;
+  city?: string | null;
+  name: string;
+  description: string;
+  images: string[];
+  thumbnail?: string | null;
+  cost_price?: string | number;
+  selling_price: string | number;
+  gender: 'boy' | 'girl' | 'unisex';
+  product_type?: 'SOCKS' | 'BELT' | 'TIE' | string | null;
+  needs_review?: boolean;
+  grades?: string[];
+  class_from?: number | null;
+  class_to?: number | null;
+  customisation_schema?: any;
+  active: boolean;
+  variants: PortalVariant[];
+  created_at: string;
+};
+
+export type PortalCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  display_order: number;
+  active: boolean;
+};
+
+export type PortalCity = {
+  id: string;
+  name: string;
+  code: string;
+  state: string;
+  active: boolean;
+};
+
+export type ProductCityPrice = {
+  id: string;
+  product: string;
+  product_name: string;
+  product_images: string[];
+  school_name: string;
+  universal_selling_price: string;
+  universal_cost_price?: string;
+  city: string;
+  city_name: string;
+  selling_price: string;
+  cost_price?: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export const portalApi = {
+  schools: (p: Record<string, string> = {}) => api<Page<CitySchool>>(`/schools/?${new URLSearchParams(p)}`),
+  addSchool: (body: Partial<CitySchool>) => api<CitySchool>('/schools/', { method: 'POST', body: JSON.stringify(body) }),
+  updateSchool: (id: string, body: Partial<CitySchool>) => api<CitySchool>(`/schools/${id}/`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteSchool: (id: string) => api<CitySchool>(`/schools/${id}/`, { method: 'PATCH', body: JSON.stringify({ active: false }) }),
+  cities: (p: Record<string, string> = {}) => api<Page<PortalCity>>(`/cities/?${new URLSearchParams({ page_size: '50', ...p })}`),
+  products: (p: Record<string, string> = {}) => api<Page<PortalProduct>>(`/products/?${new URLSearchParams(p)}`),
+  createProduct: (body: any) => api<PortalProduct>('/products/', { method: 'POST', body: JSON.stringify(body) }),
+  updateProduct: (id: string, body: any) => api<PortalProduct>(`/products/${id}/`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteProduct: (id: string) => api<void>(`/products/${id}/`, { method: 'DELETE' }),
+  uploadProductPhoto: (productId: string, file: File) => {
+    const fd = new FormData();
+    fd.append('photo', file);
+    return upload<PortalProduct>(`/products/${productId}/photo/`, fd);
+  },
+  variants: (p: Record<string, string> = {}) => api<Page<PortalVariant>>(`/variants/?${new URLSearchParams(p)}`),
+  createVariant: (body: { product: string; size: string; sku: string; active?: boolean }) =>
+    api<PortalVariant>('/variants/', { method: 'POST', body: JSON.stringify(body) }),
+  updateVariant: (id: string, body: { size?: string; sku?: string; active?: boolean }) =>
+    api<PortalVariant>(`/variants/${id}/`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteVariant: (id: string) => api<void>(`/variants/${id}/`, { method: 'DELETE' }),
+  categories: () => api<Page<PortalCategory>>('/categories/?page_size=50'),
+  stockBalances: (p: Record<string, string> = {}) => api<Page<StockBalance>>(`/stock-balances/?${new URLSearchParams(p)}`),
+  addStockMovement: (body: { variant: string; quantity_change: number; reason: string; city?: string }) =>
+    api<StockMovement>('/stock-movements/', { method: 'POST', body: JSON.stringify(body) }),
+  cityPrices: (p: Record<string, string> = {}) => api<Page<ProductCityPrice>>(`/city-prices/?${new URLSearchParams(p)}`),
+  setCityPrice: (body: { product: string; city: string; selling_price: string; cost_price?: string }) =>
+    api<ProductCityPrice>('/city-prices/', { method: 'POST', body: JSON.stringify(body) }),
+  deleteCityPrice: (id: string) => api<void>(`/city-prices/${id}/`, { method: 'DELETE' }),
+};
