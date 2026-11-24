@@ -56,7 +56,11 @@ class SendOTPView(APIView):
                 {"phone": ["Enter a valid 10-digit mobile number."]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        otp_code = f"{secrets.randbelow(900000) + 100000}"
+        previous_code = cache.get(f"otp:{phone}")
+        code = secrets.randbelow(900000) + 100000
+        if previous_code is not None and code == int(previous_code):
+            code = 100000 + (code - 100000 + 1 + secrets.randbelow(899999)) % 900000
+        otp_code = str(code)
         try:
             sms.send_otp(phone, otp_code)
         except sms.SmsNotConfigured:

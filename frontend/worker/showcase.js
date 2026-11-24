@@ -36,12 +36,21 @@ async function hmac(secret, text) {
   return b64url(await crypto.subtle.sign('HMAC', key, enc.encode(text)));
 }
 
-// ---- sign-in: a code per phone per 10 minutes, and signed tokens ----
-async function otpFor(env, phone, windowOffset = 0) {
-  const slot = Math.floor(Date.now() / 600000) - windowOffset;
-  const mac = await hmac(env.SHOWCASE_SECRET, `otp:${phone}:${slot}`);
-  const n = [...mac].reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) % 1000000, 7);
-  return String(n).padStart(6, '0');
+const OTP_TTL_MS = 5 * 60 * 1000;
+
+async function issueOtp(db, phone) {
+  const code = crypto.getRandomValues(new Uint32Array(1))[0] % 1000000;
+  const now = Date.now();
+  // Rotate atomically so a resend cannot repeat the currently active code.
+  const issuedCode = await db.prepare(`
+    INSERT INTO parent_otps (phone, code, expires_at) VALUES (?, ?, ?)
+    ON CONFLICT (phone) DO UPDATE SET
+      code = CASE WHEN parent_otps.code = excluded.code AND parent_otps.expires_at > ?
+        THEN (excluded.code + 1) % 1000000 ELSE excluded.code END,
+      expires_at = excluded.expires_at
+    RETURNING code
+  `).bind(phone, code, now + OTP_TTL_MS, now).first('code');
+  return String(issuedCode).padStart(6, '0');
 }
 
 /** A signed token for a parent ({ phone }) or a staff member ({ sid, role }). */
@@ -236,12 +245,17 @@ async function api(request, env, path) {
     const { phone } = await readJson(request);
     const digits = String(phone || '').replace(/\D/g, '').slice(-10);
     if (!/^[6-9]\d{9}$/.test(digits)) return json({ detail: 'Enter a valid 10-digit mobile number.' }, 400);
-    return json({ detail: 'Code ready.', phone: digits, otp_debug: await otpFor(env, digits) });
+    return json({ detail: 'Code ready.', phone: digits, otp_debug: await issueOtp(env.DB, digits) });
   }
   if (path === '/auth/otp/verify/' && method === 'POST') {
     const { phone, otp } = await readJson(request);
     const digits = String(phone || '').replace(/\D/g, '').slice(-10);
-    const ok = [await otpFor(env, digits), await otpFor(env, digits, 1)].includes(String(otp));
+    if (!/^[6-9]\d{9}$/.test(digits) || !/^\d{6}$/.test(String(otp))) {
+      return json({ detail: 'Wrong code.' }, 400);
+    }
+    const ok = await env.DB.prepare(`
+      DELETE FROM parent_otps WHERE phone = ? AND code = ? AND expires_at > ? RETURNING phone
+    `).bind(digits, Number(otp), Date.now()).first();
     if (!ok) return json({ detail: 'Wrong code.' }, 400);
     return json({
       access: await makeToken(env, { phone: digits }, 7),
