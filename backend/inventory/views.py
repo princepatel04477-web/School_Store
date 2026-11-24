@@ -1,4 +1,6 @@
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, status, viewsets
+from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
 from rest_framework.decorators import action
 
 from common.pagination import BoundedCursorPagination
@@ -15,6 +17,14 @@ from .serializers import (
 
 class StockBalancePagination(BoundedCursorPagination):
     ordering = ("-updated_at", "-id")
+    # One city's stock grid: every size of every item. At 50 rows, adding stock to
+    # one size pushed an older size off the page and it showed as 0.
+    city_grid_max = 2000
+
+    def get_page_size(self, request):
+        if request.query_params.get("city"):
+            return self.city_grid_max
+        return super().get_page_size(request)
 
 
 class StockBalanceViewSet(ScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
@@ -89,5 +99,28 @@ class StockMovementViewSet(
             return StockMovementCreateSerializer
         return StockMovementSerializer
 
+    def create(self, request, *args, **kwargs):
+        """Refusals carry a plain `detail` sentence, which the staff screens show."""
+        try:
+            return super().create(request, *args, **kwargs)
+        except ValidationError as exc:
+            data = exc.detail if isinstance(exc.detail, dict) else {"non_field_errors": exc.detail}
+            body = dict(data)
+            body["detail"] = _first_message(data) or "This stock change was refused."
+            return Response(body, status=status.HTTP_400_BAD_REQUEST)
+
     def perform_create(self, serializer):
         serializer.save()
+
+
+def _first_message(data):
+    for value in data.values():
+        while isinstance(value, (list, tuple)) and value:
+            value = value[0]
+        if isinstance(value, dict):
+            found = _first_message(value)
+            if found:
+                return found
+        elif value:
+            return str(value)
+    return None
