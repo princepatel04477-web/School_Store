@@ -4,6 +4,8 @@
   // Release: vite build, refresh worker/showcase-photos.json, then
   //   npx wrangler deploy -c wrangler.showcase.jsonc
   "name": "schoolstore-showcase",
+  "workers_dev": false,
+  "preview_urls": false,
   "main": "worker/showcase.js",
   "compatibility_date": "2026-09-01",
   "assets": {
