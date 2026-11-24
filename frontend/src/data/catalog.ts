@@ -17,6 +17,14 @@ export interface StoreSchool extends SeedSchool {
   grades?: string[];
 }
 
+export interface ProductPhoto {
+  /** Full-size file, for the item's page. */
+  src: string;
+  /** Card-size file. */
+  thumb?: string;
+  alt?: string;
+}
+
 export interface StoreProduct extends SeedProduct {
   /** The small photo for cards and lists. */
   imageUrl?: string;
@@ -24,6 +32,8 @@ export interface StoreProduct extends SeedProduct {
   heroUrl?: string;
   /** What the photo shows, read out by screen readers. */
   imageAlt?: string;
+  /** Every photo of the item, in order (plain shot first, then the child wearing it). */
+  gallery?: ProductPhoto[];
   /** Needs a photo or details the parent can't give here (ID card, photo notebook). */
   needsDetails: boolean;
   /** Made for this school (its own shirt, tie, belt…), as opposed to a general item. */
@@ -54,6 +64,7 @@ type PublicProduct = {
   thumbnail: string | null;
   image?: string | null;
   image_alt?: string | null;
+  images?: { image: string; thumbnail?: string | null; alt?: string | null }[];
   customisation_schema: CustomisationField[] | { fields?: CustomisationField[] } | null;
   variants: PublicVariant[];
 };
@@ -106,6 +117,9 @@ function toProduct(product: PublicProduct): StoreProduct {
     imageUrl: product.thumbnail || undefined,
     heroUrl: product.image || undefined,
     imageAlt: product.image_alt || undefined,
+    gallery: (product.images ?? [])
+      .filter((photo) => photo.image)
+      .map((photo) => ({ src: photo.image, thumb: photo.thumbnail || undefined, alt: photo.alt || undefined })),
     needsDetails: needsDetails(product.customisation_schema),
     official: Boolean(product.school),
   };
@@ -222,7 +236,16 @@ export function useStoreProducts(
       }
       return products.filter(p => isShopProductVisible(p) && matchesListedClass(p.name, className)).map(toProduct)
         .filter((p) => !p.gender || p.gender === 'unisex' || p.gender === gender)
-        .map((p) => ({ ...p, imageUrl: sectionPhoto(p.imageUrl, gender, className), heroUrl: sectionPhoto(p.heroUrl, gender, className) }));
+        .map((p) => ({
+          ...p,
+          imageUrl: sectionPhoto(p.imageUrl, gender, className),
+          heroUrl: sectionPhoto(p.heroUrl, gender, className),
+          gallery: p.gallery?.map((photo) => ({
+            ...photo,
+            src: sectionPhoto(photo.src, gender, className) ?? photo.src,
+            thumb: sectionPhoto(photo.thumb, gender, className),
+          })),
+        }));
     },
   });
 }

@@ -799,3 +799,52 @@
   font-size: 28px;
   cursor: pointer;
 }
+
+/* Several photos of one item: swipe sideways, one photo at a time. */
+.sheet-photos {
+  width: 100%;
+}
+.sheet-photos-track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.sheet-photos-track::-webkit-scrollbar {
+  display: none;
+}
+.sheet-photos-slide {
+  position: relative;
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+.sheet-photos-dots {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-top: var(--space-2, 8px);
+}
+/* Each dot is a 24px tap target around an 8px round marker. */
+.sheet-photos-dot {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.sheet-photos-dot::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--brand, #275b4c);
+  background: transparent;
+}
+.sheet-photos-dot.is-active::before {
+  background: var(--brand, #275b4c);
+}

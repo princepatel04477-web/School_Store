@@ -16,6 +16,8 @@ export type CardProduct = SeedProduct & {
   imageUrl?: string;
   heroUrl?: string;
   imageAlt?: string;
+  /** Every photo of the item, in order; the item's page swipes between them. */
+  gallery?: { src: string; thumb?: string; alt?: string }[];
   needsDetails?: boolean;
 };
 

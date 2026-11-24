@@ -59,3 +59,16 @@ def product_image_alt(images) -> str | None:
     if not images:
         return None
     return alt_for_url(images[0])
+
+
+def product_gallery(images) -> list[dict]:
+    """Every photo of the item, in order, for the swipeable photos on its page."""
+    return [
+        {
+            "image": url,
+            "thumbnail": thumbnail_for_url(url) or cdn_thumbnail_url(url),
+            "alt": alt_for_url(url),
+        }
+        for url in images or []
+        if is_remote_image_url(url)
+    ]

@@ -461,11 +461,12 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
   }, [offeredClasses]);
 
   // Every card on the page uses one photo frame, so uniforms and accessories line up:
-  // tall when the school has child portraits, square when all photos are close-ups.
-  const listFrame: ProductFrame = useMemo(
-    () => (products.some((p) => frameForImage(p.imageUrl) === 'portrait') ? 'portrait' : 'square'),
-    [products]
-  );
+  // tall when most cards show a child wearing the item, square when most show the
+  // item alone (plain shots and close-ups). The other photos show whole inside it.
+  const listFrame: ProductFrame = useMemo(() => {
+    const portraits = products.filter((p) => frameForImage(p.imageUrl) === 'portrait').length;
+    return portraits * 2 > products.length ? 'portrait' : 'square';
+  }, [products]);
 
   // Step 4: every item for this class and boy/girl, in the shop's fixed order.
   const step4Products = useMemo(() => inShopOrder(products), [products]);

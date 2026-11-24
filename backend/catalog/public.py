@@ -23,7 +23,7 @@ from inventory.models import StockBalance
 from inventory.services import stock_flag
 from schools.models import School
 
-from .images import product_image, product_image_alt, product_thumbnail
+from .images import product_gallery, product_image, product_image_alt, product_thumbnail
 from .models import Product, ProductVariant
 
 
@@ -571,6 +571,7 @@ class PublicProductList(APIView):
                 "thumbnail": product_thumbnail(product.images),
                 "image": product_image(product.images),
                 "image_alt": product_image_alt(product.images),
+                "images": product_gallery(product.images),
                 "customisation_schema": product.customisation_schema,
                 "variants": [
                     {

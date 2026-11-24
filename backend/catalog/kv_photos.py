@@ -16,6 +16,7 @@ Applied by migration 0016. Safe to run again: items are matched by school +
 name and only their image list is written, so nothing is duplicated.
 """
 
+import re
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
@@ -195,6 +196,37 @@ KV_PHOTOS: tuple[KvPhoto, ...] = (
 
 _BY_FILE = {photo.file: photo for photo in KV_PHOTOS}
 
+# Plain product shots (the garment alone, no child) live in products/plain/ under the
+# same file name as the item's model photo. An item with one shows it first, on the
+# card and as the first photo on its page; the model photo is the second photo.
+# Each has a 1000 px file and a -400 card file.
+PLAIN_FOLDER = "plain"
+PLAIN_FILES = frozenset({
+    "kv-belt-knitted",
+    "kv-boys-1-5-shirt-summer",
+    "kv-boys-6-12-shirt-summer",
+    "kv-boys-shirt-winter",
+    "kv-boys-1-5-shorts",
+    "kv-boys-6-12-trousers",
+    "kv-girls-3-8-skirt",
+    "kv-girls-9-12-trousers",
+    "kv-house-tshirt-red",
+    "kv-house-tshirt-blue",
+    "kv-house-tshirt-green",
+    "kv-house-tshirt-yellow",
+})
+# The PT T-shirts the panel added by hand ("KV PT Uniform Blue", "KV Uniform Yellow"):
+# matched by house colour, since their own photos are uploads.
+_PT_SHIRT_NAME = re.compile(r"^KV (?:PT )?Uniform (Red|Blue|Green|Yellow)$", re.IGNORECASE)
+
+
+def plain_url(file: str) -> str:
+    return f"{PHOTO_BASE}{PLAIN_FOLDER}/{file}{EXTENSION}"
+
+
+def _is_plain(url) -> bool:
+    return isinstance(url, str) and f"/{PLAIN_FOLDER}/kv-" in urlparse(url).path
+
 
 def normalise_name(name: str) -> str:
     """Item names are stored with an en dash in some class ranges; match them with a hyphen."""
@@ -222,7 +254,7 @@ def alt_for_url(url) -> str | None:
 def thumbnail_for_url(url) -> str | None:
     """The 400 px file for a KV photo that has one, else None."""
     photo = _photo_for_url(url)
-    if photo is None or not photo.replaced:
+    if photo is None or not (photo.replaced or _is_plain(url)):
         return None
     # Same host and folder as the stored image, so a copy served elsewhere still works.
     parsed = urlparse(url)
@@ -252,9 +284,45 @@ def apply_kv_photos(School, Product) -> int:
             continue
         if not photo.replaced and product.images:
             continue
-        if product.images == [photo.url]:
-            continue
+        if photo.url in product.images:
+            continue  # already shows it (after its plain photo, see apply_plain_photos)
         product.images = [photo.url]
+        product.save(update_fields=["images", "updated_at"])
+        changed += 1
+    return changed
+
+
+def plain_first_images(name: str, images: list) -> list | None:
+    """The item's photo list with its plain shot first and its model photo second.
+
+    None when the store has no plain shot for the item. Other photos the item
+    already has follow, except for the hand-added PT T-shirts, whose uploads are
+    the same plain shot (one showed the wrong colour).
+    """
+    images = [url for url in (images or []) if isinstance(url, str) and url]
+    shirt = _PT_SHIRT_NAME.match(normalise_name(name))
+    if shirt:
+        file = f"kv-house-tshirt-{shirt.group(1).lower()}"
+        return [plain_url(file), f"{PHOTO_BASE}{file}{EXTENSION}"]
+    model = next((url for url in images if not _is_plain(url)), None)
+    photo = _photo_for_url(model)
+    if photo is None or photo.file not in PLAIN_FILES:
+        return None
+    rest = [url for url in images if url != model and not _is_plain(url)]
+    return [plain_url(photo.file), model, *rest]
+
+
+def apply_plain_photos(School, Product) -> int:
+    """Put the plain shot first on every KV item that has one. Returns how many changed."""
+    school = School.objects.filter(code=KV_CODE).first()
+    if school is None:
+        return 0
+    changed = 0
+    for product in Product.objects.filter(school=school):
+        images = plain_first_images(product.name, product.images)
+        if images is None or images == product.images:
+            continue
+        product.images = images
         product.save(update_fields=["images", "updated_at"])
         changed += 1
     return changed

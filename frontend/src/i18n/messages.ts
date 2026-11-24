@@ -43,6 +43,7 @@ export const messages = {
   // ---------- categories, classes, boy/girl ----------
   'size.classDefault': { en: 'Class default size: {size}', gu: 'ધોરણ પ્રમાણે માપ: {size}', hi: 'कक्षा के अनुसार साइज़: {size}' },
   'product.enlargePhoto': { en: 'Enlarge product photo', gu: 'ફોટો મોટો કરો', hi: 'फ़ोटो बड़ी करें' },
+  'product.photoOf': { en: 'Photo {n} of {total}', gu: '{total} માંથી ફોટો {n}', hi: '{total} में से फ़ोटो {n}' },
   'cat.pt': { en: 'PT Uniform', gu: 'પીટી યુનિફોર્મ', hi: 'पीटी यूनिफ़ॉर्म' },
   'cat.uniform': { en: 'Uniform', gu: 'યુનિફોર્મ', hi: 'यूनिफ़ॉर्म' },
   'cat.uniformSub': { en: 'Shirts, trousers, skirts', gu: 'શર્ટ, પેન્ટ, સ્કર્ટ', hi: 'शर्ट, पैंट, स्कर्ट' },

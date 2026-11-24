@@ -76,6 +76,19 @@ export function ProductSheet({
 
   const photoDialog = useRef<HTMLDialogElement>(null);
   const [chartOpen, setChartOpen] = useState(false);
+  // Several photos swipe sideways; the dots and the enlarged view follow the one shown.
+  const photoTrack = useRef<HTMLDivElement>(null);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  useEffect(() => {
+    setPhotoIndex(0);
+    photoTrack.current?.scrollTo?.({ left: 0 });
+  }, [product?.id]);
+  const showPhoto = (index: number) => {
+    const track = photoTrack.current;
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (track) track.scrollTo?.({ left: index * track.clientWidth, behavior: still ? 'auto' : 'smooth' });
+    setPhotoIndex(index);
+  };
 
   // Each product opens on its suggested size (if in stock), or the size the
   // child had last time, never the last product's choice.
@@ -113,6 +126,11 @@ export function ProductSheet({
   const suggested = suggestedSizeIds(product.sizes, fit);
   const hasChart = Boolean(fit && fit.chart.length > 0);
   const sizePage = usesMeasurement(product) && Boolean(onSaveMeasurement);
+
+  const photos = product.gallery ?? [];
+  const shownPhoto = Math.min(photoIndex, Math.max(photos.length - 1, 0));
+  const hero = product.heroUrl || product.imageUrl;
+  const enlarged = photos.length > 1 ? photos[shownPhoto] : hero ? { src: hero, alt: product.imageAlt } : null;
 
   const handleAdd = (): boolean => {
     if (product.sizes.length > 1 && !selectedSizeId) {
@@ -175,24 +193,68 @@ export function ProductSheet({
             {/* Gallery Left */}
             <div className="sheet-gallery-col">
               <motion.div layoutId={`product-image-${product.id}`} style={{ width: '100%', position: 'relative' }}>
-                <ProductImage
-                  id={product.id}
-                  name={product.name}
-                  category={product.category}
-                  imageUrl={product.heroUrl ?? product.imageUrl}
-                  alt={product.imageAlt}
-                  imageSize={product.heroUrl ? 1000 : 400}
-                  priority
-                />
-                {(product.heroUrl || product.imageUrl) && (
-                  <button type="button" className="sheet-photo-trigger" aria-label={t('product.enlargePhoto')}
-                    aria-haspopup="dialog" onClick={() => photoDialog.current?.showModal()} />
+                {photos.length > 1 ? (
+                  // Several photos: swipe sideways (plain shot first, then the child wearing it).
+                  <div className="sheet-photos">
+                    <div
+                      ref={photoTrack}
+                      className="sheet-photos-track"
+                      onScroll={(event) => {
+                        const track = event.currentTarget;
+                        setPhotoIndex(Math.round(track.scrollLeft / Math.max(track.clientWidth, 1)));
+                      }}
+                    >
+                      {photos.map((photo, index) => (
+                        <div className="sheet-photos-slide" key={photo.src}>
+                          <ProductImage
+                            id={`${product.id}-${index}`}
+                            name={product.name}
+                            category={product.category}
+                            imageUrl={photo.src}
+                            alt={photo.alt ?? product.imageAlt}
+                            imageSize={1000}
+                            priority={index === 0}
+                          />
+                          <button type="button" className="sheet-photo-trigger" aria-label={t('product.enlargePhoto')}
+                            aria-haspopup="dialog" onClick={() => photoDialog.current?.showModal()} />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="sheet-photos-dots">
+                      {photos.map((photo, index) => (
+                        <button
+                          key={photo.src}
+                          type="button"
+                          className={`sheet-photos-dot ${index === shownPhoto ? 'is-active' : ''}`}
+                          aria-label={t('product.photoOf', { n: index + 1, total: photos.length })}
+                          aria-current={index === shownPhoto}
+                          onClick={() => showPhoto(index)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <ProductImage
+                      id={product.id}
+                      name={product.name}
+                      category={product.category}
+                      imageUrl={product.heroUrl ?? product.imageUrl}
+                      alt={product.imageAlt}
+                      imageSize={product.heroUrl ? 1000 : 400}
+                      priority
+                    />
+                    {hero && (
+                      <button type="button" className="sheet-photo-trigger" aria-label={t('product.enlargePhoto')}
+                        aria-haspopup="dialog" onClick={() => photoDialog.current?.showModal()} />
+                    )}
+                  </>
                 )}
               </motion.div>
               <dialog ref={photoDialog} className="sheet-photo-viewer" aria-label={product.name}
                 onClick={(event) => { if (event.target === event.currentTarget) photoDialog.current?.close(); }}>
-                {(product.heroUrl || product.imageUrl) && (
-                  <img src={product.heroUrl || product.imageUrl} alt={product.imageAlt || product.name} loading="lazy" />
+                {enlarged && (
+                  <img src={enlarged.src} alt={enlarged.alt || product.imageAlt || product.name} loading="lazy" />
                 )}
                 <button type="button" className="sheet-photo-close" aria-label={t('common.close')}
                   onClick={() => photoDialog.current?.close()}>×</button>
