@@ -64,6 +64,8 @@ class SendOTPView(APIView):
         try:
             sms.send_otp(phone, otp_code)
         except sms.SmsNotConfigured:
+            if cache.get(f"otp_demo:{phone}"):
+                return Response({"detail": "Use the demo code provided to you.", "phone": phone})
             return Response(
                 {"detail": "Sign-in by mobile number is not available yet.", "code": "sms_unavailable"},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -107,7 +109,12 @@ class OTPLoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        demo_key = f"otp_demo:{phone}"
         cached = cache.get(f"otp:{phone}")
+        is_demo = False
+        if not cached:
+            cached = cache.get(demo_key)
+            is_demo = bool(cached)
         if not cached or str(cached) != otp:
             # Burn the code after a few wrong tries so it can't be guessed
             attempts_key = f"otp_attempts:{phone}"
@@ -115,8 +122,14 @@ class OTPLoginView(APIView):
             cache.set(attempts_key, attempts, timeout=OTP_TTL_SECONDS)
             if attempts >= OTP_MAX_ATTEMPTS:
                 cache.delete(f"otp:{phone}")
+                cache.delete(demo_key)
             return Response(
                 {"detail": "That OTP is wrong or has expired. Request a new one."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if is_demo and not cache.delete(demo_key):
+            return Response(
+                {"detail": "That demo code has already been used."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         cache.delete(f"otp:{phone}")
@@ -127,6 +140,11 @@ class OTPLoginView(APIView):
             .order_by("created_at")
             .first()
         )
+        if is_demo and user is not None:
+            return Response(
+                {"detail": "This demo code is only for creating a new profile."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         created = False
         if user is None:
             username = f"parent_{phone}"
@@ -137,7 +155,7 @@ class OTPLoginView(APIView):
                 phone=phone,
                 role=User.Role.PARENT,
                 is_active=True,
-                phone_verified=True,
+                phone_verified=not is_demo,
             )
             user.set_unusable_password()
             user.save()
@@ -153,7 +171,7 @@ class OTPLoginView(APIView):
 
         from schools.linking import link_children_by_phone
 
-        linked = link_children_by_phone(user)
+        linked = 0 if is_demo else link_children_by_phone(user)
         tokens = build_tokens_for_user(user)
         return Response(
             {
