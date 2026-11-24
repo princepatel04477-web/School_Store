@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
@@ -6,7 +7,7 @@ from orders.models import Order
 from schools.models import City
 
 from .models import StockBalance, StockMovement
-from .services import InsufficientStockError, apply_stock_movement
+from .services import INDIA_STOCK_ID, InsufficientStockError, apply_stock_movement, india_stock_city
 
 
 class StockBalanceSerializer(serializers.ModelSerializer):
@@ -60,8 +61,9 @@ class StockMovementCreateSerializer(serializers.Serializer):
         queryset=ProductVariant.objects.select_related("product").all()
     )
     city = serializers.PrimaryKeyRelatedField(
-        queryset=City.objects.all(), required=False
+        queryset=City.objects.exclude(pk=INDIA_STOCK_ID), required=False
     )
+    scope = serializers.ChoiceField(choices=("india", "city"), default="city")
     quantity_change = serializers.IntegerField()
     reason = serializers.ChoiceField(
         choices=(
@@ -88,7 +90,13 @@ class StockMovementCreateSerializer(serializers.Serializer):
         request = self.context["request"]
         actor = request.user
         city = attrs.get("city")
-        if actor.role == "ADMIN":
+        if attrs["scope"] == "india":
+            if actor.role != "BOSS":
+                raise PermissionDenied("Only the Boss can change India stock.")
+            if city or attrs.get("reference_order"):
+                raise serializers.ValidationError({"scope": "India stock does not take a city or order."})
+            attrs["city"] = india_stock_city()
+        elif actor.role == "ADMIN":
             if actor.city_id:
                 if city and city.pk != actor.city_id:
                     raise PermissionDenied("Admins can only adjust stock in their own city.")
@@ -103,7 +111,7 @@ class StockMovementCreateSerializer(serializers.Serializer):
 
         variant = attrs["variant"]
         variant_city_id = variant.city_id or variant.product.city_id
-        if variant_city_id and variant_city_id != attrs["city"].pk:
+        if attrs["scope"] == "city" and variant_city_id and variant_city_id != attrs["city"].pk:
             product = variant.product
             home = City.objects.filter(pk=variant_city_id).values_list("name", flat=True).first() or "another city"
             school = product.school.name if product.school_id else product.name
@@ -137,3 +145,29 @@ class StockMovementCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"quantity_change": "This movement would make city stock negative."}
             )
+
+
+class BulkStockReceiptSerializer(serializers.Serializer):
+    variants = serializers.ListField(child=serializers.UUIDField(), min_length=1, max_length=100)
+    quantity_per_size = serializers.IntegerField(min_value=1, max_value=2147483647)
+
+    @transaction.atomic
+    def create(self, validated_data):
+        ids = set(validated_data["variants"])
+        if len(ids) != len(validated_data["variants"]):
+            raise serializers.ValidationError({"variants": "Select each size once."})
+        variants = list(ProductVariant.objects.filter(pk__in=ids, active=True).order_by("id"))
+        if len(variants) != len(ids) or len({variant.product_id for variant in variants}) != 1:
+            raise serializers.ValidationError({"variants": "Select active sizes from one product."})
+        city = india_stock_city()
+        actor = self.context["request"].user
+        return [
+            apply_stock_movement(
+                variant=variant,
+                city_id=city.pk,
+                quantity_change=validated_data["quantity_per_size"],
+                reason=StockMovement.Reason.RESTOCK,
+                created_by=actor,
+            )
+            for variant in variants
+        ]

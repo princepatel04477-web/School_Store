@@ -15,6 +15,7 @@ from django.db.models import F
 from django.db.models.functions import Now
 
 from inventory.models import StockBalance, StockMovement
+from inventory.services import order_stock_cities
 
 from .models import Order, OrderItem, OrderStatusEvent
 
@@ -45,9 +46,11 @@ def _restock(order_ids, user) -> None:
     items = OrderItem.objects.filter(order_id__in=order_ids).values_list(
         "order_id", "order__city_id", "order__school_id", "variant_id", "quantity"
     )
+    stock_cities = order_stock_cities(order_ids)
     totals = defaultdict(int)
     movements = []
     for order_id, city_id, school_id, variant_id, quantity in items:
+        city_id = stock_cities.get(order_id, city_id)
         totals[(city_id, variant_id)] += quantity
         movements.append(
             StockMovement(

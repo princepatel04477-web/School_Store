@@ -34,8 +34,12 @@ export function CityAvailabilityView() {
   const { user } = useAuth();
 
   // Selected City (Admins are locked to their own city, Boss can choose)
+  const canManageIndia = user?.role === 'BOSS';
   const isCityAdmin = user?.role === 'ADMIN' && Boolean(user?.city);
-  const [selectedCityId, setSelectedCityId] = useState<string>(user?.city || '');
+  const [selectedCityId, setSelectedCityId] = useState<string>('');
+  const [receiptProduct, setReceiptProduct] = useState<ProductStockGroup | null>(null);
+  const [receiptSizes, setReceiptSizes] = useState<string[]>([]);
+  const [receiptQuantity, setReceiptQuantity] = useState('');
   const [search, setSearch] = useState('');
   const [schoolFilter, setSchoolFilter] = useState('');
 
@@ -66,7 +70,10 @@ export function CityAvailabilityView() {
   const cities = citiesData?.results ?? [];
 
   // Effective city ID (default to first city if none selected for Boss)
-  const activeCityId = selectedCityId || (isCityAdmin ? user?.city || '' : cities[0]?.id || '');
+  const activeCityId = isCityAdmin ? user?.city || '' : selectedCityId || (canManageIndia ? 'india' : cities[0]?.id || '');
+  const isIndia = activeCityId === 'india';
+  const inventoryLocation = isIndia ? 'India' : cities.find((city) => city.id === activeCityId)?.name || 'Selected city';
+  const stockLocation = isIndia ? { scope: 'india' as const } : { city: activeCityId };
 
   // Fetch Schools for filter
   const { data: schoolsData } = useQuery({
@@ -78,10 +85,11 @@ export function CityAvailabilityView() {
   // Fetch Stock Balances for active city
   const balanceParams = useMemo(() => {
     const p: Record<string, string> = { page_size: '100' };
-    if (activeCityId) p.city = activeCityId;
+    if (isIndia) p.scope = 'india';
+    else if (activeCityId) p.city = activeCityId;
     if (schoolFilter) p.school = schoolFilter;
     return p;
-  }, [activeCityId, schoolFilter]);
+  }, [activeCityId, isIndia, schoolFilter]);
 
   const { data: balancesData, isLoading: balancesLoading, error: balancesError } = useQuery({
     queryKey: ['portal-stock-balances', balanceParams],
@@ -236,7 +244,7 @@ export function CityAvailabilityView() {
       if (item.stockQuantity <= 0) return;
       return portalApi.addStockMovement({
         variant: item.variantId,
-        city: activeCityId,
+        ...stockLocation,
         quantity_change: -item.stockQuantity,
         reason: 'ADJUSTMENT',
       });
@@ -254,7 +262,7 @@ export function CityAvailabilityView() {
       for (const item of itemsToZero) {
         await portalApi.addStockMovement({
           variant: item.variantId,
-          city: activeCityId,
+          ...stockLocation,
           quantity_change: -item.stockQuantity,
           reason: 'ADJUSTMENT',
         });
@@ -278,7 +286,7 @@ export function CityAvailabilityView() {
       }
       return portalApi.addStockMovement({
         variant: targetVariant.id,
-        city: activeCityId,
+        ...stockLocation,
         quantity_change: quantityInput,
         reason: movementReason,
       });
@@ -297,7 +305,21 @@ export function CityAvailabilityView() {
     },
   });
 
-  const selectedCityObj = cities.find((c) => c.id === activeCityId);
+  const receiptMutation = useMutation({
+    mutationFn: () => portalApi.receiveIndiaStock(receiptSizes, Number(receiptQuantity)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['portal-stock-balances'] });
+      queryClient.invalidateQueries({ queryKey: ['store', 'products'] });
+      setReceiptProduct(null);
+    },
+  });
+
+  const openReceipt = (product: ProductStockGroup) => {
+    receiptMutation.reset();
+    setReceiptProduct(product);
+    setReceiptSizes([]);
+    setReceiptQuantity('');
+  };
 
   // Overall city stats
   const totalCityUnits = useMemo(() => {
@@ -312,9 +334,9 @@ export function CityAvailabilityView() {
     <div>
       <div className="portal-page-header">
         <div>
-          <h1 className="portal-page-title">City Stock & Availability</h1>
+          <h1 className="portal-page-title">Stock & Availability</h1>
           <p className="portal-page-sub">
-            Monitor on-hand inventory per city, manage restocks, and configure size availability organized by product.
+            Manage inventory by product and size. India stock is shared across the parent store.
           </p>
         </div>
       </div>
@@ -324,7 +346,7 @@ export function CityAvailabilityView() {
         <div className="portal-filters-row">
           {/* City Selector */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 700 }}>City:</span>
+            <span style={{ fontSize: '13px', fontWeight: 700 }}>Inventory:</span>
             {isCityAdmin ? (
               <span
                 style={{
@@ -344,6 +366,7 @@ export function CityAvailabilityView() {
                 value={activeCityId}
                 onChange={(e) => setSelectedCityId(e.target.value)}
               >
+                {canManageIndia && <option value="india">India (shared stock)</option>}
                 {cities.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name} ({c.code})
@@ -412,7 +435,7 @@ export function CityAvailabilityView() {
           }}
         >
           <div>
-            Target City: <strong>{selectedCityObj?.name || 'Selected City'}</strong>
+            Inventory: <strong>{inventoryLocation}</strong>
           </div>
           <div>·</div>
           <div>
@@ -424,7 +447,7 @@ export function CityAvailabilityView() {
           </div>
           <div>·</div>
           <div>
-            Active in City: <strong>{inStockProductsCount} products</strong>
+            Products with stock: <strong>{inStockProductsCount} products</strong>
           </div>
         </div>
 
@@ -455,7 +478,7 @@ export function CityAvailabilityView() {
                   <th style={{ width: '40px' }} />
                   <th>Product Details</th>
                   <th>Configured Sizes</th>
-                  <th>City Stock (Total)</th>
+                  <th>Total stock</th>
                   <th>Availability Status</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
@@ -615,6 +638,12 @@ export function CityAvailabilityView() {
                               {isExpanded ? 'Hide Sizes' : `Manage Sizes (${group.totalVariantsCount})`}
                             </button>
 
+                            {isIndia && (
+                              <button type="button" className="portal-btn portal-btn-primary portal-btn-sm" onClick={() => openReceipt(group)}>
+                                Stock selected sizes
+                              </button>
+                            )}
+
                             {group.totalStock > 0 && (
                               <button
                                 type="button"
@@ -622,14 +651,14 @@ export function CityAvailabilityView() {
                                 onClick={() => {
                                   if (
                                     window.confirm(
-                                      `Are you sure you want to mark all sizes of "${group.productName}" out of stock in ${selectedCityObj?.name}?`
+                                      `Are you sure you want to mark all sizes of "${group.productName}" out of stock in ${inventoryLocation}?`
                                     )
                                   ) {
                                     markProductOutOfStock.mutate(group);
                                   }
                                 }}
                                 disabled={markProductOutOfStock.isPending}
-                                title="Zero out all sizes for this product in this city"
+                                title="Zero out all sizes for this product in the selected inventory"
                               >
                                 Mark 0
                               </button>
@@ -652,7 +681,7 @@ export function CityAvailabilityView() {
                                 }}
                               >
                                 <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink)' }}>
-                                  Individual Size Inventory for {selectedCityObj?.name || 'City'}
+                                  Individual Size Inventory for {inventoryLocation}
                                 </span>
                                 <span style={{ fontSize: '11px', color: 'var(--ink-soft)' }}>
                                   Click Restock or Adjust to record a stock movement
@@ -664,7 +693,7 @@ export function CityAvailabilityView() {
                                   <tr>
                                     <th>Size</th>
                                     <th>SKU</th>
-                                    <th>City Units</th>
+                                    <th>Units</th>
                                     <th>Status</th>
                                     <th style={{ textAlign: 'right' }}>Actions</th>
                                   </tr>
@@ -734,13 +763,61 @@ export function CityAvailabilityView() {
       </div>
 
       {/* Restock / Adjust Stock Modal */}
+      {receiptProduct && (
+        <div className="portal-modal-backdrop">
+          <div className="portal-modal" role="dialog" aria-modal="true" aria-labelledby="india-receipt-title">
+            <div className="portal-modal-header">
+              <h2 id="india-receipt-title" className="portal-modal-title">Stock selected sizes</h2>
+            </div>
+            <form onSubmit={(event) => {
+              event.preventDefault();
+              if (receiptSizes.length && Number.isInteger(Number(receiptQuantity)) && Number(receiptQuantity) > 0) {
+                receiptMutation.mutate();
+              }
+            }}>
+              <div className="portal-modal-body">
+                <p>{receiptProduct.productName} · India</p>
+                <fieldset disabled={receiptMutation.isPending}>
+                  <legend>Choose sizes</legend>
+                  {receiptProduct.variants.map((variant) => (
+                    <label key={variant.variantId} style={{ display: 'inline-flex', gap: 6, margin: '6px 14px 6px 0' }}>
+                      <input type="checkbox" checked={receiptSizes.includes(variant.variantId)} onChange={(event) => {
+                        const checked = event.target.checked;
+                        setReceiptSizes((sizes) => checked
+                          ? [...sizes, variant.variantId]
+                          : sizes.filter((size) => size !== variant.variantId));
+                      }} />
+                      {variant.size} ({variant.stockQuantity} on hand)
+                    </label>
+                  ))}
+                </fieldset>
+                <div className="portal-form-group">
+                  <label htmlFor="receipt-quantity" className="portal-form-label">Units to add per selected size</label>
+                  <input id="receipt-quantity" className="portal-form-input" type="number" min={1} max={2147483647} step={1}
+                    required value={receiptQuantity} disabled={receiptMutation.isPending}
+                    onChange={(event) => setReceiptQuantity(event.target.value)} />
+                  <p>{receiptSizes.length} selected · {(receiptSizes.length * Number(receiptQuantity)).toLocaleString()} total units to add</p>
+                </div>
+                {receiptMutation.error && <p className="portal-alert-error" role="alert">{receiptMutation.error.message}</p>}
+              </div>
+              <div className="portal-modal-footer">
+                <button type="button" className="portal-btn portal-btn-secondary" disabled={receiptMutation.isPending} onClick={() => setReceiptProduct(null)}>Cancel</button>
+                <button type="submit" className="portal-btn portal-btn-primary" disabled={receiptMutation.isPending || !receiptSizes.length || !receiptQuantity}>
+                  {receiptMutation.isPending ? 'Saving…' : 'Add stock'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {modalOpen && targetVariant && (
         <div className="portal-modal-backdrop">
           <div className="portal-modal" style={{ maxWidth: '480px' }}>
             <div className="portal-modal-header">
               <div>
                 <h2 className="portal-modal-title">
-                  {targetVariant.hasBalanceRow ? 'Record Stock Movement' : 'Initialize City Stock'}
+                  {targetVariant.hasBalanceRow ? 'Record Stock Movement' : 'Initialize Stock'}
                 </h2>
                 <div style={{ fontSize: '12px', color: 'var(--ink-soft)' }}>
                   {targetVariant.productName} (Size: {targetVariant.size})
@@ -775,7 +852,7 @@ export function CityAvailabilityView() {
                     fontSize: '13px',
                   }}
                 >
-                  <div>Target City: <strong>{selectedCityObj?.name || 'City'}</strong></div>
+                  <div>Inventory: <strong>{inventoryLocation}</strong></div>
                   <div>SKU: <code>{targetVariant.sku}</code></div>
                   <div>Current Balance: <strong>{targetVariant.currentQty} units</strong></div>
                 </div>

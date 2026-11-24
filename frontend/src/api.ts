@@ -686,7 +686,12 @@ export const portalApi = {
   deleteVariant: (id: string) => api<void>(`/variants/${id}/`, { method: 'DELETE' }),
   categories: () => api<Page<PortalCategory>>('/categories/?page_size=50'),
   stockBalances: (p: Record<string, string> = {}) => api<Page<StockBalance>>(`/stock-balances/?${new URLSearchParams(p)}`),
-  addStockMovement: (body: { variant: string; quantity_change: number; reason: string; city?: string }) =>
+  receiveIndiaStock: (variants: string[], quantityPerSize: number) =>
+    api<StockMovement[]>('/stock-movements/bulk-receipt/', {
+      method: 'POST',
+      body: JSON.stringify({ variants, quantity_per_size: quantityPerSize }),
+    }),
+  addStockMovement: (body: { variant: string; quantity_change: number; reason: string; city?: string; scope?: 'india' }) =>
     api<StockMovement>('/stock-movements/', { method: 'POST', body: JSON.stringify(body) }),
   cityPrices: (p: Record<string, string> = {}) => api<Page<ProductCityPrice>>(`/city-prices/?${new URLSearchParams(p)}`),
   setCityPrice: (body: { product: string; city: string; selling_price: string; cost_price?: string }) =>

@@ -10,6 +10,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from catalog.models import ProductVariant
 from inventory.models import StockBalance, StockMovement
+from inventory.services import sales_stock_city
 from schools.models import Student
 
 from .models import Order, OrderItem, OrderStatusEvent
@@ -365,10 +366,11 @@ class OrderCreateSerializer(serializers.Serializer):
         # Stock is debited with an atomic conditional UPDATE further down, so
         # no row locks are taken here. This read exists purely for friendly,
         # itemised error messages before the order row is created.
+        stock_city_id = sales_stock_city(city_id)
         balances = {
             balance.variant_id: balance
             for balance in StockBalance.objects.filter(
-                city_id=city_id, variant_id__in=variant_ids
+                city_id=stock_city_id, variant_id__in=variant_ids
             ).order_by("variant_id")
         }
         # A retry may have waited behind the first request while it committed.
@@ -379,7 +381,7 @@ class OrderCreateSerializer(serializers.Serializer):
         if len(balances) != len(variant_ids):
             missing = [str(variant_id) for variant_id in variant_ids if variant_id not in balances]
             raise serializers.ValidationError(
-                {"items": f"No stock balance is configured for this city's variant(s): {', '.join(missing)}."}
+                {"items": f"No stock balance is configured for the selected variant(s): {', '.join(missing)}."}
             )
 
         from catalog.models import ProductCityPrice
@@ -399,7 +401,7 @@ class OrderCreateSerializer(serializers.Serializer):
             quantity = quantities[variant_id]
             if balance.stock_quantity < quantity:
                 raise serializers.ValidationError(
-                    {"items": f"Insufficient stock for SKU {variant.sku} in this city."}
+                    {"items": f"Insufficient stock for SKU {variant.sku}."}
                 )
             effective_price = city_prices.get(variant.product_id, variant.product.selling_price)
             subtotal += effective_price * quantity
@@ -440,7 +442,7 @@ class OrderCreateSerializer(serializers.Serializer):
         for variant_id in variant_ids:
             quantity = quantities[variant_id]
             debited = StockBalance.objects.filter(
-                city_id=city_id,
+                city_id=stock_city_id,
                 variant_id=variant_id,
                 stock_quantity__gte=quantity,
             ).update(
@@ -451,7 +453,7 @@ class OrderCreateSerializer(serializers.Serializer):
                 raise serializers.ValidationError(
                     {
                         "items": f"Insufficient stock for SKU "
-                        f"{variants[variant_id].sku} in this city."
+                        f"{variants[variant_id].sku}."
                     }
                 )
 
@@ -484,7 +486,7 @@ class OrderCreateSerializer(serializers.Serializer):
             movements.append(
                 StockMovement(
                     variant=variant,
-                    city_id=city_id,
+                    city_id=stock_city_id,
                     school_id=order.school_id,
                     quantity_change=-quantity,
                     reason=StockMovement.Reason.ORDER_PLACED,

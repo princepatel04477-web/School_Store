@@ -20,7 +20,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from inventory.services import best_flag, stock_flags
+from inventory.services import best_flag, sales_stock_city, stock_flags
 from schools.models import Student
 
 from .catalogue import (
@@ -105,7 +105,7 @@ class StudentCatalogueView(APIView):
         variant_ids = [
             size["variant_id"] for entry in entries for size in entry["sizes"]
         ]
-        flags = stock_flags(student.city_id, variant_ids)
+        flags = stock_flags(sales_stock_city(student.city_id), variant_ids)
 
         return Response(
             {
@@ -156,7 +156,7 @@ class StudentProductDetailView(APIView):
             raise NotFound("Product not available for this student.")
 
         variants = [v for v in product.variants.all() if v.active]
-        flags = stock_flags(student.city_id, [str(v.id) for v in variants])
+        flags = stock_flags(sales_stock_city(student.city_id), [str(v.id) for v in variants])
         sizes = [
             {
                 "variant_id": str(variant.id),

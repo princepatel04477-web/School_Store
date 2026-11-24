@@ -19,7 +19,7 @@ from common.cache_utils import (
     versioned_cache_key,
 )
 from common.pagination import BoundedCursorPagination
-from inventory.services import stock_flags
+from inventory.services import sales_stock_city, stock_flags
 from schools.models import School
 
 from .images import product_gallery, product_image, product_image_alt, product_thumbnail
@@ -586,7 +586,7 @@ class PublicProductList(APIView):
     @staticmethod
     def with_availability(data, city_id):
         variant_ids = [variant["id"] for product in data["results"] for variant in product["variants"]]
-        flags = stock_flags(city_id, variant_ids, missing=None)
+        flags = stock_flags(sales_stock_city(city_id), variant_ids, missing=None)
         results = [
             {
                 **product,

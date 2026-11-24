@@ -7,6 +7,7 @@ from django.db.models.functions import Now
 from django.utils import timezone
 
 from inventory.models import StockBalance, StockMovement
+from inventory.services import order_stock_cities
 
 from .models import Order, OrderStatusEvent
 
@@ -53,12 +54,13 @@ def release_expired_reservation(order_id):
 
         items = list(order.items.only("variant_id", "quantity").order_by("variant_id"))
 
+        stock_city_id = order_stock_cities([order.id]).get(order.id, order.city_id)
         movements = []
         for item in items:
             # Atomic UPDATE ... SET stock_quantity = stock_quantity + qty;
             # never read-modify-write in Python.
             restored = StockBalance.objects.filter(
-                city_id=order.city_id, variant_id=item.variant_id
+                city_id=stock_city_id, variant_id=item.variant_id
             ).update(
                 stock_quantity=F("stock_quantity") + item.quantity,
                 updated_at=Now(),
@@ -70,7 +72,7 @@ def release_expired_reservation(order_id):
             movements.append(
                 StockMovement(
                     variant_id=item.variant_id,
-                    city_id=order.city_id,
+                    city_id=stock_city_id,
                     school_id=order.school_id,
                     quantity_change=item.quantity,
                     reason=StockMovement.Reason.ORDER_CANCELLED,

@@ -12,11 +12,41 @@ Rules enforced here:
   always fetched fresh (it is never part of any cached catalogue payload).
 """
 
+from uuid import UUID
+
+from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 from django.db.models.functions import Now
 
 from .models import StockBalance, StockMovement
+
+# An internal warehouse key that is never a delivery destination.
+INDIA_STOCK_ID = UUID("d50ed060-432d-4ef9-b4fb-0231b6de8d16")
+
+
+def sales_stock_city(city_id):
+    return INDIA_STOCK_ID if settings.INDIA_STOCK else city_id
+
+
+def india_stock_city():
+    from schools.models import City
+
+    city, _ = City.objects.get_or_create(
+        pk=INDIA_STOCK_ID,
+        defaults={"code": "INDIA-STOCK", "name": "India stock", "state": "", "active": False},
+    )
+    return city
+
+
+def order_stock_cities(order_ids):
+    """Use the original debit location even when the active stock scope changes."""
+    return dict(
+        StockMovement.objects.filter(
+            reference_order_id__in=order_ids, reason=StockMovement.Reason.ORDER_PLACED
+        ).order_by().values_list("reference_order_id", "city_id").distinct()
+    )
+
 
 IN_STOCK = "IN_STOCK"
 LOW_STOCK = "LOW_STOCK"

@@ -21,6 +21,7 @@ from common.pagination import BoundedPageNumberPagination
 from common.permissions import IsParent, IsSchoolAdmin, RoleScopedPermission
 from common.scoping import ScopedQuerysetMixin
 from common.throttles import StudentClaimIPThrottle, StudentClaimUserThrottle
+from inventory.services import INDIA_STOCK_ID
 
 from .import_service import TEMPLATE_COLUMNS
 from .models import City, School, Student, StudentMeasurement
@@ -53,7 +54,7 @@ class CityViewSet(
 ):
     cache_version_key = SCHOOL_LIST_CACHE_VERSION_KEY
     cache_namespace = "schools:cities"
-    queryset = City.objects.order_by("name")
+    queryset = City.objects.exclude(pk=INDIA_STOCK_ID).order_by("name")
     serializer_class = CitySerializer
     permission_classes = [RoleScopedPermission]
     read_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER", "PARENT")

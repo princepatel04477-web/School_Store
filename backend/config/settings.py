@@ -39,6 +39,7 @@ SECRET_KEY = os.environ.get(
 )
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
+INDIA_STOCK = os.environ.get("STOCK_SCOPE", "india").lower() == "india"
 
 
 def _env_list(name):
