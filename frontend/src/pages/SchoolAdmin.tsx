@@ -1,3 +1,4 @@
+import { PaymentsToCheck } from '../components/PaymentsToCheck';
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -264,6 +265,7 @@ function CommissionCard({ commission }: { commission: Commission }) {
  * 2. Orders table
  * ------------------------------------------------------------------ */
 function Orders() {
+  const [showPayments, setShowPayments] = useState(false);
   const { schoolId } = useSchool();
   const { data: filters } = useQuery({ queryKey: ['panel-filters', schoolId], queryFn: () => panel.filters(schoolId!), enabled: !!schoolId });
   const [f, setF] = useState<Record<string, string>>({});
@@ -281,6 +283,8 @@ function Orders() {
 
   return (
     <>
+      <PaymentsToCheck school={schoolId || undefined} open={showPayments} onToggle={() => setShowPayments(value => !value)} />
+      {!showPayments && <>
       <div className="page-head">
         <div>
           <div className="eyebrow">ORDERS</div>
@@ -352,6 +356,7 @@ function Orders() {
           rows.length > 0 && <span className="fine">Showing all {rows.length} loaded row{rows.length === 1 ? '' : 's'} for these filters.</span>
         )}
       </div>
+      </>}
     </>
   );
 }
@@ -382,7 +387,10 @@ function OrderRow({ order }: { order: PanelOrder }) {
       </td>
       <td className="r">{num(order.units)}</td>
       <td className="r">{money2(order.amount)}</td>
-      <td><span className={`badge s-${order.status.toLowerCase()}`}>{order.status.replace('_', ' ').toLowerCase()}</span></td>
+      <td>
+        <span className={`badge s-${order.status.toLowerCase()}`}>{order.status.replace('_', ' ').toLowerCase()}</span>
+        <small className="gr">{order.payment_method} | {order.payment_view.state.replace(/_/g, ' ')}</small>
+      </td>
       <td>
         {order.placed_by_name || '-'}
         <small className="gr">{order.placed_by_role_label}</small>

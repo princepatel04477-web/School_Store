@@ -73,7 +73,7 @@ export default {
     // Retailer endpoints (/api/retail/...) live on Cloudflare Showcase (D1 + KV).
     const isRetail = url.pathname.startsWith('/api/retail/');
     const isAuth = url.pathname === '/api/auth/token/' || url.pathname === '/api/auth/token/refresh/' || url.pathname === '/api/auth/me/';
-    const isParentOtp = url.pathname.startsWith('/api/auth/otp/');
+    const isStoreTransaction = /^\/api\/(auth\/otp|orders|payments)(\/|$)/.test(url.pathname);
     const isPublicRetail = url.pathname.startsWith('/api/public/schools/') || url.pathname.startsWith('/api/public/mockups/');
 
     const bodyBytes = ['POST', 'PUT', 'PATCH'].includes(request.method)
@@ -114,9 +114,9 @@ export default {
       const upstreamUrl = new URL(url.pathname + url.search, origin);
       const res = await fetch(upstreamUrl.toString(), init);
 
-      // A live OTP must be issued and verified by the same backend.
-      // Preserve Django's structured SMS error even when its status is 502 or 503.
-      if (isParentOtp) {
+      // Keep live sign-in, orders and payments on the same backend.
+      // Preserve structured application errors when Django is reachable.
+      if (isStoreTransaction) {
         if (TUNNEL_DOWN.has(res.status) && !res.headers.get('content-type')?.includes('application/json')) {
           return offline();
         }

@@ -209,7 +209,7 @@ def panel_orders_qs(school: School, filters: OrderFilters) -> QuerySet[Order]:
     qs = (
         Order.objects.filter(school_id=school.id)
         .select_related("student", "placed_by")
-        .prefetch_related("items__variant__product", "items__category")
+        .prefetch_related("items__variant__product", "items__category", "payment_attempts", "payment_reviews")
     )
     return filters.apply(qs).order_by("-created_at", "-id")
 
@@ -219,7 +219,7 @@ def student_orders_qs(student: Student, filters: OrderFilters) -> QuerySet[Order
     qs = (
         Order.objects.filter(student_id=student.id)
         .select_related("placed_by")
-        .prefetch_related("items__variant__product", "items__category")
+        .prefetch_related("items__variant__product", "items__category", "payment_attempts", "payment_reviews")
     )
     return filters.apply(qs, skip_student=True).order_by("-created_at", "-id")
 

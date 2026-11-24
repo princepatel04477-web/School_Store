@@ -30,7 +30,58 @@ export type Product={
   customisation_schema?:CustomisationField[] | {fields?: CustomisationField[]};
   variants:{id:string;size:string;stock_status:StockStatus|null}[];
 };
-export type Order={id:string;order_number:string;student_name:string;status:string;payment_status:string;total:number;created_at:string;status_events?:{status:string;timestamp:string}[]};
+export type OrderQuoteLine = {
+  variant: string;
+  sku: string;
+  name: string;
+  size: string;
+  quantity: number;
+  unit_price: string;
+  line_total: string;
+};
+
+export type OrderQuote = {
+  lines: OrderQuoteLine[];
+  subtotal: string;
+  total: string;
+  total_paise: number;
+  currency: 'INR';
+  payment_methods: ('COD' | 'ONLINE')[];
+  reservation_minutes: number;
+};
+
+export type PaymentView = {
+  state: 'PAID' | 'CHECKING' | 'NOT_PAID' | 'RELEASED' | 'REFUND_DUE' | 'COD_DUE' | 'PAID_DO_NOT_COLLECT';
+  amount_due_paise: number;
+  amount_paid_paise: number;
+  currency: 'INR';
+  hold_expires_at: string | null;
+  last_checked_at: string | null;
+  last_check_ok: boolean | null;
+  in_progress: boolean;
+  last_failure_reason: string | null;
+  can_pay_now: boolean;
+  can_switch_to_cod: boolean;
+  can_refresh: boolean;
+  receipt: { order_number: string; amount_paise: number; paid_at: string; method: string; payment_ref_last4: string } | null;
+};
+
+export type PaymentReconcileResponse = { checked: boolean; retry_after_seconds: number; payment_view: PaymentView };
+
+export type Order = {
+  id: string;
+  order_number: string;
+  student_name: string;
+  status: string;
+  payment_status: string;
+  payment_method?: 'COD' | 'ONLINE';
+  fulfillment_type?: string;
+  total: number | string;
+  created_at: string;
+  payment_view: PaymentView;
+  razorpay_order_id?: string;
+  status_events?: { status: string; timestamp: string }[];
+};
 const API=import.meta.env.VITE_API_URL||'/api';
 let refreshing:Promise<string>|null=null;
 async function refresh(){const token=localStorage.getItem('refresh'); const r=await fetch(`${API}/auth/token/refresh/`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({refresh:token})}); if(!r.ok) throw Error('session expired'); const d=await r.json(); localStorage.setItem('access',d.access); return d.access;}
@@ -60,6 +111,28 @@ export const parentChildren={
   claim:(school:string,gr_number:string,date_of_birth:string)=>api<ParentChild>('/students/claim/',{method:'POST',body:JSON.stringify({school,gr_number,date_of_birth})}),
   /** Every active school (public list) for the find-your-child form. */
   schools:()=>api<{id:string;name:string;code:string}[]>('/public/schools/'),
+};
+
+export type PaymentStartResponse = {
+  key_id: string;
+  razorpay_order_id: string;
+  amount_paise: number;
+  currency: 'INR';
+  store_order_number: string;
+  hold_expires_at: string;
+  prefill: { name: string; contact: string };
+};
+
+type VerifyPaymentResponse = { payment_view: PaymentView };
+type SwitchToCodResponse = { payment_method: 'COD'; payment_view: PaymentView };
+
+export const orderApi = {
+  quote: (body: unknown) => api<OrderQuote>('/orders/quote/', { method: 'POST', body: JSON.stringify(body) }),
+  payment: (orderId: string) => api<PaymentStartResponse>(`/orders/${orderId}/payment/`, { method: 'POST' }),
+  verifyPayment: (orderId: string, data: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) =>
+    api<VerifyPaymentResponse>(`/orders/${orderId}/verify-payment/`, { method: 'POST', body: JSON.stringify(data) }),
+  reconcilePayment: (orderId: string) => api<PaymentReconcileResponse>(`/orders/${orderId}/reconcile-payment/`, { method: 'POST' }),
+  switchToCod: (orderId: string) => api<SwitchToCodResponse>(`/orders/${orderId}/switch-to-cod/`, { method: 'POST' }),
 };
 export const queryKey={catalog:['catalog'],orders:['orders'],students:['students']};
 
@@ -156,7 +229,7 @@ export type PanelOrderItem={
   has_customisation?:boolean;
   customisation_summary?:string;
 };
-export type PanelOrder={id:string;order_number:string;student:string;student_name:string;student_gr:string;student_class:string;student_section:string;items:PanelOrderItem[];item_count:number;units:number;amount:Money;status:string;payment_status:string;fulfillment_type:string;created_at:string;placed_by:string|null;placed_by_name:string;placed_by_role:string;placed_by_role_label:string};
+export type PanelOrder={id:string;order_number:string;student:string;student_name:string;student_gr:string;student_class:string;student_section:string;items:PanelOrderItem[];item_count:number;units:number;amount:Money;status:string;payment_view: PaymentView; payment_method: 'COD' | 'ONLINE'; needs_reconciliation: boolean; reconciliation_reasons: string[]; payment_status:string;fulfillment_type:string;created_at:string;placed_by:string|null;placed_by_name:string;placed_by_role:string;placed_by_role_label:string};
 export type PanelStudent={id:string;name:string;gr_number:string;class_name:string;section:string;gender:string;date_of_birth:string|null;school:string;school_name:string;school_code:string;parent:string|null;parent_name:string;parent_phone:string;approval_status:'PENDING'|'APPROVED';source:string;active:boolean;created_at:string};
 export type PanelTeacher={id:string;username:string;email:string;first_name:string;last_name:string;phone:string;role:Role;school:string;school_name:string;is_active:boolean;must_change_password:boolean;created_at:string;temporary_password?:string};
 export type ExportJob={id:string;job_type:'ORDERS'|'STUDENTS'|'TAILOR_SHEET';job_type_display:string;status:'QUEUED'|'RUNNING'|'READY'|'FAILED'|'EXPIRED';status_display:string;progress:number;school:string;school_code:string;requested_by_name:string|null;filters:Record<string,string>;filename:string;row_count:number;result:Record<string,unknown>;error_message:string;download_url:string|null;created_at:string;completed_at:string|null;expires_at:string|null};
@@ -335,6 +408,8 @@ export type CityOrderDetail={
   city:string;
   city_name:string;
   status:string;
+  payment_view: PaymentView;
+  payment_method: 'COD' | 'ONLINE';
   payment_status:string;
   fulfillment_type:string;
   subtotal:Money;

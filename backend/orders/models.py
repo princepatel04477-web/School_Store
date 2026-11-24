@@ -109,6 +109,11 @@ class Order(UUIDModel):
         choices=PaymentMethod.choices,
         default=PaymentMethod.ONLINE,
     )
+    hold_expires_at = models.DateTimeField(null=True, blank=True)
+    payment_checked_at = models.DateTimeField(null=True, blank=True)
+    payment_check_ok = models.BooleanField(null=True, blank=True)
+    payment_check_failed_since = models.DateTimeField(null=True, blank=True)
+    cancel_reason = models.CharField(max_length=24, blank=True, default="")
     razorpay_order_id = models.CharField(max_length=80, blank=True, default="")
     razorpay_payment_id = models.CharField(max_length=80, blank=True, default="")
     razorpay_signature = models.CharField(max_length=200, blank=True, default="")
@@ -170,6 +175,13 @@ class Order(UUIDModel):
             models.Index(
                 fields=["razorpay_order_id"],
                 name="idx_order_razorpay_id",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["razorpay_order_id"],
+                condition=models.Q(razorpay_order_id__gt=""),
+                name="uniq_order_razorpay_order_id",
             ),
         ]
 
@@ -395,3 +407,125 @@ class PhotoConsent(UUIDModel):
     def __str__(self) -> str:
         state = "withdrawn" if self.withdrawn_at else "live"
         return f"{self.purpose} {state} for {self.student_id}"
+
+
+class PaymentAttempt(UUIDModel):
+    class Status(models.TextChoices):
+        CREATED = "CREATED", "Created"
+        AUTHORIZED = "AUTHORIZED", "Authorized"
+        CAPTURED = "CAPTURED", "Captured"
+        FAILED = "FAILED", "Failed"
+        REFUNDED = "REFUNDED", "Refunded"
+
+    class Source(models.TextChoices):
+        VERIFY = "VERIFY", "Verify"
+        WEBHOOK = "WEBHOOK", "Webhook"
+        RECONCILE = "RECONCILE", "Reconcile"
+        EXPIRY_CHECK = "EXPIRY_CHECK", "Expiry Check"
+
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="payment_attempts",
+    )
+    razorpay_payment_id = models.CharField(max_length=80, unique=True)
+    status = models.CharField(max_length=24, choices=Status.choices)
+    method = models.CharField(max_length=50, blank=True, default="")
+    amount_paise = models.BigIntegerField()
+    currency = models.CharField(max_length=10, default="INR")
+    error_code = models.CharField(max_length=100, blank=True, default="")
+    error_reason = models.TextField(blank=True, default="")
+    first_seen_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_source = models.CharField(max_length=24, choices=Source.choices)
+
+    class Meta:
+        ordering = ["-first_seen_at"]
+        indexes = [
+            models.Index(fields=["order", "status"], name="idx_payattempt_order_status"),
+            models.Index(fields=["razorpay_payment_id"], name="idx_payattempt_pid"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.razorpay_payment_id} ({self.status}) for order {self.order_id}"
+
+
+class PaymentEvent(UUIDModel):
+    class State(models.TextChoices):
+        RECEIVED = "RECEIVED", "Received"
+        PROCESSED = "PROCESSED", "Processed"
+        RETRY = "RETRY", "Retry"
+        UNMATCHED = "UNMATCHED", "Unmatched"
+        IGNORED = "IGNORED", "Ignored"
+
+    event_id = models.CharField(max_length=100, unique=True)
+    event_type = models.CharField(max_length=100)
+    razorpay_order_id = models.CharField(max_length=80, blank=True, default="")
+    razorpay_payment_id = models.CharField(max_length=80, blank=True, default="")
+    amount = models.BigIntegerField(null=True, blank=True)
+    currency = models.CharField(max_length=10, blank=True, default="INR")
+    payload = models.JSONField(default=dict)
+    received_at = models.DateTimeField(default=timezone.now)
+    state = models.CharField(max_length=20, choices=State.choices, default=State.RECEIVED)
+    tries = models.PositiveIntegerField(default=0)
+    next_try_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-received_at"]
+        indexes = [
+            models.Index(fields=["event_id"], name="idx_paymentevent_eid"),
+            models.Index(fields=["state", "next_try_at"], name="idx_paymentevent_state_try"),
+            models.Index(fields=["razorpay_order_id"], name="idx_paymentevent_roid"),
+        ]
+
+    def __str__(self) -> str:
+        return f"Event {self.event_id} ({self.event_type}) [{self.state}]"
+
+
+class PaymentReview(UUIDModel):
+    class Reason(models.TextChoices):
+        REFUND_AFTER_RELEASE = "REFUND_AFTER_RELEASE", "Refund after release"
+        DUPLICATE_PAYMENT = "DUPLICATE_PAYMENT", "Duplicate payment"
+        AMOUNT_MISMATCH = "AMOUNT_MISMATCH", "Amount mismatch"
+        PAID_AFTER_COD_SWITCH = "PAID_AFTER_COD_SWITCH", "Paid after COD switch"
+        RECONCILE_STUCK = "RECONCILE_STUCK", "Reconcile stuck"
+        UNMATCHED_EVENT = "UNMATCHED_EVENT", "Unmatched event"
+
+    order = models.ForeignKey(
+        Order,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="payment_reviews",
+    )
+    payment_id = models.CharField(max_length=80, blank=True, default="")
+    reason = models.CharField(max_length=32, choices=Reason.choices)
+    created_at = models.DateTimeField(default=timezone.now)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="resolved_payment_reviews",
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order", "reason", "payment_id"],
+                condition=models.Q(order__isnull=False),
+                name="uniq_payment_review_with_order",
+            ),
+            models.UniqueConstraint(
+                fields=["reason", "payment_id"],
+                condition=models.Q(order__isnull=True),
+                name="uniq_payment_review_without_order",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Review {self.reason} (payment: {self.payment_id}) for order {self.order_id}"

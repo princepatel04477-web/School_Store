@@ -205,7 +205,16 @@ class PaymentAndWebhookIdempotencyTests(TestCase):
         client = APIClient()
         client.force_authenticate(user=self.parent)
 
-        with patch.object(RazorpayGateway, "verify_signature", return_value=True):
+        fake_payment = {
+            "id": "pay_fake_99999",
+            "order_id": "order_fake_12345",
+            "status": "captured",
+            "amount": int(self.order.total * 100),
+            "currency": "INR",
+            "method": "card",
+        }
+        with patch.object(RazorpayGateway, "verify_signature", return_value=True), \
+             patch.object(RazorpayGateway, "fetch_payment", return_value=fake_payment):
             # First verification
             res1 = client.post(
                 reverse("order-verify-payment", kwargs={"pk": self.order.pk}),
