@@ -361,6 +361,7 @@ export function UniformCatalogView() {
         });
       }
       queryClient.invalidateQueries({ queryKey: ['portal-products'] });
+      queryClient.invalidateQueries({ queryKey: ['portal-products-stock'] });
     },
   });
 
@@ -368,21 +369,25 @@ export function UniformCatalogView() {
     mutationFn: (productId: string) => portalApi.deleteProduct(productId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portal-products'] });
+      queryClient.invalidateQueries({ queryKey: ['portal-products-stock'] });
       queryClient.invalidateQueries({ queryKey: ['portal-stock-balances'] });
+      queryClient.invalidateQueries({ queryKey: ['store', 'products'] });
     },
     onError: (err: any) => {
       alert(err instanceof Error ? err.message : 'Failed to delete uniform item.');
     },
   });
 
-  const reactivateProductMutation = useMutation({
-    mutationFn: (productId: string) => portalApi.updateProduct(productId, { active: true }),
+  const productActivityMutation = useMutation({
+    mutationFn: ({ productId, active }: { productId: string; active: boolean }) =>
+      portalApi.updateProduct(productId, { active }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portal-products'] });
-      queryClient.invalidateQueries({ queryKey: ['portal-stock-balances'] });
+      queryClient.invalidateQueries({ queryKey: ['portal-products-stock'] });
+      queryClient.invalidateQueries({ queryKey: ['store', 'products'] });
     },
     onError: (err: any) => {
-      alert(err instanceof Error ? err.message : 'Failed to reactivate uniform item.');
+      alert(err instanceof Error ? err.message : 'Failed to update listing status.');
     },
   });
 
@@ -648,32 +653,27 @@ export function UniformCatalogView() {
                           >
                             Edit
                           </button>
-                          {p.active ? (
-                            <button
-                              type="button"
-                              className="portal-btn portal-btn-danger portal-btn-sm"
-                              onClick={() => {
-                                if (window.confirm(`Delete "${p.name}"? This removes it from the parent storefront.`)) {
-                                  deleteProductMutation.mutate(p.id);
-                                }
-                              }}
-                              disabled={deleteProductMutation.isPending}
-                              title="Delete uniform item"
-                            >
-                              Delete
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className="portal-btn portal-btn-secondary portal-btn-sm"
-                              onClick={() => reactivateProductMutation.mutate(p.id)}
-                              disabled={reactivateProductMutation.isPending}
-                              style={{ color: '#065f46', borderColor: '#a7f3d0' }}
-                              title="Reactivate uniform item"
-                            >
-                              Reactivate
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            className="portal-btn portal-btn-secondary portal-btn-sm"
+                            onClick={() => productActivityMutation.mutate({ productId: p.id, active: !p.active })}
+                            disabled={productActivityMutation.isPending || deleteProductMutation.isPending}
+                          >
+                            {p.active ? 'Deactivate' : 'Reactivate'}
+                          </button>
+                          <button
+                            type="button"
+                            className="portal-btn portal-btn-danger portal-btn-sm"
+                            onClick={() => {
+                              if (window.confirm(`Permanently delete "${p.name}" and its sizes?`)) {
+                                deleteProductMutation.mutate(p.id);
+                              }
+                            }}
+                            disabled={deleteProductMutation.isPending || productActivityMutation.isPending}
+                            title="Delete uniform item"
+                          >
+                            Delete
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -963,7 +963,7 @@ export function UniformCatalogView() {
                     type="button"
                     className="portal-btn portal-btn-danger"
                     onClick={() => {
-                      if (window.confirm(`Are you sure you want to delete "${editingProduct.name}"?`)) {
+                      if (window.confirm(`Permanently delete "${editingProduct.name}" and its sizes?`)) {
                         deleteProductMutation.mutate(editingProduct.id, {
                           onSuccess: () => setItemModalOpen(false),
                         });

@@ -122,8 +122,15 @@ class StockMovementViewSet(
         if request.user.role != "BOSS":
             raise PermissionDenied("Only the Boss can change India stock.")
         receipt = BulkStockReceiptSerializer(data=request.data, context=self.get_serializer_context())
-        receipt.is_valid(raise_exception=True)
-        movements = receipt.save()
+        try:
+            receipt.is_valid(raise_exception=True)
+            movements = receipt.save()
+        except ValidationError as exc:
+            data = exc.detail if isinstance(exc.detail, dict) else {"non_field_errors": exc.detail}
+            return Response(
+                {**data, "detail": _first_message(data) or "This stock receipt was refused."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response(StockMovementSerializer(movements, many=True).data, status=status.HTTP_201_CREATED)
 
     def perform_create(self, serializer):

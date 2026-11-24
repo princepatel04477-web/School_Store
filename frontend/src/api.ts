@@ -672,7 +672,7 @@ export const portalApi = {
   products: (p: Record<string, string> = {}) => api<Page<PortalProduct>>(`/products/?${new URLSearchParams(p)}`),
   createProduct: (body: any) => api<PortalProduct>('/products/', { method: 'POST', body: JSON.stringify(body) }),
   updateProduct: (id: string, body: any) => api<PortalProduct>(`/products/${id}/`, { method: 'PATCH', body: JSON.stringify(body) }),
-  deleteProduct: (id: string) => api<void>(`/products/${id}/`, { method: 'DELETE' }),
+  deleteProduct: (id: string) => api<void>(`/products/${id}/?permanent=true`, { method: 'DELETE' }),
   uploadProductPhoto: (productId: string, file: File) => {
     const fd = new FormData();
     fd.append('photo', file);

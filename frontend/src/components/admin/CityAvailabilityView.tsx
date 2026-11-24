@@ -8,6 +8,7 @@ interface VariantStockItem {
   variantId: string;
   sku: string;
   size: string;
+  active: boolean;
   stockQuantity: number;
   hasBalanceRow: boolean;
   isLowStock: boolean;
@@ -16,6 +17,7 @@ interface VariantStockItem {
 interface ProductStockGroup {
   productId: string;
   productName: string;
+  active: boolean;
   productImage?: string;
   schoolId?: string | null;
   schoolName?: string | null;
@@ -128,7 +130,7 @@ export function CityAvailabilityView() {
     for (const p of products) {
       // A school's own items are stocked only in that school's city; the server refuses
       // stock for them anywhere else, so do not offer them under another city.
-      if (p.city && activeCityId && p.city !== activeCityId) continue;
+      if (!isIndia && p.city && activeCityId && p.city !== activeCityId) continue;
       seenProductIds.add(p.id);
       const variantItems: VariantStockItem[] = [];
       let totalStock = 0;
@@ -150,6 +152,7 @@ export function CityAvailabilityView() {
             variantId: v.id,
             sku: v.sku,
             size: v.size,
+            active: v.active,
             stockQuantity: qty,
             hasBalanceRow: hasRow,
             isLowStock: isLow,
@@ -169,6 +172,7 @@ export function CityAvailabilityView() {
       groups.push({
         productId: p.id,
         productName: p.name,
+        active: p.active,
         productImage: p.images && p.images.length > 0 ? p.images[0] : undefined,
         schoolId: p.school,
         schoolName: p.school_name,
@@ -198,7 +202,7 @@ export function CityAvailabilityView() {
 
       return matchProduct || matchVariant;
     });
-  }, [products, balanceByVariant, search, activeCityId]);
+  }, [products, balanceByVariant, search, activeCityId, isIndia]);
 
   // Toggle expand for single product
   const toggleProductExpand = (id: string) => {
@@ -552,7 +556,8 @@ export function CityAvailabilityView() {
 
                             <div>
                               <div style={{ fontWeight: 700, fontSize: '14px' }}>
-                                {group.productName}
+                                {group.productName}{' '}
+                                {!group.active && <span className="portal-badge-inactive">Inactive</span>}
                               </div>
                               <div style={{ fontSize: '12px', color: 'var(--ink-soft)', marginTop: '2px' }}>
                                 {group.schoolName && (
@@ -639,7 +644,10 @@ export function CityAvailabilityView() {
                             </button>
 
                             {isIndia && (
-                              <button type="button" className="portal-btn portal-btn-primary portal-btn-sm" onClick={() => openReceipt(group)}>
+                              <button type="button" className="portal-btn portal-btn-primary portal-btn-sm"
+                                disabled={!group.variants.some((variant) => variant.active)}
+                                title={group.variants.some((variant) => variant.active) ? undefined : 'Enable a size in Uniform Catalogue to add stock in bulk'}
+                                onClick={() => openReceipt(group)}>
                                 Stock selected sizes
                               </button>
                             )}
@@ -702,7 +710,8 @@ export function CityAvailabilityView() {
                                   {group.variants.map((v) => (
                                     <tr key={v.variantId}>
                                       <td>
-                                        <strong style={{ fontSize: '13px' }}>Size {v.size}</strong>
+                                        <strong style={{ fontSize: '13px' }}>Size {v.size}</strong>{' '}
+                                        {!v.active && <span className="portal-badge-inactive">Inactive</span>}
                                       </td>
                                       <td>
                                         <code style={{ fontSize: '12px' }}>{v.sku}</code>
@@ -781,13 +790,13 @@ export function CityAvailabilityView() {
                   <legend>Choose sizes</legend>
                   {receiptProduct.variants.map((variant) => (
                     <label key={variant.variantId} style={{ display: 'inline-flex', gap: 6, margin: '6px 14px 6px 0' }}>
-                      <input type="checkbox" checked={receiptSizes.includes(variant.variantId)} onChange={(event) => {
+                      <input type="checkbox" disabled={!variant.active} checked={receiptSizes.includes(variant.variantId)} onChange={(event) => {
                         const checked = event.target.checked;
                         setReceiptSizes((sizes) => checked
                           ? [...sizes, variant.variantId]
                           : sizes.filter((size) => size !== variant.variantId));
                       }} />
-                      {variant.size} ({variant.stockQuantity} on hand)
+                      {variant.size} ({variant.active ? `${variant.stockQuantity} on hand` : 'inactive'})
                     </label>
                   ))}
                 </fieldset>
