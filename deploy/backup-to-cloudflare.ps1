@@ -48,17 +48,18 @@ if ($Install) {
 }
 
 $db = Read-KV "$project\.env"
+. "$PSScriptRoot\db-connection.ps1"
+$conn = Get-StoreDbConnection $db   # DATABASE_URL (e.g. self-hosted Supabase) wins over POSTGRES_*
 
 # ---- 1. dump + check ----
 $file = "school_store_$(Get-Date -Format 'yyyyMMdd_HHmmss').dump"
 $path = Join-Path $backups $file
-Log "dumping $($db['POSTGRES_DB']) to $path"
-$env:PGPASSWORD = $db['POSTGRES_PASSWORD']
-& pg_dump -h $db['POSTGRES_HOST'] -p $db['POSTGRES_PORT'] -U $db['POSTGRES_USER'] -d $db['POSTGRES_DB'] -Fc -f $path
+Log "dumping $($conn.Label) to $path"
+& pg_dump @($conn.Args) -Fc -f $path
 if ($LASTEXITCODE -ne 0) { throw 'pg_dump failed' }
 & pg_restore -l $path | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "backup file $path is not readable" }
-Remove-Item Env:PGPASSWORD
+Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
 Log ("dump ok: {0:N1} MB" -f ((Get-Item $path).Length / 1MB))
 
 # ---- 2. upload to R2 ----
