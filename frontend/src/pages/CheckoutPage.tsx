@@ -154,6 +154,7 @@ export function CheckoutPage() {
     try {
       const q = await orderApi.quote({
         student: child.id,
+        fulfillment_type: deliveryType === 'HOME' ? 'HOME_DELIVERY' : 'SCHOOL_PICKUP',
         items: cart.map((item) => ({
           variant: item.variantId,
           quantity: item.quantity,
@@ -173,7 +174,7 @@ export function CheckoutPage() {
     } finally {
       setQuoteLoading(false);
     }
-  }, [child, cart, t]);
+  }, [child, cart, deliveryType, t]);
 
   useEffect(() => {
     if (activeStep === 3 && mode === 'account' && child) {

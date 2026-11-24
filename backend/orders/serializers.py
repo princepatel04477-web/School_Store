@@ -473,15 +473,17 @@ class OrderCreateSerializer(serializers.Serializer):
         raise PermissionDenied("Invalid role for placing orders.")
 
     def validate(self, attrs):
-        student = attrs["student"]
-        school = student.school
-        fulfillment_type = attrs["fulfillment_type"]
         payment_method = attrs.get("payment_method", Order.PaymentMethod.ONLINE)
         if payment_method == Order.PaymentMethod.ONLINE:
             from django.conf import settings
             from .payment import RazorpayGateway
             if not RazorpayGateway().is_usable() and not getattr(settings, "DEBUG", False):
                 raise serializers.ValidationError({"payment_method": ["Online payment is currently unavailable."]})
+        return self.validate_order_details(attrs)
+
+    def validate_order_details(self, attrs):
+        school = attrs["student"].school
+        fulfillment_type = attrs["fulfillment_type"]
         if (
             fulfillment_type == Order.FulfillmentType.HOME_DELIVERY
             and not school.home_delivery_enabled
@@ -862,7 +864,7 @@ class OrderQuoteSerializer(serializers.Serializer):
     fit = OrderFitInputSerializer(required=False, allow_null=True)
 
     validate_student = OrderCreateSerializer.validate_student
-    validate = OrderCreateSerializer.validate
+    validate = OrderCreateSerializer.validate_order_details
 
     def get_quote(self):
         user = self.context["request"].user
