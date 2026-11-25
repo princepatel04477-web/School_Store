@@ -58,6 +58,8 @@ def _get_student_for(user, student_id) -> Student:
         return student
     if role == "ADMIN" and user.city_id and user.city_id == student.city_id:
         return student
+    if role == "TEACHER" and getattr(user, "all_schools_access", False):
+        return student
     if role in ("SCHOOL_ADMIN", "TEACHER") and user.school_id == student.school_id:
         return student
     if role == "PARENT" and student.parent_id == user.id:

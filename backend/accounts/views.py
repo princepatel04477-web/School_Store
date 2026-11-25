@@ -3,6 +3,7 @@ from django.conf import settings
 from django.core.cache import cache
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -229,7 +230,7 @@ class UserViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
     - Teacher & Parent see only their own user row (`WHERE id = user.id`) and cannot create/modify staff accounts.
     """
 
-    queryset = User.objects.select_related("city", "school").order_by("-created_at")
+    queryset = User.objects.select_related("city", "school", "branch").order_by("-created_at")
     permission_classes = [RoleScopedPermission]
     read_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER", "PARENT")
     write_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN")
@@ -245,6 +246,29 @@ class UserViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         if user.role == "TEACHER":
             return qs.filter(id=user.id)
         return super().scope_queryset(qs)
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        params = self.request.query_params
+        role = (params.get("role") or "").strip().upper()
+        school = params.get("school")
+        city = params.get("city")
+        search = (params.get("search") or "").strip()
+        if role:
+            qs = qs.filter(role=role)
+        if school:
+            qs = qs.filter(school_id=school)
+        if city:
+            qs = qs.filter(city_id=city)
+        if search:
+            from django.db.models import Q
+            qs = qs.filter(
+                Q(username__icontains=search)
+                | Q(first_name__icontains=search)
+                | Q(last_name__icontains=search)
+                | Q(phone__icontains=search)
+            )
+        return qs
 
     def get_serializer_class(self):
         if self.action in ("create", "update", "partial_update"):
@@ -295,3 +319,69 @@ class UserViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         target_user.must_change_password = True
         target_user.save(update_fields=["password", "must_change_password", "updated_at"])
         return Response({"detail": f"Password reset successfully for {target_user.username}."})
+
+    @staticmethod
+    def _generate_six_digits() -> str:
+        return str(secrets.randbelow(900000) + 100000)
+
+    @action(detail=False, methods=["post"], url_path="create-teacher")
+    def create_teacher(self, request):
+        """Create a Teacher with an auto-generated 6-digit User ID and 6-digit Password."""
+        payload = request.data.copy()
+        payload["role"] = User.Role.TEACHER
+
+        username = (payload.get("username") or "").strip()
+        if not username:
+            for _ in range(25):
+                candidate = self._generate_six_digits()
+                if not User.objects.filter(username=candidate).exists():
+                    username = candidate
+                    break
+        raw_password = (payload.get("password") or "").strip() or self._generate_six_digits()
+        payload["username"] = username
+        payload["password"] = raw_password
+
+        serializer = ManagedUserWriteSerializer(data=payload, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        user.set_issued_password(raw_password)
+        user.must_change_password = False
+        user.save(update_fields=["password", "issued_password_token", "must_change_password", "updated_at"])
+
+        user = User.objects.select_related("city", "school", "branch").get(pk=user.pk)
+        return Response(
+            UserSerializer(user, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["post"], url_path="regenerate-password")
+    def regenerate_password(self, request, pk=None):
+        """Generate a fresh 6-digit password for a Teacher and keep it viewable for sharing."""
+        target_user = self.get_object()
+        actor = request.user
+        if actor.role == User.Role.BOSS or getattr(actor, "is_superuser", False):
+            pass
+        elif actor.role == User.Role.ADMIN:
+            if actor.city_id and target_user.city_id != actor.city_id:
+                raise PermissionDenied("Admins can only regenerate passwords for teachers in their city.")
+        elif actor.role == User.Role.SCHOOL_ADMIN:
+            if target_user.school_id != actor.school_id:
+                raise PermissionDenied("School Admins can only regenerate passwords for teachers in their school.")
+        else:
+            raise PermissionDenied("You do not have permission to regenerate teacher passwords.")
+
+        if target_user.role != User.Role.TEACHER:
+            return Response(
+                {"detail": "6-digit password regeneration is only for Teacher accounts."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        new_pin = self._generate_six_digits()
+        target_user.set_issued_password(new_pin)
+        target_user.must_change_password = False
+        target_user.save(update_fields=["password", "issued_password_token", "must_change_password", "updated_at"])
+        return Response({
+            "id": str(target_user.id),
+            "username": target_user.username,
+            "issued_password": new_pin,
+        })

@@ -24,9 +24,10 @@ from common.throttles import StudentClaimIPThrottle, StudentClaimUserThrottle
 from inventory.services import INDIA_STOCK_ID
 
 from .import_service import TEMPLATE_COLUMNS
-from .models import City, School, Student, StudentMeasurement
+from .models import City, School, SchoolBranch, Student, StudentMeasurement
 from .serializers import (
     CitySerializer,
+    SchoolBranchSerializer,
     SchoolSerializer,
     StudentApproveSerializer,
     StudentAssignParentSerializer,
@@ -68,11 +69,23 @@ class CityViewSet(
         user = self.request.user
         if not user or not user.is_authenticated:
             return qs.none()
-        if user.role == "BOSS" or getattr(user, "is_superuser", False) or (user.role == "ADMIN" and not user.city_id):
+        if (
+            user.role == "BOSS"
+            or getattr(user, "is_superuser", False)
+            or (user.role == "ADMIN" and not user.city_id)
+            or (user.role == "TEACHER" and getattr(user, "all_schools_access", False))
+        ):
             return qs
         if user.city_id:
             return qs.filter(id=user.city_id)
         return qs.none()
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        state = (self.request.query_params.get("state") or "").strip()
+        if state:
+            qs = qs.filter(state__iexact=state)
+        return qs
 
 
 class SchoolViewSet(
@@ -124,6 +137,38 @@ class SchoolViewSet(
         # Soft delete: setting active to false, never a hard delete
         instance.active = False
         instance.save(update_fields=["active", "updated_at"])
+
+
+class SchoolBranchViewSet(
+    VersionedListCacheMixin,
+    ScopedQuerysetMixin,
+    viewsets.ModelViewSet,
+):
+    cache_version_key = SCHOOL_LIST_CACHE_VERSION_KEY
+    cache_namespace = "schools:branches"
+    queryset = SchoolBranch.objects.select_related("school", "city").order_by("school__name", "name")
+    serializer_class = SchoolBranchSerializer
+    permission_classes = [RoleScopedPermission]
+    read_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER")
+    write_roles = ("BOSS", "ADMIN")
+
+    scope_city_field = "city_id"
+    scope_school_field = "school_id"
+    scope_parent_field = None
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        params = self.request.query_params
+        city_id = params.get("city")
+        school_id = params.get("school")
+        state = (params.get("state") or "").strip()
+        if city_id:
+            qs = qs.filter(city_id=city_id)
+        if school_id:
+            qs = qs.filter(school_id=school_id)
+        if state:
+            qs = qs.filter(city__state__iexact=state)
+        return qs
 
 
 class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):

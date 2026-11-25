@@ -1,6 +1,6 @@
 import { purgeSavedData } from './store/persist';
 export type Role='PARENT'|'TEACHER'|'SCHOOL_ADMIN'|'ADMIN'|'BOSS'|'RETAILER';
-export type User={id:string;username:string;role:Role;city?:string|null;city_name?:string|null;school?:{name:string}|string|null;school_name?:string|null;school_code?:string|null;phone?:string;email?:string;first_name?:string;last_name?:string;is_active?:boolean;created_at?:string};
+export type User={id:string;username:string;role:Role;city?:string|null;city_name?:string|null;city_state?:string|null;school?:{name:string}|string|null;school_name?:string|null;school_code?:string|null;branch?:string|null;branch_name?:string|null;all_schools_access?:boolean;issued_password?:string|null;phone?:string;email?:string;first_name?:string;last_name?:string;is_active?:boolean;created_at?:string};
 export type CustomisationField = {
   key: string;
   label: string;
@@ -772,4 +772,28 @@ export const portalApi = {
   setCityPrice: (body: { product: string; city: string; selling_price: string; cost_price?: string }) =>
     api<ProductCityPrice>('/city-prices/', { method: 'POST', body: JSON.stringify(body) }),
   deleteCityPrice: (id: string) => api<void>(`/city-prices/${id}/`, { method: 'DELETE' }),
+  branches: (p: Record<string, string> = {}) =>
+    api<Page<{ id: string; school: string; school_name: string; city: string; city_name: string; city_state: string; name: string; display_name: string; address: string; pincode: string; phone: string; active: boolean }>>(
+      `/branches/?${new URLSearchParams({ page_size: '50', ...p })}`
+    ),
+};
+
+export const teacherAdmin = {
+  list: (p: Record<string, string> = {}) =>
+    api<Page<User>>(`/auth/users/?${new URLSearchParams({ role: 'TEACHER', page_size: '50', ...p })}`),
+  create: (body: {
+    first_name: string;
+    last_name?: string;
+    phone?: string;
+    school?: string | null;
+    branch?: string | null;
+    city?: string | null;
+    all_schools_access?: boolean;
+  }) => api<User>('/auth/users/create-teacher/', { method: 'POST', body: JSON.stringify(body) }),
+  regeneratePassword: (id: string) =>
+    api<{ id: string; username: string; issued_password: string }>(`/auth/users/${id}/regenerate-password/`, {
+      method: 'POST',
+    }),
+  toggleActive: (id: string, is_active: boolean) =>
+    api<User>(`/auth/users/${id}/`, { method: 'PATCH', body: JSON.stringify({ is_active }) }),
 };

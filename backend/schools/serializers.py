@@ -8,7 +8,7 @@ from common.constants import normalize_class_name
 from common.exceptions import Conflict
 from common.models import ImportJob
 
-from .models import City, Grade, School, Student, StudentMeasurement
+from .models import City, Grade, School, SchoolBranch, Student, StudentMeasurement
 
 
 class CitySerializer(serializers.ModelSerializer):
@@ -16,6 +16,31 @@ class CitySerializer(serializers.ModelSerializer):
         model = City
         fields = ("id", "name", "code", "state", "active", "created_at")
         read_only_fields = ("id", "created_at")
+
+
+class SchoolBranchSerializer(serializers.ModelSerializer):
+    city_name = serializers.CharField(source="city.name", read_only=True)
+    city_state = serializers.CharField(source="city.state", read_only=True)
+    school_name = serializers.CharField(source="school.name", read_only=True)
+    display_name = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = SchoolBranch
+        fields = (
+            "id",
+            "school",
+            "school_name",
+            "city",
+            "city_name",
+            "city_state",
+            "name",
+            "display_name",
+            "address",
+            "pincode",
+            "phone",
+            "active",
+        )
+        read_only_fields = ("id", "city_name", "city_state", "school_name", "display_name")
 
 
 class SchoolSerializer(serializers.ModelSerializer):
@@ -44,6 +69,7 @@ class SchoolSerializer(serializers.ModelSerializer):
             "name",
             "code",
             "active",
+            "is_public_store",
             "commission_rate",
             "home_delivery_enabled",
             "school_pickup_enabled",
@@ -91,6 +117,7 @@ class StudentSerializer(serializers.ModelSerializer):
 
     school_name = serializers.CharField(source="school.name", read_only=True)
     school_code = serializers.CharField(source="school.code", read_only=True)
+    branch_name = serializers.CharField(source="branch.display_name", read_only=True, default=None)
     parent_name = serializers.CharField(source="parent.get_full_name", read_only=True)
     parent_phone = serializers.CharField(source="parent.phone", read_only=True)
     grade_name = serializers.CharField(source="grade.name", read_only=True)
@@ -115,6 +142,8 @@ class StudentSerializer(serializers.ModelSerializer):
             "school",
             "school_name",
             "school_code",
+            "branch",
+            "branch_name",
             "city",
             "parent",
             "parent_name",
@@ -130,6 +159,7 @@ class StudentSerializer(serializers.ModelSerializer):
             "grade_name",
             "school_name",
             "school_code",
+            "branch_name",
             "city",
             "parent",
             "parent_name",
@@ -156,12 +186,19 @@ class StudentSerializer(serializers.ModelSerializer):
         school = attrs.get("school") or getattr(self.instance, "school", None)
 
         if user.role in ("SCHOOL_ADMIN", "TEACHER"):
-            if school and school.id != user.school_id:
-                raise PermissionDenied(
-                    "You can only manage students within your own school."
-                )
-            if not school:
-                attrs["school_id"] = user.school_id
+            if user.role == "TEACHER" and getattr(user, "all_schools_access", False):
+                if not school:
+                    if user.school_id:
+                        attrs["school_id"] = user.school_id
+                    else:
+                        raise ValidationError({"school": "School is required."})
+            else:
+                if school and school.id != user.school_id:
+                    raise PermissionDenied(
+                        "You can only manage students within your own school."
+                    )
+                if not school:
+                    attrs["school_id"] = user.school_id
         elif user.role in ("ADMIN", "BOSS") or getattr(user, "is_superuser", False):
             if not school:
                 raise ValidationError({"school": "School is required."})

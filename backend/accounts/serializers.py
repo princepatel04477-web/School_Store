@@ -2,7 +2,7 @@ from django.core.cache import cache
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from schools.models import City, School
+from schools.models import City, School, SchoolBranch
 from common.phone import normalize_in_mobile
 from .models import User
 
@@ -17,8 +17,11 @@ def build_tokens_for_user(user: User) -> dict:
 
 class UserSerializer(serializers.ModelSerializer):
     city_name = serializers.CharField(source="city.name", read_only=True, default=None)
+    city_state = serializers.CharField(source="city.state", read_only=True, default=None)
     school_name = serializers.CharField(source="school.name", read_only=True, default=None)
     school_code = serializers.CharField(source="school.code", read_only=True, default=None)
+    branch_name = serializers.CharField(source="branch.display_name", read_only=True, default=None)
+    issued_password = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -32,11 +35,16 @@ class UserSerializer(serializers.ModelSerializer):
             "phone",
             "phone_verified",
             "must_change_password",
+            "all_schools_access",
             "city",
             "city_name",
+            "city_state",
             "school",
             "school_name",
             "school_code",
+            "branch",
+            "branch_name",
+            "issued_password",
             "is_active",
             "created_at",
         )
@@ -45,10 +53,24 @@ class UserSerializer(serializers.ModelSerializer):
             "must_change_password",
             "phone_verified",
             "city_name",
+            "city_state",
             "school_name",
             "school_code",
+            "branch_name",
+            "issued_password",
             "created_at",
         )
+
+    def get_issued_password(self, obj):
+        request = self.context.get("request")
+        actor = getattr(request, "user", None)
+        if not actor or not getattr(actor, "is_authenticated", False):
+            return None
+        if obj.role != User.Role.TEACHER:
+            return None
+        if actor.role in (User.Role.BOSS, User.Role.ADMIN, User.Role.SCHOOL_ADMIN) or getattr(actor, "is_superuser", False):
+            return obj.get_issued_password() or None
+        return None
 
 
 class ManagedUserWriteSerializer(serializers.ModelSerializer):
@@ -69,6 +91,12 @@ class ManagedUserWriteSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
+    branch = serializers.PrimaryKeyRelatedField(
+        queryset=SchoolBranch.objects.select_related("school", "city").all(),
+        required=False,
+        allow_null=True,
+    )
+    all_schools_access = serializers.BooleanField(required=False, default=False)
 
     class Meta:
         model = User
@@ -83,6 +111,8 @@ class ManagedUserWriteSerializer(serializers.ModelSerializer):
             "phone",
             "city",
             "school",
+            "branch",
+            "all_schools_access",
             "is_active",
         )
         read_only_fields = ("id",)
@@ -103,29 +133,45 @@ class ManagedUserWriteSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"city": "City is required when creating an Admin."}
                 )
-            if target_role in (User.Role.SCHOOL_ADMIN, User.Role.TEACHER):
-                if not target_school:
+            if target_role == User.Role.SCHOOL_ADMIN and not target_school:
+                raise serializers.ValidationError(
+                    {"school": "School is required for School Admin."}
+                )
+            if target_role == User.Role.TEACHER:
+                if not target_school and not attrs.get("all_schools_access"):
                     raise serializers.ValidationError(
-                        {"school": "School is required for School Admin or Teacher."}
+                        {"school": "Select a school or enable All Schools access for a Teacher."}
                     )
+                if attrs.get("branch") and not target_school:
+                    attrs["school"] = attrs["branch"].school
+                    target_school = attrs["school"]
+                if attrs.get("branch") and attrs["branch"].city_id:
+                    attrs["city"] = attrs["branch"].city
+                elif target_school and target_school.city_id:
+                    attrs["city"] = target_school.city
+                return attrs
+            if target_school:
                 attrs["city"] = target_school.city
             return attrs
 
         if actor.role == User.Role.ADMIN:
-            if target_role and target_role != User.Role.SCHOOL_ADMIN:
+            if target_role and target_role not in (User.Role.SCHOOL_ADMIN, User.Role.TEACHER):
                 raise PermissionDenied(
-                    "Admins can only create School Admin accounts."
+                    "Admins can only create School Admin or Teacher accounts."
                 )
-            attrs["role"] = User.Role.SCHOOL_ADMIN
+            target_role = target_role or User.Role.SCHOOL_ADMIN
+            attrs["role"] = target_role
+            if target_role == User.Role.TEACHER and attrs.get("all_schools_access") and not actor.city_id:
+                return attrs
             if not target_school:
                 raise serializers.ValidationError(
-                    {"school": "School is required when creating a School Admin."}
+                    {"school": "School is required."}
                 )
-            if target_school.city_id != actor.city_id:
+            if actor.city_id and target_school.city_id != actor.city_id:
                 raise PermissionDenied(
-                    "Admins can only create School Admins for schools in their own city."
+                    "Admins can only create staff for schools in their own city."
                 )
-            attrs["city"] = target_school.city
+            attrs["city"] = attrs.get("branch").city if attrs.get("branch") else target_school.city
             return attrs
 
         if actor.role == User.Role.SCHOOL_ADMIN:
@@ -271,6 +317,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token["role"] = user.role
         token["city_id"] = str(user.city_id) if user.city_id else None
         token["school_id"] = str(user.school_id) if user.school_id else None
+        token["all_schools_access"] = bool(user.all_schools_access)
         token["must_change_password"] = bool(user.must_change_password)
         return token
 

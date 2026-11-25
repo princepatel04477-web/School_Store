@@ -71,6 +71,10 @@ class School(UUIDModel):
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=40, unique=True)
     active = models.BooleanField(default=True)
+    is_public_store = models.BooleanField(
+        default=True,
+        help_text="If False, this school is hidden from the public storefront and only visible in the Teacher/ID-Card & Admin portals.",
+    )
     commission_rate = models.DecimalField(
         max_digits=5,
         decimal_places=2,

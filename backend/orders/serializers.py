@@ -459,6 +459,8 @@ class OrderCreateSerializer(serializers.Serializer):
                 )
             return student
         if user.role in ("SCHOOL_ADMIN", "TEACHER"):
+            if user.role == "TEACHER" and getattr(user, "all_schools_access", False):
+                return student
             if student.school_id != user.school_id:
                 raise PermissionDenied(
                     "You can only place orders for students in your own school."

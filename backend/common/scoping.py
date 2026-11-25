@@ -43,6 +43,8 @@ def apply_user_scope(
         return qs.filter(**{city_field: city_id})
 
     if role in ("SCHOOL_ADMIN", "TEACHER"):
+        if role == "TEACHER" and getattr(user, "all_schools_access", False):
+            return qs
         school_id = getattr(user, "school_id", None)
         if not school_id or not school_field:
             return qs.none()
