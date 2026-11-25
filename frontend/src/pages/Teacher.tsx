@@ -5,12 +5,15 @@ import { Shell } from '../App';
 import { useAuth } from '../auth';
 import { SelectionFlow } from '../components/SelectionFlow';
 import { Cart, type CartItem } from '../components/Store';
-import { api, money, portalApi, type Order, type Product } from '../api';
+import { api, money, portalApi, upload, type Order, type Product } from '../api';
 import type { Fit } from '../data/fit';
 
-const CLASSES_1_TO_12 = [
+const STANDARDS = [
+  'Nursery', 'Junior KG', 'Senior KG',
   '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12',
 ];
+
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 
 const CATEGORIES = [
   'ID Cards',
@@ -21,6 +24,17 @@ const CATEGORIES = [
 ] as const;
 
 type CategoryTab = (typeof CATEGORIES)[number];
+
+type SchoolClassItem = {
+  id: string;
+  school: string;
+  school_name: string;
+  branch: string | null;
+  branch_name: string | null;
+  class_name: string;
+  section: string;
+  label: string;
+};
 
 function TeacherTabs() {
   const tabStyle = ({ isActive }: { isActive: boolean }) => ({
@@ -76,12 +90,16 @@ function useTeacherSchoolContext() {
   const [searchParams, setSearchParams] = useSearchParams();
   const allAccess = Boolean(user?.all_schools_access);
 
-  const defaultSchoolId =
-    searchParams.get('school') ||
-    (typeof user?.school === 'string' ? user.school : '') ||
-    '';
-  const defaultCityId = searchParams.get('city') || user?.city || '';
-  const defaultBranchId = searchParams.get('branch') || user?.branch || '';
+  const userSchoolId = typeof user?.school === 'string' ? user.school : '';
+  const defaultSchoolId = allAccess
+    ? searchParams.get('school') || userSchoolId || ''
+    : userSchoolId || '';
+  const defaultCityId = allAccess
+    ? searchParams.get('city') || user?.city || ''
+    : user?.city || '';
+  const defaultBranchId = allAccess
+    ? searchParams.get('branch') || user?.branch || ''
+    : user?.branch || '';
 
   const [stateFilter, setStateFilter] = useState('');
   const [cityId, setCityId] = useState(defaultCityId);
@@ -173,7 +191,9 @@ function SchoolBranchPicker({ ctx }: { ctx: ReturnType<typeof useTeacherSchoolCo
       <div className="notice" style={{ marginBottom: '16px' }}>
         <b>{ctx.user?.school_name || 'Assigned School'}</b>
         <p style={{ margin: '4px 0 0' }}>
-          {ctx.user?.branch_name ? `Branch: ${ctx.user.branch_name}` : 'All classes (Class 1 to 12)'}
+          {ctx.user?.branch_name
+            ? `Branch: ${ctx.user.branch_name} (branch-locked access)`
+            : 'School-wide access · Classes & Students'}
         </p>
       </div>
     );
@@ -250,11 +270,50 @@ function SchoolBranchPicker({ ctx }: { ctx: ReturnType<typeof useTeacherSchoolCo
 
 function ClassesView() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const ctx = useTeacherSchoolContext();
 
-  const openClass = (cls: string) => {
+  const [showAdd, setShowAdd] = useState(false);
+  const [newClass, setNewClass] = useState('1');
+  const [newSection, setNewSection] = useState('A');
+  const [classError, setClassError] = useState('');
+
+  const { data: classesData, isLoading } = useQuery({
+    queryKey: ['teacher-classes', ctx.schoolId, ctx.branchId],
+    queryFn: () => {
+      const p = new URLSearchParams({ page_size: '100' });
+      if (ctx.schoolId) p.set('school', ctx.schoolId);
+      if (ctx.branchId) p.set('branch', ctx.branchId);
+      return api<{ results: SchoolClassItem[] }>(`/classes/?${p.toString()}`);
+    },
+  });
+  const savedClasses = classesData?.results || [];
+
+  const addClassMutation = useMutation({
+    mutationFn: () =>
+      api<SchoolClassItem>('/classes/', {
+        method: 'POST',
+        body: JSON.stringify({
+          class_name: newClass,
+          section: newSection.trim().toUpperCase() || 'A',
+          ...(ctx.schoolId ? { school: ctx.schoolId } : {}),
+          ...(ctx.branchId ? { branch: ctx.branchId } : {}),
+        }),
+      }),
+    onSuccess: () => {
+      setClassError('');
+      setShowAdd(false);
+      queryClient.invalidateQueries({ queryKey: ['teacher-classes'] });
+    },
+    onError: (err: any) => {
+      setClassError(err?.data?.section || err?.message || 'Could not add class.');
+    },
+  });
+
+  const openClass = (cls: string, sec?: string) => {
     const p = new URLSearchParams();
     p.set('class', cls);
+    if (sec) p.set('section', sec);
     if (ctx.schoolId) p.set('school', ctx.schoolId);
     if (ctx.cityId) p.set('city', ctx.cityId);
     if (ctx.branchId) p.set('branch', ctx.branchId);
@@ -266,43 +325,117 @@ function ClassesView() {
       <SchoolBranchPicker ctx={ctx} />
       <div className="section-row">
         <div>
-          <span className="eyebrow">SELECT CLASS</span>
-          <h2>Class 1 to Class 12</h2>
+          <span className="eyebrow">SCHOOL & BRANCH CLASSES</span>
+          <h2>Classes ({savedClasses.length})</h2>
         </div>
-        <Link to="/teacher/students" className="text-button">
-          View All Students →
-        </Link>
+        <button className="text-button" onClick={() => setShowAdd((v) => !v)}>
+          {showAdd ? 'Close' : '+ Add Class'}
+        </button>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-          gap: '10px',
-          marginTop: '12px',
-        }}
-      >
-        {CLASSES_1_TO_12.map((cls) => (
-          <button
-            key={cls}
-            type="button"
-            onClick={() => openClass(cls)}
+      {showAdd && (
+        <form
+          className="form-card"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (ctx.allAccess && !ctx.schoolId) {
+              setClassError('Please select a School above before adding a class.');
+              return;
+            }
+            addClassMutation.mutate();
+          }}
+        >
+          <h3>Add Class & Section (e.g. 1A, 1B)</h3>
+          {classError && <div className="error">{classError}</div>}
+          <div className="form-row">
+            <select value={newClass} onChange={(e) => setNewClass(e.target.value)} required>
+              {STANDARDS.map((c) => (
+                <option key={c} value={c}>
+                  {['Nursery', 'Junior KG', 'Senior KG'].includes(c) ? c : `Class ${c}`}
+                </option>
+              ))}
+            </select>
+            <input
+              value={newSection}
+              onChange={(e) => setNewSection(e.target.value.toUpperCase())}
+              placeholder="Section (e.g. A, B, C)"
+              maxLength={10}
+              required
+            />
+          </div>
+          <button className="primary full" disabled={addClassMutation.isPending}>
+            {addClassMutation.isPending ? 'Adding...' : `Add Class ${newClass}${newSection.trim().toUpperCase()}`}
+          </button>
+        </form>
+      )}
+
+      {isLoading ? (
+        <p className="muted">Loading classes...</p>
+      ) : savedClasses.length > 0 ? (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+            gap: '10px',
+            marginTop: '12px',
+          }}
+        >
+          {savedClasses.map((sc) => (
+            <button
+              key={sc.id}
+              type="button"
+              onClick={() => openClass(sc.class_name, sc.section)}
+              style={{
+                padding: '16px 12px',
+                borderRadius: '8px',
+                border: '1px solid #dfe5dd',
+                background: '#ffffff',
+                cursor: 'pointer',
+                textAlign: 'center',
+                fontWeight: 700,
+                color: '#1f2a24',
+              }}
+            >
+              <div style={{ fontSize: '20px', color: '#275b4c' }}>{sc.label}</div>
+              <small style={{ fontWeight: 500, color: '#55695d' }}>
+                {sc.branch_name || sc.school_name}
+              </small>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="notice" style={{ marginTop: '12px' }}>
+          <b>No custom classes added yet</b>
+          <p>Tap "+ Add Class" above to create sections like 1A, 1B, 2A for this branch, or jump straight to a standard below:</p>
+          <div
             style={{
-              padding: '16px 12px',
-              borderRadius: '8px',
-              border: '1px solid #dfe5dd',
-              background: '#ffffff',
-              cursor: 'pointer',
-              textAlign: 'center',
-              fontWeight: 700,
-              color: '#1f2a24',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))',
+              gap: '8px',
+              marginTop: '10px',
             }}
           >
-            <div style={{ fontSize: '18px', color: '#275b4c' }}>Class {cls}</div>
-            <small style={{ fontWeight: 500, color: '#55695d' }}>Open roster →</small>
-          </button>
-        ))}
-      </div>
+            {STANDARDS.slice(3).map((cls) => (
+              <button
+                key={cls}
+                type="button"
+                onClick={() => openClass(cls)}
+                style={{
+                  padding: '10px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid #dfe5dd',
+                  background: '#ffffff',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  color: '#275b4c',
+                }}
+              >
+                Class {cls}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -313,23 +446,31 @@ function StudentsView() {
   const [searchParams] = useSearchParams();
   const [q, setQ] = useState('');
   const [cls, setCls] = useState(searchParams.get('class') || 'All');
+  const [secFilter, setSecFilter] = useState(searchParams.get('section') || '');
   const [showAdd, setShowAdd] = useState(false);
 
-  // Add Student form state
+  // Full student details + photo form
   const [name, setName] = useState('');
   const [grNumber, setGrNumber] = useState('');
   const [className, setClassName] = useState(cls === 'All' ? '1' : cls);
-  const [section, setSection] = useState('A');
+  const [section, setSection] = useState(secFilter || 'A');
   const [gender, setGender] = useState<'MALE' | 'FEMALE'>('MALE');
+  const [dob, setDob] = useState('');
+  const [bloodGroup, setBloodGroup] = useState('');
+  const [guardianName, setGuardianName] = useState('');
   const [rosterPhone, setRosterPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string>('');
   const [addError, setAddError] = useState('');
 
   const { data, isLoading } = useQuery({
-    queryKey: ['teacher-students', q, cls, ctx.schoolId, ctx.branchId],
+    queryKey: ['teacher-students', q, cls, secFilter, ctx.schoolId, ctx.branchId],
     queryFn: () => {
       const p = new URLSearchParams();
       if (q.trim()) p.set('search', q.trim());
       if (cls !== 'All') p.set('class', cls);
+      if (secFilter.trim()) p.set('section', secFilter.trim().toUpperCase());
       if (ctx.schoolId) p.set('school', ctx.schoolId);
       if (ctx.branchId) p.set('branch', ctx.branchId);
       return api<{ results: any[] }>(`/students/?${p.toString()}`);
@@ -337,30 +478,39 @@ function StudentsView() {
   });
 
   const addMutation = useMutation({
-    mutationFn: () =>
-      api<any>('/students/', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: name.trim(),
-          gr_number: grNumber.trim(),
-          class_name: className,
-          section: section.trim() || 'A',
-          gender,
-          roster_phone: rosterPhone.trim(),
-          ...(ctx.schoolId ? { school: ctx.schoolId } : {}),
-          ...(ctx.branchId ? { branch: ctx.branchId } : {}),
-        }),
-      }),
+    mutationFn: () => {
+      const fd = new FormData();
+      fd.append('name', name.trim());
+      fd.append('gr_number', grNumber.trim());
+      fd.append('class_name', className);
+      fd.append('section', section.trim().toUpperCase() || 'A');
+      fd.append('gender', gender);
+      if (dob) fd.append('date_of_birth', dob);
+      if (bloodGroup) fd.append('blood_group', bloodGroup);
+      if (guardianName.trim()) fd.append('father_or_guardian_name', guardianName.trim());
+      if (rosterPhone.trim()) fd.append('roster_phone', rosterPhone.trim());
+      if (address.trim()) fd.append('address', address.trim());
+      if (ctx.schoolId) fd.append('school', ctx.schoolId);
+      if (ctx.branchId) fd.append('branch', ctx.branchId);
+      if (photoFile) fd.append('photo', photoFile);
+      return upload<any>('/students/', fd);
+    },
     onSuccess: () => {
       setAddError('');
       setName('');
       setGrNumber('');
+      setDob('');
+      setBloodGroup('');
+      setGuardianName('');
       setRosterPhone('');
+      setAddress('');
+      setPhotoFile(null);
+      setPhotoPreview('');
       setShowAdd(false);
       queryClient.invalidateQueries({ queryKey: ['teacher-students'] });
     },
     onError: (err: any) => {
-      setAddError(err?.message || 'Could not save student.');
+      setAddError(err?.data?.gr_number || err?.message || 'Could not save student.');
     },
   });
 
@@ -371,8 +521,10 @@ function StudentsView() {
       <SchoolBranchPicker ctx={ctx} />
       <div className="section-row">
         <div>
-          <span className="eyebrow">STUDENT ROSTER</span>
-          <h2>Students {cls !== 'All' ? `· Class ${cls}` : ''}</h2>
+          <span className="eyebrow">STUDENT ROSTER & ID DETAILS</span>
+          <h2>
+            Students {cls !== 'All' ? `· Class ${cls}${secFilter}` : ''}
+          </h2>
         </div>
         <button className="text-button" onClick={() => setShowAdd(!showAdd)}>
           {showAdd ? 'Close' : '+ Add Student'}
@@ -389,10 +541,13 @@ function StudentsView() {
       </div>
 
       <div className="chips" style={{ overflowX: 'auto' }}>
-        {['All', ...CLASSES_1_TO_12].map((x) => (
+        {['All', ...STANDARDS.slice(3)].map((x) => (
           <button
             className={cls === x ? 'chip active' : 'chip'}
-            onClick={() => setCls(x)}
+            onClick={() => {
+              setCls(x);
+              if (x === 'All') setSecFilter('');
+            }}
             key={x}
           >
             {x === 'All' ? 'All Classes' : `Class ${x}`}
@@ -412,8 +567,40 @@ function StudentsView() {
             addMutation.mutate();
           }}
         >
-          <h3>Add New Student</h3>
+          <h3>Add Student & ID Card Photo</h3>
           {addError && <div className="error">{addError}</div>}
+
+          {/* Photo Capture / Upload */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #94a3b8' }}>
+            {photoPreview ? (
+              <img
+                src={photoPreview}
+                alt="Student preview"
+                style={{ width: '64px', height: '64px', borderRadius: '8px', objectFit: 'cover' }}
+              />
+            ) : (
+              <div style={{ width: '64px', height: '64px', borderRadius: '8px', background: '#e2ece5', display: 'grid', placeItems: 'center', fontSize: '12px', color: '#275b4c', fontWeight: 700 }}>
+                PHOTO
+              </div>
+            )}
+            <div style={{ display: 'grid', gap: '4px' }}>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#275b4c', cursor: 'pointer' }}>
+                Take / Upload Student Photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    setPhotoFile(f);
+                    setPhotoPreview(f ? URL.createObjectURL(f) : '');
+                  }}
+                  style={{ display: 'block', marginTop: '4px', fontSize: '12px' }}
+                />
+              </label>
+            </div>
+          </div>
+
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -428,13 +615,15 @@ function StudentsView() {
           />
           <div className="form-row">
             <select value={className} onChange={(e) => setClassName(e.target.value)} required>
-              {CLASSES_1_TO_12.map((c) => (
-                <option key={c} value={c}>Class {c}</option>
+              {STANDARDS.map((c) => (
+                <option key={c} value={c}>
+                  {['Nursery', 'Junior KG', 'Senior KG'].includes(c) ? c : `Class ${c}`}
+                </option>
               ))}
             </select>
             <input
               value={section}
-              onChange={(e) => setSection(e.target.value)}
+              onChange={(e) => setSection(e.target.value.toUpperCase())}
               placeholder="Section (e.g. A)"
               required
             />
@@ -444,14 +633,38 @@ function StudentsView() {
               <option value="MALE">Boy</option>
               <option value="FEMALE">Girl</option>
             </select>
+            <select value={bloodGroup} onChange={(e) => setBloodGroup(e.target.value)}>
+              <option value="">Blood Group (Optional)</option>
+              {BLOOD_GROUPS.map((bg) => (
+                <option key={bg} value={bg}>{bg}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-row">
+            <input
+              type="date"
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+              title="Date of Birth"
+            />
             <input
               value={rosterPhone}
               onChange={(e) => setRosterPhone(e.target.value)}
-              placeholder="Parent phone (optional)"
+              placeholder="Parent phone (10 digits)"
             />
           </div>
+          <input
+            value={guardianName}
+            onChange={(e) => setGuardianName(e.target.value)}
+            placeholder="Father / Guardian name"
+          />
+          <input
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="Home address"
+          />
           <button className="primary full" disabled={addMutation.isPending}>
-            {addMutation.isPending ? 'Saving...' : 'Save Student'}
+            {addMutation.isPending ? 'Saving...' : 'Save Student & Photo'}
           </button>
         </form>
       )}
@@ -462,16 +675,25 @@ function StudentsView() {
         ) : list.length === 0 ? (
           <div className="notice">
             <b>No students found</b>
-            <p>Pick a school/class above or tap "+ Add Student" to register a student for their ID card.</p>
+            <p>Tap "+ Add Student" above to register a student with their photo and ID card details.</p>
           </div>
         ) : (
           list.map((s: any) => (
             <Link to={`/teacher/order/${s.id}`} className="student-row" key={s.id}>
-              <span className="kid-avatar">{s.name ? s.name[0] : 'S'}</span>
+              {s.photo_url ? (
+                <img
+                  src={s.photo_url}
+                  alt={s.name}
+                  style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }}
+                />
+              ) : (
+                <span className="kid-avatar">{s.name ? s.name[0] : 'S'}</span>
+              )}
               <div>
                 <b>{s.name}</b>
                 <small>
-                  {s.gr_number || '-'} · Class {s.grade_name || s.class_name || '-'} {s.section ? `(${s.section})` : ''} · {s.school_name || ''}
+                  {s.gr_number || '-'} · Class {s.grade_name || s.class_name || '-'} {s.section ? `(${s.section})` : ''} · {s.branch_name || s.school_name || ''}
+                  {s.blood_group ? ` · ${s.blood_group}` : ''}
                 </small>
               </div>
               <span style={{ fontSize: '13px', color: '#275b4c', fontWeight: 600 }}>
@@ -488,7 +710,6 @@ function StudentsView() {
 function TeacherOrder() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  // ID Cards is always the priority default category in the Teacher Portal
   const [activeCategory, setActiveCategory] = useState<CategoryTab>('ID Cards');
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
@@ -567,28 +788,43 @@ function TeacherOrder() {
           marginBottom: '20px',
         }}
       >
-        <span
-          className="kid-avatar"
-          style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '6%',
-            background: '#275b4c',
-            color: '#fff',
-            display: 'grid',
-            placeItems: 'center',
-            fontWeight: 700,
-            fontSize: '18px',
-          }}
-        >
-          {student.name ? student.name[0] : 'S'}
-        </span>
+        {student.photo_url ? (
+          <img
+            src={student.photo_url}
+            alt={student.name}
+            style={{ width: '52px', height: '52px', borderRadius: '8px', objectFit: 'cover' }}
+          />
+        ) : (
+          <span
+            className="kid-avatar"
+            style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '8px',
+              background: '#275b4c',
+              color: '#fff',
+              display: 'grid',
+              placeItems: 'center',
+              fontWeight: 700,
+              fontSize: '18px',
+            }}
+          >
+            {student.name ? student.name[0] : 'S'}
+          </span>
+        )}
         <div>
           <span className="eyebrow">ID CARD & SCHOOL STORE ORDER FOR</span>
           <h2 style={{ margin: '2px 0 4px', fontSize: '18px' }}>{student.name}</h2>
-          <small style={{ color: '#55695d' }}>
-            GR: {student.gr_number || '-'} · Class {student.grade_name || student.class_name || '-'} · {student.school_name || '-'} · {student.gender?.toUpperCase() === 'MALE' ? 'Boy' : 'Girl'}
+          <small style={{ color: '#55695d', display: 'block' }}>
+            GR: {student.gr_number || '-'} · Class {student.grade_name || student.class_name || '-'} {student.section ? `(${student.section})` : ''} · {student.branch_name || student.school_name || '-'} · {student.gender?.toUpperCase() === 'MALE' ? 'Boy' : 'Girl'}
           </small>
+          {(student.blood_group || student.father_or_guardian_name || student.roster_phone) && (
+            <small style={{ color: '#55695d', display: 'block', marginTop: '2px' }}>
+              {student.blood_group ? `Blood: ${student.blood_group} · ` : ''}
+              {student.father_or_guardian_name ? `Guardian: ${student.father_or_guardian_name} · ` : ''}
+              {student.roster_phone ? `Ph: ${student.roster_phone}` : ''}
+            </small>
+          )}
         </div>
       </div>
 

@@ -16,6 +16,7 @@ def apply_user_scope(
     *,
     city_field: str | None = "city_id",
     school_field: str | None = "school_id",
+    branch_field: str | None = None,
     parent_field: str | None = "parent_id",
     include_null_scope_for_catalog: bool = False,
 ) -> models.QuerySet:
@@ -45,6 +46,9 @@ def apply_user_scope(
     if role in ("SCHOOL_ADMIN", "TEACHER"):
         if role == "TEACHER" and getattr(user, "all_schools_access", False):
             return qs
+        branch_id = getattr(user, "branch_id", None) if role == "TEACHER" else None
+        if branch_id and branch_field:
+            return qs.filter(**{branch_field: branch_id})
         school_id = getattr(user, "school_id", None)
         if not school_id or not school_field:
             return qs.none()
@@ -103,6 +107,7 @@ class ScopedQuerysetMixin:
 
     scope_city_field: str | None = "city_id"
     scope_school_field: str | None = "school_id"
+    scope_branch_field: str | None = None
     scope_parent_field: str | None = "parent_id"
     include_null_scope_for_catalog: bool = False
 
@@ -112,6 +117,7 @@ class ScopedQuerysetMixin:
             self.request.user,
             city_field=self.scope_city_field,
             school_field=self.scope_school_field,
+            branch_field=self.scope_branch_field,
             parent_field=self.scope_parent_field,
             include_null_scope_for_catalog=self.include_null_scope_for_catalog,
         )

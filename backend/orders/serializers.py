@@ -461,6 +461,12 @@ class OrderCreateSerializer(serializers.Serializer):
         if user.role in ("SCHOOL_ADMIN", "TEACHER"):
             if user.role == "TEACHER" and getattr(user, "all_schools_access", False):
                 return student
+            if user.role == "TEACHER" and getattr(user, "branch_id", None):
+                if student.branch_id != user.branch_id:
+                    raise PermissionDenied(
+                        "You can only place orders for students in your assigned branch."
+                    )
+                return student
             if student.school_id != user.school_id:
                 raise PermissionDenied(
                     "You can only place orders for students in your own school."
@@ -550,6 +556,7 @@ class OrderCreateSerializer(serializers.Serializer):
                     student=student,
                     parent_id=student.parent_id or (user.id if user.role == "PARENT" else None),
                     school_id=student.school_id,
+                    branch_id=student.branch_id,
                     city_id=city_id,
                     fulfillment_type=fulfillment_type,
                     payment_method=validated_data["payment_method"],

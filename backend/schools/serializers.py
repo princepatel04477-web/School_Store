@@ -8,7 +8,7 @@ from common.constants import normalize_class_name
 from common.exceptions import Conflict
 from common.models import ImportJob
 
-from .models import City, Grade, School, SchoolBranch, Student, StudentMeasurement
+from .models import City, Grade, School, SchoolBranch, SchoolClass, Student, StudentMeasurement
 
 
 class CitySerializer(serializers.ModelSerializer):
@@ -83,6 +83,16 @@ class SchoolSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "city_name", "created_at")
 
+    def get_photo_url(self, obj):
+        if not getattr(obj, "photo", None):
+            return None
+        try:
+            url = obj.photo.url
+            request = self.context.get("request")
+            return request.build_absolute_uri(url) if request else url
+        except Exception:
+            return None
+
     def validate(self, attrs):
         user = self.context["request"].user
         delivery_enabled = attrs.get(
@@ -121,6 +131,7 @@ class StudentSerializer(serializers.ModelSerializer):
     parent_name = serializers.CharField(source="parent.get_full_name", read_only=True)
     parent_phone = serializers.CharField(source="parent.phone", read_only=True)
     grade_name = serializers.CharField(source="grade.name", read_only=True)
+    photo_url = serializers.SerializerMethodField()
     # Optional: school staff get it filled from their JWT scope, Admins must pass
     # a school inside their city.
     school = serializers.PrimaryKeyRelatedField(
@@ -149,6 +160,11 @@ class StudentSerializer(serializers.ModelSerializer):
             "parent_name",
             "parent_phone",
             "roster_phone",
+            "photo",
+            "photo_url",
+            "blood_group",
+            "father_or_guardian_name",
+            "address",
             "approval_status",
             "source",
             "active",
@@ -164,6 +180,7 @@ class StudentSerializer(serializers.ModelSerializer):
             "parent",
             "parent_name",
             "parent_phone",
+            "photo_url",
             "approval_status",
             "source",
             "created_at",
@@ -172,6 +189,16 @@ class StudentSerializer(serializers.ModelSerializer):
         # would demand `school` even when the JWT scope supplies it, so
         # uniqueness is checked explicitly below with one indexed lookup.
         validators = []
+
+    def get_photo_url(self, obj):
+        if not getattr(obj, "photo", None):
+            return None
+        try:
+            url = obj.photo.url
+            request = self.context.get("request")
+            return request.build_absolute_uri(url) if request else url
+        except Exception:
+            return None
 
     def validate(self, attrs):
         """
@@ -199,6 +226,13 @@ class StudentSerializer(serializers.ModelSerializer):
                     )
                 if not school:
                     attrs["school_id"] = user.school_id
+                if user.role == "TEACHER" and getattr(user, "branch_id", None):
+                    branch = attrs.get("branch") or getattr(self.instance, "branch", None)
+                    if branch and branch.id != user.branch_id:
+                        raise PermissionDenied(
+                            "You can only manage students within your assigned branch."
+                        )
+                    attrs["branch_id"] = user.branch_id
         elif user.role in ("ADMIN", "BOSS") or getattr(user, "is_superuser", False):
             if not school:
                 raise ValidationError({"school": "School is required."})
@@ -236,6 +270,76 @@ class StudentSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data["source"] = Student.Source.STAFF
         validated_data["approval_status"] = Student.ApprovalStatus.APPROVED
+        return super().create(validated_data)
+
+
+class SchoolClassSerializer(serializers.ModelSerializer):
+    school_name = serializers.CharField(source="school.name", read_only=True)
+    branch_name = serializers.CharField(source="branch.display_name", read_only=True, default=None)
+    label = serializers.CharField(read_only=True)
+    school = serializers.PrimaryKeyRelatedField(
+        queryset=School.objects.all(), required=False, allow_null=True
+    )
+
+    class Meta:
+        model = SchoolClass
+        fields = (
+            "id",
+            "school",
+            "school_name",
+            "branch",
+            "branch_name",
+            "class_name",
+            "section",
+            "label",
+            "active",
+            "created_at",
+        )
+        read_only_fields = ("id", "school_name", "branch_name", "label", "created_at")
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+        school = attrs.get("school") or getattr(self.instance, "school", None)
+        branch = attrs.get("branch") or getattr(self.instance, "branch", None)
+        if user.role in ("SCHOOL_ADMIN", "TEACHER"):
+            if user.role == "TEACHER" and getattr(user, "all_schools_access", False):
+                if not school:
+                    if user.school_id:
+                        attrs["school_id"] = user.school_id
+                    else:
+                        raise ValidationError({"school": "School is required."})
+            else:
+                if school and school.id != user.school_id:
+                    raise PermissionDenied("You can only add classes for your own school.")
+                if not school:
+                    attrs["school_id"] = user.school_id
+                if user.role == "TEACHER" and getattr(user, "branch_id", None):
+                    if branch and branch.id != user.branch_id:
+                        raise PermissionDenied("You can only add classes for your assigned branch.")
+                    attrs["branch_id"] = user.branch_id
+        elif not school:
+            raise ValidationError({"school": "School is required."})
+
+        cls_name = (attrs.get("class_name") or getattr(self.instance, "class_name", "")).strip()
+        sec = (attrs.get("section") if "section" in attrs else getattr(self.instance, "section", "A")).strip().upper()
+        if not cls_name:
+            raise ValidationError({"class_name": "Class is required."})
+        attrs["class_name"] = cls_name
+        attrs["section"] = sec
+
+        school_id = attrs.get("school_id") or getattr(school, "id", None)
+        branch_id = attrs.get("branch_id") or getattr(branch, "id", None)
+        qs = SchoolClass.objects.filter(
+            school_id=school_id, branch_id=branch_id, class_name=cls_name, section=sec, active=True
+        )
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise ValidationError({"section": f"Class {cls_name}{sec} already exists."})
+        return attrs
+
+    def create(self, validated_data):
+        validated_data["created_by"] = self.context["request"].user
         return super().create(validated_data)
 
 
@@ -326,6 +430,16 @@ class StudentClaimSerializer(serializers.Serializer):
     class_name = serializers.CharField(max_length=30, required=False, allow_blank=True)
     section = serializers.CharField(max_length=20, required=False, allow_blank=True)
 
+    def get_photo_url(self, obj):
+        if not getattr(obj, "photo", None):
+            return None
+        try:
+            url = obj.photo.url
+            request = self.context.get("request")
+            return request.build_absolute_uri(url) if request else url
+        except Exception:
+            return None
+
     def validate(self, attrs):
         if not attrs.get("date_of_birth") and not (
             attrs.get("class_name") and attrs.get("section")
@@ -410,6 +524,16 @@ class StudentManualAddSerializer(serializers.Serializer):
     section = serializers.CharField(max_length=20)
     gender = serializers.CharField(max_length=16)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
+
+    def get_photo_url(self, obj):
+        if not getattr(obj, "photo", None):
+            return None
+        try:
+            url = obj.photo.url
+            request = self.context.get("request")
+            return request.build_absolute_uri(url) if request else url
+        except Exception:
+            return None
 
     def validate(self, attrs):
         school = attrs["school"]

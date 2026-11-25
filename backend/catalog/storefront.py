@@ -60,6 +60,10 @@ def _get_student_for(user, student_id) -> Student:
         return student
     if role == "TEACHER" and getattr(user, "all_schools_access", False):
         return student
+    if role == "TEACHER" and getattr(user, "branch_id", None):
+        if student.branch_id == user.branch_id:
+            return student
+        raise PermissionDenied("You cannot shop for students outside your assigned branch.")
     if role in ("SCHOOL_ADMIN", "TEACHER") and user.school_id == student.school_id:
         return student
     if role == "PARENT" and student.parent_id == user.id:

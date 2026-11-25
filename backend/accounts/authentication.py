@@ -30,9 +30,11 @@ class ZeroQueryJWTAuthentication(JWTAuthentication):
 
         city_id_raw = validated_token.get("city_id")
         school_id_raw = validated_token.get("school_id")
+        branch_id_raw = validated_token.get("branch_id")
 
         city_id = uuid.UUID(str(city_id_raw)) if city_id_raw else None
         school_id = uuid.UUID(str(school_id_raw)) if school_id_raw else None
+        branch_id = uuid.UUID(str(branch_id_raw)) if branch_id_raw else None
 
         user = User(
             id=user_id,
@@ -40,6 +42,7 @@ class ZeroQueryJWTAuthentication(JWTAuthentication):
             role=role,
             city_id=city_id,
             school_id=school_id,
+            branch_id=branch_id,
             all_schools_access=bool(validated_token.get("all_schools_access", False)),
             must_change_password=bool(validated_token.get("must_change_password", False)),
             is_active=True,

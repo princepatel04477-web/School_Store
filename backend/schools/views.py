@@ -24,10 +24,11 @@ from common.throttles import StudentClaimIPThrottle, StudentClaimUserThrottle
 from inventory.services import INDIA_STOCK_ID
 
 from .import_service import TEMPLATE_COLUMNS
-from .models import City, School, SchoolBranch, Student, StudentMeasurement
+from .models import City, School, SchoolBranch, SchoolClass, Student, StudentMeasurement
 from .serializers import (
     CitySerializer,
     SchoolBranchSerializer,
+    SchoolClassSerializer,
     SchoolSerializer,
     StudentApproveSerializer,
     StudentAssignParentSerializer,
@@ -156,6 +157,12 @@ class SchoolBranchViewSet(
     scope_school_field = "school_id"
     scope_parent_field = None
 
+    def scope_queryset(self, qs):
+        user = self.request.user
+        if user.is_authenticated and user.role == "TEACHER" and not getattr(user, "all_schools_access", False) and getattr(user, "branch_id", None):
+            return qs.filter(id=user.branch_id)
+        return super().scope_queryset(qs)
+
     def get_queryset(self):
         qs = super().get_queryset()
         params = self.request.query_params
@@ -193,6 +200,7 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
     )
     serializer_class = StudentSerializer
     pagination_class = StudentPagination
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     permission_classes = [RoleScopedPermission]
     read_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER", "PARENT")
     # Requirement 2: Teachers and School Admins add students by form.
@@ -200,6 +208,7 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
 
     scope_city_field = "city_id"
     scope_school_field = "school_id"
+    scope_branch_field = "branch_id"
     scope_parent_field = "parent_id"
 
     # ------------------------------------------------------------------ #
@@ -296,6 +305,16 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         if self.request.user.role == User.Role.PARENT:
             raise PermissionDenied("Parents cannot delete students. Contact your school to correct this.")
         instance.delete()
+
+    @action(detail=True, methods=["post"], url_path="photo", parser_classes=[MultiPartParser, FormParser])
+    def upload_photo(self, request, pk=None):
+        student = self.get_object()
+        photo = request.FILES.get("photo")
+        if not photo:
+            raise ValidationError({"photo": "Please select or capture a photo."})
+        student.photo = photo
+        student.save(update_fields=["photo", "updated_at"])
+        return Response(StudentSerializer(student, context={"request": request}).data)
 
     # ------------------------------------------------------------------ #
     # Permissions / throttles for the parent-facing actions
@@ -475,6 +494,41 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         )
 
 
+class SchoolClassViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
+    """Class + section management (e.g. 1A, 1B) scoped to the teacher's school/branch."""
+
+    queryset = SchoolClass.objects.select_related("school", "branch").filter(active=True).order_by("class_name", "section")
+    serializer_class = SchoolClassSerializer
+    permission_classes = [RoleScopedPermission]
+    read_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER")
+    write_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER")
+
+    scope_city_field = None
+    scope_school_field = "school_id"
+    scope_branch_field = "branch_id"
+    scope_parent_field = None
+
+    def scope_queryset(self, qs):
+        user = self.request.user
+        if user.is_authenticated and user.role == "ADMIN" and user.city_id:
+            return qs.filter(school__city_id=user.city_id)
+        return super().scope_queryset(qs)
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        school_id = self.request.query_params.get("school")
+        branch_id = self.request.query_params.get("branch")
+        if school_id:
+            qs = qs.filter(school_id=school_id)
+        if branch_id:
+            qs = qs.filter(branch_id=branch_id)
+        return qs
+
+    def perform_destroy(self, instance):
+        instance.active = False
+        instance.save(update_fields=["active"])
+
+
 class StudentImportViewSet(ScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
     """
     Bulk student import (Prompt 4, requirement 3).
@@ -501,6 +555,12 @@ class StudentImportViewSet(ScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
     scope_city_field = "city_id"
     scope_school_field = "school_id"
     scope_parent_field = None
+
+    def scope_queryset(self, qs):
+        user = self.request.user
+        if user.is_authenticated and user.role == "TEACHER" and not getattr(user, "all_schools_access", False) and getattr(user, "branch_id", None):
+            return qs.filter(id=user.branch_id)
+        return super().scope_queryset(qs)
 
     def get_queryset(self):
         qs = super().get_queryset().filter(job_type=ImportJob.JobType.STUDENT_IMPORT)

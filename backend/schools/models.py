@@ -306,6 +306,10 @@ class Student(UUIDModel):
         help_text="Parent's mobile number from the school's records (10 digits). "
         "A parent who verifies this number by OTP is linked automatically.",
     )
+    photo = models.ImageField(upload_to="student-photos/%Y/%m/", blank=True, default="")
+    blood_group = models.CharField(max_length=10, blank=True, default="")
+    father_or_guardian_name = models.CharField(max_length=150, blank=True, default="")
+    address = models.TextField(blank=True, default="")
     approval_status = models.CharField(
         max_length=16,
         choices=ApprovalStatus.choices,
@@ -518,3 +522,50 @@ def _school_grades_changed(sender, **kwargs):
     # would keep the old classes until it expired.
     if kwargs.get("action") in {"post_add", "post_remove", "post_clear"}:
         invalidate_school_cache()
+
+
+class SchoolClass(UUIDModel):
+    """A class + section (e.g. 1A, 1B, 10A) managed by a teacher for their school/branch."""
+
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="school_classes",
+    )
+    branch = models.ForeignKey(
+        SchoolBranch,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="school_classes",
+    )
+    class_name = models.CharField(max_length=30)
+    section = models.CharField(max_length=20, blank=True, default="A")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_classes",
+    )
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = ScopedManager()
+    SCOPE_FIELDS = {"city_field": None, "school_field": "school_id", "branch_field": "branch_id", "parent_field": None}
+
+    class Meta:
+        ordering = ["class_name", "section"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "branch", "class_name", "section"],
+                name="uniq_school_branch_class_section",
+            ),
+        ]
+
+    @property
+    def label(self) -> str:
+        return f"{self.class_name}{self.section}".strip()
+
+    def __str__(self) -> str:
+        return f"{self.school.name} - {self.label}"

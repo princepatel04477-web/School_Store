@@ -42,6 +42,7 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
 
     scope_city_field = "city_id"
     scope_school_field = "school_id"
+    scope_branch_field = "branch_id"
     scope_parent_field = "parent_id"
 
     def destroy(self, request, *args, **kwargs):

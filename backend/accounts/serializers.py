@@ -322,6 +322,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token["role"] = user.role
         token["city_id"] = str(user.city_id) if user.city_id else None
         token["school_id"] = str(user.school_id) if user.school_id else None
+        token["branch_id"] = str(user.branch_id) if user.branch_id else None
         token["all_schools_access"] = bool(user.all_schools_access)
         token["must_change_password"] = bool(user.must_change_password)
         return token
