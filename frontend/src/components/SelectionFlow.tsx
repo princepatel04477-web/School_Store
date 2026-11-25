@@ -235,6 +235,7 @@ export function SelectionFlow({
   const { data: productsData, isLoading: loadingProducts } = useQuery({
     queryKey: [
       'selection-products',
+      studentProfile?.id || '',
       selection.school?.id,
       selection.city?.id,
       selection.grade?.id,
@@ -243,6 +244,14 @@ export function SelectionFlow({
       productTypeFilter,
     ],
     queryFn: async () => {
+      if (studentProfile?.id && !publicView) {
+        let url = `/catalog/students/${studentProfile.id}/products/`;
+        if (category && category !== 'All') {
+          url += `?category=${encodeURIComponent(category === 'PT Uniform' ? 'Uniform' : category)}`;
+        }
+        const res = await api<{ products: Product[] }>(url);
+        return { results: res.products || [] };
+      }
       if (!selection.school?.id || !selection.city?.id || !selection.grade?.id || !selection.gender) {
         return { results: [] };
       }
@@ -255,12 +264,22 @@ export function SelectionFlow({
       }
       return api<{ results: Product[] }>(url);
     },
-    enabled: !!(selection.school?.id && selection.city?.id && selection.grade?.id && selection.gender && step === 5),
+    enabled: !!(
+      (studentProfile?.id && !publicView && step === 5) ||
+      (selection.school?.id && selection.city?.id && selection.grade?.id && selection.gender && step === 5)
+    ),
   });
 
-  const productsList = (productsData?.results ?? []).filter((p) =>
-    isShopProductVisible(p) && matchesListedClass(p.name, selection.grade?.name) && (category === 'All' || shopSection(p) === category) &&
-    (!p.gender || p.gender === 'unisex' || p.gender === selection.gender));
+  const productsList = (productsData?.results ?? []).filter((p) => {
+    const isTeacherStudentFlow = Boolean(studentProfile?.id && !publicView);
+    const visible = isTeacherStudentFlow || isShopProductVisible(p);
+    return (
+      visible &&
+      matchesListedClass(p.name, selection.grade?.name) &&
+      (category === 'All' || shopSection(p) === category) &&
+      (!p.gender || p.gender === 'unisex' || p.gender === selection.gender)
+    );
+  });
 
   // Auto-skip logic for Step 2 if school has only 1 city
   useEffect(() => {
@@ -310,7 +329,7 @@ export function SelectionFlow({
 
   // Auto-select when requested (e.g. Teacher ordering on behalf of student)
   useEffect(() => {
-    if (!autoSelectStudentProfile || !studentProfile || schools.length === 0) return;
+    if (!autoSelectStudentProfile || !studentProfile) return;
     if (step === 1 && !selection.school) {
       handlePreFillConfirm();
     }

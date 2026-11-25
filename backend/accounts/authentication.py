@@ -40,6 +40,7 @@ class ZeroQueryJWTAuthentication(JWTAuthentication):
             role=role,
             city_id=city_id,
             school_id=school_id,
+            all_schools_access=bool(validated_token.get("all_schools_access", False)),
             must_change_password=bool(validated_token.get("must_change_password", False)),
             is_active=True,
             is_staff=role in (User.Role.BOSS, User.Role.ADMIN),

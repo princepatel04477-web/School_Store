@@ -120,10 +120,15 @@ class ManagedUserWriteSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         request = self.context["request"]
         actor = request.user
+        inst = self.instance
 
-        target_role = attrs.get("role")
-        target_city = attrs.get("city")
-        target_school = attrs.get("school")
+        target_role = attrs.get("role", getattr(inst, "role", None))
+        target_city = attrs.get("city", getattr(inst, "city", None))
+        target_school = attrs.get("school", getattr(inst, "school", None))
+        target_branch = attrs.get("branch", getattr(inst, "branch", None))
+        target_all_schools = attrs.get(
+            "all_schools_access", getattr(inst, "all_schools_access", False)
+        )
 
         if actor.role == User.Role.BOSS or getattr(actor, "is_superuser", False):
             if not target_role:
@@ -138,15 +143,15 @@ class ManagedUserWriteSerializer(serializers.ModelSerializer):
                     {"school": "School is required for School Admin."}
                 )
             if target_role == User.Role.TEACHER:
-                if not target_school and not attrs.get("all_schools_access"):
+                if not target_school and not target_all_schools:
                     raise serializers.ValidationError(
                         {"school": "Select a school or enable All Schools access for a Teacher."}
                     )
-                if attrs.get("branch") and not target_school:
-                    attrs["school"] = attrs["branch"].school
+                if target_branch and not target_school:
+                    attrs["school"] = target_branch.school
                     target_school = attrs["school"]
-                if attrs.get("branch") and attrs["branch"].city_id:
-                    attrs["city"] = attrs["branch"].city
+                if target_branch and target_branch.city_id:
+                    attrs["city"] = target_branch.city
                 elif target_school and target_school.city_id:
                     attrs["city"] = target_school.city
                 return attrs
@@ -161,7 +166,7 @@ class ManagedUserWriteSerializer(serializers.ModelSerializer):
                 )
             target_role = target_role or User.Role.SCHOOL_ADMIN
             attrs["role"] = target_role
-            if target_role == User.Role.TEACHER and attrs.get("all_schools_access") and not actor.city_id:
+            if target_role == User.Role.TEACHER and target_all_schools and not actor.city_id:
                 return attrs
             if not target_school:
                 raise serializers.ValidationError(
@@ -171,7 +176,7 @@ class ManagedUserWriteSerializer(serializers.ModelSerializer):
                 raise PermissionDenied(
                     "Admins can only create staff for schools in their own city."
                 )
-            attrs["city"] = attrs.get("branch").city if attrs.get("branch") else target_school.city
+            attrs["city"] = target_branch.city if target_branch else target_school.city
             return attrs
 
         if actor.role == User.Role.SCHOOL_ADMIN:

@@ -219,7 +219,15 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         if school_id:
             qs = qs.filter(school_id=school_id)
         if class_name:
-            qs = qs.filter(class_name=class_name)
+            raw_cls = class_name.strip()
+            bare_cls = raw_cls.removeprefix("Class ").removeprefix("class ").strip()
+            qs = qs.filter(
+                Q(class_name__iexact=raw_cls)
+                | Q(class_name__iexact=bare_cls)
+                | Q(class_name__iexact=f"Class {bare_cls}")
+                | Q(grade__name__iexact=raw_cls)
+                | Q(grade__name__iexact=f"Class {bare_cls}")
+            )
         if section:
             qs = qs.filter(section=section)
         if search:

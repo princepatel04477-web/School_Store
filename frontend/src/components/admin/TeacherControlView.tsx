@@ -1,16 +1,19 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { portalApi, teacherAdmin, type User } from '../../api';
+import { useAuth } from '../../auth';
 
 export function TeacherControlView() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canAssignAllSchools = user?.role === 'BOSS' || (user?.role === 'ADMIN' && !user?.city);
 
   // Location & School selection
   const [selectedState, setSelectedState] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedSchool, setSelectedSchool] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('');
-  const [allSchools, setAllSchools] = useState(true);
+  const [allSchools, setAllSchools] = useState(canAssignAllSchools);
 
   // Teacher form
   const [teacherName, setTeacherName] = useState('');
@@ -254,14 +257,16 @@ export function TeacherControlView() {
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
             <strong style={{ fontSize: '15px' }}>1. Choose School Access & Create 6-Digit Teacher Login</strong>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, color: '#0f766e' }}>
-              <input
-                type="checkbox"
-                checked={allSchools}
-                onChange={(e) => setAllSchools(e.target.checked)}
-              />
-              Give access to ALL Schools & Classes (Class 1 to 12)
-            </label>
+            {canAssignAllSchools && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, color: '#0f766e' }}>
+                <input
+                  type="checkbox"
+                  checked={allSchools}
+                  onChange={(e) => setAllSchools(e.target.checked)}
+                />
+                Give access to ALL Schools & Classes (Class 1 to 12)
+              </label>
+            )}
           </div>
 
           {!allSchools && (
