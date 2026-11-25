@@ -61,7 +61,7 @@ export function Footer() {
               <li><Link to="/help?topic=size-guide">{t('product.sizeGuide')}</Link></li>
               <li><Link to="/help?topic=delivery">{t('co.delivery')}</Link></li>
               <li><Link to="/help?topic=returns">{t('product.exchangeTitle')}</Link></li>
-              <li><Link to="/parent/orders">{t('co.placed.myOrders')}</Link></li>
+              <li><Link to="/account">{t('co.placed.myOrders')}</Link></li>
               <li><Link to="/help?topic=faq">{t('foot.faq')}</Link></li>
             </ul>
           </div>

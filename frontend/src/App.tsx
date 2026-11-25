@@ -34,6 +34,9 @@ const CheckoutPage = lazy(() =>
 const AboutPage = lazy(() =>
   import('./pages/AboutPage').then((m) => ({ default: m.AboutPage }))
 );
+const AccountPage = lazy(() =>
+  import('./pages/AccountPage').then((m) => ({ default: m.AccountPage }))
+);
 const Login = lazy(() => import('./pages/Login'));
 const Parent = lazy(() => import('./pages/Parent'));
 const Teacher = lazy(() => import('./pages/Teacher'));
@@ -90,6 +93,7 @@ export default function App() {
 
   const isHome = location.pathname === '/';
   const isAbout = location.pathname === '/about';
+  const isAccount = location.pathname === '/account';
 
   // The whole store wears the emerald theme; a school's own colour stays on its crest
   // instead of re-tinting every page. Pass !isPortal here to bring school tints back.
@@ -108,8 +112,8 @@ export default function App() {
     <ErrorBoundary>
       <SmoothScroll>
         <div className="store-application-root">
-        {/* Render global Header for storefront (home and about have their own emerald headers) */}
-        {!isPortal && !isHome && !isAbout && (
+        {/* Render global Header for storefront (home, about, and account have their own emerald headers) */}
+        {!isPortal && !isHome && !isAbout && !isAccount && (
           <Header
             onOpenBag={() => setBagOpen(true)}
             onOpenLanguage={() => setLangOpen(true)}
@@ -148,6 +152,15 @@ export default function App() {
                 element={<SelectionFlowPage onOpenBag={() => setBagOpen(true)} />}
               />
               <Route path="/checkout" element={<CheckoutPage />} />
+              <Route
+                path="/account"
+                element={
+                  <AccountPage
+                    onOpenBag={() => setBagOpen(true)}
+                    onOpenLanguage={() => setLangOpen(true)}
+                  />
+                }
+              />
 
               {/* Informational pages */}
               <Route

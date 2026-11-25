@@ -187,7 +187,7 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
             </button>
 
             {isParent ? (
-              <Link to="/parent" className="action-account-btn" aria-label={t('nav.myAccount')}>
+              <Link to="/account" className="action-account-btn" aria-label={t('nav.myAccount')}>
                 <User width={20} height={20} strokeWidth={1.5} />
               </Link>
             ) : (
@@ -294,7 +294,7 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
                 {t('nav.help')}
               </Link>
               {isParent ? (
-                <Link to="/parent" className="sheet-secondary-item" onClick={closeMenu}>
+                <Link to="/account" className="sheet-secondary-item" onClick={closeMenu}>
                   {t('nav.myAccount')}
                 </Link>
               ) : (

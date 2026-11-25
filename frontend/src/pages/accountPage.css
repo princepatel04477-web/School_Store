@@ -1,0 +1,803 @@
+/* ==========================================================================
+   Parent Account Page (/account)
+   Emerald band + straight-edge white sheet, matching the live storefront.
+   ========================================================================== */
+
+.acct-page {
+  min-height: 100dvh;
+  background-color: #0e5e3e;
+  color: #12352a;
+  font-family: var(--font-body, 'Nunito', sans-serif);
+  overflow-x: clip;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- 1. Emerald Band ---------- */
+
+.acct-hero {
+  position: relative;
+  overflow: hidden;
+  background-color: #0e5e3e;
+  color: #ffffff;
+  padding-bottom: clamp(28px, 4.5vw, 44px);
+}
+
+.acct-circle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.acct-circle--outer {
+  width: clamp(280px, 44vw, 540px);
+  height: clamp(280px, 44vw, 540px);
+  right: clamp(-140px, -8vw, -60px);
+  top: clamp(-180px, -12vw, -80px);
+  background: #11704b;
+}
+
+.acct-circle--inner {
+  width: clamp(190px, 29vw, 350px);
+  height: clamp(190px, 29vw, 350px);
+  right: clamp(-70px, -3vw, -20px);
+  top: clamp(-110px, -7vw, -40px);
+  background: #14825a;
+}
+
+.acct-topbar {
+  position: relative;
+  z-index: 2;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: clamp(16px, 4vw, 40px);
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  padding-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.acct-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.acct-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  color: #ffffff;
+  cursor: pointer;
+  padding: 0;
+}
+
+.acct-back-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.acct-back-btn:focus-visible {
+  outline: 2px solid #ffb766;
+  outline-offset: 2px;
+}
+
+@media (min-width: 1024px) {
+  .acct-back-btn {
+    display: none;
+  }
+}
+
+.acct-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: #ffffff;
+  min-height: 44px;
+}
+
+.acct-logo-sq {
+  width: 36px;
+  height: 36px;
+  background: #ffffff;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.acct-logo-letter {
+  font-family: var(--font-heading, 'Baloo 2', sans-serif);
+  font-weight: 800;
+  font-size: 24px;
+  line-height: 1;
+  color: #0e5e3e;
+}
+
+.acct-brand-text {
+  font-family: var(--font-heading, 'Baloo 2', sans-serif);
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: -0.015em;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.acct-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.acct-nav-link {
+  display: none;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 15px;
+  border-radius: 10px;
+}
+
+.acct-nav-link:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+@media (min-width: 640px) {
+  .acct-nav-link {
+    display: inline-flex;
+  }
+}
+
+.acct-lang-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.acct-lang-pill:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.acct-bag-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  background: transparent;
+  border: 0;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.acct-bag-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.acct-bag-badge {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ffb766;
+  color: #12352a;
+  font-size: 11px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.acct-hero-inner {
+  position: relative;
+  z-index: 2;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: clamp(16px, 4vw, 40px);
+  padding-top: clamp(10px, 2vw, 20px);
+}
+
+.acct-signed-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #cdebdc;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.acct-signed-pill svg {
+  color: #ffb766;
+}
+
+.acct-hero-title {
+  margin: 0;
+  font-family: var(--font-heading, 'Baloo 2', sans-serif);
+  font-weight: 800;
+  font-size: clamp(32px, 6.5vw, 50px);
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  color: #ffffff;
+}
+
+.acct-hero-name {
+  color: #ffb766;
+}
+
+.acct-hero-sub {
+  margin: 8px 0 0;
+  font-size: clamp(15px, 1.5vw, 17px);
+  font-weight: 600;
+  color: #cdebdc;
+  max-width: 46ch;
+}
+
+/* ---------- 2. White Sheet (straight top edge) ---------- */
+
+.acct-sheet {
+  flex: 1;
+  background: #ffffff;
+  border-radius: 0;
+  padding: clamp(20px, 4vw, 36px) 0 calc(clamp(40px, 6vw, 64px) + env(safe-area-inset-bottom, 0px));
+}
+
+.acct-sheet-inner {
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: clamp(16px, 4vw, 40px);
+  box-sizing: border-box;
+}
+
+.acct-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (min-width: 1024px) {
+  .acct-grid {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+}
+
+.acct-col-main {
+  flex: 999 1 560px;
+  min-width: 0;
+}
+
+.acct-col-side {
+  flex: 1 1 300px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ---------- Cards ---------- */
+
+.acct-card {
+  background: #ffffff;
+  border: 1px solid #cde9d9;
+  border-radius: 22px;
+  padding: clamp(18px, 3vw, 24px);
+}
+
+.acct-card--warm {
+  background: #fff3e3;
+  border-color: #ffd9a8;
+}
+
+.acct-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.acct-card-title {
+  margin: 0;
+  font-family: var(--font-heading, 'Baloo 2', sans-serif);
+  font-weight: 800;
+  font-size: clamp(21px, 2.4vw, 26px);
+  line-height: 1.15;
+  color: #12352a;
+}
+
+.acct-card-count {
+  font-size: 14px;
+  font-weight: 700;
+  color: #3d5c50;
+  white-space: nowrap;
+}
+
+/* ---------- Orders ---------- */
+
+.acct-orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.acct-order-item {
+  border: 1px solid #cde9d9;
+  border-radius: 22px;
+  padding: 18px;
+  background: #ffffff;
+}
+
+.acct-order-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.acct-order-num {
+  margin: 0;
+  font-family: var(--font-heading, 'Baloo 2', sans-serif);
+  font-weight: 800;
+  font-size: 18px;
+  color: #12352a;
+}
+
+.acct-order-meta {
+  margin: 3px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #3d5c50;
+}
+
+.acct-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  background: #eef7f2;
+  color: #0e5e3e;
+  border: 1px solid #cde9d9;
+  white-space: nowrap;
+}
+
+.acct-status-pill--active {
+  background: #fff3e3;
+  color: #8f4700;
+  border-color: #ffd9a8;
+}
+
+.acct-status-pill--muted {
+  background: #f2f7f4;
+  color: #3d5c50;
+  border-color: #d3e5db;
+}
+
+/* 4-step progress bar */
+
+.acct-progress {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.acct-step {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.acct-step-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: #e4efe9;
+}
+
+.acct-step.is-done .acct-step-bar {
+  background: #0e5e3e;
+}
+
+.acct-step.is-current .acct-step-bar {
+  background: #ffb766;
+}
+
+.acct-step-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #3d5c50;
+  line-height: 1.25;
+  overflow-wrap: break-word;
+}
+
+.acct-step.is-done .acct-step-label {
+  color: #0e5e3e;
+}
+
+.acct-step.is-current .acct-step-label {
+  color: #8f4700;
+  font-weight: 800;
+}
+
+.acct-step-date {
+  font-size: 11px;
+  font-weight: 600;
+  color: #56705f;
+}
+
+/* Mint notice (COD / 7-day exchange) */
+
+.acct-mint-note {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #eef7f2;
+  border: 1px solid #cde9d9;
+  color: #12352a;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* Order action buttons */
+
+.acct-order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.acct-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid #cde9d9;
+  background: #ffffff;
+  color: #0e5e3e;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.acct-btn-outline:hover {
+  background: #eef7f2;
+}
+
+.acct-btn-saffron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 20px;
+  border-radius: 14px;
+  border: 0;
+  background: #ffb766;
+  color: #12352a;
+  font-family: var(--font-heading, 'Baloo 2', sans-serif);
+  font-size: 16px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  margin-top: 18px;
+}
+
+.acct-btn-saffron:hover {
+  background: #ffc582;
+}
+
+/* Expanded items list (ruled rows, no nested cards) */
+
+.acct-items-panel {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #cde9d9;
+}
+
+.acct-items-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.acct-items-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eef7f2;
+  font-size: 14px;
+}
+
+.acct-items-row:last-child {
+  border-bottom: 0;
+}
+
+.acct-items-name {
+  font-weight: 700;
+  color: #12352a;
+}
+
+.acct-items-sub {
+  font-size: 13px;
+  color: #3d5c50;
+  margin-left: 6px;
+}
+
+.acct-items-price {
+  font-weight: 800;
+  color: #12352a;
+  white-space: nowrap;
+}
+
+/* ---------- Empty / Loading / Error ---------- */
+
+.acct-state-box {
+  padding: 24px 8px;
+  text-align: left;
+}
+
+.acct-state-title {
+  margin: 0;
+  font-family: var(--font-heading, 'Baloo 2', sans-serif);
+  font-weight: 800;
+  font-size: 20px;
+  color: #12352a;
+}
+
+.acct-state-body {
+  margin: 6px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #3d5c50;
+}
+
+.acct-error-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  background: #eef7f2;
+  border: 1px solid #cde9d9;
+  color: #12352a;
+}
+
+.acct-error-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.acct-skeleton {
+  height: 132px;
+  border-radius: 22px;
+  background: #eef7f2;
+  border: 1px solid #cde9d9;
+}
+
+.acct-skeleton--sm {
+  height: 44px;
+  border-radius: 12px;
+}
+
+/* ---------- Saved sizes (warm card) ---------- */
+
+.acct-sizes-date {
+  margin: 4px 0 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #3d5c50;
+}
+
+.acct-sizes-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.acct-metric {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+.acct-metric-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #3d5c50;
+}
+
+.acct-metric-val {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-heading, 'Baloo 2', sans-serif);
+  font-weight: 800;
+  font-size: 17px;
+  color: #12352a;
+}
+
+.acct-measure-btn {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 14px;
+  border-radius: 14px;
+  border: 1px solid #ffd9a8;
+  background: #ffffff;
+  color: #0e5e3e;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.acct-measure-btn:hover {
+  background: #fffaf3;
+}
+
+/* ---------- Need something? ---------- */
+
+.acct-help-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.acct-help-item {
+  border-bottom: 1px solid #eef7f2;
+}
+
+.acct-help-item:last-child {
+  border-bottom: 0;
+}
+
+.acct-help-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 0;
+  text-decoration: none;
+  color: #12352a;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.acct-help-link:hover .acct-help-label {
+  color: #0e5e3e;
+}
+
+.acct-help-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #eef7f2;
+  color: #0e5e3e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.acct-help-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.acct-help-label {
+  display: block;
+}
+
+.acct-help-sub {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3d5c50;
+  margin-top: 2px;
+}
+
+.acct-help-chevron {
+  color: #3d5c50;
+  flex-shrink: 0;
+}
+
+.acct-legal-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 0 4px;
+}
+
+.acct-legal-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #3d5c50;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.acct-signout-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
+  margin-top: 8px;
+  border: 0;
+  background: transparent;
+  color: #3d5c50;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.acct-signout-btn:hover {
+  color: #12352a;
+}
+
+/* ---------- Signed-out card ---------- */
+
+.acct-signedout-card {
+  max-width: 520px;
+  margin-inline: auto;
+}

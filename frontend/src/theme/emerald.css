@@ -1546,6 +1546,8 @@ body {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+}
+
 /* ---------- Bug sweep (19 Nov): one scrollbar, nothing cut off ---------- */
 /* overflow-x: hidden turns a box into its own vertical scroller; clip hides the sideways spill without that. */
 :root .emerald-hero {
