@@ -1517,10 +1517,70 @@ body {
   font-size: 13px;
 }
 
-:root .login-card .login-mobile-cta {
-  min-height: 48px;
+:root .login-card .login-choices {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 18px;
+}
+
+:root .login-card .login-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-height: 68px;
+  padding: 14px;
+  text-align: left;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper-raised);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+:root .login-card .login-choice:hover,
+:root .login-card .login-choice:focus-visible {
+  border-color: var(--brand);
+  outline: none;
+}
+
+:root .login-card .login-choice svg {
+  flex: none;
+  color: var(--brand);
+  margin-top: 1px;
+}
+
+:root .login-card .login-choice span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+:root .login-card .login-choice strong {
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+:root .login-card .login-choice small {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+:root .login-card .login-choice-quiet {
+  min-height: 52px;
   align-items: center;
-  margin-top: 14px;
+  background: var(--paper);
+}
+
+:root .login-card .login-choice-quiet svg {
+  margin-top: 0;
+}
+
+:root .login-card .login-choice-quiet strong {
+  font-size: 15px;
+  font-weight: 600;
 }
 
 :root .login-staff-form {
@@ -1546,4 +1606,33 @@ body {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+}
+
+/* ---------- Bug sweep (19 Nov): one scrollbar, nothing cut off ---------- */
+/* overflow-x: hidden turns a box into its own vertical scroller; clip hides the sideways spill without that. */
+:root .emerald-hero {
+  overflow: clip;
+}
+:root .about-page-root {
+  overflow-x: clip;
+}
+
+@media (max-width: 767.98px) {
+  :root .emerald-hero {
+    height: auto;
+    min-height: 100dvh;
+    overflow: clip;
+  }
+}
+
+/* The white sheets meet the green band in a straight line, edge to edge. */
+:root .about-sheet,
+:root .em-sheet {
+  border-radius: 0;
+}
+
+/* Parent page banner: light text on the green card (the heading used to inherit dark ink) */
+:root .welcome-card h2,
+:root .welcome-card h2 i {
+  color: var(--paper-raised);
 }

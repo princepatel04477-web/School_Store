@@ -187,7 +187,7 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
             </button>
 
             {isParent ? (
-              <Link to="/parent" className="action-account-btn" aria-label={t('nav.myAccount')}>
+              <Link to="/account" className="action-account-btn" aria-label={t('nav.myAccount')}>
                 <User width={20} height={20} strokeWidth={1.5} />
               </Link>
             ) : (
@@ -198,7 +198,7 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
 
             {/* A direct, always-visible profile entry for phone users. */}
             <Link
-              to={user?.role === 'PARENT' ? '/parent' : '/login'}
+              to={user?.role === 'PARENT' ? '/account' : '/login'}
               className="mobile-profile-btn"
               aria-label={isParent ? t('nav.myAccount') : t('nav.signIn')}
               title={isParent ? t('nav.myAccount') : t('nav.signIn')}
@@ -294,7 +294,7 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
                 {t('nav.help')}
               </Link>
               {isParent ? (
-                <Link to="/parent" className="sheet-secondary-item" onClick={closeMenu}>
+                <Link to="/account" className="sheet-secondary-item" onClick={closeMenu}>
                   {t('nav.myAccount')}
                 </Link>
               ) : (

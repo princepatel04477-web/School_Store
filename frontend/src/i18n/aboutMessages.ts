@@ -35,19 +35,19 @@ export const aboutMessages = {
   'about.problemEyebrow': { en: 'THE PROBLEM', gu: 'સમસ્યા', hi: 'समस्या' },
   'about.problemTitle': {
     en: 'School uniform shopping shouldn’t be stressful',
-    gu: 'સ્કૂલ યુનિફોર્મ ખરીદવામાં હવે કોઈ ચિંતા નહીં',
+    gu: 'યુનિફોર્મ ખરીદવો આટલો મુશ્કેલ ન હોવો જોઈએ',
     hi: 'स्कूल यूनिफॉर्म की खरीदारी में अब कोई तनाव नहीं',
   },
   'about.timeTitle': { en: 'Inconvenience for parents', gu: 'વાલીઓ માટે અસુવિધા', hi: 'माता-पिता के लिए असुविधा' },
   'about.timeBody': {
     en: 'Parents face great inconvenience buying uniforms as designated uniform shops are located far away from schools.',
-    gu: 'યુનિફોર્મ ખરીદવામાં વાલીઓને ભારે અસુવિધા થાય છે કારણ કે યુનિફોર્મની દુકાનો શાળાઓથી ઘણી દૂર હોય છે.',
+    gu: 'યુનિફોર્મ ખરીદવામાં વાલીઓને ઘણી તકલીફ પડે છે, કારણ કે નક્કી કરેલી દુકાનો શાળાથી ઘણી દૂર હોય છે.',
     hi: 'यूनिफॉर्म खरीदने में माता-पिता को भारी असुविधा होती है क्योंकि यूनिफॉर्म की दुकानें स्कूलों से काफ़ी दूर होती हैं।',
   },
   'about.stockTitle': { en: 'Stock unavailable', gu: 'સ્ટોક મળતો નથી', hi: 'स्टॉक नहीं मिलता' },
   'about.stockBody': {
     en: 'After all that running, the size or item you need is not there.',
-    gu: 'આટલું ફર્યા પછી પણ જોઈતી સાઇઝ કે વસ્તુ મળતી નથી.',
+    gu: 'આટલું ફર્યા પછી પણ જોઈતી સાઈઝ કે વસ્તુ મળતી નથી.',
     hi: 'इतना घूमने के बाद भी ज़रूरी साइज़ या सामान नहीं मिलता।',
   },
   'about.pivot': {

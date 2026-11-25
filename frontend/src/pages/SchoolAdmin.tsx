@@ -9,11 +9,12 @@ import {
   type ImportJob, type PanelOrder, type PanelSchool, type PanelStudent, type PanelTeacher,
   type StudentOrders,
 } from '../api';
-import { Overview as OverviewIcon, Receipt, User, Users, Download, Ruler } from '../components/ui/icons';
+import { ArrowRight, Overview as OverviewIcon, Package, Receipt, SchoolBuilding, User, Users, Download, Ruler } from '../components/ui/icons';
 import { PanelShell, type PanelNavItem } from '../components/admin/PanelShell';
 import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
 import { SizeChartManager } from '../components/admin/SizeChartManager';
 import { CHART_COLORS, ChartSkeleton, KpiSkeleton, LIVE, LiveStamp, OrdersStrip, RankList, TrendChart } from '../components/admin/charts';
+import './schoolAdmin.css';
 
 /* ------------------------------------------------------------------ *
  * School scope
@@ -37,21 +38,19 @@ const NAV: (PanelNavItem & { roles?: string[] })[] = [
 export default function SchoolAdmin() {
   const { user } = useAuth();
   const [schoolId, setSchoolId] = useState<string | null>(null);
-  const { data } = useQuery({ queryKey: ['panel-schools'], queryFn: () => panel.schools() });
+  const { data, isPending, isError, refetch } = useQuery({ queryKey: ['panel-schools'], queryFn: () => panel.schools() });
   const schools = data?.results ?? [];
-
-  useEffect(() => {
-    if (!schoolId && schools.length) setSchoolId(schools[0].id);
-  }, [schools, schoolId]);
+  const selectedSchoolId = schools.some((school) => school.id === schoolId) ? schoolId : schools[0]?.id ?? null;
 
   return (
-    <SchoolContext.Provider value={{ schoolId, setSchoolId, schools }}>
+    <SchoolContext.Provider value={{ schoolId: selectedSchoolId, setSchoolId, schools }}>
       <PanelShell
         base="/school"
-        role={ROLE_LABEL[user?.role ?? 'SCHOOL_ADMIN'] ?? user?.role ?? ''}
+        role="School Admin Portal"
+        className="school-admin"
         context={
-          schools.length > 1 && schoolId ? (
-            <select className="school-switch" value={schoolId} onChange={(e) => setSchoolId(e.target.value)}>
+          schools.length > 1 && selectedSchoolId ? (
+            <select aria-label="Select school" className="school-switch" value={selectedSchoolId} onChange={(e) => setSchoolId(e.target.value)}>
               {schools.map((s) => (
                 <option key={s.id} value={s.id}>{s.name} · {s.code}</option>
               ))}
@@ -62,7 +61,7 @@ export default function SchoolAdmin() {
         }
         nav={NAV.filter((n) => !n.roles || n.roles.includes(user?.role ?? ''))}
       >
-        {schoolId ? (
+        {selectedSchoolId ? (
           <Routes>
             <Route index element={<Overview />} />
             <Route path="orders" element={<Orders />} />
@@ -72,6 +71,10 @@ export default function SchoolAdmin() {
             <Route path="exports" element={<Exports />} />
             <Route path="size-charts" element={<SizeCharts />} />
           </Routes>
+        ) : isPending ? (
+          <p role="status" className="empty">Loading your schools…</p>
+        ) : isError ? (
+          <div className="empty"><h3>Could not load your schools</h3><button type="button" className="link-button" onClick={() => void refetch()}>Try again</button></div>
         ) : (
           <div className="empty"><h3>No school in your scope</h3><p>Ask an admin to link your account to a school.</p></div>
         )}
@@ -80,15 +83,14 @@ export default function SchoolAdmin() {
   );
 }
 
-const ROLE_LABEL: Record<string, string> = {
-  BOSS: 'Boss', ADMIN: 'City admin', SCHOOL_ADMIN: 'School admin', TEACHER: 'Teacher', PARENT: 'Parent',
-};
+const DATE_RANGES = [['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['365', '1 year']] as const;
 
 /* ------------------------------------------------------------------ *
  * 1 + 7. Overview / dashboard
  * ------------------------------------------------------------------ */
 function Overview() {
-  const { schoolId } = useSchool();
+  const { schoolId, schools } = useSchool();
+  const school = schools.find((item) => item.id === schoolId);
   const [range, setRange] = useState('30');
   const [custom, setCustom] = useState<{ from: string; to: string } | null>(null);
 
@@ -103,11 +105,6 @@ function Overview() {
     return { from: iso(from), to: iso(today) };
   }, [range, custom]);
 
-  const { data: filters } = useQuery({
-    queryKey: ['panel-filters', schoolId],
-    queryFn: () => panel.filters(schoolId!),
-    enabled: !!schoolId,
-  });
   const { data, isLoading, isError, isFetching, dataUpdatedAt, refetch } = useQuery({
     queryKey: ['panel-dashboard', schoolId, dates.from, dates.to],
     queryFn: () => panel.dashboard(schoolId!, dates.from, dates.to),
@@ -116,34 +113,62 @@ function Overview() {
   });
 
   return (
-    <>
-      <div className="page-head">
-        <div>
-          <div className="eyebrow">SCHOOL DASHBOARD</div>
-          <h1>{data?.school.name ?? 'Overview'}</h1>
-          <p className="muted">
-            {data ? `${data.school.code} · ${data.school.city_name} · ${data.days} day${data.days === 1 ? '' : 's'}` : ' '}
-          </p>
-          <LiveStamp updatedAt={dataUpdatedAt} fetching={isFetching} onRefresh={() => refetch()} />
+    <div className="school-overview">
+      <header className="school-overview-header">
+        <div className="school-overview-title">
+          <span className="school-overview-symbol"><SchoolBuilding width={24} height={24} aria-hidden="true" /></span>
+          <div>
+            <h1>{school?.name ?? 'School overview'}</h1>
+            {school && <p>{[school.city_name, school.code].filter(Boolean).join(' · ')}</p>}
+          </div>
         </div>
-        <div className="range-picker">
-          {[['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['365', '1 year']].map(([v, l]) => (
-            <button key={v} className={!custom && range === v ? 'chip active' : 'chip'} onClick={() => { setRange(v); setCustom(null); }}>{l}</button>
-          ))}
-          <input type="date" value={dates.from} onChange={(e) => setCustom({ from: e.target.value, to: dates.to })} />
-          <input type="date" value={dates.to} onChange={(e) => setCustom({ from: dates.from, to: e.target.value })} />
+        <nav className="school-quick-links" aria-label="School shortcuts">
+          <Link to="orders"><Receipt width={16} height={16} aria-hidden="true" /> Orders</Link>
+          <Link to="students"><Users width={16} height={16} aria-hidden="true" /> Student roster</Link>
+        </nav>
+      </header>
+
+      {data && data.pending_students > 0 && (
+        <Link to="students?pending=1" className="school-approval">
+          <User width={19} height={19} aria-hidden="true" />
+          <span><strong>{num(data.pending_students)}</strong> student{data.pending_students === 1 ? '' : 's'} waiting for approval</span>
+          <strong>Review</strong><ArrowRight width={16} height={16} aria-hidden="true" />
+        </Link>
+      )}
+
+      <div className="school-report-toolbar">
+        <div>
+          <h2>Sales overview</h2>
+          {dataUpdatedAt > 0 && <LiveStamp updatedAt={dataUpdatedAt} fetching={isFetching} onRefresh={() => void refetch()} />}
+        </div>
+        <div className="school-report-controls">
+          <div className="school-range-presets" role="group" aria-label="Sales date range">
+            {DATE_RANGES.map(([value, label]) => (
+              <button key={value} type="button" aria-pressed={!custom && range === value}
+                onClick={() => { setRange(value); setCustom(null); }}>{label}</button>
+            ))}
+          </div>
+          <details className="school-date-range">
+            <summary>{custom ? 'Custom range' : 'Choose dates'}</summary>
+            <div className="school-date-fields">
+              <label>From<input type="date" value={dates.from} max={dates.to}
+                onChange={(e) => { if (e.target.value && e.target.value <= dates.to) setCustom({ from: e.target.value, to: dates.to }); }} /></label>
+              <label>Through<input type="date" value={dates.to} min={dates.from}
+                onChange={(e) => { if (e.target.value && e.target.value >= dates.from) setCustom({ from: dates.from, to: e.target.value }); }} /></label>
+            </div>
+          </details>
         </div>
       </div>
 
-      {isError && <div className="empty"><h3>Could not load the dashboard</h3><p>Please refresh and try again.</p></div>}
+      {isError && <div role="alert" className="empty"><h3>Could not load sales data</h3><button type="button" className="link-button" onClick={() => void refetch()}>Try again</button></div>}
       {isLoading && !data && (
         <>
-          <section className="stat-grid three"><KpiSkeleton count={3} /></section>
+          <section className="school-metrics"><KpiSkeleton count={3} /></section>
           <section className="card"><ChartSkeleton height={240} /></section>
         </>
       )}
       {data && <DashboardBody data={data} />}
-    </>
+    </div>
   );
 }
 
@@ -153,18 +178,19 @@ function DashboardBody({ data }: { data: Dashboard }) {
   const busyDays = data.daily.filter((d) => Number(d.gross_sales) > 0).length;
   return (
     <>
-      <section className="stat-grid three lead-first">
+      <section className="school-metrics" aria-label="Sales totals">
         <StatCard
-          label="GROSS SALES"
+          label="Gross sales"
           value={money(data.totals.gross_sales)}
-          hint={data.totals.margin !== undefined ? `${money(data.totals.margin)} margin on ${money(data.totals.cost)} cost` : `${data.days} day${data.days === 1 ? '' : 's'} up to ${data.date_to}`}
+          hint={data.totals.margin !== undefined ? `${money(data.totals.margin)} margin on ${money(data.totals.cost)} cost` : `${num(data.days)} day${data.days === 1 ? '' : 's'} in this period`}
+          icon={OverviewIcon}
           accent
         />
-        <StatCard label="ORDERS" value={num(data.totals.orders)} hint={data.totals.orders ? `${money(data.totals.average_order_value)} average order` : 'Average order: -'} />
-        <StatCard label="UNITS SOLD" value={num(data.totals.units)} hint="Items across every order" />
+        <StatCard label="Orders" icon={Receipt} value={num(data.totals.orders)} hint={data.totals.orders ? `${money(data.totals.average_order_value)} average order` : 'No orders in this period'} />
+        <StatCard label="Units sold" icon={Package} value={num(data.totals.units)} />
       </section>
 
-      <section className="card">
+      <section className="card school-sales-chart">
         <div className="card-head">
           <h2>Gross sales {bucket === 'day' ? 'by day' : bucket === 'week' ? 'by week' : 'by month'}</h2>
           <span className="pill">{busyDays} {bucket}{busyDays === 1 ? '' : 's'} with sales</span>
@@ -213,21 +239,18 @@ function DashboardBody({ data }: { data: Dashboard }) {
         </section>
       </div>
 
-      <section className="notice-row">
-        <div className="notice">
-          <b>{data.pending_students}</b> student{data.pending_students === 1 ? '' : 's'} waiting for approval
-          <Link to="/school/students?pending=1" className="link-button">Review →</Link>
-        </div>
-
-      </section>
     </>
   );
 }
 
-function StatCard({ label, value, hint, accent }: { label: string; value: string; hint?: string; accent?: boolean }) {
+function StatCard({ label, value, hint, accent, icon: Icon }: {
+  label: string; value: string; hint?: string; accent?: boolean; icon?: typeof OverviewIcon;
+}) {
   return (
-    <div className={accent ? 'stat accent' : 'stat'}>
-      <span>{label}</span>
+    <div className={Icon ? `stat school-metric${accent ? ' is-primary' : ''}` : (accent ? 'stat accent' : 'stat')}>
+      {Icon ? (
+        <div className="school-metric-label"><span>{label}</span><Icon width={19} height={19} aria-hidden="true" /></div>
+      ) : <span>{label}</span>}
       <strong>{value}</strong>
       {hint && <small>{hint}</small>}
     </div>
