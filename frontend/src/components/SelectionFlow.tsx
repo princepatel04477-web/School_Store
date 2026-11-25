@@ -249,8 +249,19 @@ export function SelectionFlow({
         if (category && category !== 'All') {
           url += `?category=${encodeURIComponent(category === 'PT Uniform' ? 'Uniform' : category)}`;
         }
-        const res = await api<{ products: Product[] }>(url);
-        return { results: res.products || [] };
+        const res = await api<{ products: any[] }>(url);
+        const normalized: Product[] = (res.products || []).map((p) => ({
+          ...p,
+          price: Number(p.price),
+          variants: Array.isArray(p.variants)
+            ? p.variants
+            : (p.sizes || []).map((s: any) => ({
+                id: s.variant_id,
+                size: s.size,
+                stock_status: s.stock_status,
+              })),
+        }));
+        return { results: normalized };
       }
       if (!selection.school?.id || !selection.city?.id || !selection.grade?.id || !selection.gender) {
         return { results: [] };
