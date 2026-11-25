@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { Check, Truck } from '../components/ui/icons';
-import { Link, Route, Routes } from 'react-router-dom';
+import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { Shell } from '../App';
 import { ListenButton } from '../components/ListenButton';
 import { SelectionFlow } from '../components/SelectionFlow';
 import { Cart, Timeline, getOrderStatusLabel, type CartItem } from '../components/Store';
 import { FitFeedbackPrompt } from '../components/orders/FitFeedbackPrompt';
 import { api, deleteChildPhotos, Order, Page, Product } from '../api';
-import { OrderCardsSkeleton } from '../components/ui/Skeleton';
+import { OrderCardsSkeleton, Skeleton } from '../components/ui/Skeleton';
 import { OrderDetail } from './OrderDetail';
 import { useLang } from '../i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useStoreState } from '../store/storeState';
 import '../components/photoConsent.css';
 import type { Fit } from '../data/fit';
 import { LIVE_CATEGORIES } from '../data/liveCategories';
@@ -25,29 +26,6 @@ interface StudentDetail {
   gender?: string;
   school_name?: string;
 }
-
-const fallbackKids: StudentDetail[] = [
-  {
-    id: '1',
-    name: 'Aarav Patel',
-    gr_number: 'GR-1042',
-    grade_name: '5',
-    class_name: '5',
-    section: 'A',
-    gender: 'Male',
-    school_name: 'DPS Surat',
-  },
-  {
-    id: '2',
-    name: 'Diya Patel',
-    gr_number: 'GR-1043',
-    grade_name: '8',
-    class_name: '8',
-    section: 'B',
-    gender: 'Female',
-    school_name: 'DPS Surat',
-  },
-];
 
 export default function Parent() {
   return (
@@ -64,11 +42,12 @@ export default function Parent() {
 function Dashboard() {
   const queryClient = useQueryClient();
   const { t } = useLang();
+  const { selection } = useStoreState();
   const [confirmPhotoDelete, setConfirmPhotoDelete] = useState(false);
   const [photoDeleteState, setPhotoDeleteState] = useState<'idle' | 'working' | 'done' | 'error'>('idle');
-  const { data: studentsData } = useQuery({
+  const { data: studentsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['parent-students'],
-    queryFn: () => api<{ results: any[] }>('/students/').catch(() => null),
+    queryFn: () => api<{ results: any[] }>('/students/'),
   });
 
   const kids: StudentDetail[] =
@@ -83,12 +62,52 @@ function Dashboard() {
           gender: s.gender ? (s.gender === 'MALE' ? 'Male' : s.gender === 'FEMALE' ? 'Female' : s.gender) : '-',
           school_name: s.school_name || '-',
         }))
-      : fallbackKids;
+      : [];
 
-  const [selectedId, setSelectedId] = useState<string>(kids[0]?.id || '1');
-  const selected = kids.find((k) => k.id === selectedId) || kids[0] || fallbackKids[0];
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const effectiveSelectedId = selectedId ?? (kids[0]?.id ?? null);
+  const selected = kids.find((k) => k.id === effectiveSelectedId) || kids[0] || null;
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [activeCategory, setActiveCategory] = useState<'PT Uniform' | 'Uniform' | 'School Shoes' | 'Uniform Accessories' | 'Stationery' | 'ID Cards'>('Uniform');
+
+  if (isLoading) {
+    return (
+      <div className="parent-loading-skeleton" role="status" aria-label="Loading your dashboard">
+        <Skeleton className="parent-welcome-skeleton" height="180px" borderRadius={6} />
+        <div className="student-picker">
+          <div className="section-row">
+            <h2>My children</h2>
+          </div>
+          <div className="kids-skeleton-grid">
+            <Skeleton className="kid-card-skeleton" height="64px" borderRadius={6} />
+            <Skeleton className="kid-card-skeleton" height="64px" borderRadius={6} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="parent-error-state" role="alert">
+        <p className="error-title">{t('orders.loadError')}</p>
+        <p className="error-subtitle">{t('common.checkInternet')}</p>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => refetch()}
+        >
+          {t('orders.retry')}
+        </button>
+      </div>
+    );
+  }
+
+  // Zero children and no stored selection: redirect to flow step 1
+  if (kids.length === 0 && !selection) {
+    return <Navigate to="/flow?step=1" replace />;
+  }
 
   const handleAddItem = (item: { product: Product; variantId: string; customisationData: Record<string, any>; measurement?: Fit }) => {
     setCartItems((prev) => [
@@ -109,7 +128,7 @@ function Dashboard() {
     setCartItems((prev) => prev.filter((it) => it.id !== id));
   };
 
-  const rawStudent = studentsData?.results?.find((s: any) => s.id === selectedId);
+  const rawStudent = selected ? studentsData?.results?.find((s: any) => s.id === selected.id) : null;
   const studentProfile = rawStudent
     ? {
         id: rawStudent.id,
@@ -121,8 +140,6 @@ function Dashboard() {
         gender: rawStudent.gender,
       }
     : null;
-
-  const [activeCategory, setActiveCategory] = useState<'PT Uniform' | 'Uniform' | 'School Shoes' | 'Uniform Accessories' | 'Stationery' | 'ID Cards'>('Uniform');
 
   return (
     <>
@@ -142,27 +159,34 @@ function Dashboard() {
         <div className="section-row">
           <h2>My children</h2>
         </div>
-        <div className="kids">
-          {kids.map((k) => (
-            <button
-              onClick={() => {
-                setSelectedId(k.id);
-                setCartItems([]);
-                setConfirmPhotoDelete(false);
-                setPhotoDeleteState('idle');
-              }}
-              className={selected?.id === k.id ? 'kid selected' : 'kid'}
-              key={k.id}
-            >
-              <span className="kid-avatar">{k.name[0]}</span>
-              <span>
-                <b>{k.name}</b>
-                <small>{k.grade_name ? `Grade ${k.grade_name}` : `Class ${k.class_name}`} {k.section ? `${k.section} · ` : ' · '}{k.school_name}</small>
-              </span>
-              <span className="radio">{selected?.id === k.id ? <Check width={14} height={14} strokeWidth={2.5} /> : null}</span>
-            </button>
-          ))}
-        </div>
+        {kids.length > 0 ? (
+          <div className="kids">
+            {kids.map((k) => (
+              <button
+                onClick={() => {
+                  setSelectedId(k.id);
+                  setCartItems([]);
+                  setConfirmPhotoDelete(false);
+                  setPhotoDeleteState('idle');
+                }}
+                className={selected?.id === k.id ? 'kid selected' : 'kid'}
+                key={k.id}
+              >
+                <span className="kid-avatar">{k.name[0]}</span>
+                <span>
+                  <b>{k.name}</b>
+                  <small>{k.grade_name ? `Grade ${k.grade_name}` : `Class ${k.class_name}`} {k.section ? `${k.section} · ` : ' · '}{k.school_name}</small>
+                </span>
+                <span className="radio">{selected?.id === k.id ? <Check width={14} height={14} strokeWidth={2.5} /> : null}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="parent-empty-children">
+            <p>{t('parent.noChildren')}</p>
+            <small>{t('parent.noChildrenSub')}</small>
+          </div>
+        )}
       </div>
 
       {selected && (
@@ -343,7 +367,7 @@ function Dashboard() {
       </div>
 
       <SelectionFlow
-        key={selected?.id}
+        key={selected?.id || 'none'}
         category={activeCategory}
         studentProfile={studentProfile}
         cartItemCount={cartItems.length}

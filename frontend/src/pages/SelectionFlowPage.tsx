@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useReducedMotion } from 'motion/react';
 import { ArrowLeft } from '../components/ui/icons';
 import { seedClasses, type SeedClass } from '../data/seedData';
 import { useStoreSchools, useStoreProducts } from '../data/catalog';
@@ -501,8 +502,51 @@ export function SelectionFlowPage({ onOpenBag }: { onOpenBag?: () => void }) {
     else goToStep(currentStep - 1);
   }, currentStep > 1 || Boolean(activeProductForSheet));
 
+  const shouldReduceMotion = useReducedMotion();
+  const [isTitleCollapsed, setIsTitleCollapsed] = useState(false);
+
+  const currentTitle = useMemo(() => {
+    if (currentStep === 1) {
+      const live = new URLSearchParams(window.location.search);
+      const state = live.get('state') || activeBranch?.stateName;
+      const cityId = live.get('city') || activeBranch?.cityId;
+      if (!state) return t('flow.s1.stateTitle');
+      if (!cityId) return t('flow.s1.cityTitle');
+      return t('flow.s1.title');
+    }
+    if (currentStep === 2) return t('flow.s2.title');
+    if (currentStep === 3) return t('flow.s3.title');
+    if (currentStep === 4) return t('flow.s4.title');
+    return '';
+  }, [currentStep, activeBranch, t, location.search]);
+
+  useEffect(() => {
+    if (shouldReduceMotion) {
+      setIsTitleCollapsed(false);
+      return;
+    }
+
+    const checkCollapse = () => {
+      setIsTitleCollapsed(window.scrollY > 48);
+    };
+
+    window.addEventListener('scroll', checkCollapse, { passive: true });
+    checkCollapse();
+
+    return () => window.removeEventListener('scroll', checkCollapse);
+  }, [shouldReduceMotion, currentStep]);
+
   return (
     <div className="selection-flow-page container" id="main">
+      {/* iOS Large Title Collapsing Bar */}
+      <div
+        className={`flow-collapsed-bar ${isTitleCollapsed ? 'is-collapsed' : ''}`}
+        aria-hidden={!isTitleCollapsed}
+        data-testid="flow-collapsed-bar"
+      >
+        <span className="flow-collapsed-title">{currentTitle}</span>
+      </div>
+
       {/* Main Stepped Content with Directional Animation */}
       <StepTransition stepKey={currentStep} direction={stepDirection}>
         {/* ================= STEP 1: SCHOOL ================= */}

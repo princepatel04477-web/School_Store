@@ -12,6 +12,7 @@ import { OrderCardsSkeleton } from '../../components/ui/Skeleton';
 import { shareOrderDetails } from '../../native/share';
 import { getShareOrigin } from '../../native/nativePlatform';
 import { useLang } from '../../i18n';
+import { storeState } from '../../store/storeState';
 import './nativePages.css';
 
 export function OrdersTab() {
@@ -49,7 +50,12 @@ export function OrdersTab() {
         <ParentSignInSheet
           open={showSignIn}
           onClose={() => setShowSignIn(false)}
-          onDone={() => setShowSignIn(false)}
+          onDone={(child) => {
+            setShowSignIn(false);
+            if (!child && !storeState.getSelection()) {
+              navigate('/flow?step=1');
+            }
+          }}
         />
       </div>
     );

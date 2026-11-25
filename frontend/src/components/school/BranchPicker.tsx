@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Search } from '../ui/icons';
+import { ArrowLeft, ArrowRight, Check, Search } from '../ui/icons';
 import { SchoolPickerSkeleton } from '../ui/Skeleton';
 import { SplitReveal, Stagger } from '../../motion';
 import { ListenButton } from '../ListenButton';
@@ -234,7 +234,7 @@ export function BranchPicker({
         </div>
       ) : stage === 'state' ? (
         /* States: a grid of landmarks with big names, A to Z */
-        <Stagger key="state" className="state-grid" staggerDelay={0.04}>
+        <Stagger key="state" className="state-grid" staggerDelay={0.02} maxAnimated={8}>
           {shownStates.map((s) => (
             <button
               type="button"
@@ -243,7 +243,11 @@ export function BranchPicker({
               onClick={() => setState(s.name)}
             >
               <span className="state-tile-mark">
-                <StateEmblem name={s.name} size={96} />
+                {s.name === state ? (
+                  <Check className="tile-check-icon state-tile-tick" width={36} height={36} strokeWidth={2.5} />
+                ) : (
+                  <StateEmblem name={s.name} size={96} />
+                )}
               </span>
               <span className="state-tile-name">{s.name}</span>
               <span className="state-tile-meta">{s.cityCount === 1 ? t('flow.s1.oneCity') : t('flow.s1.cityCount', { n: s.cityCount })}</span>
@@ -252,7 +256,7 @@ export function BranchPicker({
         </Stagger>
       ) : stage === 'city' ? (
         /* Cities and schools: ruled lists, not a stack of boxes */
-        <Stagger key={`city-${state}`} className="pick-rows" staggerDelay={0.03}>
+        <Stagger key={`city-${state}`} className="pick-rows" staggerDelay={0.02} maxAnimated={8}>
           {shownCities.map((c) => (
             <button
               type="button"
@@ -264,12 +268,18 @@ export function BranchPicker({
                 <span className="pick-row-name">{c.name}</span>
                 <span className="pick-row-meta">{c.branchCount === 1 ? t('flow.s1.oneBranch') : t('flow.s1.branchCount', { n: c.branchCount })}</span>
               </span>
-              <ArrowRight className="pick-row-arrow" width={22} height={22} />
+              {c.id === cityId ? (
+                <span className="pick-row-check" aria-hidden="true">
+                  <Check className="tile-check-icon" width={20} height={20} strokeWidth={2.5} />
+                </span>
+              ) : (
+                <ArrowRight className="pick-row-arrow" width={22} height={22} />
+              )}
             </button>
           ))}
         </Stagger>
       ) : (
-        <Stagger key={`branch-${cityId}`} className="pick-rows" staggerDelay={0.03}>
+        <Stagger key={`branch-${cityId}`} className="pick-rows" staggerDelay={0.02} maxAnimated={8}>
           {shownBranches.map((b) => (
             <button
               type="button"
@@ -291,7 +301,13 @@ export function BranchPicker({
                   <span className="pick-row-meta branch-udise">{t('flow.s1.udise', { code: b.udise_code })}</span>
                 )}
               </span>
-              <ArrowRight className="pick-row-arrow" width={22} height={22} />
+              {b.id === selectedBranchId ? (
+                <span className="pick-row-check" aria-hidden="true">
+                  <Check className="tile-check-icon" width={20} height={20} strokeWidth={2.5} />
+                </span>
+              ) : (
+                <ArrowRight className="pick-row-arrow" width={22} height={22} />
+              )}
             </button>
           ))}
         </Stagger>

@@ -1249,6 +1249,16 @@ export const messages = {
     gu: 'કૉપિ થઈ શક્યું નહીં. નંબર દબાવી રાખીને કૉપિ કરો.',
     hi: 'कॉपी नहीं हो सका। नंबर को दबाकर रखें और कॉपी करें।',
   },
+  'parent.noChildren': {
+    en: 'No children added yet.',
+    gu: 'હજુ સુધી કોઈ બાળક ઉમેરાયું નથી.',
+    hi: 'अभी कोई बच्चा नहीं जोड़ा गया है।',
+  },
+  'parent.noChildrenSub': {
+    en: 'Choose your school to browse uniform essentials, or ask your school to link your child’s record.',
+    gu: 'યુનિફોર્મ જોવા માટે તમારી શાળા પસંદ કરો, અથવા શાળાને તમારા બાળકનો રેકોર્ડ જોડવા કહો.',
+    hi: 'यूनिफ़ॉर्म देखने के लिए अपना स्कूल चुनें, या स्कूल से अपने बच्चे का रिकॉर्ड जोड़ने को कहें।',
+  },
 } satisfies Record<string, Entry>;
 
 export type MessageKey = keyof typeof messages;
