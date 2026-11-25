@@ -161,6 +161,8 @@ export default function Login() {
         <ParentSignInSheet
           open
           initialStep={sheetStep}
+          // My account has Add my child, so signing in here goes straight there
+          skipChildPicker
           onClose={() => setSheetStep(null)}
           onDone={() => {
             setSheetStep(null);
