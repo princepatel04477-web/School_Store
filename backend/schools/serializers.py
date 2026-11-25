@@ -296,6 +296,7 @@ class SchoolClassSerializer(serializers.ModelSerializer):
             "created_at",
         )
         read_only_fields = ("id", "school_name", "branch_name", "label", "created_at")
+        validators = []
 
     def validate(self, attrs):
         user = self.context["request"].user
