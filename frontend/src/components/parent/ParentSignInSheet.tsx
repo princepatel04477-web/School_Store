@@ -18,6 +18,8 @@ export interface ParentSignInSheetProps {
   onDone: (child: ParentChild | null) => void;
   /** School the parent picked in the shop, used to pre-select it in the find form. */
   schoolName?: string;
+  /** Skip the child-picker step after OTP verification (used on /account). */
+  skipChildPicker?: boolean;
 }
 
 const RESEND_SECONDS = 30;
@@ -45,7 +47,7 @@ function sendError(err: unknown): MessageKey {
  * (no typing). Only when the school's list has no phone for this parent do we
  * ask for two things: GR number and date of birth.
  */
-export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentSignInSheetProps) {
+export function ParentSignInSheet({ open, onClose, onDone, schoolName, skipChildPicker = false }: ParentSignInSheetProps) {
   const { user, signInWithOtp } = useAuth();
   const { t } = useLang();
   const [step, setStep] = useState<Step>('phone');
@@ -121,6 +123,10 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
     setError('');
     try {
       await signInWithOtp(digits, code);
+      if (skipChildPicker) {
+        onDone(null);
+        return;
+      }
       await loadChildren();
     } catch (err) {
       setError(
