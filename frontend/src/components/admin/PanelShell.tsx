@@ -24,6 +24,7 @@ export function PanelShell({
   context,
   nav,
   children,
+  className,
 }: {
   base: string;
   /** Short role name shown next to the logo, e.g. "City Admin Panel". */
@@ -32,6 +33,7 @@ export function PanelShell({
   context?: ReactNode;
   nav: PanelNavItem[];
   children: ReactNode;
+  className?: string;
 }) {
   const { user, signOut } = useAuth();
   const { pathname } = useLocation();
@@ -46,7 +48,7 @@ export function PanelShell({
   const initial = user?.username?.slice(0, 1).toUpperCase();
 
   return (
-    <div className="admin">
+    <div className={className ? `admin ${className}` : 'admin'}>
       <header className="admin-top">
         <Link to={base} className="admin-brand">
           <span className="brand-mark">S</span>
