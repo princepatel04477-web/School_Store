@@ -1,10 +1,11 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 import { homeFor } from '../App';
 import { logout } from '../api';
 import { BackButton } from '../components/BackButton';
 import { ParentSignInSheet } from '../components/parent/ParentSignInSheet';
+import { KeyIcon, Smartphone, UserPlus } from '../components/ui/icons';
 
 const ROLE_LABEL: Record<string, string> = {
   BOSS: 'Owner',
@@ -22,7 +23,8 @@ const ROLE_LABEL: Record<string, string> = {
 export default function Login() {
   const nav = useNavigate();
   const { user, signIn } = useAuth();
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetStep, setSheetStep] = useState<'phone' | 'password' | 'register' | null>(null);
+  const [finished, setFinished] = useState(false);
   const [staffOpen, setStaffOpen] = useState(false);
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
@@ -42,6 +44,11 @@ export default function Login() {
       setBusy(false);
     }
   }
+
+  // Once the sheet signs someone in, send them to their own home
+  useEffect(() => {
+    if (finished && user) nav(homeFor(user.role, user.city), { replace: true });
+  }, [finished, user, nav]);
 
   const name = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') || user.phone || user.username : '';
 
@@ -83,12 +90,29 @@ export default function Login() {
           </div>
         )}
 
-        <p className="muted">
-          Parents: enter your mobile number and the 6-digit code. New number? Your account is made right away.
-        </p>
-        <button type="button" className="primary full login-mobile-cta" onClick={() => setSheetOpen(true)}>
-          Continue with mobile number <span>→</span>
-        </button>
+        <p className="muted">Parents: choose how you want to continue.</p>
+        <div className="login-choices">
+          <button type="button" className="login-choice" onClick={() => setSheetStep('phone')}>
+            <Smartphone width={26} height={26} strokeWidth={1.6} />
+            <span>
+              <strong>Sign in with mobile OTP</strong>
+              <small>We send a 6-digit code. New number? Your account is made right away.</small>
+            </span>
+          </button>
+          <button type="button" className="login-choice" onClick={() => setSheetStep('register')}>
+            <UserPlus width={26} height={26} strokeWidth={1.6} />
+            <span>
+              <strong>Create account with user ID and password</strong>
+              <small>Choose your own user ID and password.</small>
+            </span>
+          </button>
+          <button type="button" className="login-choice login-choice-quiet" onClick={() => setSheetStep('password')}>
+            <KeyIcon width={22} height={22} strokeWidth={1.6} />
+            <span>
+              <strong>Already have a user ID? Sign in with password</strong>
+            </span>
+          </button>
+        </div>
 
         <button
           type="button"
@@ -133,14 +157,17 @@ export default function Login() {
         </Link>
       </div>
 
-      <ParentSignInSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        onDone={() => {
-          setSheetOpen(false);
-          nav('/parent');
-        }}
-      />
+      {sheetStep && (
+        <ParentSignInSheet
+          open
+          initialStep={sheetStep}
+          onClose={() => setSheetStep(null)}
+          onDone={() => {
+            setSheetStep(null);
+            setFinished(true);
+          }}
+        />
+      )}
     </div>
   );
 }
