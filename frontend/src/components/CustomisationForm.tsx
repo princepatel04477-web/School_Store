@@ -9,6 +9,7 @@ import {
 } from '../api';
 import { ListenButton } from './ListenButton';
 import { useLang } from '../i18n';
+import { useAuth } from '../auth';
 import { compressImage } from '../utils/imageCompression';
 import './photoConsent.css';
 
@@ -37,6 +38,9 @@ export function CustomisationForm({
   purpose = null,
 }: CustomisationFormProps) {
   const { t } = useLang();
+  const { user } = useAuth();
+  // School staff confirm the parent agreed on the school's own form; parents agree themselves.
+  const isStaff = user?.role === 'TEACHER' || user?.role === 'SCHOOL_ADMIN';
   const [uploadingField, setUploadingField] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<Record<string, string>>({});
   const [previews, setPreviews] = useState<Record<string, string>>({});
@@ -57,6 +61,10 @@ export function CustomisationForm({
 
   const saveConsent = async (nextKeep: boolean) => {
     if (!studentId || !purpose) return;
+    if (isStaff) {
+      setConsentReady(true);
+      return;
+    }
     setSavingConsent(true);
     setConsentError('');
     try {
@@ -112,6 +120,7 @@ export function CustomisationForm({
         filename: file.name,
         student_id: studentId,
         purpose,
+        ...(isStaff ? { school_consent: true } : {}),
       });
 
       // 3. Upload directly to object storage (bypasses Django workers completely)
@@ -156,7 +165,7 @@ export function CustomisationForm({
           <ListenButton text={t('photo.consent.listen')} />
           <p>{t('photo.consent.listen')}</p>
           {(!studentId || !purpose) && <p>{t('photo.consent.needChild')}</p>}
-          {purpose === 'ID_CARD' && (
+          {purpose === 'ID_CARD' && !isStaff && (
             <label>
               <input
                 type="checkbox"
@@ -186,7 +195,13 @@ export function CustomisationForm({
                 void saveConsent(keepForNextYear);
               }}
             />
-            <span>{savingConsent ? t('photo.consent.saving') : t('photo.consent.tick')}</span>
+            <span>
+              {savingConsent
+                ? t('photo.consent.saving')
+                : isStaff
+                  ? "The parent has agreed that the school may use this child's photo."
+                  : t('photo.consent.tick')}
+            </span>
           </label>
           {consentError && <p className="photo-consent-error">{consentError}</p>}
         </section>

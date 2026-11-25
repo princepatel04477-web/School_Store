@@ -236,6 +236,16 @@ class SchoolBranch(UUIDModel):
         return f"{self.display_name} - {self.city.name}"
 
 
+def student_photo_path(instance, filename):
+    """Random file name: a child's name or GR number never appears in a photo path."""
+    import uuid as _uuid
+    ext = (filename.rsplit(".", 1)[-1] if "." in filename else "jpg").lower()
+    if ext not in ("jpg", "jpeg", "png", "webp"):
+        ext = "jpg"
+    now = timezone.now()
+    return f"student-photos/{now:%Y/%m}/{_uuid.uuid4().hex}.{ext}"
+
+
 class Student(UUIDModel):
     class Gender(models.TextChoices):
         MALE = "MALE", "Male"
@@ -306,7 +316,16 @@ class Student(UUIDModel):
         help_text="Parent's mobile number from the school's records (10 digits). "
         "A parent who verifies this number by OTP is linked automatically.",
     )
-    photo = models.ImageField(upload_to="student-photos/%Y/%m/", blank=True, default="")
+    photo = models.ImageField(upload_to=student_photo_path, blank=True, default="")
+    # Who confirmed the parent agreed to the ID card photo, and when (school staff upload).
+    photo_consent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    photo_consent_at = models.DateTimeField(null=True, blank=True)
     blood_group = models.CharField(max_length=10, blank=True, default="")
     father_or_guardian_name = models.CharField(max_length=150, blank=True, default="")
     address = models.TextField(blank=True, default="")

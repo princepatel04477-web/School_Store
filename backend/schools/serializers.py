@@ -83,16 +83,6 @@ class SchoolSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id", "city_name", "created_at")
 
-    def get_photo_url(self, obj):
-        if not getattr(obj, "photo", None):
-            return None
-        try:
-            url = obj.photo.url
-            request = self.context.get("request")
-            return request.build_absolute_uri(url) if request else url
-        except Exception:
-            return None
-
     def validate(self, attrs):
         user = self.context["request"].user
         delivery_enabled = attrs.get(
@@ -160,8 +150,8 @@ class StudentSerializer(serializers.ModelSerializer):
             "parent_name",
             "parent_phone",
             "roster_phone",
-            "photo",
             "photo_url",
+            "photo_consent_at",
             "blood_group",
             "father_or_guardian_name",
             "address",
@@ -181,6 +171,7 @@ class StudentSerializer(serializers.ModelSerializer):
             "parent_name",
             "parent_phone",
             "photo_url",
+            "photo_consent_at",
             "approval_status",
             "source",
             "created_at",
@@ -191,14 +182,11 @@ class StudentSerializer(serializers.ModelSerializer):
         validators = []
 
     def get_photo_url(self, obj):
+        # Private: served only through the scoped API (StudentViewSet.photo), never /media/.
         if not getattr(obj, "photo", None):
             return None
-        try:
-            url = obj.photo.url
-            request = self.context.get("request")
-            return request.build_absolute_uri(url) if request else url
-        except Exception:
-            return None
+        stamp = int(obj.updated_at.timestamp()) if getattr(obj, "updated_at", None) else 0
+        return f"/api/students/{obj.pk}/photo/?v={stamp}"
 
     def validate(self, attrs):
         """
@@ -431,16 +419,6 @@ class StudentClaimSerializer(serializers.Serializer):
     class_name = serializers.CharField(max_length=30, required=False, allow_blank=True)
     section = serializers.CharField(max_length=20, required=False, allow_blank=True)
 
-    def get_photo_url(self, obj):
-        if not getattr(obj, "photo", None):
-            return None
-        try:
-            url = obj.photo.url
-            request = self.context.get("request")
-            return request.build_absolute_uri(url) if request else url
-        except Exception:
-            return None
-
     def validate(self, attrs):
         if not attrs.get("date_of_birth") and not (
             attrs.get("class_name") and attrs.get("section")
@@ -525,16 +503,6 @@ class StudentManualAddSerializer(serializers.Serializer):
     section = serializers.CharField(max_length=20)
     gender = serializers.CharField(max_length=16)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
-
-    def get_photo_url(self, obj):
-        if not getattr(obj, "photo", None):
-            return None
-        try:
-            url = obj.photo.url
-            request = self.context.get("request")
-            return request.build_absolute_uri(url) if request else url
-        except Exception:
-            return None
 
     def validate(self, attrs):
         school = attrs["school"]

@@ -11,7 +11,7 @@ import './legal.css';
  * launch: these are a working draft, not legal advice.
  */
 
-const UPDATED = '18 October 2026';
+const UPDATED = '25 November 2026';
 
 function LegalPage({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -78,6 +78,14 @@ export function PrivacyPage() {
           order. The tick is empty until you choose it. We store the photo, a print file, and a small preview. We
           also store the time you agreed, the policy version, and the IP address and browser of that request.
         </dd>
+        <dt>ID card details and photo from your child's school</dt>
+        <dd>
+          A teacher with a login from us can fill your child's ID card form: name, GR number, class and section,
+          date of birth, blood group, a parent's name and phone number, home address and an ID card photo. A
+          teacher can take or upload the photo only after ticking that you agreed to it on the school's own form.
+          We record which teacher ticked it and when. The photo is kept on your child's record and is never public:
+          only you, staff of your child's school (or branch) and our own staff can open it, and only while signed in.
+        </dd>
         <dt>Payments</dt>
         <dd>
           Online payments are handled by our payment partner, Razorpay. When you choose online payment, Razorpay
@@ -109,8 +117,9 @@ export function PrivacyPage() {
       <p>
         Order records are kept for 8 years because tax law requires it. The original photo and the print file are
         deleted 30 days after the order is marked delivered. The small preview is deleted then too, unless you
-        ticked "Keep a small copy for next year's ID card". You can delete every photo we hold for your child,
-        and withdraw consent, from My children on your account. Student records are kept while the school is a
+        ticked "Keep a small copy for next year's ID card". The ID card photo on your child's record stays until
+        the school replaces or removes it, you delete it, or the student record is removed. You can delete every
+        photo we hold for your child, including that one, and withdraw consent, from My children on your account. Student records are kept while the school is a
         partner and removed within 90 days of the school asking us to, or of the student leaving the school.
       </p>
       <p>

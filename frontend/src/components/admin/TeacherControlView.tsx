@@ -2,6 +2,9 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { portalApi, teacherAdmin, type User } from '../../api';
 import { useAuth } from '../../auth';
+import { Skeleton } from '../ui/Skeleton';
+import '../teacher/teacher.css';
+import './teacherControl.css';
 
 export function TeacherControlView() {
   const queryClient = useQueryClient();
@@ -13,7 +16,8 @@ export function TeacherControlView() {
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedSchool, setSelectedSchool] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('');
-  const [allSchools, setAllSchools] = useState(canAssignAllSchools);
+  // A teacher looks after one school unless the developer ticks every school.
+  const [allSchools, setAllSchools] = useState(false);
 
   // Teacher form
   const [teacherName, setTeacherName] = useState('');
@@ -96,7 +100,7 @@ export function TeacherControlView() {
       setTeacherPhone('');
       setVisiblePasswords((prev) => ({ ...prev, [created.id]: true }));
       setBanner(
-        `Created Teacher Login — ID: ${created.username} | Password: ${created.issued_password || '******'}`
+        `Login made for ${created.first_name || 'the teacher'}. User ID: ${created.username}, password: ${created.issued_password || '******'}.`
       );
       queryClient.invalidateQueries({ queryKey: ['teacher-admin-list'] });
     },
@@ -110,7 +114,7 @@ export function TeacherControlView() {
     onSuccess: (res) => {
       setErrorMsg('');
       setVisiblePasswords((prev) => ({ ...prev, [res.id]: true }));
-      setBanner(`New Password generated for ID ${res.username}: ${res.issued_password}`);
+      setBanner(`New password for user ID ${res.username}: ${res.issued_password}. The old one no longer works.`);
       queryClient.invalidateQueries({ queryKey: ['teacher-admin-list'] });
     },
     onError: (err: any) => {
@@ -141,7 +145,7 @@ export function TeacherControlView() {
       setNewSchoolCode('');
       setSelectedSchool(school.id);
       setAllSchools(false);
-      setBanner(`School "${school.name}" added${newSchoolPortalOnly ? ' (ID Card Portal only)' : ''}.`);
+      setBanner(`School "${school.name}" added${newSchoolPortalOnly ? ' (teacher ID card portal only)' : ''}.`);
       queryClient.invalidateQueries({ queryKey: ['teacher-admin-schools'] });
     },
     onError: (err: any) => {
@@ -150,7 +154,7 @@ export function TeacherControlView() {
   });
 
   const copyCredentials = async (t: User) => {
-    const pass = t.issued_password || '(regenerate to view)';
+    const pass = t.issued_password || '(tap New password first)';
     const text = `SchoolStore Teacher Login\nUser ID: ${t.username}\nPassword: ${pass}`;
     try {
       await navigator.clipboard.writeText(text);
@@ -162,306 +166,263 @@ export function TeacherControlView() {
   };
 
   return (
-    <div style={{ display: 'grid', gap: '20px' }}>
-      <div className="portal-card" style={{ padding: '20px', background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+    <div className="tc">
+      <section className="tc-card">
+        <div className="tc-head">
           <div>
-            <h2 style={{ margin: 0, fontSize: '20px' }}>Teacher & ID Card Access Portal</h2>
-            <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '14px' }}>
-              Create simple 6-digit logins for teachers. View, copy, or regenerate passwords anytime to share.
+            <h2>Teacher logins</h2>
+            <p>
+              Make a 6-digit user ID and password for each teacher. A teacher can add classes (1A, 1B),
+              add students and fill every student's ID card form with photo for their school.
             </p>
           </div>
-          <button
-            type="button"
-            className="portal-btn portal-btn-secondary portal-btn-sm"
-            onClick={() => setShowAddSchool((v) => !v)}
-          >
-            {showAddSchool ? 'Close Add School' : '+ Add ID-Card School'}
+          <button type="button" className="tp-btn tp-btn-sm" onClick={() => setShowAddSchool((v) => !v)}>
+            {showAddSchool ? 'Close' : '+ Add ID card school'}
           </button>
         </div>
 
-        {banner && (
-          <div style={{ padding: '12px 14px', borderRadius: '8px', background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46', marginBottom: '14px', fontWeight: 600 }}>
-            {banner}
-          </div>
-        )}
-        {errorMsg && (
-          <div style={{ padding: '12px 14px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', marginBottom: '14px' }}>
-            {errorMsg}
-          </div>
-        )}
+        {banner && <p className="tc-banner" role="status">{banner}</p>}
+        {errorMsg && <p className="tp-error" role="alert">{errorMsg}</p>}
 
         {showAddSchool && (
           <form
+            className="tc-sub"
             onSubmit={(e) => {
               e.preventDefault();
               if (!selectedCity) {
-                setErrorMsg('Please select a City first before adding a school.');
+                setErrorMsg('Choose a city first, then add the school.');
                 return;
               }
               createSchoolMutation.mutate();
             }}
-            style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #cbd5e1', marginBottom: '18px', display: 'grid', gap: '12px' }}
           >
-            <strong style={{ fontSize: '15px' }}>Add a School (e.g. for ID Cards only)</strong>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
-              <select
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-                required
-                style={{ padding: '9px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-              >
-                <option value="">Select City *</option>
+            <b>Add a school (for example for ID cards only)</b>
+            <label className="tp-field">
+              <span>City *</span>
+              <select value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)} required>
+                <option value="">Choose city</option>
                 {filteredCities.map((c) => (
                   <option key={c.id} value={c.id}>{c.name} ({c.state})</option>
                 ))}
               </select>
-              <input
-                value={newSchoolName}
-                onChange={(e) => setNewSchoolName(e.target.value)}
-                placeholder="School Name (e.g. Kendriya Vidyalaya)"
-                required
-                style={{ padding: '9px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-              />
+            </label>
+            <label className="tp-field">
+              <span>School name *</span>
+              <input value={newSchoolName} onChange={(e) => setNewSchoolName(e.target.value)} required />
+            </label>
+            <label className="tp-field">
+              <span>Short code *</span>
               <input
                 value={newSchoolCode}
                 onChange={(e) => setNewSchoolCode(e.target.value)}
-                placeholder="Short Code (e.g. KV-ID-01)"
+                placeholder="For example KV-ID-01"
                 required
-                style={{ padding: '9px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
               />
-            </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+            </label>
+            <label className="tp-consent">
               <input
                 type="checkbox"
                 checked={newSchoolPortalOnly}
                 onChange={(e) => setNewSchoolPortalOnly(e.target.checked)}
               />
-              Show only in Teacher / ID Card Portal (hide from public parent store)
+              <span>Show only in the teacher ID card portal (hide from the parent store)</span>
             </label>
-            <div>
-              <button type="submit" className="portal-btn portal-btn-primary portal-btn-sm" disabled={createSchoolMutation.isPending}>
-                {createSchoolMutation.isPending ? 'Saving...' : 'Save School'}
-              </button>
-            </div>
+            <button type="submit" className="tp-btn tp-btn-primary" disabled={createSchoolMutation.isPending}>
+              {createSchoolMutation.isPending ? 'Saving...' : 'Save school'}
+            </button>
           </form>
         )}
 
-        {/* Step 1: State -> City -> School -> Branch */}
         <form
+          className="tc-sub"
           onSubmit={(e) => {
             e.preventDefault();
+            if (!allSchools && !selectedSchool) {
+              setErrorMsg('Choose the school this teacher will look after.');
+              return;
+            }
             createTeacherMutation.mutate();
           }}
-          style={{ display: 'grid', gap: '14px', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-            <strong style={{ fontSize: '15px' }}>1. Choose School Access & Create 6-Digit Teacher Login</strong>
-            {canAssignAllSchools && (
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, color: '#0f766e' }}>
-                <input
-                  type="checkbox"
-                  checked={allSchools}
-                  onChange={(e) => setAllSchools(e.target.checked)}
-                />
-                Give access to ALL Schools & Classes (Class 1 to 12)
-              </label>
-            )}
-          </div>
-
-          {!allSchools && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
-              <select
-                value={selectedState}
-                onChange={(e) => {
-                  setSelectedState(e.target.value);
-                  setSelectedCity('');
-                  setSelectedBranch('');
-                }}
-                style={{ padding: '9px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-              >
-                <option value="">1. Select State (Optional)</option>
-                {states.map((st) => (
-                  <option key={st} value={st}>{st}</option>
-                ))}
-              </select>
-
-              <select
-                value={selectedCity}
-                onChange={(e) => {
-                  setSelectedCity(e.target.value);
-                  setSelectedBranch('');
-                }}
-                style={{ padding: '9px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-              >
-                <option value="">2. Select City</option>
-                {filteredCities.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-
-              <select
-                value={selectedSchool}
-                onChange={(e) => {
-                  setSelectedSchool(e.target.value);
-                  setSelectedBranch('');
-                }}
-                required={!allSchools}
-                style={{ padding: '9px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-              >
-                <option value="">3. Select School *</option>
-                {schools.map((s: any) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} {s.is_public_store === false ? '(ID Card Only)' : ''}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={selectedBranch}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-                style={{ padding: '9px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-              >
-                <option value="">4. Select Branch (if applicable)</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>{b.display_name} ({b.city_name})</option>
-                ))}
-              </select>
-            </div>
+          <b>New teacher login</b>
+          {canAssignAllSchools && (
+            <label className="tp-consent">
+              <input type="checkbox" checked={allSchools} onChange={(e) => setAllSchools(e.target.checked)} />
+              <span>Give this teacher every school (only for your own staff)</span>
+            </label>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', alignItems: 'center' }}>
+          {!allSchools && (
+            <>
+              <div className="tp-row">
+                <label className="tp-field">
+                  <span>State</span>
+                  <select
+                    value={selectedState}
+                    onChange={(e) => {
+                      setSelectedState(e.target.value);
+                      setSelectedCity('');
+                      setSelectedBranch('');
+                    }}
+                  >
+                    <option value="">Any</option>
+                    {states.map((st) => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="tp-field">
+                  <span>City</span>
+                  <select
+                    value={selectedCity}
+                    onChange={(e) => {
+                      setSelectedCity(e.target.value);
+                      setSelectedBranch('');
+                    }}
+                  >
+                    <option value="">Any</option>
+                    {filteredCities.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <label className="tp-field">
+                <span>School *</span>
+                <select
+                  value={selectedSchool}
+                  onChange={(e) => {
+                    setSelectedSchool(e.target.value);
+                    setSelectedBranch('');
+                  }}
+                  required
+                >
+                  <option value="">Choose school</option>
+                  {schools.map((s: any) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}{s.is_public_store === false ? ' (ID card only)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="tp-field">
+                <span>Branch</span>
+                <select value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)}>
+                  <option value="">Whole school (every branch)</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.display_name} ({b.city_name})</option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
+          <label className="tp-field">
+            <span>Teacher name *</span>
             <input
               value={teacherName}
               onChange={(e) => setTeacherName(e.target.value)}
-              placeholder="Teacher Name (e.g. Ramesh Sharma) *"
+              placeholder="For example Ramesh Sharma"
               required
-              style={{ padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
             />
-            <input
-              value={teacherPhone}
-              onChange={(e) => setTeacherPhone(e.target.value)}
-              placeholder="Mobile Number (Optional)"
-              style={{ padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-            />
-            <button
-              type="submit"
-              className="portal-btn portal-btn-primary"
-              disabled={createTeacherMutation.isPending}
-            >
-              {createTeacherMutation.isPending ? 'Generating...' : 'Generate 6-Digit ID & Password'}
-            </button>
-          </div>
+          </label>
+          <label className="tp-field">
+            <span>Mobile number</span>
+            <input value={teacherPhone} onChange={(e) => setTeacherPhone(e.target.value)} inputMode="numeric" />
+          </label>
+          <button type="submit" className="tp-btn tp-btn-primary" disabled={createTeacherMutation.isPending}>
+            {createTeacherMutation.isPending ? 'Making login...' : 'Make 6-digit ID and password'}
+          </button>
         </form>
-      </div>
+      </section>
 
-      {/* Teacher Credentials Table */}
-      <div className="portal-card" style={{ padding: '20px', background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
-          <h3 style={{ margin: 0, fontSize: '17px' }}>All Teachers ({teachers.length})</h3>
+      <section className="tc-card">
+        <div className="tc-head">
+          <h3>All teachers ({teachers.length})</h3>
+        </div>
+        <label className="tp-field">
+          <span>Search</span>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, 6-digit ID, or phone..."
-            style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', minWidth: '250px' }}
+            placeholder="Name, 6-digit ID or phone"
           />
-        </div>
+        </label>
 
         {isLoading ? (
-          <p style={{ color: '#64748b' }}>Loading teachers...</p>
-        ) : teachers.length === 0 ? (
-          <p style={{ color: '#64748b' }}>No teachers created yet. Use the form above to generate a 6-digit ID & password.</p>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left', color: '#475569' }}>
-                  <th style={{ padding: '10px 8px' }}>Teacher</th>
-                  <th style={{ padding: '10px 8px' }}>School / Access</th>
-                  <th style={{ padding: '10px 8px' }}>6-Digit User ID</th>
-                  <th style={{ padding: '10px 8px' }}>6-Digit Password</th>
-                  <th style={{ padding: '10px 8px' }}>Status</th>
-                  <th style={{ padding: '10px 8px' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {teachers.map((t) => {
-                  const shown = !!visiblePasswords[t.id];
-                  const fullName = [t.first_name, t.last_name].filter(Boolean).join(' ') || 'Teacher';
-                  return (
-                    <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '10px 8px' }}>
-                        <strong>{fullName}</strong>
-                        {t.phone && <div style={{ fontSize: '12px', color: '#64748b' }}>{t.phone}</div>}
-                      </td>
-                      <td style={{ padding: '10px 8px' }}>
-                        {t.all_schools_access ? (
-                          <span style={{ padding: '3px 8px', borderRadius: '999px', background: '#dcfce7', color: '#166534', fontSize: '12px', fontWeight: 600 }}>
-                            All Schools (Class 1–12)
-                          </span>
-                        ) : (
-                          <div>
-                            <div>{t.school_name || 'Assigned School'}</div>
-                            {t.branch_name && <div style={{ fontSize: '12px', color: '#64748b' }}>{t.branch_name}</div>}
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ padding: '10px 8px', fontFamily: 'monospace', fontSize: '15px', fontWeight: 700 }}>
-                        {t.username}
-                      </td>
-                      <td style={{ padding: '10px 8px', fontFamily: 'monospace', fontSize: '15px' }}>
-                        <span style={{ fontWeight: 700, marginRight: '8px' }}>
-                          {t.issued_password ? (shown ? t.issued_password : '••••••') : 'Not set'}
-                        </span>
-                        {t.issued_password && (
-                          <button
-                            type="button"
-                            onClick={() => setVisiblePasswords((prev) => ({ ...prev, [t.id]: !prev[t.id] }))}
-                            style={{ fontSize: '12px', padding: '2px 7px', borderRadius: '4px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}
-                          >
-                            {shown ? 'Hide' : 'Show'}
-                          </button>
-                        )}
-                      </td>
-                      <td style={{ padding: '10px 8px' }}>
-                        <span style={{ color: t.is_active ? '#15803d' : '#b91c1c', fontWeight: 600 }}>
-                          {t.is_active ? 'Active' : 'Paused'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '10px 8px' }}>
-                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                          <button
-                            type="button"
-                            className="portal-btn portal-btn-secondary portal-btn-sm"
-                            onClick={() => copyCredentials(t)}
-                          >
-                            {copiedId === t.id ? 'Copied!' : 'Copy'}
-                          </button>
-                          <button
-                            type="button"
-                            className="portal-btn portal-btn-secondary portal-btn-sm"
-                            disabled={regenMutation.isPending}
-                            onClick={() => regenMutation.mutate(t.id)}
-                          >
-                            Regenerate
-                          </button>
-                          <button
-                            type="button"
-                            className="portal-btn portal-btn-secondary portal-btn-sm"
-                            onClick={() => toggleActiveMutation.mutate({ id: t.id, active: !t.is_active })}
-                          >
-                            {t.is_active ? 'Pause' : 'Activate'}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="tp-skeleton-list" role="status" aria-label="Loading teachers">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} height="120px" />
+            ))}
           </div>
+        ) : teachers.length === 0 ? (
+          <p className="tp-note">No teachers yet. Use the form above to make the first login.</p>
+        ) : (
+          <ul className="tc-list">
+            {teachers.map((t) => {
+              const shown = !!visiblePasswords[t.id];
+              const fullName = [t.first_name, t.last_name].filter(Boolean).join(' ') || 'Teacher';
+              return (
+                <li key={t.id} className="tc-teacher">
+                  <div className="tc-teacher-top">
+                    <div>
+                      <b>{fullName}</b>
+                      <small>
+                        {t.all_schools_access
+                          ? 'Every school'
+                          : `${t.school_name || 'School not set'}${t.branch_name ? `, ${t.branch_name}` : ', whole school'}`}
+                      </small>
+                      {t.phone && <small>{t.phone}</small>}
+                    </div>
+                    <span className={t.is_active ? 'tc-status tc-status-on' : 'tc-status tc-status-off'}>
+                      {t.is_active ? 'Active' : 'Paused'}
+                    </span>
+                  </div>
+                  <dl className="tc-creds">
+                    <div>
+                      <dt>User ID</dt>
+                      <dd>{t.username}</dd>
+                    </div>
+                    <div>
+                      <dt>Password</dt>
+                      <dd>{t.issued_password ? (shown ? t.issued_password : '******') : '-'}</dd>
+                    </div>
+                  </dl>
+                  <div className="tc-actions">
+                    {t.issued_password && (
+                      <button
+                        type="button"
+                        className="tp-btn tp-btn-sm"
+                        onClick={() => setVisiblePasswords((prev) => ({ ...prev, [t.id]: !prev[t.id] }))}
+                      >
+                        {shown ? 'Hide' : 'Show'}
+                      </button>
+                    )}
+                    <button type="button" className="tp-btn tp-btn-sm" onClick={() => copyCredentials(t)}>
+                      {copiedId === t.id ? 'Copied' : 'Copy'}
+                    </button>
+                    <button
+                      type="button"
+                      className="tp-btn tp-btn-sm"
+                      disabled={regenMutation.isPending}
+                      onClick={() => regenMutation.mutate(t.id)}
+                    >
+                      New password
+                    </button>
+                    <button
+                      type="button"
+                      className="tp-btn tp-btn-sm"
+                      onClick={() => toggleActiveMutation.mutate({ id: t.id, active: !t.is_active })}
+                    >
+                      {t.is_active ? 'Pause' : 'Turn on'}
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         )}
-      </div>
+      </section>
     </div>
   );
 }

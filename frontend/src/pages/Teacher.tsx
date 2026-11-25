@@ -1,19 +1,22 @@
-import { useMemo, useState } from 'react';
-import { Link, NavLink, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, NavLink, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Shell } from '../App';
 import { useAuth } from '../auth';
 import { SelectionFlow } from '../components/SelectionFlow';
 import { Cart, type CartItem } from '../components/Store';
-import { api, money, portalApi, upload, type Order, type Product } from '../api';
+import { api, money, portalApi, type Order, type Product } from '../api';
+import { StudentPhoto } from '../components/teacher/StudentPhoto';
+import {
+  STANDARDS,
+  StudentForm,
+  missingForIdCard,
+  standardLabel,
+  toStandard,
+  type TeacherStudent,
+} from '../components/teacher/StudentForm';
+import { Skeleton } from '../components/ui/Skeleton';
 import type { Fit } from '../data/fit';
-
-const STANDARDS = [
-  'Nursery', 'Junior KG', 'Senior KG',
-  '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12',
-];
-
-const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 
 const CATEGORIES = [
   'ID Cards',
@@ -57,7 +60,7 @@ function TeacherTabs() {
         1. Classes
       </NavLink>
       <NavLink to="/teacher/students" style={tabStyle}>
-        2. Students
+        2. Students & forms
       </NavLink>
       <NavLink to="/teacher/orders" style={tabStyle}>
         3. Orders (ID Card & Uniforms)
@@ -77,6 +80,7 @@ export default function Teacher() {
         <Route index element={<ClassesView />} />
         <Route path="classes" element={<ClassesView />} />
         <Route path="students" element={<StudentsView />} />
+        <Route path="student/:id" element={<StudentFormPage />} />
         <Route path="orders" element={<TeacherOrder />} />
         <Route path="order/:id" element={<TeacherOrder />} />
         <Route path="history" element={<OrderHistoryView />} />
@@ -440,95 +444,100 @@ function ClassesView() {
   );
 }
 
-function StudentsView() {
-  const queryClient = useQueryClient();
-  const ctx = useTeacherSchoolContext();
-  const [searchParams] = useSearchParams();
-  const [q, setQ] = useState('');
-  const [cls, setCls] = useState(searchParams.get('class') || 'All');
-  const [secFilter, setSecFilter] = useState(searchParams.get('section') || '');
-  const [showAdd, setShowAdd] = useState(false);
-
-  // Full student details + photo form
-  const [name, setName] = useState('');
-  const [grNumber, setGrNumber] = useState('');
-  const [className, setClassName] = useState(cls === 'All' ? '1' : cls);
-  const [section, setSection] = useState(secFilter || 'A');
-  const [gender, setGender] = useState<'MALE' | 'FEMALE'>('MALE');
-  const [dob, setDob] = useState('');
-  const [bloodGroup, setBloodGroup] = useState('');
-  const [guardianName, setGuardianName] = useState('');
-  const [rosterPhone, setRosterPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string>('');
-  const [addError, setAddError] = useState('');
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['teacher-students', q, cls, secFilter, ctx.schoolId, ctx.branchId],
+function useClassStudents(ctx: ReturnType<typeof useTeacherSchoolContext>, cls: string, sec: string, q = '') {
+  return useQuery({
+    queryKey: ['teacher-students', q, cls, sec, ctx.schoolId, ctx.branchId],
     queryFn: () => {
       const p = new URLSearchParams();
       if (q.trim()) p.set('search', q.trim());
-      if (cls !== 'All') p.set('class', cls);
-      if (secFilter.trim()) p.set('section', secFilter.trim().toUpperCase());
+      if (cls && cls !== 'All') p.set('class', cls);
+      if (sec.trim()) p.set('section', sec.trim().toUpperCase());
       if (ctx.schoolId) p.set('school', ctx.schoolId);
       if (ctx.branchId) p.set('branch', ctx.branchId);
-      return api<{ results: any[] }>(`/students/?${p.toString()}`);
+      return api<{ results: TeacherStudent[]; count?: number }>(`/students/?${p.toString()}`);
     },
   });
+}
 
-  const addMutation = useMutation({
-    mutationFn: () => {
-      const fd = new FormData();
-      fd.append('name', name.trim());
-      fd.append('gr_number', grNumber.trim());
-      fd.append('class_name', className);
-      fd.append('section', section.trim().toUpperCase() || 'A');
-      fd.append('gender', gender);
-      if (dob) fd.append('date_of_birth', dob);
-      if (bloodGroup) fd.append('blood_group', bloodGroup);
-      if (guardianName.trim()) fd.append('father_or_guardian_name', guardianName.trim());
-      if (rosterPhone.trim()) fd.append('roster_phone', rosterPhone.trim());
-      if (address.trim()) fd.append('address', address.trim());
-      if (ctx.schoolId) fd.append('school', ctx.schoolId);
-      if (ctx.branchId) fd.append('branch', ctx.branchId);
-      if (photoFile) fd.append('photo', photoFile);
-      return upload<any>('/students/', fd);
-    },
-    onSuccess: () => {
-      setAddError('');
-      setName('');
-      setGrNumber('');
-      setDob('');
-      setBloodGroup('');
-      setGuardianName('');
-      setRosterPhone('');
-      setAddress('');
-      setPhotoFile(null);
-      setPhotoPreview('');
-      setShowAdd(false);
-      queryClient.invalidateQueries({ queryKey: ['teacher-students'] });
-    },
-    onError: (err: any) => {
-      setAddError(err?.data?.gr_number || err?.message || 'Could not save student.');
+function rosterQuery(cls: string, sec: string, ctx: ReturnType<typeof useTeacherSchoolContext>) {
+  const p = new URLSearchParams();
+  if (cls && cls !== 'All') p.set('class', cls);
+  if (sec) p.set('section', sec);
+  if (ctx.allAccess) {
+    if (ctx.schoolId) p.set('school', ctx.schoolId);
+    if (ctx.cityId) p.set('city', ctx.cityId);
+    if (ctx.branchId) p.set('branch', ctx.branchId);
+  }
+  return p;
+}
+
+function StudentsView() {
+  const navigate = useNavigate();
+  const ctx = useTeacherSchoolContext();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [q, setQ] = useState('');
+  const cls = searchParams.get('class') || 'All';
+  const secFilter = searchParams.get('section') || '';
+
+  const { data: classesData } = useQuery({
+    queryKey: ['teacher-classes', ctx.schoolId, ctx.branchId],
+    queryFn: () => {
+      const p = new URLSearchParams({ page_size: '100' });
+      if (ctx.schoolId) p.set('school', ctx.schoolId);
+      if (ctx.branchId) p.set('branch', ctx.branchId);
+      return api<{ results: SchoolClassItem[] }>(`/classes/?${p.toString()}`);
     },
   });
+  const savedClasses = classesData?.results || [];
 
+  const { data, isLoading } = useClassStudents(ctx, cls, secFilter, q);
   const list = data?.results || [];
+  const complete = list.filter((s) => missingForIdCard(s).length === 0).length;
+
+  const choose = (nextCls: string, nextSec: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextCls === 'All') next.delete('class');
+    else next.set('class', nextCls);
+    if (nextSec) next.set('section', nextSec);
+    else next.delete('section');
+    setSearchParams(next, { replace: true });
+  };
+
+  const options: { key: string; cls: string; sec: string; label: string }[] = [
+    { key: 'all', cls: 'All', sec: '', label: 'All classes' },
+    ...(savedClasses.length > 0
+      ? savedClasses.map((c) => ({ key: c.id, cls: c.class_name, sec: c.section, label: c.label }))
+      : STANDARDS.slice(3).map((c) => ({ key: c, cls: c, sec: '', label: standardLabel(c) }))),
+  ];
+
+  const addLink = `/teacher/student/new?${rosterQuery(cls === 'All' ? '' : cls, secFilter, ctx).toString()}`;
 
   return (
     <>
       <SchoolBranchPicker ctx={ctx} />
       <div className="section-row">
         <div>
-          <span className="eyebrow">STUDENT ROSTER & ID DETAILS</span>
+          <span className="eyebrow">ID CARD FORMS</span>
           <h2>
-            Students {cls !== 'All' ? `· Class ${cls}${secFilter}` : ''}
+            {cls === 'All' ? 'All students' : `${standardLabel(cls)}${secFilter ? ` ${secFilter}` : ''}`}
           </h2>
         </div>
-        <button className="text-button" onClick={() => setShowAdd(!showAdd)}>
-          {showAdd ? 'Close' : '+ Add Student'}
-        </button>
+        <Link className="tp-btn tp-btn-primary tp-btn-sm" to={addLink}>
+          + Add student
+        </Link>
+      </div>
+
+      <div className="tp-sections" role="group" aria-label="Class">
+        {options.map((o) => (
+          <button
+            key={o.key}
+            type="button"
+            aria-pressed={cls === o.cls && secFilter === o.sec}
+            onClick={() => choose(o.cls, o.sec)}
+          >
+            {o.label}
+          </button>
+        ))}
       </div>
 
       <div className="search">
@@ -540,169 +549,158 @@ function StudentsView() {
         />
       </div>
 
-      <div className="chips" style={{ overflowX: 'auto' }}>
-        {['All', ...STANDARDS.slice(3)].map((x) => (
-          <button
-            className={cls === x ? 'chip active' : 'chip'}
-            onClick={() => {
-              setCls(x);
-              if (x === 'All') setSecFilter('');
-            }}
-            key={x}
-          >
-            {x === 'All' ? 'All Classes' : `Class ${x}`}
-          </button>
-        ))}
-      </div>
-
-      {showAdd && (
-        <form
-          className="form-card"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (ctx.allAccess && !ctx.schoolId) {
-              setAddError('Please select a School above before adding a student.');
-              return;
-            }
-            addMutation.mutate();
-          }}
-        >
-          <h3>Add Student & ID Card Photo</h3>
-          {addError && <div className="error">{addError}</div>}
-
-          {/* Photo Capture / Upload */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #94a3b8' }}>
-            {photoPreview ? (
-              <img
-                src={photoPreview}
-                alt="Student preview"
-                style={{ width: '64px', height: '64px', borderRadius: '8px', objectFit: 'cover' }}
-              />
-            ) : (
-              <div style={{ width: '64px', height: '64px', borderRadius: '8px', background: '#e2ece5', display: 'grid', placeItems: 'center', fontSize: '12px', color: '#275b4c', fontWeight: 700 }}>
-                PHOTO
-              </div>
-            )}
-            <div style={{ display: 'grid', gap: '4px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: '#275b4c', cursor: 'pointer' }}>
-                Take / Upload Student Photo
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="user"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0] || null;
-                    setPhotoFile(f);
-                    setPhotoPreview(f ? URL.createObjectURL(f) : '');
-                  }}
-                  style={{ display: 'block', marginTop: '4px', fontSize: '12px' }}
-                />
-              </label>
-            </div>
-          </div>
-
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Student full name *"
-            required
-          />
-          <input
-            value={grNumber}
-            onChange={(e) => setGrNumber(e.target.value)}
-            placeholder="GR / Roll number *"
-            required
-          />
-          <div className="form-row">
-            <select value={className} onChange={(e) => setClassName(e.target.value)} required>
-              {STANDARDS.map((c) => (
-                <option key={c} value={c}>
-                  {['Nursery', 'Junior KG', 'Senior KG'].includes(c) ? c : `Class ${c}`}
-                </option>
-              ))}
-            </select>
-            <input
-              value={section}
-              onChange={(e) => setSection(e.target.value.toUpperCase())}
-              placeholder="Section (e.g. A)"
-              required
-            />
-          </div>
-          <div className="form-row">
-            <select value={gender} onChange={(e) => setGender(e.target.value as 'MALE' | 'FEMALE')}>
-              <option value="MALE">Boy</option>
-              <option value="FEMALE">Girl</option>
-            </select>
-            <select value={bloodGroup} onChange={(e) => setBloodGroup(e.target.value)}>
-              <option value="">Blood Group (Optional)</option>
-              {BLOOD_GROUPS.map((bg) => (
-                <option key={bg} value={bg}>{bg}</option>
-              ))}
-            </select>
-          </div>
-          <div className="form-row">
-            <input
-              type="date"
-              value={dob}
-              onChange={(e) => setDob(e.target.value)}
-              title="Date of Birth"
-            />
-            <input
-              value={rosterPhone}
-              onChange={(e) => setRosterPhone(e.target.value)}
-              placeholder="Parent phone (10 digits)"
-            />
-          </div>
-          <input
-            value={guardianName}
-            onChange={(e) => setGuardianName(e.target.value)}
-            placeholder="Father / Guardian name"
-          />
-          <input
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Home address"
-          />
-          <button className="primary full" disabled={addMutation.isPending}>
-            {addMutation.isPending ? 'Saving...' : 'Save Student & Photo'}
-          </button>
-        </form>
+      {!isLoading && list.length > 0 && (
+        <p className="tp-progress">
+          {complete} of {list.length} forms complete. Tap a student to fill or fix their form.
+        </p>
       )}
 
-      <div className="student-list">
-        {isLoading ? (
-          <p className="muted">Loading students...</p>
-        ) : list.length === 0 ? (
-          <div className="notice">
-            <b>No students found</b>
-            <p>Tap "+ Add Student" above to register a student with their photo and ID card details.</p>
-          </div>
-        ) : (
-          list.map((s: any) => (
-            <Link to={`/teacher/order/${s.id}`} className="student-row" key={s.id}>
-              {s.photo_url ? (
-                <img
-                  src={s.photo_url}
-                  alt={s.name}
-                  style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }}
-                />
-              ) : (
-                <span className="kid-avatar">{s.name ? s.name[0] : 'S'}</span>
-              )}
-              <div>
-                <b>{s.name}</b>
-                <small>
-                  {s.gr_number || '-'} · Class {s.grade_name || s.class_name || '-'} {s.section ? `(${s.section})` : ''} · {s.branch_name || s.school_name || ''}
-                  {s.blood_group ? ` · ${s.blood_group}` : ''}
-                </small>
-              </div>
-              <span style={{ fontSize: '13px', color: '#275b4c', fontWeight: 600 }}>
-                ID Card & Order →
-              </span>
-            </Link>
-          ))
-        )}
+      {isLoading ? (
+        <div className="tp-skeleton-list" role="status" aria-label="Loading students">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} height="72px" />
+          ))}
+        </div>
+      ) : list.length === 0 ? (
+        <div className="notice">
+          <b>No students here yet</b>
+          <p>Tap "+ Add student" to fill the first ID card form for this class.</p>
+        </div>
+      ) : (
+        <div className="tp-list">
+          {list.map((s) => {
+            const missing = missingForIdCard(s);
+            return (
+              <button
+                type="button"
+                className="tp-student"
+                key={s.id}
+                onClick={() => navigate(`/teacher/student/${s.id}?${rosterQuery(cls, secFilter, ctx).toString()}`)}
+                style={{ textAlign: 'left', font: 'inherit', cursor: 'pointer', width: '100%' }}
+              >
+                <StudentPhoto url={s.photo_url} name={s.name} size={44} />
+                <span className="tp-student-body">
+                  <b>{s.name}</b>
+                  <small>
+                    GR {s.gr_number || '-'} · {standardLabel(s.grade_name || s.class_name)} {s.section}
+                  </small>
+                  {missing.length === 0 ? (
+                    <span className="tp-tag tp-tag-done">Form complete</span>
+                  ) : (
+                    <span className="tp-tag tp-tag-todo">Missing: {missing.join(', ')}</span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
+function StudentFormPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const ctx = useTeacherSchoolContext();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const isNew = !id || id === 'new';
+  const cls = toStandard(searchParams.get('class'));
+  const sec = searchParams.get('section') || '';
+  // A message carried over from "Save student" (the page remounts on the new address).
+  const [notice, setNotice] = useState<string>((location.state as { notice?: string } | null)?.notice || '');
+
+  const { data: student, isLoading } = useQuery({
+    queryKey: ['teacher-student', id],
+    queryFn: () => api<TeacherStudent>(`/students/${id}/`),
+    enabled: !isNew,
+  });
+
+  const rosterCls = cls || toStandard(student?.class_name);
+  const rosterSec = sec || student?.section || '';
+  const { data: roster } = useClassStudents(ctx, rosterCls, rosterSec);
+  const others = roster?.results || [];
+  const index = student ? others.findIndex((s) => s.id === student.id) : -1;
+  const nextStudent = index >= 0 ? others[index + 1] : undefined;
+  const back = `/teacher/students?${rosterQuery(rosterCls, rosterSec, ctx).toString()}`;
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
+
+  if (!isNew && (isLoading || !student)) {
+    return (
+      <div className="tp-skeleton-list" role="status" aria-label="Loading form">
+        <Skeleton height="120px" />
+        <Skeleton height="44px" />
+        <Skeleton height="44px" />
+        <Skeleton height="44px" />
       </div>
+    );
+  }
+
+  return (
+    <>
+      <Link to={back} className="back">
+        ← Back to class
+      </Link>
+      <div className="section-row">
+        <div>
+          <span className="eyebrow">ID CARD FORM</span>
+          <h2>{isNew ? 'Add a student' : student!.name}</h2>
+        </div>
+      </div>
+
+      {notice && <p className="tp-ok" role="status">{notice}</p>}
+
+      <StudentForm
+        key={student?.id || 'new'}
+        student={isNew ? null : student}
+        defaults={{ class_name: cls || undefined, section: sec || undefined }}
+        schoolId={ctx.schoolId || (typeof ctx.user?.school === 'string' ? ctx.user.school : '')}
+        branchId={ctx.branchId}
+        onSaved={(saved, warning) => {
+          queryClient.setQueryData(['teacher-student', saved.id], saved);
+          queryClient.invalidateQueries({ queryKey: ['teacher-students'] });
+          const left = missingForIdCard(saved);
+          const msg =
+            warning || (left.length ? `Saved. Still missing: ${left.join(', ')}.` : 'Saved. This form is complete.');
+          setNotice(msg);
+          window.scrollTo(0, 0);
+          if (isNew) {
+            navigate(
+              `/teacher/student/${saved.id}?${rosterQuery(toStandard(saved.class_name), saved.section, ctx).toString()}`,
+              { replace: true, state: { notice: msg } },
+            );
+          }
+        }}
+      />
+
+      {!isNew && (
+        <div className="tp-actions">
+          {nextStudent && (
+            <Link
+              className="tp-btn tp-btn-primary"
+              onClick={() => setNotice('')}
+              to={`/teacher/student/${nextStudent.id}?${rosterQuery(rosterCls, rosterSec, ctx).toString()}`}
+            >
+              Next student: {nextStudent.name}
+            </Link>
+          )}
+          <Link
+            className="tp-btn"
+            onClick={() => setNotice('')}
+            to={`/teacher/student/new?${rosterQuery(rosterCls, rosterSec, ctx).toString()}`}
+          >
+            + Add another student to this class
+          </Link>
+          <Link className="tp-btn" to={`/teacher/order/${student!.id}`}>
+            Order ID card or uniform
+          </Link>
+        </div>
+      )}
     </>
   );
 }
@@ -771,8 +769,8 @@ function TeacherOrder() {
 
   return (
     <>
-      <Link to="/teacher/students" className="back">
-        ← All students
+      <Link to={`/teacher/student/${student.id}`} className="back">
+        ← Back to {student.name}'s form
       </Link>
 
       <div
@@ -788,35 +786,12 @@ function TeacherOrder() {
           marginBottom: '20px',
         }}
       >
-        {student.photo_url ? (
-          <img
-            src={student.photo_url}
-            alt={student.name}
-            style={{ width: '52px', height: '52px', borderRadius: '8px', objectFit: 'cover' }}
-          />
-        ) : (
-          <span
-            className="kid-avatar"
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '8px',
-              background: '#275b4c',
-              color: '#fff',
-              display: 'grid',
-              placeItems: 'center',
-              fontWeight: 700,
-              fontSize: '18px',
-            }}
-          >
-            {student.name ? student.name[0] : 'S'}
-          </span>
-        )}
+        <StudentPhoto url={student.photo_url} name={student.name} size={52} />
         <div>
           <span className="eyebrow">ID CARD & SCHOOL STORE ORDER FOR</span>
           <h2 style={{ margin: '2px 0 4px', fontSize: '18px' }}>{student.name}</h2>
           <small style={{ color: '#55695d', display: 'block' }}>
-            GR: {student.gr_number || '-'} · Class {student.grade_name || student.class_name || '-'} {student.section ? `(${student.section})` : ''} · {student.branch_name || student.school_name || '-'} · {student.gender?.toUpperCase() === 'MALE' ? 'Boy' : 'Girl'}
+            GR: {student.gr_number || '-'} · {standardLabel(student.grade_name || student.class_name)} {student.section || ''} · {student.branch_name || student.school_name || '-'} · {student.gender?.toUpperCase() === 'MALE' ? 'Boy' : 'Girl'}
           </small>
           {(student.blood_group || student.father_or_guardian_name || student.roster_phone) && (
             <small style={{ color: '#55695d', display: 'block', marginTop: '2px' }}>
@@ -842,7 +817,7 @@ function TeacherOrder() {
             className={activeCategory === cat ? 'chip active' : 'chip'}
             onClick={() => setActiveCategory(cat)}
           >
-            {cat === 'ID Cards' ? '★ ID Cards' : cat}
+            {cat}
           </button>
         ))}
       </div>

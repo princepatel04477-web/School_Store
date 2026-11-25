@@ -94,6 +94,10 @@ export async function api<T>(path:string, init:RequestInit={},{retry=true}={}):P
 export async function upload<T>(path:string, form:FormData):Promise<T>{const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{method:'POST',headers,body:form}); if(!res.ok){const data=await res.json().catch(()=>({})); throw new ApiError(data.detail||firstFieldError(data)||(res.status===413?'The file is too large.':`Upload failed (error ${res.status}).`),res.status,data);} return res.json();}
 /** DRF field errors look like {photo: ["..."]}: the first message, for display. */
 function firstFieldError(data:unknown):string|undefined{if(!data||typeof data!=='object') return undefined; for(const v of Object.values(data as Record<string,unknown>)){const m=Array.isArray(v)?v[0]:v; if(typeof m==='string'&&m) return m;} return undefined;}
+/** Fetch a protected image (e.g. a student's ID card photo) as a local object URL. */
+export async function fetchProtectedBlobUrl(path:string):Promise<string>{const get=(token:string|null)=>{const headers=new Headers(); if(token) headers.set('Authorization',`Bearer ${token}`); return fetch(toUrl(path),{headers});}; let res=await get(localStorage.getItem('access')); if(res.status===401&&localStorage.getItem('refresh')){try{res=await get(await refresh());}catch{/* session expired */}} if(!res.ok) throw new ApiError(`Photo not available (error ${res.status}).`,res.status,{}); return URL.createObjectURL(await res.blob());}
+/** Send a multipart form with any method (upload() is POST only). */
+export async function sendForm<T>(path:string, form:FormData|null, method:'POST'|'DELETE'='POST'):Promise<T>{const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{method,headers,body:form??undefined}); if(!res.ok){const data=await res.json().catch(()=>({})); throw new ApiError(data.detail||firstFieldError(data)||(res.status===413?'The file is too large.':`Could not save (error ${res.status}).`),res.status,data);} return res.json();}
 /** Stream a protected file with the bearer token attached (no token in the URL). */
 export async function download(path:string, filename:string){const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{headers}); if(!res.ok) throw new Error((await res.json().catch(()=>({}))).detail||'Download failed'); const blob=await res.blob(); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);}
 export function logout(){localStorage.removeItem('access');localStorage.removeItem('refresh'); purgeSavedData(); try{sessionStorage.clear();}catch{/* storage blocked */} window.location.href='/login';}
@@ -166,6 +170,8 @@ export async function getUploadPresignedUrl(body: {
   filename?: string;
   student_id: string;
   purpose: PhotoPurpose;
+  /** School staff: confirms the parent agreed on the school's own form. */
+  school_consent?: boolean;
 }) {
   return api<{
     upload_url: string;

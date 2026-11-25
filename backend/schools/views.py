@@ -1,13 +1,14 @@
 import csv
 import io
+import mimetypes
 
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -24,6 +25,9 @@ from common.throttles import StudentClaimIPThrottle, StudentClaimUserThrottle
 from inventory.services import INDIA_STOCK_ID
 
 from .import_service import TEMPLATE_COLUMNS
+
+STUDENT_PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp"}
+STUDENT_PHOTO_MAX_BYTES = 5 * 1024 * 1024
 from .models import City, School, SchoolBranch, SchoolClass, Student, StudentMeasurement
 from .serializers import (
     CitySerializer,
@@ -306,14 +310,69 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             raise PermissionDenied("Parents cannot delete students. Contact your school to correct this.")
         instance.delete()
 
-    @action(detail=True, methods=["post"], url_path="photo", parser_classes=[MultiPartParser, FormParser])
-    def upload_photo(self, request, pk=None):
+    @action(
+        detail=True,
+        methods=["get", "post", "delete"],
+        url_path="photo",
+        parser_classes=[MultiPartParser, FormParser],
+    )
+    def photo(self, request, pk=None):
+        """
+        GET    streams the ID card photo to anyone who can see this student (scoped queryset).
+        POST   school staff upload or replace it: JPEG/PNG/WEBP, at most 5 MB, and
+               `consent=1` confirming the parent agreed (who and when is recorded).
+        DELETE school staff remove it.
+        """
         student = self.get_object()
-        photo = request.FILES.get("photo")
-        if not photo:
-            raise ValidationError({"photo": "Please select or capture a photo."})
-        student.photo = photo
-        student.save(update_fields=["photo", "updated_at"])
+        if request.method == "GET":
+            if not student.photo:
+                raise NotFound("No photo yet.")
+            try:
+                handle = student.photo.open("rb")
+            except (FileNotFoundError, OSError):
+                raise NotFound("No photo yet.")
+            content_type = mimetypes.guess_type(student.photo.name)[0] or "image/jpeg"
+            response = FileResponse(handle, content_type=content_type)
+            response["Cache-Control"] = "private, max-age=86400"
+            response["X-Content-Type-Options"] = "nosniff"
+            return response
+
+        if request.user.role == User.Role.PARENT:
+            raise PermissionDenied("Ask your school to change the ID card photo.")
+
+        if request.method == "DELETE":
+            if student.photo:
+                student.photo.delete(save=False)
+            student.photo = ""
+            student.photo_consent_by = None
+            student.photo_consent_at = None
+            student.save(update_fields=["photo", "photo_consent_by", "photo_consent_at", "updated_at"])
+            return Response(StudentSerializer(student, context={"request": request}).data)
+
+        upload = request.FILES.get("photo")
+        if not upload:
+            raise ValidationError({"photo": "Please take or choose a photo."})
+        if str(request.data.get("consent", "")).lower() not in ("1", "true", "yes", "on"):
+            raise ValidationError({"consent": "Tick that the parent has agreed to this photo."})
+        if (upload.content_type or "").lower() not in STUDENT_PHOTO_TYPES:
+            raise ValidationError({"photo": "Use a JPG, PNG or WEBP photo."})
+        if upload.size > STUDENT_PHOTO_MAX_BYTES:
+            raise ValidationError({"photo": "The photo is larger than 5 MB. Take it again or pick a smaller one."})
+        try:
+            from PIL import Image
+
+            Image.open(upload).verify()
+            upload.seek(0)
+        except Exception:
+            raise ValidationError({"photo": "That file is not a photo we can read."})
+
+        old_name = student.photo.name if student.photo else ""
+        student.photo.save(upload.name or "photo.jpg", upload, save=False)
+        student.photo_consent_by_id = request.user.id
+        student.photo_consent_at = timezone.now()
+        student.save(update_fields=["photo", "photo_consent_by", "photo_consent_at", "updated_at"])
+        if old_name and old_name != student.photo.name:
+            student.photo.storage.delete(old_name)
         return Response(StudentSerializer(student, context={"request": request}).data)
 
     # ------------------------------------------------------------------ #
@@ -555,12 +614,6 @@ class StudentImportViewSet(ScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
     scope_city_field = "city_id"
     scope_school_field = "school_id"
     scope_parent_field = None
-
-    def scope_queryset(self, qs):
-        user = self.request.user
-        if user.is_authenticated and user.role == "TEACHER" and not getattr(user, "all_schools_access", False) and getattr(user, "branch_id", None):
-            return qs.filter(id=user.branch_id)
-        return super().scope_queryset(qs)
 
     def get_queryset(self):
         qs = super().get_queryset().filter(job_type=ImportJob.JobType.STUDENT_IMPORT)

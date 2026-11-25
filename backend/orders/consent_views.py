@@ -44,9 +44,31 @@ def caller_may_upload(user, student: Student) -> bool:
     role = getattr(user, "role", "")
     if role == "PARENT":
         return student.parent_id == user.id
-    if role == "TEACHER":
+    if role == "TEACHER" and getattr(user, "all_schools_access", False):
+        return True
+    if role == "TEACHER" and getattr(user, "branch_id", None):
+        return student.branch_id == user.branch_id
+    if role in ("TEACHER", "SCHOOL_ADMIN"):
         return bool(student.school_id) and student.school_id == user.school_id
     return False
+
+
+def school_recorded_consent(user, student: Student, confirm: bool) -> bool:
+    """
+    School staff photograph children whose parents agreed on the school's own form.
+    The member of staff confirms that once per child (the tick on the student form or
+    the ID card form); who confirmed and when is kept on the student.
+    """
+    if getattr(user, "role", "") not in ("TEACHER", "SCHOOL_ADMIN"):
+        return False
+    if student.photo_consent_at:
+        return True
+    if not confirm:
+        return False
+    Student.objects.filter(pk=student.pk).update(
+        photo_consent_by_id=user.id, photo_consent_at=timezone.now()
+    )
+    return True
 
 
 def live_consent(student, purpose: str):

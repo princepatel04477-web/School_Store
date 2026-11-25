@@ -107,6 +107,15 @@ def delete_student_photos(student_id) -> int:
     removed = 0
     for item in items:
         removed += purge_item_photos(item, keep_thumb=False)
+    from schools.models import Student
+
+    student = Student.objects.filter(pk=student_id).only("id", "photo").first()
+    if student and student.photo:
+        student.photo.delete(save=False)
+        Student.objects.filter(pk=student_id).update(
+            photo="", photo_consent_by=None, photo_consent_at=None
+        )
+        removed += 1
     return removed
 
 

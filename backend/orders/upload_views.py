@@ -18,7 +18,13 @@ from rest_framework.views import APIView
 
 from schools.models import Student
 
-from .consent_views import CONSENT_REQUIRED, NOT_YOUR_CHILD, caller_may_upload, live_consent
+from .consent_views import (
+    CONSENT_REQUIRED,
+    NOT_YOUR_CHILD,
+    caller_may_upload,
+    live_consent,
+    school_recorded_consent,
+)
 from .models import PhotoConsent
 from .storage import (
     generate_presigned_download,
@@ -79,7 +85,10 @@ class PresignedUploadUrlView(APIView):
             raise PermissionDenied(NOT_YOUR_CHILD)
         if not caller_may_upload(request.user, student):
             raise PermissionDenied(NOT_YOUR_CHILD)
-        if live_consent(student, purpose) is None:
+        confirm = str(request.data.get("school_consent", "")).lower() in ("1", "true", "yes", "on")
+        if live_consent(student, purpose) is None and not school_recorded_consent(
+            request.user, student, confirm
+        ):
             raise PermissionDenied(CONSENT_REQUIRED)
 
         # Generate a secure, unique object storage key

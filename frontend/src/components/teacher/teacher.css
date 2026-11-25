@@ -1,0 +1,285 @@
+/* Teacher ID card portal. Client rules: 1px var(--line) borders, no shadows,
+   corners at most var(--radius-lg), hover changes colour only. */
+
+.tp-photo {
+  display: block;
+  flex-shrink: 0;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper-sunk);
+}
+
+.tp-photo-empty {
+  display: grid;
+  place-items: center;
+  color: var(--brand);
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.tp-form {
+  display: grid;
+  gap: 12px;
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+}
+
+.tp-photo-block {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.tp-photo-actions {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.tp-photo-actions small,
+.tp-note {
+  color: var(--ink-faint);
+  font-size: 13px;
+  margin: 0;
+}
+
+.tp-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper-raised);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.tp-btn:hover {
+  border-color: var(--brand);
+}
+
+.tp-btn input[type='file'] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.tp-btn-primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-brand);
+}
+
+.tp-btn-primary:hover {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.tp-btn:disabled,
+.tp-btn:has(input:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tp-btn-full {
+  width: 100%;
+}
+
+.tp-btn-sm {
+  min-height: 36px;
+  padding: 0 10px;
+  font-size: 14px;
+}
+
+.tp-consent {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.tp-consent input {
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  flex-shrink: 0;
+  accent-color: var(--brand);
+}
+
+.tp-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tp-field > span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.tp-field input,
+.tp-field select,
+.tp-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+.tp-field textarea {
+  resize: vertical;
+}
+
+.tp-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.tp-error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #e3b4ad;
+  border-radius: var(--radius-md);
+  background: #fbefed;
+  color: #8a2b1f;
+  font-size: 14px;
+}
+
+.tp-ok {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper-sunk);
+  color: var(--ink);
+  font-size: 14px;
+}
+
+/* Student roster */
+
+.tp-progress {
+  margin: 4px 0 10px;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.tp-list {
+  display: grid;
+  gap: 8px;
+}
+
+.tp-student {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--paper-raised);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+
+.tp-student:hover {
+  border-color: var(--brand);
+}
+
+.tp-student-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.tp-student-body b {
+  font-size: 15px;
+}
+
+.tp-student-body small {
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+.tp-tag {
+  justify-self: start;
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tp-tag-done {
+  background: var(--paper-sunk);
+  color: var(--brand);
+}
+
+.tp-tag-todo {
+  background: #fff1df;
+  color: var(--saffron-ink);
+}
+
+.tp-sections {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 10px;
+}
+
+.tp-sections button {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper-raised);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tp-sections button[aria-pressed='true'] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-brand);
+}
+
+.tp-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.tp-skeleton-list {
+  display: grid;
+  gap: 8px;
+}
