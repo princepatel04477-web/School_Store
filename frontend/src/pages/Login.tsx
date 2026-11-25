@@ -1,31 +1,39 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 import { homeFor } from '../App';
+import { ParentSignInSheet } from '../components/parent/ParentSignInSheet';
+import { KeyIcon, Smartphone, UserPlus } from '../components/ui/icons';
 
+/**
+ * Parents choose: sign in with mobile OTP, or create an account with a user ID
+ * and password (and sign in with it later). Staff use the username form underneath.
+ */
 export default function Login() {
   const nav = useNavigate();
-  const { signIn, signUp } = useAuth();
-  const [register, setRegister] = useState(false);
-  const [phone, setPhone] = useState('');
+  const { user, signIn } = useAuth();
+  const [sheetStep, setSheetStep] = useState<'phone' | 'password' | 'register' | null>(null);
+  const [finished, setFinished] = useState(false);
+  const [staffOpen, setStaffOpen] = useState(false);
+  const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  async function submit(e: FormEvent) {
+  // Once the sheet signs someone in, send them to their own home
+  useEffect(() => {
+    if (finished && user) nav(homeFor(user.role), { replace: true });
+  }, [finished, user, nav]);
+
+  async function submitStaff(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError('');
     try {
-      const cleanLogin = phone.trim();
-      const cleanPass = password.trim();
-      const user = register
-        ? await signUp({ username: cleanLogin, phone: cleanLogin, password: cleanPass, name: name.trim() })
-        : await signIn(cleanLogin, cleanPass);
-      nav(homeFor(user.role));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Please try again');
+      const signedIn = await signIn(login.trim(), password.trim());
+      nav(homeFor(signedIn.role));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Please try again');
     } finally {
       setBusy(false);
     }
@@ -42,55 +50,88 @@ export default function Login() {
       </div>
       <div className="login-card">
         <div className="eyebrow">WELCOME TO SCHOOLSTORE</div>
-        <h1>{register ? 'Create your account' : 'Good to see you.'}</h1>
-        <p className="muted">
-          {register
-            ? 'Join your school community in minutes.'
-            : 'Order uniforms and essentials, without the queue.'}
-        </p>
-        <form onSubmit={submit}>
-          {register && (
+        <h1>Sign in or create an account</h1>
+        <p className="muted">Parents: choose how you want to continue.</p>
+
+        <div className="login-choices">
+          <button type="button" className="login-choice" onClick={() => setSheetStep('phone')}>
+            <Smartphone width={26} height={26} strokeWidth={1.6} />
+            <span>
+              <strong>Sign in with mobile OTP</strong>
+              <small>We send a 6-digit code. New number? Your account is made right away.</small>
+            </span>
+          </button>
+          <button type="button" className="login-choice" onClick={() => setSheetStep('register')}>
+            <UserPlus width={26} height={26} strokeWidth={1.6} />
+            <span>
+              <strong>Create account with user ID and password</strong>
+              <small>Choose your own user ID and password.</small>
+            </span>
+          </button>
+          <button type="button" className="login-choice login-choice-quiet" onClick={() => setSheetStep('password')}>
+            <KeyIcon width={22} height={22} strokeWidth={1.6} />
+            <span>
+              <strong>Already have a user ID? Sign in with password</strong>
+            </span>
+          </button>
+        </div>
+
+        <button
+          type="button"
+          className="link-button"
+          aria-expanded={staffOpen}
+          onClick={() => setStaffOpen((v) => !v)}
+        >
+          {staffOpen ? 'Hide staff sign in' : 'School or shop staff? Sign in with username'}
+        </button>
+
+        {staffOpen && (
+          <form onSubmit={submitStaff} className="login-staff-form">
             <label>
-              Your name
+              Username or phone
               <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Aarav Patel"
+                value={login}
+                onChange={(e) => setLogin(e.target.value)}
+                placeholder="e.g. shop1"
+                autoComplete="username"
+                autoCapitalize="none"
                 required
               />
             </label>
-          )}
-          <label>
-            Phone or username
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="e.g. 98765 43210 or shop1"
-              required
-            />
-          </label>
-          <label>
-            Password
-            <input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              placeholder="••••••••"
-              required
-            />
-          </label>
-          {error && <div className="error">{error}</div>}
-          <button className="primary full" disabled={busy}>
-            {busy ? 'Please wait…' : register ? 'Create account' : 'Continue'} <span>→</span>
-          </button>
-        </form>
-        <button className="link-button" onClick={() => setRegister(!register)}>
-          {register ? 'Already have an account? Sign in' : 'New here? Create a parent account'}
-        </button>
+            <label>
+              Password
+              <input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                type="password"
+                autoComplete="current-password"
+                required
+              />
+            </label>
+            {error && <div className="error">{error}</div>}
+            <button className="primary full" disabled={busy}>
+              {busy ? 'Please wait…' : 'Sign in'}
+            </button>
+          </form>
+        )}
+
         <Link className="link-button" to="/shop">
           Just browsing? View the catalogue
         </Link>
       </div>
+
+      {sheetStep && (
+        <ParentSignInSheet
+          open
+          initialStep={sheetStep}
+          skipChildPicker
+          onClose={() => setSheetStep(null)}
+          onDone={() => {
+            setSheetStep(null);
+            setFinished(true);
+          }}
+        />
+      )}
     </div>
   );
 }

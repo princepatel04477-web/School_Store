@@ -99,6 +99,7 @@ export default function App() {
     location.pathname.startsWith('/school') ||
     location.pathname.startsWith('/teacher') ||
     location.pathname.startsWith('/retailer') ||
+    location.pathname.startsWith('/parent') ||
     location.pathname.startsWith('/login');
 
   const isHome = location.pathname === '/';

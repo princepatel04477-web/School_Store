@@ -131,7 +131,11 @@ export function ProfileTab() {
             {user.username.slice(0, 1).toUpperCase()}
           </div>
           <div className="native-profile-info">
-            <h3>{user.username}</h3>
+            <h3>{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.phone || user.username}</h3>
+            {user.phone && <div className="native-child-meta">+91 {user.phone.slice(-10)}</div>}
+            {!user.username.startsWith('parent_') && (
+              <div className="native-child-meta">User ID: {user.username}</div>
+            )}
             <span className="native-role-tag">{user.role}</span>
           </div>
         </div>
@@ -147,7 +151,7 @@ export function ProfileTab() {
               className="native-primary-btn"
               onClick={() => setShowSignIn(true)}
             >
-              Sign in with phone
+              Sign in or create account
             </button>
             <Link to="/login" className="native-secondary-btn">
               Staff / Admin login

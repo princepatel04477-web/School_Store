@@ -33,13 +33,13 @@ export function OrdersTab() {
             <Truck width={40} height={40} strokeWidth={1.5} />
           </div>
           <h2>Track your orders</h2>
-          <p>Sign in with your phone number to view live order status, tracking, and fit assistance.</p>
+          <p>Sign in or create an account to view live order status, tracking, and fit assistance.</p>
           <button
             type="button"
             className="native-primary-btn"
             onClick={() => setShowSignIn(true)}
           >
-            Sign in with phone
+            Sign in or create account
           </button>
         </div>
         <ParentSignInSheet
