@@ -110,7 +110,7 @@
   width: 36px;
   height: 36px;
   background: #ffffff;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -150,7 +150,7 @@
   text-decoration: none;
   font-weight: 700;
   font-size: 15px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 
 .acct-nav-link:hover {
@@ -169,7 +169,7 @@
   gap: 6px;
   min-height: 44px;
   padding: 0 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.24);
   color: #ffffff;
@@ -209,7 +209,7 @@
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 999px;
+  border-radius: var(--radius-lg);
   background: #ffb766;
   color: #12352a;
   font-size: 11px;
@@ -234,7 +234,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.22);
   color: #cdebdc;
@@ -275,7 +275,7 @@
 
 .acct-sheet {
   flex: 1;
-  background: #ffffff;
+  background: var(--paper);
   border-radius: 0;
   padding: clamp(20px, 4vw, 36px) 0 calc(clamp(40px, 6vw, 64px) + env(safe-area-inset-bottom, 0px));
 }
@@ -320,7 +320,7 @@
 .acct-card {
   background: #ffffff;
   border: 1px solid #cde9d9;
-  border-radius: 22px;
+  border-radius: var(--radius-lg);
   padding: clamp(18px, 3vw, 24px);
 }
 
@@ -363,7 +363,7 @@
 
 .acct-order-item {
   border: 1px solid #cde9d9;
-  border-radius: 22px;
+  border-radius: var(--radius-lg);
   padding: 18px;
   background: #ffffff;
 }
@@ -395,7 +395,7 @@
   display: inline-flex;
   align-items: center;
   padding: 5px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-lg);
   font-size: 13px;
   font-weight: 800;
   background: #eef7f2;
@@ -434,7 +434,7 @@
 
 .acct-step-bar {
   height: 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-lg);
   background: #e4efe9;
 }
 
@@ -474,7 +474,7 @@
 .acct-mint-note {
   margin-top: 14px;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background: #eef7f2;
   border: 1px solid #cde9d9;
   color: #12352a;
@@ -499,7 +499,7 @@
   gap: 6px;
   min-height: 44px;
   padding: 0 16px;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   border: 1px solid #cde9d9;
   background: #ffffff;
   color: #0e5e3e;
@@ -521,7 +521,7 @@
   gap: 8px;
   min-height: 46px;
   padding: 0 20px;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   border: 0;
   background: #ffb766;
   color: #12352a;
@@ -610,7 +610,7 @@
   align-items: flex-start;
   gap: 12px;
   padding: 16px;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: #eef7f2;
   border: 1px solid #cde9d9;
   color: #12352a;
@@ -625,14 +625,14 @@
 
 .acct-skeleton {
   height: 132px;
-  border-radius: 22px;
+  border-radius: var(--radius-lg);
   background: #eef7f2;
   border: 1px solid #cde9d9;
 }
 
 .acct-skeleton--sm {
   height: 44px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 /* ---------- Saved sizes (warm card) ---------- */
@@ -652,7 +652,7 @@
 
 .acct-metric {
   background: #ffffff;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   padding: 10px 12px;
 }
 
@@ -676,7 +676,7 @@
   width: 100%;
   min-height: 44px;
   margin-top: 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   border: 1px solid #ffd9a8;
   background: #ffffff;
   color: #0e5e3e;
@@ -725,7 +725,7 @@
 .acct-help-icon {
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: #eef7f2;
   color: #0e5e3e;
   display: inline-flex;
@@ -800,4 +800,92 @@
 .acct-signedout-card {
   max-width: 520px;
   margin-inline: auto;
+}
+
+/* ---------- Children and profile ---------- */
+
+.acct-kids {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.acct-kid {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+}
+
+.acct-kid strong {
+  font-size: 16px;
+}
+
+.acct-kid span {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.acct-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 12px;
+}
+
+.acct-text-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.acct-profile {
+  margin: 4px 0 0;
+  display: grid;
+  gap: 10px;
+}
+
+.acct-profile div {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.acct-profile dt {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.acct-profile dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.acct-profile-note {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.acct-manage-orders {
+  display: inline-flex;
+  justify-content: center;
+  margin: 12px 8px 0 0;
+}
+
+.acct-skeleton--short {
+  height: 56px;
 }

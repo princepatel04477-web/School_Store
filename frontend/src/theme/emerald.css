@@ -1630,3 +1630,9 @@ body {
 :root .em-sheet {
   border-radius: 0;
 }
+
+/* Parent page banner: light text on the green card (the heading used to inherit dark ink) */
+:root .welcome-card h2,
+:root .welcome-card h2 i {
+  color: var(--paper-raised);
+}

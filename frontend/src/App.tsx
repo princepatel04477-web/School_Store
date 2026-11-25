@@ -53,7 +53,7 @@ export const homeFor = (role?: string, cityId?: string | null) =>
   role === 'BOSS'
     ? '/boss'
     : role === 'PARENT'
-    ? '/parent'
+    ? '/account'
     : role === 'TEACHER'
     ? '/teacher'
     : role === 'ADMIN'
@@ -89,6 +89,7 @@ export default function App() {
     location.pathname.startsWith('/teacher') ||
     location.pathname.startsWith('/retailer') ||
     location.pathname.startsWith('/portal') ||
+    location.pathname.startsWith('/parent') ||
     location.pathname.startsWith('/login');
 
   const isHome = location.pathname === '/';

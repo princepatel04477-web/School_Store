@@ -180,7 +180,7 @@ describe('AccountPage', () => {
     renderAccountPage();
 
     expect(screen.getByText(/••••• 43210/)).toBeTruthy();
-    expect(screen.getByText('Rahul Patel')).toBeTruthy();
+    expect(screen.getAllByText('Rahul Patel').length).toBeGreaterThan(0);
 
     await waitFor(() => {
       expect(screen.getByText('Order #SS-1001')).toBeTruthy();
@@ -251,14 +251,15 @@ describe('AccountPage', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();
   });
 
-  it('shows OTP sign-in when signed out', async () => {
+  it('shows the sign-in choice when signed out', async () => {
     mockUser = null;
     renderAccountPage();
 
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeTruthy();
     });
-    expect(screen.getByText('Sign in to order')).toBeTruthy();
+    expect(screen.getByText('Sign in with mobile OTP')).toBeTruthy();
+    expect(screen.getByText('Create account with user ID and password')).toBeTruthy();
   });
 
   it('renders in English, Gujarati, and Hindi', async () => {

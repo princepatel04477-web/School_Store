@@ -198,7 +198,7 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
 
             {/* A direct, always-visible profile entry for phone users. */}
             <Link
-              to={user?.role === 'PARENT' ? '/parent' : '/login'}
+              to={user?.role === 'PARENT' ? '/account' : '/login'}
               className="mobile-profile-btn"
               aria-label={isParent ? t('nav.myAccount') : t('nav.signIn')}
               title={isParent ? t('nav.myAccount') : t('nav.signIn')}

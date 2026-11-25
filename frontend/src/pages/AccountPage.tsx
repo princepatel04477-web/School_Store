@@ -269,6 +269,7 @@ export function AccountPage({ onOpenBag, onOpenLanguage }: AccountPageProps) {
   const queryClient = useQueryClient();
 
   const [signInOpen, setSignInOpen] = useState(false);
+  const [addChildOpen, setAddChildOpen] = useState(false);
   const [measureOpen, setMeasureOpen] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
@@ -293,7 +294,8 @@ export function AccountPage({ onOpenBag, onOpenLanguage }: AccountPageProps) {
     staleTime: 5 * 60 * 1000,
   });
 
-  const primaryChild = studentsQuery.data?.results?.find((c) => c.active) ?? null;
+  const activeChildren = (studentsQuery.data?.results ?? []).filter((c) => c.active);
+  const primaryChild = activeChildren[0] ?? null;
   const serverMeasurementQuery = useLatestMeasurement(primaryChild?.id);
 
   const sessionFitKey = fitKey(selection?.schoolId, selection?.gradeName, selection?.gender);
@@ -348,6 +350,8 @@ export function AccountPage({ onOpenBag, onOpenLanguage }: AccountPageProps) {
 
   const parentName = [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim();
   const maskedMobile = maskMobile(user?.phone);
+  // Accounts made by OTP get an automatic 'parent_<mobile>' ID and no password
+  const ownUserId = user?.username && !user.username.startsWith('parent_') ? user.username : '';
   const langPillLabel = lang === 'gu' ? 'ગુજ' : lang === 'hi' ? 'हिं' : 'EN';
 
   const handleSignOut = () => {
@@ -555,6 +559,9 @@ export function AccountPage({ onOpenBag, onOpenLanguage }: AccountPageProps) {
                           ))}
                         </div>
 
+                        <Link to="/parent/orders" className="acct-btn-outline acct-manage-orders">
+                          {t('account.manageOrders')}
+                        </Link>
                         <Link to={SHOP_LINK} className="acct-btn-saffron">
                           {t('account.shopUniform')}
                           <ArrowRight width={18} height={18} strokeWidth={2} />
@@ -631,6 +638,66 @@ export function AccountPage({ onOpenBag, onOpenLanguage }: AccountPageProps) {
                     </section>
                   </Reveal>
                 )}
+
+                {user?.role === 'PARENT' && (
+                  <Reveal delay={0.02}>
+                    <section className="acct-card" aria-labelledby="acct-kids-heading">
+                      <h2 id="acct-kids-heading" className="acct-card-title">
+                        {t('account.childrenTitle')}
+                      </h2>
+                      {studentsQuery.isLoading ? (
+                        <div className="acct-skeleton acct-skeleton--short" aria-busy="true" />
+                      ) : activeChildren.length === 0 ? (
+                        <p className="acct-state-body">{t('account.noChildren')}</p>
+                      ) : (
+                        <ul className="acct-kids">
+                          {activeChildren.map((child) => (
+                            <li key={child.id} className="acct-kid">
+                              <strong>{child.name}</strong>
+                              <span>
+                                {[child.grade_name || child.class_name, child.section].filter(Boolean).join(' ')}
+                                {child.school_name ? ` · ${child.school_name}` : ''}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <div className="acct-card-actions">
+                        <button type="button" className="acct-btn-outline" onClick={() => setAddChildOpen(true)}>
+                          {t('account.addChild')}
+                        </button>
+                        <Link to="/parent" className="acct-text-link">
+                          {t('account.manageChildren')}
+                        </Link>
+                      </div>
+                    </section>
+                  </Reveal>
+                )}
+
+                <Reveal delay={0.04}>
+                  <section className="acct-card" aria-labelledby="acct-profile-heading">
+                    <h2 id="acct-profile-heading" className="acct-card-title">
+                      {t('account.profileTitle')}
+                    </h2>
+                    <dl className="acct-profile">
+                      <div>
+                        <dt>{t('account.profileName')}</dt>
+                        <dd>{parentName || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt>{t('account.profileMobile')}</dt>
+                        <dd>{user?.phone ? `+91 ${user.phone.slice(-10, -5)} ${user.phone.slice(-5)}` : '-'}</dd>
+                      </div>
+                      <div>
+                        <dt>{t('account.profileUserId')}</dt>
+                        <dd>{ownUserId || '-'}</dd>
+                      </div>
+                    </dl>
+                    <p className="acct-profile-note">
+                      {ownUserId ? t('account.signInWithId') : t('account.signInWithOtp')}
+                    </p>
+                  </section>
+                </Reveal>
 
                 <Reveal delay={0.1}>
                   <section className="acct-card" aria-labelledby="acct-help-heading">
@@ -726,6 +793,18 @@ export function AccountPage({ onOpenBag, onOpenLanguage }: AccountPageProps) {
         schoolName={selection?.schoolName}
         skipChildPicker
       />
+
+      {addChildOpen && (
+        <ParentSignInSheet
+          open
+          onClose={() => setAddChildOpen(false)}
+          onDone={() => {
+            setAddChildOpen(false);
+            void queryClient.invalidateQueries({ queryKey: ['parent-students'] });
+          }}
+          schoolName={selection?.schoolName}
+        />
+      )}
 
       {measureOpen && (
         <MeasureFlow

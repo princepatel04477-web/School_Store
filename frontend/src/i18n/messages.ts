@@ -1372,6 +1372,29 @@ export const messages = {
     gu: 'લોગિન કરો અથવા ખાતું બનાવો',
     hi: 'लॉगिन करें या खाता बनाएँ',
   },
+  'account.childrenTitle': { en: 'My children', gu: 'મારાં બાળકો', hi: 'मेरे बच्चे' },
+  'account.noChildren': {
+    en: 'No child added yet. Add your child with the GR number, or just shop by school and class.',
+    gu: 'હજી કોઈ બાળક ઉમેર્યું નથી. GR નંબરથી બાળક ઉમેરો, અથવા શાળા અને ધોરણથી ખરીદી કરો.',
+    hi: 'अभी कोई बच्चा नहीं जोड़ा। GR नंबर से बच्चा जोड़ें, या स्कूल और कक्षा चुनकर खरीदें।',
+  },
+  'account.addChild': { en: 'Add my child', gu: 'બાળક ઉમેરો', hi: 'बच्चा जोड़ें' },
+  'account.manageChildren': { en: 'Children and photos', gu: 'બાળકો અને ફોટા', hi: 'बच्चे और फ़ोटो' },
+  'account.manageOrders': { en: 'Pay or manage orders', gu: 'ચુકવણી અથવા ઓર્ડર સંભાળો', hi: 'भुगतान या ऑर्डर सँभालें' },
+  'account.profileTitle': { en: 'My profile', gu: 'મારી પ્રોફાઇલ', hi: 'मेरी प्रोफ़ाइल' },
+  'account.profileName': { en: 'Name', gu: 'નામ', hi: 'नाम' },
+  'account.profileMobile': { en: 'Mobile', gu: 'મોબાઈલ', hi: 'मोबाइल' },
+  'account.profileUserId': { en: 'User ID', gu: 'યુઝર ID', hi: 'यूज़र ID' },
+  'account.signInWithId': {
+    en: 'Sign in with your user ID and password, or with mobile OTP.',
+    gu: 'યુઝર ID અને પાસવર્ડથી, અથવા મોબાઈલ OTP થી લોગિન કરો.',
+    hi: 'यूज़र ID और पासवर्ड से, या मोबाइल OTP से लॉगिन करें।',
+  },
+  'account.signInWithOtp': {
+    en: 'You sign in with mobile OTP.',
+    gu: 'તમે મોબાઈલ OTP થી લોગિન કરો છો.',
+    hi: 'आप मोबाइल OTP से लॉगिन करते हैं।',
+  },
   'account.shopNav': { en: 'Shop', gu: 'ખરીદો', hi: 'खरीदें' },
 } satisfies Record<string, Entry>;
 
