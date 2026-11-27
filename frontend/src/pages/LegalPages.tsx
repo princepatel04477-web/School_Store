@@ -11,7 +11,7 @@ import './legal.css';
  * launch: these are a working draft, not legal advice.
  */
 
-const UPDATED = '18 October 2026';
+const UPDATED = '25 November 2026';
 
 function LegalPage({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -78,8 +78,20 @@ export function PrivacyPage() {
           order. The tick is empty until you choose it. We store the photo, a print file, and a small preview. We
           also store the time you agreed, the policy version, and the IP address and browser of that request.
         </dd>
+        <dt>ID card details and photo from your child's school</dt>
+        <dd>
+          A teacher with a login from us can fill your child's ID card form: name, GR number, class and section,
+          date of birth, blood group, a parent's name and phone number, home address and an ID card photo. A
+          teacher can take or upload the photo only after ticking that you agreed to it on the school's own form.
+          We record which teacher ticked it and when. The photo is kept on your child's record and is never public:
+          only you, staff of your child's school (or branch) and our own staff can open it, and only while signed in.
+        </dd>
         <dt>Payments</dt>
-        <dd>Handled by our payment partner. We never see or store your card or UPI PIN.</dd>
+        <dd>
+          Online payments are handled by our payment partner, Razorpay. When you choose online payment, Razorpay
+          receives your order number, amount, parent name and phone number to process the transaction.
+          Your card and UPI details are entered directly on Razorpay's page and never reach us or get stored by us.
+        </dd>
       </dl>
 
       <h2>How your child is linked to you</h2>
@@ -92,7 +104,7 @@ export function PrivacyPage() {
       <h2>Who we share it with</h2>
       <p>
         Your child's school (to confirm orders and run the collection counter), the delivery partner (name, phone and
-        address only) and the payment partner. Staff of your child's school, and our own staff, can see the
+        address only) and our payment partner, Razorpay (order number, amount, parent name and phone for online payments). Staff of your child's school, and our own staff, can see the
         measurements saved on your child's record, and a teacher who orders for your child can add one. The tailor
         who sews the uniform gets a sheet with your child's name, GR number, class, the sizes ordered and the
         measurements, and nothing else. School staff do not get this sheet. School
@@ -105,8 +117,9 @@ export function PrivacyPage() {
       <p>
         Order records are kept for 8 years because tax law requires it. The original photo and the print file are
         deleted 30 days after the order is marked delivered. The small preview is deleted then too, unless you
-        ticked "Keep a small copy for next year's ID card". You can delete every photo we hold for your child,
-        and withdraw consent, from My children on your account. Student records are kept while the school is a
+        ticked "Keep a small copy for next year's ID card". The ID card photo on your child's record stays until
+        the school replaces or removes it, you delete it, or the student record is removed. You can delete every
+        photo we hold for your child, including that one, and withdraw consent, from My children on your account. Student records are kept while the school is a
         partner and removed within 90 days of the school asking us to, or of the student leaving the school.
       </p>
       <p>
@@ -154,6 +167,12 @@ export function TermsPage() {
         dispatch and you can cancel for a full refund.
       </p>
 
+      <h2>Online payment and stock reservation</h2>
+      <p>
+        When you choose to pay online, stock for the items in your order is reserved for 15 minutes while you complete
+        payment. If payment is not completed within 15 minutes, the reservation expires and items are released back to stock.
+      </p>
+
       <h2>Personalised items</h2>
       <p>
         ID cards and anything printed with your child's name are made to order. Check the preview carefully: once
@@ -199,6 +218,12 @@ export function RefundPage() {
       <p>
         Cancel any time before dispatch for a full refund. Personalised items (ID cards, name labels) cannot be
         cancelled once production starts.
+      </p>
+
+      <h2>Orders released due to payment timeout</h2>
+      <p>
+        If your payment arrives after an order's 15-minute reservation has expired and the order was cancelled, the payment
+        is automatically flagged and refunded in full to your original payment method within 7 working days.
       </p>
 
       <h2>How refunds are paid</h2>

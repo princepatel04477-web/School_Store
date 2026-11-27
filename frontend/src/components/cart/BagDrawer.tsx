@@ -1,3 +1,4 @@
+import { PaymentReturnNotice } from '../PaymentReturnNotice';
 import { useState, useEffect } from 'react';
 import { X, Trash2 } from '../ui/icons';
 import { Button } from '../ui/Button';
@@ -112,6 +113,8 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
             <X width={22} height={22} strokeWidth={1.5} />
           </button>
         </div>
+
+        <PaymentReturnNotice onOpen={onClose} />
 
         {/* Undo notification bar */}
         <AnimatePresence initial={false}>

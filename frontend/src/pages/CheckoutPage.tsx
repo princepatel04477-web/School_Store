@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft } from '../components/ui/icons';
 import { formatINR } from '../utils/formatINR';
@@ -7,11 +7,13 @@ import { SHOP_LINK, siteConfig } from '../siteConfig';
 import { useStoreSchools } from '../data/catalog';
 import { fitPayload } from '../data/fit';
 import { buildOrderMessage, whatsappOrderUrl } from '../services/whatsappOrder';
-import { orderErrorMessage, prepareOrder, submitOrder, type PlacedOrder } from '../services/placeOrder';
+import { orderErrorMessage, prepareOrder, submitOrder, clearPendingOrder, settlePendingOrder, type OrderPayload, type PlacedOrder } from '../services/placeOrder';
+import { checkingPayment, paymentRefusal, runOrderPayment } from '../services/orderPayment';
+import { PaymentStatus } from '../components/PaymentStatus';
 import { useAuth } from '../auth';
 import { useLang } from '../i18n';
 import { classLabel } from '../i18n/labels';
-import type { ParentChild } from '../api';
+import { api, ApiError, orderApi, type Order, type ParentChild, type PaymentView, type OrderQuote } from '../api';
 import { ParentSignInSheet } from '../components/parent/ParentSignInSheet';
 import { scrollPageTo } from '../motion/SmoothScroll';
 import { hasStoreHistory } from '../components/BackButton';
@@ -60,6 +62,19 @@ export function CheckoutPage() {
   const [retrying, setRetrying] = useState(false);
   const [orderError, setOrderError] = useState('');
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
+
+  // Online Payment & Quote State
+  const [quote, setQuote] = useState<OrderQuote | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState<'ONLINE' | 'COD'>('COD');
+  const [priceNotice, setPriceNotice] = useState('');
+  const [onlineOrder, setOnlineOrder] = useState<PlacedOrder | null>(null);
+  const [payment, setPayment] = useState<PaymentView | null>(null);
+  const [paymentBusy, setPaymentBusy] = useState(false);
+  const refreshLock = useRef(false);
+  const refreshTimer = useRef<number | undefined>(undefined);
+  const [refreshCoolingDown, setRefreshCoolingDown] = useState(false);
+  useEffect(() => () => window.clearTimeout(refreshTimer.current), []);
 
   // WhatsApp hand-off
   const [reference] = useState(() => `SS-${Date.now().toString(36).toUpperCase()}`);
@@ -138,6 +153,109 @@ export function CheckoutPage() {
 
   const homeAddress = [addressLine1, addressLine2, city, state, pinCode].map((part) => part.trim()).filter(Boolean).join(', ');
 
+  const fetchQuote = useCallback(async () => {
+    if (!child || cart.length === 0) return;
+    setQuoteLoading(true);
+    setOrderError('');
+    try {
+      const q = await orderApi.quote({
+        student: child.id,
+        fulfillment_type: deliveryType === 'HOME' ? 'HOME_DELIVERY' : 'SCHOOL_PICKUP',
+        items: cart.map((item) => ({
+          variant: item.variantId,
+          quantity: item.quantity,
+          ...(item.measurement ? { fit: fitPayload(item.measurement) } : {}),
+        })),
+      });
+      setQuote(q);
+      if (q.payment_methods.includes('ONLINE')) {
+        setSelectedMethod('ONLINE');
+      } else {
+        setSelectedMethod('COD');
+      }
+    } catch (error) {
+      setQuote(null);
+      setSelectedMethod('COD');
+      setOrderError(t(orderErrorMessage(error)));
+    } finally {
+      setQuoteLoading(false);
+    }
+  }, [child, cart, deliveryType, t]);
+
+  useEffect(() => {
+    if (activeStep === 3 && mode === 'account' && child) {
+      fetchQuote();
+    }
+  }, [activeStep, mode, child, fetchQuote]);
+
+  const applyPayment = (orderId: string, view: PaymentView) => {
+    setPayment(view);
+    const bought = settlePendingOrder(orderId, view);
+    if (view.receipt) clearPendingOrder();
+    if (bought || view.receipt) clearCart();
+  };
+
+  const refreshPayment = async (order: PlacedOrder) => {
+    if (refreshLock.current) return;
+    refreshLock.current = true;
+    setPaymentBusy(true);
+    try {
+      const result = await orderApi.reconcilePayment(order.id);
+      applyPayment(order.id, result.payment_view);
+      setRefreshCoolingDown(true);
+      refreshTimer.current = window.setTimeout(() => {
+        refreshLock.current = false;
+        setRefreshCoolingDown(false);
+      }, result.retry_after_seconds * 1000);
+    } catch (error) {
+      applyPayment(order.id, paymentRefusal(error) ?? checkingPayment(payment ?? order.payment_view));
+      refreshLock.current = false;
+    } finally {
+      setPaymentBusy(false);
+    }
+  };
+
+  const initiateOnlinePayment = async (order: PlacedOrder) => {
+    setPayment(order.payment_view);
+    setPaymentBusy(true);
+    try {
+      await runOrderPayment(order.id, (view) => applyPayment(order.id, view));
+    } catch (error) {
+      applyPayment(order.id, paymentRefusal(error) ?? checkingPayment(order.payment_view));
+    } finally {
+      setPaymentBusy(false);
+    }
+  };
+
+  const pendingOrderId = payment?.state === 'CHECKING' && !paymentBusy ? onlineOrder?.id : undefined;
+  useEffect(() => {
+    if (!pendingOrderId) return;
+    let stopped = false;
+    let timer: number | undefined;
+    const stopAt = Date.now() + 120_000;
+    async function poll() {
+      try {
+        const order = await api<Order>(`/orders/${pendingOrderId}/`);
+        if (stopped) return;
+        const view = order.payment_view;
+        if (view.receipt || view.state === 'RELEASED' || view.state === 'COD_DUE') {
+          applyPayment(order.id, view);
+          return;
+        }
+      } catch {
+        // Keep the last payment status visible until a check can confirm a result.
+      }
+      if (!stopped && Date.now() < stopAt) timer = window.setTimeout(poll, 3_000);
+    }
+    timer = window.setTimeout(poll, 3_000);
+    return () => {
+      stopped = true;
+      window.clearTimeout(timer);
+    };
+  }, [pendingOrderId]);
+
+  const effectiveTotalPaise = quote ? quote.total_paise : totalPaise;
+
   const handlePlaceOrder = async () => {
     if (!child || placing) return;
     if (!isOnline) {
@@ -145,6 +263,7 @@ export function CheckoutPage() {
       return;
     }
     setOrderError('');
+    setPriceNotice('');
     setPlacing(true);
     setRetrying(false);
 
@@ -165,10 +284,11 @@ export function CheckoutPage() {
       }
     }
     const contact = { recipient_name: parentName.trim(), phone: parentMobile };
-    const payload = prepareOrder({
+    const draft: Omit<OrderPayload, 'idempotency_key'> = {
       student: child.id,
       fulfillment_type: deliveryType === 'HOME' ? 'HOME_DELIVERY' : 'SCHOOL_PICKUP',
-      payment_method: 'COD',
+      payment_method: selectedMethod,
+      expected_total_paise: effectiveTotalPaise,
       delivery_details:
         deliveryType === 'HOME'
           ? {
@@ -185,17 +305,57 @@ export function CheckoutPage() {
         quantity: item.quantity,
         ...(item.measurement ? { fit: fitPayload(item.measurement) } : {}),
       })),
-    });
+    };
+
     try {
-      const order = await submitOrder(payload, () => setRetrying(true));
-      setPlaced(order);
-      clearCart();
-      scrollPageTo(0);
-      if (isNativeApp()) {
-        requestPushPermissionAfterOrder().catch(() => {});
+      // The same items find the order already placed for them, whatever payment was picked now.
+      let order = await submitOrder(prepareOrder(draft), () => setRetrying(true));
+      if (order.status === 'CANCELLED') {
+        // That earlier order was released or cancelled: this checkout is a new order.
+        clearPendingOrder();
+        order = await submitOrder(prepareOrder(draft), () => setRetrying(true));
       }
-    } catch (error) {
-      setOrderError(t(orderErrorMessage(error)));
+      if (order.payment_method !== 'ONLINE') {
+        clearPendingOrder();
+        setPlaced(order);
+        clearCart();
+        scrollPageTo(0);
+        if (isNativeApp()) requestPushPermissionAfterOrder().catch(() => {});
+      } else if (selectedMethod === 'COD') {
+        // An unpaid online order already holds these items and the parent now wants cash.
+        // The server checks Razorpay first and refuses while a payment may still go through.
+        setOnlineOrder(order);
+        setPayment(order.payment_view);
+        setPaymentBusy(true);
+        try {
+          const switched = await orderApi.switchToCod(order.id);
+          clearPendingOrder();
+          clearCart();
+          setOnlineOrder(null);
+          setPayment(null);
+          setPlaced({ ...order, payment_method: 'COD', payment_view: switched.payment_view });
+          scrollPageTo(0);
+          if (isNativeApp()) requestPushPermissionAfterOrder().catch(() => {});
+        } catch (error) {
+          applyPayment(order.id, paymentRefusal(error) ?? checkingPayment(order.payment_view));
+        } finally {
+          setPaymentBusy(false);
+        }
+      } else {
+        setOnlineOrder(order);
+        await initiateOnlinePayment(order);
+      }
+    } catch (error: any) {
+      if (error instanceof ApiError && error.status === 409 && (error.data?.code === 'price_changed' || String(error.data?.detail || '').includes('Price changed'))) {
+        setPriceNotice(t('co.priceChanged'));
+        if (error.data?.quote) {
+          setQuote(error.data.quote as OrderQuote);
+        } else {
+          await fetchQuote();
+        }
+      } else {
+        setOrderError(t(orderErrorMessage(error)));
+      }
     } finally {
       setPlacing(false);
       setRetrying(false);
@@ -212,9 +372,22 @@ export function CheckoutPage() {
     deliveryType,
     address: homeAddress,
     items: cart,
-    totalPaise,
+    totalPaise: effectiveTotalPaise,
   });
   const whatsappUrl = whatsappAvailable ? whatsappOrderUrl(siteConfig.whatsappNumber, orderMessage) : '';
+
+  if (onlineOrder && payment) {
+    return <div className="order-confirmed-wrap container">
+      <div className="order-confirmed-card">
+        {paymentBusy ? <div className="checkout-skeleton payment-orders-skeleton" aria-busy="true" /> :
+          <PaymentStatus payment={payment} orderNumber={onlineOrder.order_number}
+            disabled={refreshCoolingDown} onRefresh={() => void refreshPayment(onlineOrder)} />}
+        <Link to={`/parent/orders#order-${onlineOrder.id}`} className="btn btn-primary">
+          {t('co.placed.myOrders')}
+        </Link>
+      </div>
+    </div>;
+  }
 
   // The server saved the order.
   if (placed) {
@@ -223,13 +396,17 @@ export function CheckoutPage() {
     return (
       <div className="order-confirmed-wrap container">
         <div className="order-confirmed-card">
-          <h1 className="confirmed-heading">{t('co.placed.title')}</h1>
+          <h1 className="confirmed-heading">
+            {t('co.placed.title')}
+          </h1>
           <div className="order-num-label">{t('co.placed.number', { n: placed.order_number })}</div>
 
           <div className="confirmed-steps">
             <div className="confirmed-step-row">
               <span className="step-circle">1</span>
-              <span>{t('co.placed.saved', { name: placed.student_name || studentName })}</span>
+              <span>
+                {t('co.placed.saved', { name: placed.student_name || studentName })}
+              </span>
             </div>
             <div className="confirmed-step-row">
               <span className="step-circle">2</span>
@@ -644,65 +821,109 @@ export function CheckoutPage() {
 
             {activeStep === 3 && (
               <div className="step-body">
-                <div className="payment-options-grid">
-                  <div className="payment-option is-selected">
-                    <div>
-                      <strong>{t('co.cash')}</strong>
-                      <p>{t('co.cashSub')}</p>
-                    </div>
+                {priceNotice && (
+                  <div className="checkout-notice-banner" role="alert">
+                    {priceNotice}
                   </div>
-                </div>
+                )}
 
-                {mode === 'account' ? (
+                {quoteLoading ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+                    <div className="checkout-skeleton" style={{ height: 56 }} />
+                    <div className="checkout-skeleton" style={{ height: 56 }} />
+                  </div>
+                ) : (
+                  <div className="delivery-radio-group" style={{ marginBottom: 'var(--space-4)' }}>
+                    {quote && !quote.payment_methods.includes('ONLINE') && (
+                      <p>{t('co.onlineUnavailable')}</p>
+                    )}
+                    {quote?.payment_methods.includes('ONLINE') && (
+                      <label className={`delivery-radio-card ${selectedMethod === 'ONLINE' ? 'is-selected' : ''}`}>
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value="ONLINE"
+                          checked={selectedMethod === 'ONLINE'}
+                          onChange={() => setSelectedMethod('ONLINE')}
+                        />
+                        <div>
+                          <strong>{t('co.method.online')}</strong>
+                          <p>{t('co.legal')}</p>
+                        </div>
+                      </label>
+                    )}
+                    <label className={`delivery-radio-card ${selectedMethod === 'COD' ? 'is-selected' : ''}`}>
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="COD"
+                        checked={selectedMethod === 'COD'}
+                        onChange={() => setSelectedMethod('COD')}
+                      />
+                      <div>
+                        <strong>{t('co.method.cod')}</strong>
+                        <p>{t('co.cashSub')}</p>
+                      </div>
+                    </label>
+                  </div>
+                )}
+
+                {!onlineOrder && (
                   <>
-                    <button
-                      type="button"
-                      className="btn btn-primary pay-now-btn"
-                      onClick={handlePlaceOrder}
-                      disabled={placing || !isOnline}
-                      aria-busy={placing}
-                    >
-                      {!isOnline
-                        ? 'Connect to the internet to place your order'
-                        : placing
-                        ? retrying
-                          ? t('co.retrying')
-                          : t('co.placing')
-                        : t('co.place', { total: formatINR(totalPaise) })}
-                    </button>
-                    {orderError && (
-                      <p className="field-err checkout-order-error" role="alert">
-                        {orderError}
+                    {mode === 'account' ? (
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn-primary pay-now-btn"
+                          onClick={handlePlaceOrder}
+                          disabled={placing || quoteLoading || !isOnline}
+                          aria-busy={placing}
+                        >
+                          {!isOnline
+                            ? 'Connect to the internet to place your order'
+                            : placing
+                            ? retrying
+                              ? t('co.retrying')
+                              : t('co.placing')
+                            : selectedMethod === 'ONLINE'
+                            ? `${t('co.payNow')} · ${formatINR(effectiveTotalPaise)}`
+                            : t('co.place', { total: formatINR(effectiveTotalPaise) })}
+                        </button>
+                        {orderError && (
+                          <p className="field-err checkout-order-error" role="alert">
+                            {orderError}
+                          </p>
+                        )}
+                        <p className="checkout-legal-note">
+                          {t('co.legal')} <Link to="/terms">{t('co.terms')}</Link> · <Link to="/refunds">{t('co.refunds')}</Link> ·{' '}
+                          <Link to="/privacy">{t('co.privacy')}</Link>
+                        </p>
+                      </>
+                    ) : whatsappUrl ? (
+                      <>
+                        <a
+                          href={whatsappUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-primary pay-now-btn"
+                          onClick={() => {
+                            setSentOnWhatsApp(true);
+                            scrollPageTo(0);
+                          }}
+                        >
+                          {t('co.wa.send', { total: formatINR(effectiveTotalPaise) })}
+                        </a>
+                        <p className="checkout-legal-note">
+                          {t('co.wa.note')} {t('co.legal')} <Link to="/terms">{t('co.terms')}</Link> ·{' '}
+                          <Link to="/refunds">{t('co.refunds')}</Link> · <Link to="/privacy">{t('co.privacy')}</Link>
+                        </p>
+                      </>
+                    ) : (
+                      <p className="checkout-closed-note" role="status">
+                        {t('co.closed')}
                       </p>
                     )}
-                    <p className="checkout-legal-note">
-                      {t('co.legal')} <Link to="/terms">{t('co.terms')}</Link> · <Link to="/refunds">{t('co.refunds')}</Link> ·{' '}
-                      <Link to="/privacy">{t('co.privacy')}</Link>
-                    </p>
                   </>
-                ) : whatsappUrl ? (
-                  <>
-                    <a
-                      href={whatsappUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-primary pay-now-btn"
-                      onClick={() => {
-                        setSentOnWhatsApp(true);
-                        scrollPageTo(0);
-                      }}
-                    >
-                      {t('co.wa.send', { total: formatINR(totalPaise) })}
-                    </a>
-                    <p className="checkout-legal-note">
-                      {t('co.wa.note')} {t('co.legal')} <Link to="/terms">{t('co.terms')}</Link> ·{' '}
-                      <Link to="/refunds">{t('co.refunds')}</Link> · <Link to="/privacy">{t('co.privacy')}</Link>
-                    </p>
-                  </>
-                ) : (
-                  <p className="checkout-closed-note" role="status">
-                    {t('co.closed')}
-                  </p>
                 )}
               </div>
             )}
@@ -736,7 +957,7 @@ export function CheckoutPage() {
 
               <div className="math-total-row">
                 <span>{t('bag.total')}</span>
-                <span className="total-amount">{formatINR(totalPaise)}</span>
+                <span className="total-amount">{formatINR(effectiveTotalPaise)}</span>
               </div>
             </div>
           </div>

@@ -5,6 +5,7 @@ from PIL import Image, ImageOps
 
 from django.conf import settings
 from django.db.models import Q
+from django.db.models.deletion import ProtectedError
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -219,6 +220,16 @@ class ProductViewSet(
                 raise PermissionDenied("Admins can only delete products for their own city.")
             if instance.school and instance.school.city_id and instance.school.city_id != user.city_id:
                 raise PermissionDenied("Admins can only delete products for schools in their own city.")
+
+        if self.request.query_params.get("permanent") == "true":
+            try:
+                instance.delete()
+            except ProtectedError as exc:
+                raise ValidationError(
+                    {"detail": "This listing has order or inventory records. Deactivate it to preserve its history."}
+                ) from exc
+            invalidate_catalog_cache()
+            return
 
         instance.active = False
         instance.paused_by_school = False

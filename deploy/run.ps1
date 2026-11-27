@@ -36,7 +36,7 @@ function Stop-One($name) {
     if (Is-Running $name) { Stop-Process -Id (Get-Content "$state\run\$name.pid") -Force -ErrorAction SilentlyContinue; "${name}: stopped" }
     Remove-Item "$state\run\$name.pid" -Force -ErrorAction SilentlyContinue
 }
-$all = 'web','worker','frontend'
+$all = 'web','worker','beat','frontend'
 
 switch ($Action) {
     { $_ -in 'start','restart' } {
@@ -45,6 +45,7 @@ switch ($Action) {
         Load-Env
         Start-One 'web'    python @('-m','waitress',"--listen=0.0.0.0:$Port",'--threads=8','config.wsgi:application') $app
         Start-One 'worker' python @('-m','celery','-A','config','worker','--pool=solo','-l','info') $app
+        Start-One 'beat'   python @('-m','celery','-A','config','beat','-l','info') $app
         if (-not $NoFrontend -and (Test-Path "$project\frontend\node_modules\vite\bin\vite.js")) {
             if ($env:SCHOOLSTORE_ON_NETWORK -eq '1') { $env:CHOKIDAR_USEPOLLING = 'true'; $env:CHOKIDAR_INTERVAL = '2000' }  # file watching fails on SMB
             # production (DJANGO_DEBUG=0 + built dist): serve the build with `vite preview`; otherwise the dev server

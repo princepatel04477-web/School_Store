@@ -62,7 +62,7 @@ export function shareSchoolProducts(schoolName: string, schoolUrl: string): Prom
 
 export function shareOrderDetails(
   orderNumber: string,
-  orderTotal: number,
+  orderTotal: number | string,
   orderUrl: string
 ): Promise<boolean> {
   return shareContent({

@@ -1,13 +1,14 @@
 import csv
 import io
+import mimetypes
 
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -21,11 +22,17 @@ from common.pagination import BoundedPageNumberPagination
 from common.permissions import IsParent, IsSchoolAdmin, RoleScopedPermission
 from common.scoping import ScopedQuerysetMixin
 from common.throttles import StudentClaimIPThrottle, StudentClaimUserThrottle
+from inventory.services import INDIA_STOCK_ID
 
 from .import_service import TEMPLATE_COLUMNS
-from .models import City, School, Student, StudentMeasurement
+
+STUDENT_PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp"}
+STUDENT_PHOTO_MAX_BYTES = 5 * 1024 * 1024
+from .models import City, School, SchoolBranch, SchoolClass, Student, StudentMeasurement
 from .serializers import (
     CitySerializer,
+    SchoolBranchSerializer,
+    SchoolClassSerializer,
     SchoolSerializer,
     StudentApproveSerializer,
     StudentAssignParentSerializer,
@@ -53,7 +60,7 @@ class CityViewSet(
 ):
     cache_version_key = SCHOOL_LIST_CACHE_VERSION_KEY
     cache_namespace = "schools:cities"
-    queryset = City.objects.order_by("name")
+    queryset = City.objects.exclude(pk=INDIA_STOCK_ID).order_by("name")
     serializer_class = CitySerializer
     permission_classes = [RoleScopedPermission]
     read_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER", "PARENT")
@@ -67,11 +74,23 @@ class CityViewSet(
         user = self.request.user
         if not user or not user.is_authenticated:
             return qs.none()
-        if user.role == "BOSS" or getattr(user, "is_superuser", False) or (user.role == "ADMIN" and not user.city_id):
+        if (
+            user.role == "BOSS"
+            or getattr(user, "is_superuser", False)
+            or (user.role == "ADMIN" and not user.city_id)
+            or (user.role == "TEACHER" and getattr(user, "all_schools_access", False))
+        ):
             return qs
         if user.city_id:
             return qs.filter(id=user.city_id)
         return qs.none()
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        state = (self.request.query_params.get("state") or "").strip()
+        if state:
+            qs = qs.filter(state__iexact=state)
+        return qs
 
 
 class SchoolViewSet(
@@ -125,6 +144,44 @@ class SchoolViewSet(
         instance.save(update_fields=["active", "updated_at"])
 
 
+class SchoolBranchViewSet(
+    VersionedListCacheMixin,
+    ScopedQuerysetMixin,
+    viewsets.ModelViewSet,
+):
+    cache_version_key = SCHOOL_LIST_CACHE_VERSION_KEY
+    cache_namespace = "schools:branches"
+    queryset = SchoolBranch.objects.select_related("school", "city").order_by("school__name", "name")
+    serializer_class = SchoolBranchSerializer
+    permission_classes = [RoleScopedPermission]
+    read_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER")
+    write_roles = ("BOSS", "ADMIN")
+
+    scope_city_field = "city_id"
+    scope_school_field = "school_id"
+    scope_parent_field = None
+
+    def scope_queryset(self, qs):
+        user = self.request.user
+        if user.is_authenticated and user.role == "TEACHER" and not getattr(user, "all_schools_access", False) and getattr(user, "branch_id", None):
+            return qs.filter(id=user.branch_id)
+        return super().scope_queryset(qs)
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        params = self.request.query_params
+        city_id = params.get("city")
+        school_id = params.get("school")
+        state = (params.get("state") or "").strip()
+        if city_id:
+            qs = qs.filter(city_id=city_id)
+        if school_id:
+            qs = qs.filter(school_id=school_id)
+        if state:
+            qs = qs.filter(city__state__iexact=state)
+        return qs
+
+
 class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
     """
     Student management (Prompt 4, requirements 1, 2, 4, 5, 6).
@@ -142,11 +199,12 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
     """
 
     # `grade` is read by the serializer (grade_name) for every row: load it in the same query.
-    queryset = Student.objects.select_related("school", "parent", "grade").order_by(
+    queryset = Student.objects.select_related("school", "parent", "grade", "city", "branch").order_by(
         "school_id", "class_name", "section", "name"
     )
     serializer_class = StudentSerializer
     pagination_class = StudentPagination
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     permission_classes = [RoleScopedPermission]
     read_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER", "PARENT")
     # Requirement 2: Teachers and School Admins add students by form.
@@ -154,6 +212,7 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
 
     scope_city_field = "city_id"
     scope_school_field = "school_id"
+    scope_branch_field = "branch_id"
     scope_parent_field = "parent_id"
 
     # ------------------------------------------------------------------ #
@@ -169,11 +228,29 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         search = (params.get("search") or params.get("q") or "").strip()
         approval_status = params.get("approval_status")
         pending = params.get("pending")
+        active = params.get("active")
+
+        # Teachers work from the class list: a student they removed stays out of it.
+        if active is not None:
+            if str(active).lower() in ("true", "1"):
+                qs = qs.filter(active=True)
+            elif str(active).lower() in ("false", "0"):
+                qs = qs.filter(active=False)
+        elif self.request.user.role == User.Role.TEACHER and self.action == "list":
+            qs = qs.filter(active=True)
 
         if school_id:
             qs = qs.filter(school_id=school_id)
         if class_name:
-            qs = qs.filter(class_name=class_name)
+            raw_cls = class_name.strip()
+            bare_cls = raw_cls.removeprefix("Class ").removeprefix("class ").strip()
+            qs = qs.filter(
+                Q(class_name__iexact=raw_cls)
+                | Q(class_name__iexact=bare_cls)
+                | Q(class_name__iexact=f"Class {bare_cls}")
+                | Q(grade__name__iexact=raw_cls)
+                | Q(grade__name__iexact=f"Class {bare_cls}")
+            )
         if section:
             qs = qs.filter(section=section)
         if search:
@@ -241,7 +318,75 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         if self.request.user.role == User.Role.PARENT:
             raise PermissionDenied("Parents cannot delete students. Contact your school to correct this.")
-        instance.delete()
+        # Soft delete: orders and photo agreements point at the student (PROTECT),
+        # so a hard delete fails for anyone who ever ordered.
+        instance.active = False
+        instance.save(update_fields=["active", "updated_at"])
+
+    @action(
+        detail=True,
+        methods=["get", "post", "delete"],
+        url_path="photo",
+        parser_classes=[MultiPartParser, FormParser],
+    )
+    def photo(self, request, pk=None):
+        """
+        GET    streams the ID card photo to anyone who can see this student (scoped queryset).
+        POST   school staff upload or replace it: JPEG/PNG/WEBP, at most 5 MB, and
+               `consent=1` confirming the parent agreed (who and when is recorded).
+        DELETE school staff remove it.
+        """
+        student = self.get_object()
+        if request.method == "GET":
+            if not student.photo:
+                raise NotFound("No photo yet.")
+            try:
+                handle = student.photo.open("rb")
+            except (FileNotFoundError, OSError):
+                raise NotFound("No photo yet.")
+            content_type = mimetypes.guess_type(student.photo.name)[0] or "image/jpeg"
+            response = FileResponse(handle, content_type=content_type)
+            response["Cache-Control"] = "private, max-age=86400"
+            response["X-Content-Type-Options"] = "nosniff"
+            return response
+
+        if request.user.role == User.Role.PARENT:
+            raise PermissionDenied("Ask your school to change the ID card photo.")
+
+        if request.method == "DELETE":
+            if student.photo:
+                student.photo.delete(save=False)
+            student.photo = ""
+            student.photo_consent_by = None
+            student.photo_consent_at = None
+            student.save(update_fields=["photo", "photo_consent_by", "photo_consent_at", "updated_at"])
+            return Response(StudentSerializer(student, context={"request": request}).data)
+
+        upload = request.FILES.get("photo")
+        if not upload:
+            raise ValidationError({"photo": "Please take or choose a photo."})
+        if str(request.data.get("consent", "")).lower() not in ("1", "true", "yes", "on"):
+            raise ValidationError({"consent": "Tick that the parent has agreed to this photo."})
+        if (upload.content_type or "").lower() not in STUDENT_PHOTO_TYPES:
+            raise ValidationError({"photo": "Use a JPG, PNG or WEBP photo."})
+        if upload.size > STUDENT_PHOTO_MAX_BYTES:
+            raise ValidationError({"photo": "The photo is larger than 5 MB. Take it again or pick a smaller one."})
+        try:
+            from PIL import Image
+
+            Image.open(upload).verify()
+            upload.seek(0)
+        except Exception:
+            raise ValidationError({"photo": "That file is not a photo we can read."})
+
+        old_name = student.photo.name if student.photo else ""
+        student.photo.save(upload.name or "photo.jpg", upload, save=False)
+        student.photo_consent_by_id = request.user.id
+        student.photo_consent_at = timezone.now()
+        student.save(update_fields=["photo", "photo_consent_by", "photo_consent_at", "updated_at"])
+        if old_name and old_name != student.photo.name:
+            student.photo.storage.delete(old_name)
+        return Response(StudentSerializer(student, context={"request": request}).data)
 
     # ------------------------------------------------------------------ #
     # Permissions / throttles for the parent-facing actions
@@ -419,6 +564,99 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         return Response(
             StudentSerializer(student, context={"request": request}).data
         )
+
+
+class SchoolClassViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
+    """Class + section management (e.g. 1A, 1B) scoped to the teacher's school/branch."""
+
+    queryset = SchoolClass.objects.select_related("school", "branch").filter(active=True).order_by("class_name", "section")
+    serializer_class = SchoolClassSerializer
+    permission_classes = [RoleScopedPermission]
+    read_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER")
+    write_roles = ("BOSS", "ADMIN", "SCHOOL_ADMIN", "TEACHER")
+
+    scope_city_field = None
+    scope_school_field = "school_id"
+    scope_branch_field = "branch_id"
+    scope_parent_field = None
+
+    def scope_queryset(self, qs):
+        user = self.request.user
+        if user.is_authenticated and user.role == "ADMIN" and user.city_id:
+            return qs.filter(school__city_id=user.city_id)
+        return super().scope_queryset(qs)
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        school_id = self.request.query_params.get("school")
+        branch_id = self.request.query_params.get("branch")
+        if school_id:
+            qs = qs.filter(school_id=school_id)
+        if branch_id:
+            qs = qs.filter(branch_id=branch_id)
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        rows = response.data.get("results") if isinstance(response.data, dict) else response.data
+        if rows:
+            _add_class_counts(rows, request.user)
+        return response
+
+    def perform_destroy(self, instance):
+        if _students_in_class(instance, self.request.user).exists():
+            raise ValidationError(
+                {"detail": f"Class {instance.label} still has students. Move or remove them first."}
+            )
+        instance.active = False
+        instance.save(update_fields=["active"])
+
+
+def _class_key(class_name: str) -> str:
+    bare = (class_name or "").strip()
+    for prefix in ("Class ", "class ", "Std ", "std "):
+        bare = bare.removeprefix(prefix)
+    return bare.strip().lower()
+
+
+def _students_in_class(school_class, user):
+    from common.scoping import apply_user_scope
+
+    bare = _class_key(school_class.class_name)
+    qs = Student.objects.filter(
+        school_id=school_class.school_id,
+        section__iexact=school_class.section,
+        active=True,
+    ).filter(Q(class_name__iexact=bare) | Q(class_name__iexact=f"Class {bare}"))
+    if school_class.branch_id:
+        qs = qs.filter(branch_id=school_class.branch_id)
+    return apply_user_scope(qs, user, branch_field="branch_id")
+
+
+def _add_class_counts(rows, user):
+    """Students and photos per class tile, in one grouped query for the whole page."""
+    from django.db.models import Count
+    from common.scoping import apply_user_scope
+
+    school_ids = {str(r["school"]) for r in rows if r.get("school")}
+    qs = apply_user_scope(
+        Student.objects.filter(school_id__in=school_ids, active=True),
+        user,
+        branch_field="branch_id",
+    )
+    grouped = qs.values("school_id", "branch_id", "class_name", "section").annotate(
+        n=Count("id"), photos=Count("id", filter=~Q(photo=""))
+    )
+    totals = {}
+    for g in grouped:
+        for branch in (str(g["branch_id"]) if g["branch_id"] else None, "*"):
+            key = (str(g["school_id"]), branch, _class_key(g["class_name"]), (g["section"] or "").upper())
+            n, p = totals.get(key, (0, 0))
+            totals[key] = (n + g["n"], p + g["photos"])
+    for r in rows:
+        branch = str(r["branch"]) if r.get("branch") else "*"
+        key = (str(r["school"]), branch, _class_key(r["class_name"]), (r["section"] or "").upper())
+        r["student_count"], r["photo_count"] = totals.get(key, (0, 0))
 
 
 class StudentImportViewSet(ScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):

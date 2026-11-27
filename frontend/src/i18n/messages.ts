@@ -11,6 +11,28 @@
 type Entry = { en: string; gu: string; hi: string };
 
 export const messages = {
+  'recovery.checking': { en: "Checking payment", gu: "ચુકવણીની તપાસ", hi: "भुगतान की जाँच" },
+  'recovery.checkingBody': { en: "We are checking whether your payment of {amount} for order {n} went through. Please do not pay again.", gu: "અમે તપાસી રહ્યા છીએ કે ઓર્ડર {n} માટે તમારી {amount} ની ચુકવણી થઈ છે કે નહીં. ફરીથી ચૂકવશો નહીં.", hi: "हम जाँच रहे हैं कि ऑर्डर {n} के लिए आपका {amount} का भुगतान हुआ या नहीं। दोबारा भुगतान न करें।" },
+  'recovery.outage': { en: "We could not reach the payment service. Your order is safe. Please refresh in a minute.", gu: "ચુકવણી સેવા સાથે સંપર્ક થઈ શક્યો નહીં. તમારો ઓર્ડર સુરક્ષિત છે. એક મિનિટ પછી ફરી તપાસો.", hi: "भुगतान सेवा से संपर्क नहीं हो सका। आपका ऑर्डर सुरक्षित है। एक मिनट बाद फिर जाँचें।" },
+  'recovery.refresh': { en: "Refresh status", gu: "સ્થિતિ ફરી તપાસો", hi: "स्थिति फिर जाँचें" },
+  'recovery.checked': { en: "Last checked {time}", gu: "છેલ્લી તપાસ {time}", hi: "पिछली जाँच {time}" },
+  'recovery.unpaid': { en: "Payment not received for order {n}. {amount} is held for you until {time}.", gu: "ઓર્ડર {n} ની ચુકવણી મળી નથી. {time} સુધી {amount} નો ઓર્ડર તમારા માટે રાખ્યો છે.", hi: "ऑर्डर {n} का भुगतान नहीं मिला। {amount} का ऑर्डर आपके लिए {time} तक रखा गया है।" },
+  'recovery.failure': { en: "Your last payment did not go through: {reason}.", gu: "તમારી છેલ્લી ચુકવણી થઈ નથી: {reason}.", hi: "आपका पिछला भुगतान नहीं हुआ: {reason}।" },
+  'recovery.pay': { en: "Pay {amount}", gu: "{amount} ચૂકવો", hi: "{amount} चुकाएँ" },
+  'recovery.codInstead': { en: "Pay cash on delivery instead", gu: "ડિલિવરી વખતે રોકડ ચૂકવો", hi: "डिलीवरी पर नकद दें" },
+  'recovery.received': { en: "Payment received.", gu: "ચુકવણી મળી ગઈ.", hi: "भुगतान मिल गया।" },
+  'recovery.receipt': { en: "Order {n}, {amount} paid on {time} via {method}. Payment reference ending {ref}.", gu: "ઓર્ડર {n}, {time} એ {method} દ્વારા {amount} ચૂકવ્યા. ચુકવણી સંદર્ભના છેલ્લા અંક {ref}.", hi: "ऑर्डर {n}, {time} को {method} से {amount} चुकाए। भुगतान संदर्भ के अंतिम अंक {ref}।" },
+  'recovery.refund': { en: "We received {amount} after this order was released. It will be refunded to the original payment method within 7 working days.", gu: "ઓર્ડર રદ થયા પછી અમને {amount} મળ્યા. મૂળ ચુકવણી પદ્ધતિથી 7 કાર્યદિવસમાં રકમ પરત મળશે.", hi: "ऑर्डर रद्द होने के बाद हमें {amount} मिले। मूल भुगतान माध्यम पर 7 कार्यदिवस में राशि लौटाई जाएगी।" },
+  'recovery.noCash': { en: "Paid online: {amount}. Do not pay cash on delivery.", gu: "ઓનલાઇન ચૂકવ્યા: {amount}. ડિલિવરી વખતે રોકડ આપશો નહીં.", hi: "ऑनलाइन भुगतान हुआ: {amount}। डिलीवरी पर नकद न दें।" },
+  'recovery.codDue': { en: "Cash on delivery. Pay {amount} when the order arrives.", gu: "ડિલિવરી વખતે રોકડ. ઓર્ડર આવે ત્યારે {amount} ચૂકવો.", hi: "डिलीवरी पर नकद। ऑर्डर आने पर {amount} दें।" },
+  'recovery.attention': { en: "Order {n} is waiting for payment.", gu: "ઓર્ડર {n} ચુકવણીની રાહ જોઈ રહ્યો છે.", hi: "ऑर्डर {n} का भुगतान बाकी है।" },
+  'recovery.view': { en: "View order", gu: "ઓર્ડર જુઓ", hi: "ऑर्डर देखें" },
+  'recovery.progress': { en: "A payment is still in progress. Check your UPI app.", gu: "ચુકવણી ચાલુ છે. તમારી UPI એપ તપાસો.", hi: "भुगतान अभी जारी है। अपना UPI ऐप देखें।" },
+  'recovery.ordersError': { en: "Could not load orders.", gu: "ઓર્ડર લોડ થઈ શક્યા નહીં.", hi: "ऑर्डर लोड नहीं हो सके।" },
+  'recovery.unavailable': { en: "Payment is unavailable for this order.", gu: "આ ઓર્ડર માટે ચુકવણી ઉપલબ્ધ નથી.", hi: "इस ऑर्डर के लिए भुगतान उपलब्ध नहीं है।" },
+  'recovery.methodCard': { en: "card", gu: "કાર્ડ", hi: "कार्ड" },
+  'recovery.methodBank': { en: "netbanking", gu: "નેટબેન્કિંગ", hi: "नेटबैंकिंग" },
+  'recovery.methodUnknown': { en: "online payment", gu: "ઓનલાઇન ચુકવણી", hi: "ऑनलाइन भुगतान" },
   // ---------- common ----------
   'common.close': { en: 'Close', gu: 'બંધ કરો', hi: 'बंद करें' },
   'welcome.message': {
@@ -121,7 +143,7 @@ export const messages = {
   },
   'about.hero.imageAlt': {
     en: 'SchoolStore school children in uniform',
-    gu: 'સ્કૂલ યુનિફોર્મમાં સ્કૂલસ્ટોરના બાળકો',
+    gu: 'સ્કૂલ યુનિફોર્મ પહેરેલાં બાળકો',
     hi: 'स्कूल यूनिफ़ॉर्म में स्कूलस्टोर के बच्चे',
   },
   'about.problem.eyebrow': {
@@ -131,7 +153,7 @@ export const messages = {
   },
   'about.problem.title': {
     en: 'School uniform shopping shouldn’t be stressful',
-    gu: 'સ્કૂલ યુનિફોર્મ ખરીદવામાં હવે કોઈ ચિંતા નહીં',
+    gu: 'યુનિફોર્મ ખરીદવો આટલો મુશ્કેલ ન હોવો જોઈએ',
     hi: 'स्कूल यूनिफॉर्म की खरीदारी में अब कोई तनाव नहीं',
   },
   'about.problem.card1.title': {
@@ -141,7 +163,7 @@ export const messages = {
   },
   'about.problem.card1.desc': {
     en: 'Parents face great inconvenience buying uniforms as designated uniform shops are located far away from schools.',
-    gu: 'યુનિફોર્મ ખરીદવામાં વાલીઓને ભારે અસુવિધા થાય છે કારણ કે યુનિફોર્મની દુકાનો શાળાઓથી ઘણી દૂર હોય છે.',
+    gu: 'યુનિફોર્મ ખરીદવામાં વાલીઓને ઘણી તકલીફ પડે છે, કારણ કે નક્કી કરેલી દુકાનો શાળાથી ઘણી દૂર હોય છે.',
     hi: 'यूनिफॉर्म खरीदने में माता-पिता को भारी असुविधा होती है क्योंकि यूनिफॉर्म की दुकानें स्कूलों से काफ़ी दूर होती हैं।',
   },
   'about.problem.card2.title': {
@@ -151,7 +173,7 @@ export const messages = {
   },
   'about.problem.card2.desc': {
     en: 'After all that running, the size or item you need is not there.',
-    gu: 'આટલી દોડધામ પછી પણ જોઈતી સાઇઝ કે સામાન મળતો નથી.',
+    gu: 'આટલું ફર્યા પછી પણ જોઈતી સાઈઝ કે વસ્તુ મળતી નથી.',
     hi: 'इतनी भागदौड़ के बाद भी सही साइज़ या सामान नहीं मिलता।',
   },
   'about.pivot.line': {
@@ -196,7 +218,7 @@ export const messages = {
   },
   'about.network.title': {
     en: 'Schools we deliver to',
-    gu: 'અમે જે શાળાઓમાં ડિલિવર કરીએ છીએ',
+    gu: 'આ શાળાઓ માટે અમે ડિલિવરી કરીએ છીએ',
     hi: 'जिन स्कूलों में हम डिलीवरी करते हैं',
   },
   'about.network.swipeHint': {
@@ -248,27 +270,27 @@ export const messages = {
   },
   'home.emerald.taglineLine1': {
     en: 'All schools',
-    gu: 'બધી શાળાઓ',
+    gu: 'દરેક શાળાના',
     hi: 'सभी स्कूल',
   },
   'home.emerald.taglineLine2': {
     en: 'uniform and accessories',
-    gu: 'યુનિફોર્મ અને એસેસરીઝ',
+    gu: 'યુનિફોર્મ અને એસેસરીઝ,',
     hi: 'यूनिफॉर्म और एक्सेसरीज़',
   },
   'home.emerald.taglineLine3': {
     en: 'at your doorstep.',
-    gu: 'તમારા ઘર સુધી.',
+    gu: 'હવે તમારા ઘર સુધી.',
     hi: 'आपके दरवाज़े तक।',
   },
   'home.emerald.taglineWhite': {
     en: 'All school uniform & accessories,',
-    gu: 'બધા સ્કૂલ યુનિફોર્મ અને એસેસરીઝ,',
+    gu: 'દરેક શાળાના યુનિફોર્મ અને એસેસરીઝ,',
     hi: 'सभी स्कूल यूनिफॉर्म और एक्सेसरीज़,',
   },
   'home.emerald.taglineAccent': {
     en: 'at your doorstep.',
-    gu: 'તમારા દરવાજે.',
+    gu: 'હવે તમારા ઘર સુધી.',
     hi: 'आपके दरवाज़े पर।',
   },
   'home.emerald.searchPlaceholder': {
@@ -306,7 +328,7 @@ export const messages = {
     gu: 'શોપિંગ બેગ',
     hi: 'शॉपिंग बैग',
   },
-  'home.heroLine1': { en: 'Everything your school asks for.', gu: 'શાળાએ કહેલી બધી વસ્તુ.', hi: 'स्कूल की बताई हर चीज़।' },
+  'home.heroLine1': { en: 'Everything your school asks for.', gu: 'શાળાએ માંગેલી બધી વસ્તુઓ.', hi: 'स्कूल की बताई हर चीज़।' },
   'home.heroLine2': { en: 'One order.', gu: 'એક જ ઓર્ડરમાં.', hi: 'एक ही ऑर्डर में।' },
   'home.heroSub': {
     en: 'Uniform, shoes, notebooks and ID card from your school’s own list. We bring it home, or you collect it at school.',
@@ -329,28 +351,28 @@ export const messages = {
   'search.contact': { en: 'Contact us', gu: 'અમારો સંપર્ક કરો', hi: 'हमसे संपर्क करें' },
   'search.noMatch': { en: 'No school matches ‘{query}’', gu: '‘{query}’ નામની કોઈ શાળા મળી નથી', hi: '‘{query}’ नाम का कोई स्कूल नहीं मिला' },
   'search.close': { en: 'Close search', gu: 'શોધ બંધ કરો', hi: 'खोज बंद करें' },
-  'home.catEyebrow': { en: 'Approved by your school', gu: 'તમારી શાળાએ મંજૂર કરેલું', hi: 'आपके स्कूल द्वारा मंज़ूर' },
+  'home.catEyebrow': { en: 'Approved by your school', gu: 'તમારી શાળા દ્વારા માન્ય', hi: 'आपके स्कूल द्वारा मंज़ूर' },
   'home.shopByCategory': { en: 'What do you need?', gu: 'શું જોઈએ છે?', hi: 'क्या चाहिए?' },
   'home.schoolsEyebrow': { en: 'On SchoolStore', gu: 'SchoolStore પર', hi: 'SchoolStore पर' },
   'home.viewAll': { en: 'All schools', gu: 'બધી શાળાઓ', hi: 'सभी स्कूल' },
   'home.policyEyebrow': { en: 'OUR PROMISE', gu: 'અમારું વચન', hi: 'हमारा वादा' },
   'home.policyTitle': { en: 'Store Policy & Guarantee', gu: 'સ્ટોર પોલિસી અને ખાતરી', hi: 'स्टोर पॉलिसी और गारंटी' },
-  'home.policy1Title': { en: '100% School Approved', gu: 'શાળા દ્વારા ૧૦૦% માન્ય', hi: 'स्कूल द्वारा १००% अनुमोदित' },
+  'home.policy1Title': { en: '100% School Approved', gu: 'શાળા દ્વારા 100% માન્ય', hi: 'स्कूल द्वारा १००% अनुमोदित' },
   'home.policy1Desc': {
     en: 'Only verified uniform items strictly matching your school’s guidelines.',
-    gu: 'ફક્ત શાળાના ચોક્કસ નિયમો અને ધોરણો મુજબના જ અસલ યુનિફોર્મ.',
+    gu: 'ફક્ત તમારી શાળાના નિયમો મુજબના, ચકાસેલા યુનિફોર્મ.',
     hi: 'सिर्फ़ स्कूल के आधिकारिक नियमों के अनुसार पूरी तरह से मान्य यूनिफॉर्म।',
   },
-  'home.policy2Title': { en: '7-Day Easy Exchange', gu: '૭ દિવસમાં સરળ એક્સચેન્જ', hi: '७ दिनों में आसान एक्सचेंज' },
+  'home.policy2Title': { en: '7-Day Easy Exchange', gu: '7 દિવસમાં સરળ બદલી', hi: '७ दिनों में आसान एक्सचेंज' },
   'home.policy2Desc': {
     en: 'Wrong size? Exchange it within 7 days with zero hassle.',
-    gu: 'સાઈઝ ખોટી છે? ૭ દિવસની અંદર સરળતાથી બદલી આપો.',
+    gu: 'સાઈઝ ખોટી છે? 7 દિવસમાં કોઈ ઝંઝટ વગર બદલાવી લો.',
     hi: 'गलत साइज़ मिला? ७ दिनों के भीतर बिना किसी झंझट के आसानी से बदलें।',
   },
-  'home.policy3Title': { en: 'Doorstep or School Pickup', gu: 'હોમ ડિલિવરી અથવા શાળા કાઉન્ટર', hi: 'होम डिलीवरी या स्कूल काउंटर' },
+  'home.policy3Title': { en: 'Doorstep or School Pickup', gu: 'હોમ ડિલિવરી અથવા શાળાએથી લઈ જાઓ', hi: 'होम डिलीवरी या स्कूल काउंटर' },
   'home.policy3Desc': {
     en: 'Get your orders delivered right to your home, or collect at your school counter.',
-    gu: 'ઓર્ડર સીધો ઘરે મંગાવો અથવા શાળાના કાઉન્ટર પરથી લઈ જાઓ.',
+    gu: 'ઓર્ડર સીધો ઘરે મંગાવો, અથવા શાળાના કાઉન્ટર પરથી લઈ જાઓ.',
     hi: 'ऑर्डर सीधे घर मँगवाएँ या स्कूल काउंटर से ले जाएँ।',
   },
   'home.partnerEyebrow': { en: 'INSTITUTIONAL PARTNERSHIP', gu: 'શાળાઓ અને સંસ્થાઓ માટે', hi: 'स्कूलों और संस्थानों के लिए' },
@@ -362,11 +384,11 @@ export const messages = {
   },
   'home.partnerPoint1': { en: 'Complete official school uniform list stocked', gu: 'શાળાની સંપૂર્ણ યુનિફોર્મ યાદી ઉપલબ્ધ', hi: 'स्कूल की पूरी यूनिफॉर्म लिस्ट उपलब्ध' },
   'home.partnerPoint2': { en: 'Zero hassle ordering & customer support for parents', gu: 'વાલીઓ માટે સરળ ઓર્ડરિંગ અને સપોર્ટ', hi: 'माता-पिता के लिए आसान ऑर्डरिंग और सहायता' },
-  'home.partnerPoint3': { en: 'Direct home delivery or dedicated school counter', gu: 'સીધી હોમ ડિલિવરી અથવા શાળા કાઉન્ટર વિતરણ', hi: 'सीधी होम डिलीवरी या स्कूल काउंटर वितरण' },
+  'home.partnerPoint3': { en: 'Direct home delivery or dedicated school counter', gu: 'સીધી ઘરે ડિલિવરી અથવા શાળામાં અલગ કાઉન્ટર', hi: 'सीधी होम डिलीवरी या स्कूल काउंटर वितरण' },
   'home.partnerCta': { en: 'Talk to us', gu: 'અમારો સંપર્ક કરો', hi: 'हमसे संपर्क करें' },
   'home.reassure': {
     en: 'Only items your school approved. Wrong size? Exchange it within 7 days. We bring it home, or you collect it at the school counter.',
-    gu: 'ફક્ત શાળાએ મંજૂર કરેલી વસ્તુઓ. સાઈઝ ખોટી? 7 દિવસમાં બદલી આપીશું. ઘરે પહોંચાડીએ, અથવા શાળાના કાઉન્ટરથી લઈ જાઓ.',
+    gu: 'ફક્ત શાળાએ મંજૂર કરેલી વસ્તુઓ. સાઈઝ ખોટી? 7 દિવસમાં બદલી આપીશું. ઘરે પહોંચાડીએ, અથવા શાળાના કાઉન્ટર પરથી લઈ જાઓ.',
     hi: 'सिर्फ़ स्कूल की मंज़ूर चीज़ें। साइज़ गलत? 7 दिन में बदल देंगे। घर पहुँचाएँ, या स्कूल काउंटर से ले जाएँ।',
   },
 
@@ -383,7 +405,7 @@ export const messages = {
   'flow.s1.stateTitle': { en: 'Which state is your child’s school in?', gu: 'તમારા બાળકની શાળા કયા રાજ્યમાં છે?', hi: 'आपके बच्चे का स्कूल किस राज्य में है?' },
   'flow.s1.stateSub': { en: 'Tap your state.', gu: 'તમારા રાજ્ય પર દબાવો.', hi: 'अपने राज्य पर दबाएँ।' },
   'flow.s1.cityTitle': { en: 'Which city?', gu: 'કયું શહેર?', hi: 'कौन सा शहर?' },
-  'flow.s1.citySub': { en: 'Cities in {state} with our schools.', gu: '{state}નાં શહેરો જ્યાં અમારી શાળાઓ છે.', hi: '{state} के शहर जहाँ हमारे स्कूल हैं।' },
+  'flow.s1.citySub': { en: 'Cities in {state} with our schools.', gu: '{state}નાં શહેરો, જ્યાંની શાળાઓ SchoolStore પર છે.', hi: '{state} के शहर जहाँ हमारे स्कूल हैं।' },
   'flow.s1.cityCount': { en: '{n} cities', gu: '{n} શહેર', hi: '{n} शहर' },
   'flow.s1.oneCity': { en: '1 city', gu: '1 શહેર', hi: '1 शहर' },
   'flow.s1.branchCount': { en: '{n} schools', gu: '{n} શાળા', hi: '{n} स्कूल' },
@@ -420,7 +442,7 @@ export const messages = {
   'flow.changeBoyGirl': { en: 'Change boy / girl', gu: 'છોકરો / છોકરી બદલો', hi: 'लड़का / लड़की बदलें' },
   'flow.noItems': {
     en: 'No {cat} listed yet for {cls} ({g})',
-    gu: '{cls} ({g}) માટે હજુ {cat} મૂકાયું નથી',
+    gu: '{cls} ({g}) માટે હજુ {cat} મુકાયું નથી',
     hi: '{cls} ({g}) के लिए अभी {cat} नहीं रखा गया',
   },
   'flow.noItemsSub': {
@@ -462,7 +484,7 @@ export const messages = {
   'set.include': { en: 'Add this back', gu: 'આ પાછું ઉમેરો', hi: 'इसे वापस जोड़ें' },
   'set.addAll': {
     en: 'Add all {count} to bag · {total}',
-    gu: 'બધી {count} બેગમાં ઉમેરો · {total}',
+    gu: 'બધી {count} વસ્તુ બેગમાં ઉમેરો · {total}',
     hi: 'सभी {count} बैग में डालें · {total}',
   },
   'set.chooseSizes': {
@@ -633,7 +655,7 @@ export const messages = {
   'mf.ins.title': { en: 'Before you start', gu: 'શરૂ કરતા પહેલા', hi: 'शुरू करने से पहले' },
   'mf.ins.wall': {
     en: 'Your child stands straight against a plain wall, in fitted clothes, arms a little away from the body, feet together.',
-    gu: 'બાળક સાદી દીવાલ સામે સીધું ઊભું રહે, બંધ બેસતાં કપડાંમાં, હાથ શરીરથી થોડા દૂર, પગ ભેગા.',
+    gu: 'બાળક સાદી દીવાલ સામે સીધું ઊભું રહે. શરીરને બંધબેસતાં કપડાં, હાથ શરીરથી થોડા દૂર અને પગ ભેગા રાખે.',
     hi: 'बच्चा सादी दीवार के सामने सीधा खड़ा हो, फिट कपड़ों में, हाथ शरीर से थोड़ा दूर, पैर साथ में।',
   },
   'mf.ins.phone': {
@@ -839,7 +861,7 @@ export const messages = {
     hi: 'स्कूल के रिकॉर्ड से आपका बच्चा ढूँढेंगे। कुछ लिखना नहीं पड़ेगा।',
   },
   'co.signin.btn': { en: 'Get OTP', gu: 'OTP મેળવો', hi: 'OTP पाएँ' },
-  'co.orderingFor': { en: 'Ordering for', gu: 'ઓર્ડર આ બાળક માટે', hi: 'ऑर्डर इस बच्चे के लिए' },
+  'co.orderingFor': { en: 'Ordering for', gu: 'આ બાળક માટે ઓર્ડર', hi: 'ऑर्डर इस बच्चे के लिए' },
   'co.section': { en: 'Section {s}', gu: 'વર્ગ {s}', hi: 'सेक्शन {s}' },
   'co.verified': { en: 'Mobile {mobile} · checked', gu: 'મોબાઈલ {mobile} · ખાતરી થઈ', hi: 'मोबाइल {mobile} · जाँच हो गई' },
   'co.chooseChild': { en: 'Choose your child', gu: 'તમારું બાળક પસંદ કરો', hi: 'अपना बच्चा चुनें' },
@@ -866,7 +888,7 @@ export const messages = {
   'co.home': { en: 'Bring it home', gu: 'ઘરે પહોંચાડો', hi: 'घर पहुँचाएँ' },
   'co.homeSub': { en: 'We bring it to your door.', gu: 'તમારા ઘરે લાવીશું.', hi: 'आपके घर लाएँगे।' },
   'co.collect': { en: 'Collect at school', gu: 'શાળાએથી લઈ જઈશ', hi: 'स्कूल से ले जाऊँगा/जाऊँगी' },
-  'co.collectSub': { en: 'Pick it up at {school}.', gu: '{school} થી લઈ જાઓ.', hi: '{school} से ले जाएँ।' },
+  'co.collectSub': { en: 'Pick it up at {school}.', gu: '{school}માંથી લઈ જાઓ.', hi: '{school} से ले जाएँ।' },
   'co.yourSchool': { en: 'your school', gu: 'તમારી શાળા', hi: 'आपका स्कूल' },
   'co.pin': { en: 'PIN code', gu: 'પિન કોડ', hi: 'पिन कोड' },
   'co.pinPlaceholder': { en: '6 digits', gu: '6 અંક', hi: '6 अंक' },
@@ -876,7 +898,7 @@ export const messages = {
   'co.addr2': { en: 'Landmark (if any)', gu: 'નજીકની જગ્યા (હોય તો)', hi: 'पास की जगह (अगर हो)' },
   'co.addr2Placeholder': { en: 'Near temple, school, shop…', gu: 'મંદિર, શાળા, દુકાન પાસે…', hi: 'मंदिर, स्कूल, दुकान के पास…' },
   'co.summaryHome': { en: 'Home: {address}', gu: 'ઘર: {address}', hi: 'घर: {address}' },
-  'co.summaryCollect': { en: 'Collect at {school}', gu: '{school} થી લઈ જઈશ', hi: '{school} से ले जाऊँगा/जाऊँगी' },
+  'co.summaryCollect': { en: 'Collect at {school}', gu: '{school}માંથી લઈ જઈશ', hi: '{school} से ले जाऊँगा/जाऊँगी' },
   'co.cash': { en: 'Pay cash when it arrives', gu: 'સામાન આવે ત્યારે રોકડા આપો', hi: 'सामान आने पर नकद दें' },
   'co.cashSub': {
     en: 'Cash on delivery. Paying by UPI is coming soon.',
@@ -909,7 +931,7 @@ export const messages = {
   },
   'co.placed.collect': {
     en: 'Collect it at {school}. Pay {total} in cash when you collect it.',
-    gu: '{school} થી લઈ જાઓ. લેતી વખતે {total} રોકડા આપો.',
+    gu: '{school}માંથી લઈ જાઓ. લેતી વખતે {total} રોકડા આપો.',
     hi: '{school} से ले जाएँ। लेते समय {total} नकद दें।',
   },
   'co.placed.home': {
@@ -960,6 +982,86 @@ export const messages = {
   'co.err.address': { en: 'Write your house and society', gu: 'ઘર નંબર અને સોસાયટી લખો', hi: 'मकान नंबर और सोसाइटी लिखें' },
   'co.err.city': { en: 'Write your city', gu: 'શહેર લખો', hi: 'शहर लिखें' },
   'co.err.state': { en: 'Write your state', gu: 'રાજ્ય લખો', hi: 'राज्य लिखें' },
+  'co.onlineUnavailable': {
+    en: 'Razorpay is currently unavailable. You can still place an order with cash on delivery.',
+    gu: 'અત્યારે Razorpay ઉપલબ્ધ નથી. તમે ડિલિવરી વખતે રોકડ ચૂકવીને ઓર્ડર આપી શકો છો.',
+    hi: 'अभी Razorpay उपलब्ध नहीं है। आप डिलीवरी पर नकद भुगतान करके ऑर्डर कर सकते हैं।',
+  },
+  'co.method.online': {
+    en: 'Pay online (UPI, card, netbanking)',
+    gu: 'ઓનલાઈન ચૂકવો (UPI, કાર્ડ, નેટબેન્કિંગ)',
+    hi: 'ऑनलाइन भुगतान करें (UPI, कार्ड, नेटबैंकिंग)',
+  },
+  'co.method.cod': {
+    en: 'Cash on delivery',
+    gu: 'ડિલિવરી વખતે રોકડા (COD)',
+    hi: 'डिलीवरी पर नकद (COD)',
+  },
+  'co.priceChanged': {
+    en: 'Prices have been updated. Please review the new total and confirm your order.',
+    gu: 'ભાવ બદલાયા છે. કૃપા કરીને નવી કુલ રકમ ચકાસો અને તમારા ઓર્ડરની પુષ્ટિ કરો.',
+    hi: 'कीमतें बदल गई हैं। कृपया नई कुल राशि देखें और अपने ऑर्डर की पुष्टि करें।',
+  },
+  'co.checkingPayment': {
+    en: 'Checking your payment...',
+    gu: 'તમારી ચુકવણી તપાસી રહ્યા છીએ...',
+    hi: 'आपके भुगतान की जाँच कर रहे हैं...',
+  },
+  'co.confirmingPayment': {
+    en: 'We are confirming your payment. Please do not pay again.',
+    gu: 'અમે તમારી ચુકવણીની પુષ્ટિ કરી રહ્યા છીએ. કૃપા કરીને ફરીથી ચૂકવણી કરશો નહીં.',
+    hi: 'हम आपके भुगतान की पुष्टि कर रहे हैं। कृपया दोबारा भुगतान न करें।',
+  },
+  'co.paymentInProgress': {
+    en: 'A payment is still in progress. Check your UPI app. Please do not pay again.',
+    gu: 'ચુકવણી હજુ ચાલુ છે. તમારી UPI એપ તપાસો. કૃપા કરીને ફરીથી ચૂકવણી કરશો નહીં.',
+    hi: 'भुगतान अभी प्रक्रिया में है। अपना UPI ऐप देखें। कृपया दोबारा भुगतान न करें।',
+  },
+  'co.checkAgain': {
+    en: 'Check again',
+    gu: 'ફરી તપાસો',
+    hi: 'फिर से जाँचें',
+  },
+  'co.tryAgain': {
+    en: 'Try again',
+    gu: 'ફરી પ્રયત્ન કરો',
+    hi: 'फिर से कोशिश करें',
+  },
+  'co.switchToCod': {
+    en: 'Pay cash on delivery instead',
+    gu: 'તેના બદલે ડિલિવરી વખતે રોકડા ચૂકવો',
+    hi: 'इसके बजाय डिलीवरी पर नकद भुगतान करें',
+  },
+  'co.paymentSuccess': {
+    en: 'Payment received. Order {n} is confirmed.',
+    gu: 'ચુકવણી મળી ગઈ છે. ઓર્ડર {n} પાકો થઈ ગયો છે.',
+    hi: 'भुगतान प्राप्त हुआ। ऑर्डर {n} कन्फ़र्म हो गया है।',
+  },
+  'co.willText': {
+    en: 'We will text you when it is confirmed.',
+    gu: 'ઓર્ડર પાકો થશે ત્યારે અમે તમને મેસેજ કરીશું.',
+    hi: 'कन्फ़र्म होने पर हम आपको मैसेज भेजेंगे।',
+  },
+  'co.orderReleased': {
+    en: 'This order was released because payment did not arrive in time. If money left your account it will be refunded within 7 working days.',
+    gu: 'સમયસર ચુકવણી ન થવાને કારણે આ ઓર્ડર રદ થયો છે. જો તમારા ખાતામાંથી પૈસા કપાયા હોય, તો 7 કામકાજના દિવસોમાં પરત મળશે.',
+    hi: 'समय पर भुगतान न होने के कारण यह ऑर्डर रद्द कर दिया गया है। यदि आपके खाते से पैसे कट गए हैं, तो 7 कार्य दिवसों में वापस कर दिए जाएँगे।',
+  },
+  'co.placeOrderAgain': {
+    en: 'Place the order again',
+    gu: 'ફરીથી ઓર્ડર કરો',
+    hi: 'फिर से ऑर्डर करें',
+  },
+  'co.payNow': {
+    en: 'Pay now',
+    gu: 'હમણાં ચૂકવો',
+    hi: 'अभी भुगतान करें',
+  },
+  'co.placed.online': {
+    en: 'Payment received online. Order number {n}.',
+    gu: 'ઓનલાઈન ચુકવણી મળી ગઈ છે. ઓર્ડર નંબર {n}.',
+    hi: 'ऑनलाइन भुगतान प्राप्त हुआ। ऑर्डर नंबर {n}।',
+  },
 
   // ---------- order problems ----------
   'err.offline': {
@@ -1066,6 +1168,68 @@ export const messages = {
   'signin.wrongOtp': { en: 'That OTP is wrong or old. Try again.', gu: 'OTP ખોટો કે જૂનો છે. ફરી પ્રયત્ન કરો.', hi: 'OTP गलत या पुराना है। फिर कोशिश करें।' },
   'signin.useTestCode': { en: 'Use this code', gu: 'આ કોડ વાપરો', hi: 'यह कोड इस्तेमाल करें' },
   'signin.verifyFailed': { en: 'We could not verify the code right now. Try again.', gu: 'હમણાં કોડ ચકાસી શકાયો નહીં. ફરી પ્રયત્ન કરો.', hi: 'अभी कोड की पुष्टि नहीं हो सकी। फिर कोशिश करें।' },
+  'signin.chooseTitle': { en: 'Sign in or create an account', gu: 'લોગિન કરો અથવા નવું ખાતું બનાવો', hi: 'लॉगिन करें या नया खाता बनाएँ' },
+  'signin.chooseLead': { en: 'Choose one way to continue.', gu: 'આગળ વધવા એક રીત પસંદ કરો.', hi: 'आगे बढ़ने का एक तरीका चुनें।' },
+  'signin.optOtp': { en: 'Sign in with mobile OTP', gu: 'મોબાઈલ OTP થી લોગિન', hi: 'मोबाइल OTP से लॉगिन' },
+  'signin.optOtpHint': {
+    en: 'We send a 6-digit code to your mobile. New number? Your account is made right away.',
+    gu: 'તમારા મોબાઈલ પર 6 અંકનો કોડ આવશે. નવો નંબર? ખાતું તરત બની જશે.',
+    hi: 'आपके मोबाइल पर 6 अंकों का कोड आएगा। नया नंबर? खाता तुरंत बन जाएगा।',
+  },
+  'signin.optCreate': { en: 'Create account with user ID and password', gu: 'યુઝર ID અને પાસવર્ડથી ખાતું બનાવો', hi: 'यूज़र ID और पासवर्ड से खाता बनाएँ' },
+  'signin.optCreateHint': {
+    en: 'Choose your own user ID and password, and use them to sign in any time.',
+    gu: 'તમારું પોતાનું યુઝર ID અને પાસવર્ડ પસંદ કરો, પછી ક્યારેય પણ લોગિન કરો.',
+    hi: 'अपना यूज़र ID और पासवर्ड चुनें, फिर कभी भी लॉगिन करें।',
+  },
+  'signin.optPassword': { en: 'Already have a user ID? Sign in with password', gu: 'યુઝર ID છે? પાસવર્ડથી લોગિન કરો', hi: 'यूज़र ID है? पासवर्ड से लॉगिन करें' },
+  'signin.otherWays': { en: 'Other ways to sign in', gu: 'લોગિનની બીજી રીતો', hi: 'लॉगिन के दूसरे तरीके' },
+  'signin.passwordTitle': { en: 'Sign in with user ID', gu: 'યુઝર ID થી લોગિન', hi: 'यूज़र ID से लॉगिन' },
+  'signin.idOrMobile': { en: 'User ID or mobile number', gu: 'યુઝર ID અથવા મોબાઈલ નંબર', hi: 'यूज़र ID या मोबाइल नंबर' },
+  'signin.password': { en: 'Password', gu: 'પાસવર્ડ', hi: 'पासवर्ड' },
+  'signin.show': { en: 'Show', gu: 'બતાવો', hi: 'दिखाएँ' },
+  'signin.hide': { en: 'Hide', gu: 'છુપાવો', hi: 'छिपाएँ' },
+  'signin.signIn': { en: 'Sign in', gu: 'લોગિન કરો', hi: 'लॉगिन करें' },
+  'signin.signingIn': { en: 'Signing in…', gu: 'લોગિન થઈ રહ્યું છે…', hi: 'लॉगिन हो रहा है…' },
+  'signin.wrongPassword': {
+    en: 'User ID or password is wrong. Check and try again.',
+    gu: 'યુઝર ID અથવા પાસવર્ડ ખોટો છે. તપાસી ફરી પ્રયત્ન કરો.',
+    hi: 'यूज़र ID या पासवर्ड गलत है। जाँचकर फिर कोशिश करें।',
+  },
+  'signin.forgot': { en: 'Forgot password? Sign in with OTP', gu: 'પાસવર્ડ ભૂલી ગયા? OTP થી લોગિન કરો', hi: 'पासवर्ड भूल गए? OTP से लॉगिन करें' },
+  'signin.noAccount': { en: 'New here? Create an account', gu: 'નવા છો? ખાતું બનાવો', hi: 'नए हैं? खाता बनाएँ' },
+  'signin.haveAccount': { en: 'Already have a user ID? Sign in', gu: 'યુઝર ID છે? લોગિન કરો', hi: 'यूज़र ID है? लॉगिन करें' },
+  'signin.createTitle': { en: 'Create your account', gu: 'તમારું ખાતું બનાવો', hi: 'अपना खाता बनाएँ' },
+  'signin.createLead': {
+    en: 'Fill this in once. Next time, sign in with your user ID and password.',
+    gu: 'આ એક વાર ભરો. પછી યુઝર ID અને પાસવર્ડથી લોગિન કરો.',
+    hi: 'यह एक बार भरें। अगली बार यूज़र ID और पासवर्ड से लॉगिन करें।',
+  },
+  'signin.name': { en: 'Your name', gu: 'તમારું નામ', hi: 'आपका नाम' },
+  'signin.userId': { en: 'Choose a user ID', gu: 'યુઝર ID પસંદ કરો', hi: 'यूज़र ID चुनें' },
+  'signin.userIdHint': {
+    en: '4 to 30 small letters or numbers. You can use . and _ too.',
+    gu: '4 થી 30 નાના અક્ષર અથવા આંકડા. . અને _ પણ ચાલશે.',
+    hi: '4 से 30 छोटे अक्षर या अंक। . और _ भी चलेंगे।',
+  },
+  'signin.newPassword': { en: 'Choose a password', gu: 'પાસવર્ડ પસંદ કરો', hi: 'पासवर्ड चुनें' },
+  'signin.passwordHint': { en: 'At least 6 characters.', gu: 'ઓછામાં ઓછા 6 અક્ષર.', hi: 'कम से कम 6 अक्षर।' },
+  'signin.create': { en: 'Create account', gu: 'ખાતું બનાવો', hi: 'खाता बनाएँ' },
+  'signin.creating': { en: 'Creating account…', gu: 'ખાતું બની રહ્યું છે…', hi: 'खाता बन रहा है…' },
+  'signin.errName': { en: 'Write your name.', gu: 'તમારું નામ લખો.', hi: 'अपना नाम लिखें।' },
+  'signin.errUserId': {
+    en: 'User ID must be 4 to 30 letters or numbers, with at least one letter.',
+    gu: 'યુઝર ID 4 થી 30 અક્ષર કે આંકડાનું હોવું જોઈએ, ઓછામાં ઓછો એક અક્ષર સાથે.',
+    hi: 'यूज़र ID 4 से 30 अक्षर या अंकों का हो, कम से कम एक अक्षर के साथ।',
+  },
+  'signin.errPassword': { en: 'Password must have at least 6 characters.', gu: 'પાસવર્ડમાં ઓછામાં ઓછા 6 અક્ષર જોઈએ.', hi: 'पासवर्ड में कम से कम 6 अक्षर चाहिए।' },
+  'signin.idTaken': { en: 'This user ID is taken. Try another one.', gu: 'આ યુઝર ID લેવાઈ ગયું છે. બીજું અજમાવો.', hi: 'यह यूज़र ID पहले से लिया गया है। दूसरा आज़माएँ।' },
+  'signin.phoneTaken': {
+    en: 'This mobile number already has an account. Sign in with OTP or with your user ID.',
+    gu: 'આ મોબાઈલ નંબરનું ખાતું પહેલેથી છે. OTP થી અથવા યુઝર ID થી લોગિન કરો.',
+    hi: 'इस मोबाइल नंबर का खाता पहले से है। OTP से या यूज़र ID से लॉगिन करें।',
+  },
+  'signin.createFailed': { en: 'We could not create your account. Try again.', gu: 'ખાતું બની શક્યું નહીં. ફરી પ્રયત્ન કરો.', hi: 'खाता नहीं बन पाया। फिर कोशिश करें।' },
 
   // ---------- child photo consent ----------
   'photo.consent.listen': {
@@ -1140,6 +1304,98 @@ export const messages = {
   'foot.phone': { en: 'Phone', gu: 'ફોન', hi: 'फ़ोन' },
   'foot.message': { en: 'Send a message', gu: 'મેસેજ મોકલો', hi: 'मैसेज भेजें' },
   'foot.email': { en: 'Email', gu: 'ઈમેલ', hi: 'ईमेल' },
+
+  // ---------- parent account (/account) ----------
+  'account.signedIn': { en: 'Signed in', gu: 'લોગિન થયેલ', hi: 'लॉगिन किया हुआ' },
+  'account.namaste': { en: 'Namaste', gu: 'નમસ્તે', hi: 'नमस्ते' },
+  'account.subtitle': {
+    en: 'Your orders, sizes and help, all in one place.',
+    gu: 'તમારા ઓર્ડર, માપ અને મદદ, બધું એક જ જગ્યાએ.',
+    hi: 'आपके ऑर्डर, नाप और मदद, सब एक ही जगह।',
+  },
+  'account.ordersTitle': { en: 'My orders', gu: 'મારા ઓર્ડર', hi: 'मेरे ऑर्डर' },
+  'account.ordersCount': { en: '{count} orders', gu: '{count} ઓર્ડર', hi: '{count} ऑर्डर' },
+  'account.ordersCountOne': { en: '1 order', gu: '1 ઓર્ડર', hi: '1 ऑर्डर' },
+  'account.orderNumber': { en: 'Order #{number}', gu: 'ઓર્ડર #{number}', hi: 'ऑर्डर #{number}' },
+  'account.itemsCount': { en: '{count} items', gu: '{count} વસ્તુ', hi: '{count} चीज़ें' },
+  'account.itemsCountOne': { en: '1 item', gu: '1 વસ્તુ', hi: '1 चीज़' },
+  'account.deliveryHome': { en: 'Home delivery', gu: 'ઘરે ડિલિવરી', hi: 'घर पर डिलीवरी' },
+  'account.deliverySchool': { en: 'Collect at school', gu: 'શાળાએથી લો', hi: 'स्कूल से लें' },
+  'account.stepPlaced': { en: 'Placed', gu: 'નોંધાયો', hi: 'दर्ज' },
+  'account.stepPacked': { en: 'Packed', gu: 'પેક થયો', hi: 'पैक' },
+  'account.stepOnTheWay': { en: 'On the way', gu: 'રસ્તામાં', hi: 'रास्ते में' },
+  'account.stepDelivered': { en: 'Delivered', gu: 'મળી ગયો', hi: 'पहुँच गया' },
+  'account.statusCancelled': { en: 'Cancelled', gu: 'રદ', hi: 'रद्द' },
+  'account.statusReturned': { en: 'Returned', gu: 'પરત', hi: 'वापस' },
+  'account.seeItems': { en: 'See items', gu: 'વસ્તુઓ જુઓ', hi: 'सामान देखें' },
+  'account.hideItems': { en: 'Hide items', gu: 'વસ્તુઓ છુપાવો', hi: 'सामान छिपाएँ' },
+  'account.sizeLabel': { en: 'Size {size}', gu: 'સાઈઝ {size}', hi: 'साइज़ {size}' },
+  'account.exchangeSize': { en: 'Exchange a size', gu: 'સાઈઝ બદલો', hi: 'साइज़ बदलें' },
+  'account.shopUniform': {
+    en: 'Shop school uniform',
+    gu: 'શાળાનો યુનિફોર્મ ખરીદો',
+    hi: 'स्कूल यूनिफ़ॉर्म खरीदें',
+  },
+  'account.noOrders': { en: 'No orders yet', gu: 'હજી કોઈ ઓર્ડર નથી', hi: 'अभी कोई ऑर्डर नहीं है' },
+  'account.noOrdersSub': {
+    en: 'Your orders and live delivery steps will appear here.',
+    gu: 'તમારા ઓર્ડર અને ડિલિવરીની વિગતો અહીં દેખાશે.',
+    hi: 'आपके ऑर्डर और डिलीवरी की जानकारी यहाँ दिखेगी।',
+  },
+  'account.codNote': {
+    en: 'Pay cash when it arrives.',
+    gu: 'સામાન આવે ત્યારે રોકડા આપો.',
+    hi: 'सामान आने पर नकद दें।',
+  },
+  'account.savedSizes': { en: 'Saved sizes', gu: 'સાચવેલા માપ', hi: 'सेव किए गए नाप' },
+  'account.shirt': { en: 'Shirt', gu: 'શર્ટ', hi: 'शर्ट' },
+  'account.trouser': { en: 'Trouser', gu: 'પેન્ટ', hi: 'पैंट' },
+  'account.needSomething': { en: 'Need something?', gu: 'કંઈ મદદ જોઈએ?', hi: 'कुछ मदद चाहिए?' },
+  'account.helpWhatsapp': {
+    en: 'Help on WhatsApp',
+    gu: 'WhatsApp પર મદદ',
+    hi: 'WhatsApp पर मदद',
+  },
+  'account.legalLinks': {
+    en: 'Terms, refunds, privacy',
+    gu: 'શરતો, રિફંડ, ગોપનીયતા',
+    hi: 'शर्तें, रिफ़ंड, गोपनीयता',
+  },
+  'account.signOut': { en: 'Sign out', gu: 'લોગ આઉટ', hi: 'लॉग आउट' },
+  'account.signInPrompt': {
+    en: 'Sign in or create an account to see your orders and saved sizes.',
+    gu: 'તમારા ઓર્ડર અને સાચવેલા માપ જોવા માટે લોગિન કરો અથવા ખાતું બનાવો.',
+    hi: 'अपने ऑर्डर और सेव किए गए नाप देखने के लिए लॉगिन करें या खाता बनाएँ।',
+  },
+  'account.signInBtn': {
+    en: 'Sign in or create account',
+    gu: 'લોગિન કરો અથવા ખાતું બનાવો',
+    hi: 'लॉगिन करें या खाता बनाएँ',
+  },
+  'account.childrenTitle': { en: 'My children', gu: 'મારાં બાળકો', hi: 'मेरे बच्चे' },
+  'account.noChildren': {
+    en: 'No child added yet. Add your child with the GR number, or just shop by school and class.',
+    gu: 'હજી કોઈ બાળક ઉમેર્યું નથી. GR નંબરથી બાળક ઉમેરો, અથવા શાળા અને ધોરણથી ખરીદી કરો.',
+    hi: 'अभी कोई बच्चा नहीं जोड़ा। GR नंबर से बच्चा जोड़ें, या स्कूल और कक्षा चुनकर खरीदें।',
+  },
+  'account.addChild': { en: 'Add my child', gu: 'બાળક ઉમેરો', hi: 'बच्चा जोड़ें' },
+  'account.manageChildren': { en: 'Children and photos', gu: 'બાળકો અને ફોટા', hi: 'बच्चे और फ़ोटो' },
+  'account.manageOrders': { en: 'Pay or manage orders', gu: 'ચુકવણી અથવા ઓર્ડર સંભાળો', hi: 'भुगतान या ऑर्डर सँभालें' },
+  'account.profileTitle': { en: 'My profile', gu: 'મારી પ્રોફાઇલ', hi: 'मेरी प्रोफ़ाइल' },
+  'account.profileName': { en: 'Name', gu: 'નામ', hi: 'नाम' },
+  'account.profileMobile': { en: 'Mobile', gu: 'મોબાઈલ', hi: 'मोबाइल' },
+  'account.profileUserId': { en: 'User ID', gu: 'યુઝર ID', hi: 'यूज़र ID' },
+  'account.signInWithId': {
+    en: 'Sign in with your user ID and password, or with mobile OTP.',
+    gu: 'યુઝર ID અને પાસવર્ડથી, અથવા મોબાઈલ OTP થી લોગિન કરો.',
+    hi: 'यूज़र ID और पासवर्ड से, या मोबाइल OTP से लॉगिन करें।',
+  },
+  'account.signInWithOtp': {
+    en: 'You sign in with mobile OTP.',
+    gu: 'તમે મોબાઈલ OTP થી લોગિન કરો છો.',
+    hi: 'आप मोबाइल OTP से लॉगिन करते हैं।',
+  },
+  'account.shopNav': { en: 'Shop', gu: 'ખરીદો', hi: 'खरीदें' },
 } satisfies Record<string, Entry>;
 
 export type MessageKey = keyof typeof messages;

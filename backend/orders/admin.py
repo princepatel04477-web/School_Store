@@ -1,7 +1,48 @@
 from django.contrib import admin
+from django.core.exceptions import ValidationError
 from django.db.models import Exists, OuterRef
 
-from .models import Order, OrderItem, OrderItemExchange, OrderStatusEvent, PhotoConsent
+from .models import (
+    Order,
+    OrderItem,
+    OrderItemExchange,
+    OrderStatusEvent,
+    PaymentAttempt,
+    PaymentEvent,
+    PaymentReview,
+    PhotoConsent,
+)
+from .status import can_transition_order
+
+
+class PaymentAttemptInline(admin.TabularInline):
+    model = PaymentAttempt
+    extra = 0
+    readonly_fields = (
+        "id",
+        "razorpay_payment_id",
+        "amount_paise",
+        "currency",
+        "status",
+        "method",
+        "error_code",
+        "first_seen_at",
+    )
+    can_delete = False
+
+
+class PaymentReviewInline(admin.TabularInline):
+    model = PaymentReview
+    extra = 0
+    readonly_fields = (
+        "id",
+        "reason",
+        "payment_id",
+        "created_at",
+        "resolved_at",
+        "resolved_by",
+    )
+    can_delete = False
 
 
 class OrderItemInline(admin.TabularInline):
@@ -37,11 +78,119 @@ class OrderAdmin(admin.ModelAdmin):
     )
     list_filter = ("status", "payment_status", "placed_by_role", "city", "school", "branch")
     search_fields = ("order_number", "student__name", "student__gr_number")
-    readonly_fields = ("id", "created_at", "updated_at")
+    readonly_fields = (
+        "id",
+        "status",
+        "payment_status",
+        "payment_method",
+        "subtotal",
+        "total",
+        "razorpay_order_id",
+        "razorpay_payment_id",
+        "razorpay_signature",
+        "created_at",
+        "updated_at",
+    )
     raw_id_fields = ("placed_by", "payer", "student", "school", "branch", "city")
     list_select_related = ("student", "school", "branch", "city", "placed_by", "payer")
     show_full_result_count = False
-    inlines = [OrderItemInline, OrderStatusEventInline]
+    inlines = [OrderItemInline, OrderStatusEventInline, PaymentAttemptInline, PaymentReviewInline]
+
+    def save_model(self, request, obj, form, change):
+        if change and "status" in form.changed_data:
+            orig = Order.objects.get(pk=obj.pk)
+            can, reason = can_transition_order(orig, obj.status)
+            if not can:
+                raise ValidationError(f"Cannot change status from {orig.status} to {obj.status}: {reason}")
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(PaymentAttempt)
+class PaymentAttemptAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "order",
+        "razorpay_payment_id",
+        "amount_paise",
+        "currency",
+        "status",
+        "method",
+        "error_code",
+        "first_seen_at",
+    )
+    list_filter = ("status", "method", "currency", "last_source")
+    search_fields = ("razorpay_payment_id", "order__order_number")
+    readonly_fields = (
+        "id",
+        "order",
+        "razorpay_payment_id",
+        "amount_paise",
+        "currency",
+        "status",
+        "method",
+        "error_code",
+        "error_reason",
+        "last_source",
+        "first_seen_at",
+        "updated_at",
+    )
+    raw_id_fields = ("order",)
+    show_full_result_count = False
+
+
+@admin.register(PaymentEvent)
+class PaymentEventAdmin(admin.ModelAdmin):
+    list_display = (
+        "event_id",
+        "event_type",
+        "razorpay_order_id",
+        "razorpay_payment_id",
+        "state",
+        "tries",
+        "received_at",
+    )
+    list_filter = ("event_type", "state")
+    search_fields = ("event_id", "razorpay_order_id", "razorpay_payment_id")
+    readonly_fields = (
+        "id",
+        "event_id",
+        "event_type",
+        "razorpay_order_id",
+        "razorpay_payment_id",
+        "amount",
+        "currency",
+        "payload",
+        "state",
+        "tries",
+        "next_try_at",
+        "last_error",
+        "received_at",
+    )
+    show_full_result_count = False
+
+
+@admin.register(PaymentReview)
+class PaymentReviewAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "order",
+        "reason",
+        "payment_id",
+        "created_at",
+        "resolved_at",
+        "resolved_by",
+    )
+    list_filter = ("reason",)
+    search_fields = ("order__order_number", "payment_id", "notes")
+    readonly_fields = (
+        "id",
+        "order",
+        "reason",
+        "payment_id",
+        "created_at",
+    )
+    raw_id_fields = ("order", "resolved_by")
+    show_full_result_count = False
 
 
 FIT_FIELDS = (

@@ -2,9 +2,10 @@ import { useState, useMemo } from 'react';
 import { X } from './ui/icons';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { api, Product, Order, CustomisationField } from '../api';
+import { api, Product, Order, PaymentView, CustomisationField } from '../api';
 import { CustomisationForm, photoPurposeForCategory } from './CustomisationForm';
 import { fitPayload, formatMeasure, type Fit } from '../data/fit';
+import { runOrderPayment } from '../services/orderPayment';
 
 const demo: Product[] = [
   {
@@ -356,6 +357,8 @@ export function Cart({
   onSuccess?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [pendingOrder, setPendingOrder] = useState<{ id: string; order_number: string } | null>(null);
+  const [paymentNote, setPaymentNote] = useState('');
 
   // Normalize single item vs multi items
   const activeItems: CartItem[] = useMemo(() => {
@@ -389,6 +392,23 @@ export function Cart({
     0
   );
 
+  async function openPaymentFor(orderId: string, orderNumber: string) {
+    let latest: PaymentView | null = null;
+    await runOrderPayment(orderId, (view) => {
+      latest = view;
+    });
+    if (latest && ((latest as PaymentView).state === 'PAID' || (latest as PaymentView).receipt)) {
+      setPendingOrder(null);
+      setPaymentNote('');
+      alert(`Payment verified! Order ${orderNumber} is confirmed.`);
+      onClear();
+      onSuccess?.();
+    } else {
+      setPendingOrder({ id: orderId, order_number: orderNumber });
+      setPaymentNote(`Order ${orderNumber} is saved and awaiting payment. Click below to retry Razorpay without creating a duplicate order.`);
+    }
+  }
+
   async function checkout() {
     for (const item of activeItems) {
       if (!item.variantId) {
@@ -398,7 +418,13 @@ export function Cart({
     }
 
     setBusy(true);
+    setPaymentNote('');
     try {
+      if (pendingOrder) {
+        await openPaymentFor(pendingOrder.id, pendingOrder.order_number);
+        return;
+      }
+
       const payloadItems = activeItems.map((item) => {
         const cleanCustomData: Record<string, any> = {};
         if (item.customisationData) {
@@ -416,20 +442,20 @@ export function Cart({
         };
       });
 
-      await api('/orders/', {
+      const idempotencyKey = crypto.randomUUID();
+      const created = await api<{ id: string; order_number: string }>('/orders/', {
         method: 'POST',
-        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        headers: { 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify({
-          idempotency_key: crypto.randomUUID(),
+          idempotency_key: idempotencyKey,
           student: studentId || 'selected',
+          payment_method: 'ONLINE',
           items: payloadItems,
         }),
       });
-      alert('Order placed successfully!');
-      onClear();
-      onSuccess?.();
+      await openPaymentFor(created.id, created.order_number);
     } catch (err: any) {
-      alert(err.message || 'Connect the selected student and try again.');
+      alert(err.message || 'Could not complete checkout. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -519,8 +545,14 @@ export function Cart({
         <strong style={{ fontSize: '18px', color: '#275b4c' }}>₹{totalAmount.toLocaleString('en-IN')}</strong>
       </div>
 
+      {paymentNote && (
+        <div className="notice" style={{ marginBottom: '10px', fontSize: '13px' }}>
+          {paymentNote}
+        </div>
+      )}
+
       <button className="primary full" disabled={busy} onClick={checkout}>
-        {busy ? 'Processing…' : `Pay securely · ₹${totalAmount.toLocaleString('en-IN')}`}
+        {busy ? 'Processing…' : pendingOrder ? `Retry Razorpay · ₹${totalAmount.toLocaleString('en-IN')}` : `Pay securely · ₹${totalAmount.toLocaleString('en-IN')}`}
       </button>
 
       {activeItems.length === 1 && (

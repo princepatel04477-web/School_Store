@@ -1,5 +1,5 @@
 from rest_framework import mixins, status, viewsets
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.decorators import action
 
@@ -8,7 +8,9 @@ from common.permissions import RoleScopedPermission
 from common.scoping import ScopedQuerysetMixin
 
 from .models import StockBalance, StockMovement
+from .services import INDIA_STOCK_ID
 from .serializers import (
+    BulkStockReceiptSerializer,
     StockBalanceSerializer,
     StockMovementCreateSerializer,
     StockMovementSerializer,
@@ -22,7 +24,7 @@ class StockBalancePagination(BoundedCursorPagination):
     city_grid_max = 2000
 
     def get_page_size(self, request):
-        if request.query_params.get("city"):
+        if request.query_params.get("city") or request.query_params.get("scope") == "india":
             return self.city_grid_max
         return super().get_page_size(request)
 
@@ -46,12 +48,18 @@ class StockBalanceViewSet(ScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
         variant_id = self.request.query_params.get("variant")
         school_id = self.request.query_params.get("school")
         product_id = self.request.query_params.get("product")
-        if city_id:
-            qs = qs.filter(city_id=city_id)
+        if self.request.query_params.get("scope") == "india":
+            if self.request.user.role != "BOSS":
+                raise PermissionDenied("Only the Boss can view India stock.")
+            qs = qs.filter(city_id=INDIA_STOCK_ID)
+        else:
+            qs = qs.exclude(city_id=INDIA_STOCK_ID)
+            if city_id:
+                qs = qs.filter(city_id=city_id)
         if variant_id:
             qs = qs.filter(variant_id=variant_id)
         if school_id:
-            qs = qs.filter(variant__school_id=school_id)
+            qs = qs.filter(variant__product__school_id=school_id)
         if product_id:
             qs = qs.filter(variant__product_id=product_id)
         return qs
@@ -108,6 +116,22 @@ class StockMovementViewSet(
             body = dict(data)
             body["detail"] = _first_message(data) or "This stock change was refused."
             return Response(body, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=["post"], url_path="bulk-receipt")
+    def bulk_receipt(self, request):
+        if request.user.role != "BOSS":
+            raise PermissionDenied("Only the Boss can change India stock.")
+        receipt = BulkStockReceiptSerializer(data=request.data, context=self.get_serializer_context())
+        try:
+            receipt.is_valid(raise_exception=True)
+            movements = receipt.save()
+        except ValidationError as exc:
+            data = exc.detail if isinstance(exc.detail, dict) else {"non_field_errors": exc.detail}
+            return Response(
+                {**data, "detail": _first_message(data) or "This stock receipt was refused."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(StockMovementSerializer(movements, many=True).data, status=status.HTTP_201_CREATED)
 
     def perform_create(self, serializer):
         serializer.save()

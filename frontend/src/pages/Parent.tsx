@@ -1,12 +1,18 @@
-import { useState } from 'react';
+import { PaymentReturnNotice } from '../components/PaymentReturnNotice';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check } from '../components/ui/icons';
-import { Link, Route, Routes } from 'react-router-dom';
+import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import { Shell } from '../App';
 import { ListenButton } from '../components/ListenButton';
 import { SelectionFlow } from '../components/SelectionFlow';
 import { Cart, Timeline, type CartItem } from '../components/Store';
 import { FitFeedbackPrompt } from '../components/orders/FitFeedbackPrompt';
-import { api, deleteChildPhotos, Order, Product } from '../api';
+import { api, deleteChildPhotos, Order, Product, orderApi, type PaymentView } from '../api';
+import { checkingPayment, paymentRefusal, runOrderPayment } from '../services/orderPayment';
+import { settlePendingOrder } from '../services/placeOrder';
+import { storeState } from '../store/storeState';
+import { formatINR } from '../utils/formatINR';
+import { PaymentStatus } from '../components/PaymentStatus';
 import { useLang } from '../i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import '../components/photoConsent.css';
@@ -24,28 +30,6 @@ interface StudentDetail {
   school_name?: string;
 }
 
-const fallbackKids: StudentDetail[] = [
-  {
-    id: '1',
-    name: 'Aarav Patel',
-    gr_number: 'GR-1042',
-    grade_name: '5',
-    class_name: '5',
-    section: 'A',
-    gender: 'Male',
-    school_name: 'DPS Surat',
-  },
-  {
-    id: '2',
-    name: 'Diya Patel',
-    gr_number: 'GR-1043',
-    grade_name: '8',
-    class_name: '8',
-    section: 'B',
-    gender: 'Female',
-    school_name: 'DPS Surat',
-  },
-];
 
 export default function Parent() {
   return (
@@ -80,10 +64,10 @@ function Dashboard() {
           gender: s.gender ? (s.gender === 'MALE' ? 'Male' : s.gender === 'FEMALE' ? 'Female' : s.gender) : '-',
           school_name: s.school_name || '-',
         }))
-      : fallbackKids;
+      : [];
 
-  const [selectedId, setSelectedId] = useState<string>(kids[0]?.id || '1');
-  const selected = kids.find((k) => k.id === selectedId) || kids[0] || fallbackKids[0];
+  const [selectedId, setSelectedId] = useState<string>('');
+  const selected: StudentDetail | undefined = kids.find((k) => k.id === selectedId) || kids[0];
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
@@ -139,6 +123,17 @@ function Dashboard() {
         <div className="section-row">
           <h2>My children</h2>
         </div>
+        {studentsData && kids.length === 0 && (
+          <div className="kids-empty">
+            <p>
+              No child added yet. Pick your school and class in the shop, or add your child with the GR number
+              when you check out.
+            </p>
+            <Link to="/" className="primary">
+              Shop for my child
+            </Link>
+          </div>
+        )}
         <div className="kids">
           {kids.map((k) => (
             <button
@@ -320,6 +315,7 @@ function Dashboard() {
         </section>
       )}
 
+      <PaymentReturnNotice />
       {/* Category Tabs: Step-by-step Selection flow applies to Uniform, Shoes, Accessories */}
       <div className="section-row" style={{ marginTop: '2rem' }}>
         <div>
@@ -366,12 +362,103 @@ function Dashboard() {
 }
 
 function Orders() {
+  const { t } = useLang();
   const queryClient = useQueryClient();
-  const { data } = useQuery({
+  const { data, isPending, isError } = useQuery({
     queryKey: ['orders'],
-    queryFn: () => api<any>('/orders/').catch(() => []),
+    queryFn: () => api<{ results: Order[] }>('/orders/'),
   });
-  const orders: Order[] = (data?.results || data || []) as Order[];
+  const { hash } = useLocation();
+  const focusedId = hash.startsWith('#order-') ? hash.slice(7) : '';
+  const focused = useQuery({
+    queryKey: ['orders', focusedId],
+    queryFn: () => api<Order>(`/orders/${encodeURIComponent(focusedId)}/`),
+    enabled: Boolean(focusedId && data && !data.results.some(order => order.id === focusedId)),
+  });
+  const orders = useMemo(() => focused.data
+    ? [focused.data, ...(data?.results ?? []).filter(order => order.id !== focused.data?.id)]
+    : (data?.results ?? []), [data, focused.data]);
+  useEffect(() => {
+    if (focusedId) document.getElementById(`order-${focusedId}`)?.scrollIntoView();
+  }, [orders, focusedId]);
+  const [views, setViews] = useState<Record<string, PaymentView>>({});
+  const [cooldowns, setCooldowns] = useState<Record<string, number>>({});
+  const [busy, setBusy] = useState(false);
+  const active = useRef(false);
+  const autoChecked = useRef(new Set<string>());
+  const visiblePayment = (order: Order) => {
+    const latest = order.payment_view;
+    const previous = views[order.id];
+    if (!previous || (latest.state !== 'CHECKING' && latest.state !== 'NOT_PAID')) return latest;
+    if (latest.last_checked_at && previous.last_checked_at &&
+        Date.parse(latest.last_checked_at) > Date.parse(previous.last_checked_at)) return latest;
+    return previous;
+  };
+  const update = (id: string, view: PaymentView) => setViews(previous => ({ ...previous, [id]: view }));
+  // A saved online order that is now paid, released or moved to cash no longer holds the bag.
+  useEffect(() => {
+    for (const order of orders) {
+      if (settlePendingOrder(order.id, visiblePayment(order))) storeState.clearCart();
+    }
+  });
+
+  async function refresh(order: Order) {
+    try {
+      const result = await orderApi.reconcilePayment(order.id);
+      update(order.id, result.payment_view);
+      const settled = result.payment_view.state;
+      if (settled !== order.payment_view.state && settled !== 'CHECKING' && settled !== 'NOT_PAID') {
+        // A capture or release also moves the order's status and timeline: fetch them again.
+        void queryClient.invalidateQueries({ queryKey: ['orders'] });
+        void queryClient.invalidateQueries({ queryKey: ['payment-attention'] });
+      }
+      const until = Date.now() + result.retry_after_seconds * 1000;
+      setCooldowns(previous => ({ ...previous, [order.id]: until }));
+      window.setTimeout(() => setCooldowns(previous => previous[order.id] === until
+        ? { ...previous, [order.id]: 0 } : previous), result.retry_after_seconds * 1000);
+    } catch (error) {
+      update(order.id, paymentRefusal(error) ?? checkingPayment(order.payment_view));
+    }
+  }
+
+  useEffect(() => {
+    if (busy) return;
+    const pending = orders.filter(order =>
+      order.payment_view.state === 'CHECKING' && !autoChecked.current.has(order.id));
+    if (!pending.length || active.current) return;
+    active.current = true;
+    setBusy(true);
+    for (const order of pending) autoChecked.current.add(order.id);
+    void (async () => {
+      try {
+        // Render the original server state before checking its provider status.
+        for (const order of pending) await refresh(order);
+      } finally {
+        active.current = false;
+        setBusy(false);
+      }
+    })();
+  }, [orders, busy]);
+
+  async function act(order: Order, action: 'pay' | 'cod' | 'refresh') {
+    if (active.current) return;
+    active.current = true;
+    setBusy(true);
+    try {
+      if (action === 'refresh') await refresh(order);
+      if (action === 'pay') await runOrderPayment(order.id, view => update(order.id, view));
+      if (action === 'cod') update(order.id, (await orderApi.switchToCod(order.id)).payment_view);
+    } catch (error) {
+      update(order.id, paymentRefusal(error) ?? checkingPayment(visiblePayment(order)));
+    } finally {
+      if (action !== 'refresh') {
+        void queryClient.invalidateQueries({ queryKey: ['orders'] });
+        void queryClient.invalidateQueries({ queryKey: ['payment-attention'] });
+      }
+      active.current = false;
+      setBusy(false);
+    }
+  }
 
   return (
     <>
@@ -385,9 +472,13 @@ function Orders() {
         </Link>
       </div>
 
-      {orders.length ? (
+      {isPending ? (
+        <div className="checkout-skeleton payment-orders-skeleton" aria-busy="true" />
+      ) : isError ? (
+        <p role="alert">{t('recovery.ordersError')}</p>
+      ) : orders.length ? (
         orders.map((o) => (
-          <article className="order-card" key={o.id}>
+          <article className="order-card" key={o.id} id={`order-${o.id}`}>
             <div className="section-row">
               <div>
                 <b>{o.order_number}</b>
@@ -398,8 +489,13 @@ function Orders() {
               <span className="status">{o.status}</span>
             </div>
             <p>
-              {o.student_name} · <strong>₹{o.total}</strong>
+              {o.student_name} · <strong>{formatINR(Math.round(Number(o.total) * 100))}</strong>
             </p>
+            <PaymentStatus payment={visiblePayment(o)} orderNumber={o.order_number}
+              disabled={busy || Boolean(cooldowns[o.id])}
+              onRefresh={() => void act(o, 'refresh')} onPay={() => void act(o, 'pay')}
+              onCod={() => void act(o, 'cod')} />
+
             <Timeline order={o} />
             <FitFeedbackPrompt
               orderId={o.id}
