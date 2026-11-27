@@ -114,7 +114,7 @@ export function TeacherControlView() {
     onSuccess: (res) => {
       setErrorMsg('');
       setVisiblePasswords((prev) => ({ ...prev, [res.id]: true }));
-      setBanner(`New password for user ID ${res.username}: ${res.issued_password}. The old one no longer works.`);
+      setBanner(`New password for user ID ${res.username}: ${res.issued_password}. The old one no longer works and old sign-ins are ended.`);
       queryClient.invalidateQueries({ queryKey: ['teacher-admin-list'] });
     },
     onError: (err: any) => {
@@ -125,9 +125,16 @@ export function TeacherControlView() {
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, active }: { id: string; active: boolean }) =>
       teacherAdmin.toggleActive(id, active),
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      setErrorMsg('');
+      setBanner(
+        updated.is_active
+          ? `${updated.first_name || 'Teacher'} can sign in again.`
+          : `${updated.first_name || 'Teacher'} is paused and signed out on every phone.`,
+      );
       queryClient.invalidateQueries({ queryKey: ['teacher-admin-list'] });
     },
+    onError: (err: any) => setErrorMsg(err?.message || 'Could not change this login.'),
   });
 
   const createSchoolMutation = useMutation({

@@ -199,7 +199,7 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
     """
 
     # `grade` is read by the serializer (grade_name) for every row: load it in the same query.
-    queryset = Student.objects.select_related("school", "parent", "grade").order_by(
+    queryset = Student.objects.select_related("school", "parent", "grade", "city", "branch").order_by(
         "school_id", "class_name", "section", "name"
     )
     serializer_class = StudentSerializer
@@ -228,6 +228,16 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         search = (params.get("search") or params.get("q") or "").strip()
         approval_status = params.get("approval_status")
         pending = params.get("pending")
+        active = params.get("active")
+
+        # Teachers work from the class list: a student they removed stays out of it.
+        if active is not None:
+            if str(active).lower() in ("true", "1"):
+                qs = qs.filter(active=True)
+            elif str(active).lower() in ("false", "0"):
+                qs = qs.filter(active=False)
+        elif self.request.user.role == User.Role.TEACHER and self.action == "list":
+            qs = qs.filter(active=True)
 
         if school_id:
             qs = qs.filter(school_id=school_id)
@@ -308,7 +318,10 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         if self.request.user.role == User.Role.PARENT:
             raise PermissionDenied("Parents cannot delete students. Contact your school to correct this.")
-        instance.delete()
+        # Soft delete: orders and photo agreements point at the student (PROTECT),
+        # so a hard delete fails for anyone who ever ordered.
+        instance.active = False
+        instance.save(update_fields=["active", "updated_at"])
 
     @action(
         detail=True,
@@ -583,9 +596,67 @@ class SchoolClassViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             qs = qs.filter(branch_id=branch_id)
         return qs
 
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        rows = response.data.get("results") if isinstance(response.data, dict) else response.data
+        if rows:
+            _add_class_counts(rows, request.user)
+        return response
+
     def perform_destroy(self, instance):
+        if _students_in_class(instance, self.request.user).exists():
+            raise ValidationError(
+                {"detail": f"Class {instance.label} still has students. Move or remove them first."}
+            )
         instance.active = False
         instance.save(update_fields=["active"])
+
+
+def _class_key(class_name: str) -> str:
+    bare = (class_name or "").strip()
+    for prefix in ("Class ", "class ", "Std ", "std "):
+        bare = bare.removeprefix(prefix)
+    return bare.strip().lower()
+
+
+def _students_in_class(school_class, user):
+    from common.scoping import apply_user_scope
+
+    bare = _class_key(school_class.class_name)
+    qs = Student.objects.filter(
+        school_id=school_class.school_id,
+        section__iexact=school_class.section,
+        active=True,
+    ).filter(Q(class_name__iexact=bare) | Q(class_name__iexact=f"Class {bare}"))
+    if school_class.branch_id:
+        qs = qs.filter(branch_id=school_class.branch_id)
+    return apply_user_scope(qs, user, branch_field="branch_id")
+
+
+def _add_class_counts(rows, user):
+    """Students and photos per class tile, in one grouped query for the whole page."""
+    from django.db.models import Count
+    from common.scoping import apply_user_scope
+
+    school_ids = {str(r["school"]) for r in rows if r.get("school")}
+    qs = apply_user_scope(
+        Student.objects.filter(school_id__in=school_ids, active=True),
+        user,
+        branch_field="branch_id",
+    )
+    grouped = qs.values("school_id", "branch_id", "class_name", "section").annotate(
+        n=Count("id"), photos=Count("id", filter=~Q(photo=""))
+    )
+    totals = {}
+    for g in grouped:
+        for branch in (str(g["branch_id"]) if g["branch_id"] else None, "*"):
+            key = (str(g["school_id"]), branch, _class_key(g["class_name"]), (g["section"] or "").upper())
+            n, p = totals.get(key, (0, 0))
+            totals[key] = (n + g["n"], p + g["photos"])
+    for r in rows:
+        branch = str(r["branch"]) if r.get("branch") else "*"
+        key = (str(r["school"]), branch, _class_key(r["class_name"]), (r["section"] or "").upper())
+        r["student_count"], r["photo_count"] = totals.get(key, (0, 0))
 
 
 class StudentImportViewSet(ScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):

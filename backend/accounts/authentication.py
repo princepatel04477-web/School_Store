@@ -2,6 +2,7 @@ import uuid
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken
 from .models import User
+from .revocation import is_revoked
 
 
 class ZeroQueryJWTAuthentication(JWTAuthentication):
@@ -22,6 +23,9 @@ class ZeroQueryJWTAuthentication(JWTAuthentication):
             )
         except (KeyError, ValueError) as exc:
             raise InvalidToken("Token contained no recognizable user identification") from exc
+
+        if is_revoked(user_id, validated_token.get("iat")):
+            raise InvalidToken("This sign-in has ended. Please sign in again.")
 
         role = validated_token.get("role")
         if not role:

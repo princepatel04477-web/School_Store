@@ -8,6 +8,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from .revocation import revoke_sessions
+
 from common.permissions import RoleScopedPermission
 from common.phone import normalize_in_mobile
 from common.scoping import ScopedQuerysetMixin
@@ -270,6 +272,12 @@ class UserViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             )
         return qs
 
+    def perform_update(self, serializer):
+        was_active = serializer.instance.is_active
+        user = serializer.save()
+        if was_active and not user.is_active:
+            revoke_sessions(user.id)
+
     def get_serializer_class(self):
         if self.action in ("create", "update", "partial_update"):
             return ManagedUserWriteSerializer
@@ -318,6 +326,7 @@ class UserViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         target_user.set_password(str(new_password).strip())
         target_user.must_change_password = True
         target_user.save(update_fields=["password", "must_change_password", "updated_at"])
+        revoke_sessions(target_user.id)
         return Response({"detail": f"Password reset successfully for {target_user.username}."})
 
     @staticmethod
@@ -380,6 +389,7 @@ class UserViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         target_user.set_issued_password(new_pin)
         target_user.must_change_password = False
         target_user.save(update_fields=["password", "issued_password_token", "must_change_password", "updated_at"])
+        revoke_sessions(target_user.id)
         return Response({
             "id": str(target_user.id),
             "username": target_user.username,

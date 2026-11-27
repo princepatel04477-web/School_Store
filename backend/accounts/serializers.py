@@ -1,7 +1,10 @@
 from django.core.cache import cache
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import InvalidToken
+from .revocation import is_revoked
 from schools.models import City, School, SchoolBranch
 from common.phone import normalize_in_mobile
 from .models import User
@@ -346,3 +349,13 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data = super().validate(attrs)
         data["user"] = UserSerializer(self.user).data
         return data
+
+
+class RevocationAwareTokenRefreshSerializer(TokenRefreshSerializer):
+    """A refresh token from before a pause or a new password cannot mint new tokens."""
+
+    def validate(self, attrs):
+        token = RefreshToken(attrs["refresh"])
+        if is_revoked(token.payload.get("user_id"), token.payload.get("iat")):
+            raise InvalidToken("This sign-in has ended. Please sign in again.")
+        return super().validate(attrs)

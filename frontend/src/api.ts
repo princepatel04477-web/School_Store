@@ -71,6 +71,7 @@ export type PaymentReconcileResponse = { checked: boolean; retry_after_seconds: 
 export type Order = {
   id: string;
   order_number: string;
+  student?: string;
   student_name: string;
   status: string;
   payment_status: string;

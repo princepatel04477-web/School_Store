@@ -3,6 +3,7 @@
 import io
 import shutil
 import tempfile
+from pathlib import Path
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -14,7 +15,7 @@ from accounts.serializers import build_tokens_for_user
 
 from .models import City, School, SchoolBranch, Student
 
-MEDIA = tempfile.mkdtemp(prefix="teacher-portal-media-")
+MEDIA = Path(tempfile.mkdtemp(prefix="teacher-portal-media-"))
 
 
 def login(user):
@@ -183,3 +184,94 @@ class TeacherPortalTests(TestCase):
             school=self.school, city=self.city, branch=self.other_branch,
         )
         self.assertEqual(self.presign(login(sibling), school_consent=True).status_code, 403)
+
+
+@override_settings(MEDIA_ROOT=MEDIA, CUSTOMISATION_LOCAL_DIR=MEDIA / "customisations")
+class TeacherPortalPolishTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        TeacherPortalTests.setUpTestData.__func__(cls)
+
+    def test_class_tiles_show_student_and_photo_counts(self):
+        teacher = login(self.teacher)
+        teacher.post("/api/classes/", {"class_name": "1", "section": "A"}, format="json")
+        teacher.post("/api/classes/", {"class_name": "2", "section": "A"}, format="json")
+        Student.objects.create(
+            name="Bina", gr_number="GR9", class_name="Class 1", section="A",
+            school=self.school, branch=self.branch, city=self.city,
+        )
+        rows = {r["label"]: r for r in teacher.get("/api/classes/").data["results"]}
+        self.assertEqual(rows["1A"]["student_count"], 2)
+        self.assertEqual(rows["1A"]["photo_count"], 0)
+        self.assertEqual(rows["2A"]["student_count"], 0)
+
+    def test_class_with_students_cannot_be_removed_but_empty_one_can(self):
+        teacher = login(self.teacher)
+        full = teacher.post("/api/classes/", {"class_name": "1", "section": "A"}, format="json").data
+        empty = teacher.post("/api/classes/", {"class_name": "3", "section": "C"}, format="json").data
+        self.assertEqual(teacher.delete(f"/api/classes/{full['id']}/").status_code, 400)
+        self.assertEqual(teacher.delete(f"/api/classes/{empty['id']}/").status_code, 204)
+        labels = [r["label"] for r in teacher.get("/api/classes/").data["results"]]
+        self.assertEqual(labels, ["1A"])
+
+    def test_removing_a_student_with_an_order_hides_them_without_crashing(self):
+        teacher = login(self.teacher)
+        res = teacher.delete(f"/api/students/{self.child.id}/")
+        self.assertEqual(res.status_code, 204)
+        self.child.refresh_from_db()
+        self.assertFalse(self.child.active)
+        self.assertEqual(teacher.get("/api/students/?class=1").data["count"], 0)
+
+    def test_student_rows_carry_city_name(self):
+        row = login(self.teacher).get(f"/api/students/{self.child.id}/").data
+        self.assertEqual(row["city_name"], "Surat")
+
+    def test_order_reuses_the_photo_from_the_students_form(self):
+        teacher = login(self.teacher)
+        url = "/api/orders/customisation-from-student-photo/"
+        body = {"student_id": str(self.child.id), "purpose": "ID_CARD"}
+        self.assertEqual(teacher.post(url, body, format="json").status_code, 400)
+        teacher.post(f"/api/students/{self.child.id}/photo/", {"photo": jpeg(), "consent": "1"}, format="multipart")
+        res = teacher.post(url, body, format="json")
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertTrue(res.data["file_key"].startswith("customisations/"))
+        self.assertEqual(login(self.other_teacher).post(url, body, format="json").status_code, 403)
+        self.assertEqual(login(self.parent).post(url, body, format="json").status_code, 403)
+
+    def _token_pair(self, user):
+        from accounts.serializers import build_tokens_for_user
+        return build_tokens_for_user(user)
+
+    def test_pausing_a_teacher_signs_them_out_everywhere(self):
+        import time
+        tokens = self._token_pair(self.teacher)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
+        self.assertEqual(client.get("/api/classes/").status_code, 200)
+        time.sleep(1.1)
+        res = login(self.boss).patch(f"/api/auth/users/{self.teacher.id}/", {"is_active": False}, format="json")
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual(client.get("/api/classes/").status_code, 401)
+        refresh = APIClient().post("/api/auth/token/refresh/", {"refresh": tokens["refresh"]}, format="json")
+        self.assertEqual(refresh.status_code, 401)
+
+    def test_new_password_ends_old_sessions_but_new_login_works(self):
+        import time
+        old = self._token_pair(self.teacher)
+        time.sleep(1.1)
+        res = login(self.boss).post(f"/api/auth/users/{self.teacher.id}/regenerate-password/")
+        self.assertEqual(res.status_code, 200, res.data)
+        stale = APIClient()
+        stale.credentials(HTTP_AUTHORIZATION=f"Bearer {old['access']}")
+        self.assertEqual(stale.get("/api/classes/").status_code, 401)
+        self.assertEqual(
+            APIClient().post("/api/auth/token/refresh/", {"refresh": old["refresh"]}, format="json").status_code, 401
+        )
+        time.sleep(1.1)
+        fresh = APIClient().post(
+            "/api/auth/token/", {"username": self.teacher.username, "password": res.data["issued_password"]}, format="json"
+        )
+        self.assertEqual(fresh.status_code, 200)
+        ok = APIClient()
+        ok.credentials(HTTP_AUTHORIZATION=f"Bearer {fresh.data['access']}")
+        self.assertEqual(ok.get("/api/classes/").status_code, 200)

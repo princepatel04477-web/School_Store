@@ -52,9 +52,15 @@ interface SelectionFlowProps {
     school_id?: string;
     school_name?: string;
     city_id?: string;
+    city_name?: string;
     grade_id?: string;
     grade_name?: string;
     gender?: string;
+    /** School staff: the ID card photo already on the student's form. */
+    photo_url?: string | null;
+    photo_consent_at?: string | null;
+    /** Customisation fields filled from the student's form (staff ordering for a known child). */
+    prefill?: Record<string, string>;
   } | null;
   autoSelectStudentProfile?: boolean;
   cartItemCount?: number;
@@ -301,6 +307,9 @@ export function SelectionFlow({
     }
   }, [step, selection.school, schoolCities, loadingCities]);
 
+  // Staff ordering for one known student: the page above already says who it is for.
+  const staffForStudent = Boolean(autoSelectStudentProfile && studentProfile?.id && !publicView);
+
   // Requirement 8: Pre-fill if parent has a linked child
   const canPreFill = Boolean(
     studentProfile &&
@@ -323,7 +332,16 @@ export function SelectionFlow({
     ) || (studentProfile.grade_id ? { id: studentProfile.grade_id, name: studentProfile.grade_name || '', sort_order: 1 } : null);
 
     const cityObj = studentProfile.city_id
-      ? { id: studentProfile.city_id, name: 'School City', code: '' }
+      ? { id: studentProfile.city_id, name: studentProfile.city_name || 'School city', code: '' }
+      : null;
+
+    // Staff ordering for a child whose record says boy or girl: no need to ask again.
+    const knownGender = autoSelectStudentProfile
+      ? studentProfile.gender?.toUpperCase() === 'FEMALE'
+        ? 'girl'
+        : studentProfile.gender?.toUpperCase() === 'MALE'
+          ? 'boy'
+          : null
       : null;
 
     if (matchedSchool && matchedGrade) {
@@ -331,10 +349,9 @@ export function SelectionFlow({
         school: matchedSchool,
         city: cityObj,
         grade: matchedGrade,
-        gender: null, // NO DEFAULT SELECTED per requirement - user/teacher must choose!
+        gender: knownGender, // parents still choose; a known child's record answers it for staff
       });
-      // Land directly on Step 4: Boy or Girl
-      setStep(4);
+      setStep(knownGender ? 5 : 4);
     }
   };
 
@@ -428,7 +445,15 @@ export function SelectionFlow({
     setSelectedProduct(p);
     const guide = uniformSizeGuide(p.category, p.variants.map(v => ({ ...v, inStock: v.stock_status === 'IN_STOCK' || v.stock_status === 'LOW_STOCK' })), selection.grade?.name);
     setSelectedVariantId(variantId || guide?.availableId || (guide ? '' : p.variants[0]?.id) || '');
-    setCustomValues({});
+    const schema = Array.isArray(p.customisation_schema)
+      ? p.customisation_schema
+      : (p.customisation_schema as { fields?: { key: string }[] } | undefined)?.fields || [];
+    const prefill = studentProfile?.prefill || {};
+    const filled: Record<string, string> = {};
+    for (const field of schema as { key: string }[]) {
+      if (prefill[field.key]) filled[field.key] = prefill[field.key];
+    }
+    setCustomValues(filled);
     setFormError('');
   };
 
@@ -471,7 +496,7 @@ export function SelectionFlow({
   return (
     <div className="selection-flow" style={{ marginTop: '1.5rem' }}>
       {/* Selection bar at top */}
-      {(selection.school || selection.city || selection.grade) && (
+      {!staffForStudent && (selection.school || selection.city || selection.grade) && (
         <div
           style={{
             background: '#ffffff',
@@ -822,7 +847,7 @@ export function SelectionFlow({
         <div>
           {/* Summary Bar above product list with Change action */}
           <div
-            className="selection-summary-bar"
+            className={staffForStudent ? 'selection-summary-bar is-hidden' : 'selection-summary-bar'}
             style={{
               background: '#ffffff',
               border: '1px solid var(--line, #dfe5dd)',
@@ -1213,6 +1238,7 @@ export function SelectionFlow({
                 onChange={setCustomValues}
                 studentId={studentProfile?.id}
                 purpose={photoPurposeForCategory(category)}
+                studentPhotoUrl={studentProfile?.photo_consent_at ? studentProfile?.photo_url : null}
               />
             )}
 

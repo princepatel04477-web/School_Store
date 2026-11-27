@@ -73,6 +73,9 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             qs = qs.filter(status=status_param)
         if school_param:
             qs = qs.filter(school_id=school_param)
+        branch_param = self.request.query_params.get("branch")
+        if branch_param:
+            qs = qs.filter(branch_id=branch_param)
         if city_param:
             qs = qs.filter(city_id=city_param)
         if student_param:

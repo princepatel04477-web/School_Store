@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ApiError,
   CustomisationField,
   PhotoPurpose,
   createPhotoConsent,
+  fetchProtectedBlobUrl,
+  api,
   getUploadPresignedUrl,
   uploadDirectToObjectStorage,
 } from '../api';
@@ -27,6 +29,8 @@ interface CustomisationFormProps {
   disabled?: boolean;
   studentId?: string | null;
   purpose?: PhotoPurpose | null;
+  /** Staff: the ID card photo already on the student's form (parent agreement recorded). */
+  studentPhotoUrl?: string | null;
 }
 
 export function CustomisationForm({
@@ -36,6 +40,7 @@ export function CustomisationForm({
   disabled = false,
   studentId = null,
   purpose = null,
+  studentPhotoUrl = null,
 }: CustomisationFormProps) {
   const { t } = useLang();
   const { user } = useAuth();
@@ -58,6 +63,50 @@ export function CustomisationForm({
   }, [studentId, purpose]);
 
   const needsPhoto = schema.some((field) => field.type === 'image' || field.type === 'image_url');
+
+  // Staff ordering for a child whose form already has an agreed ID card photo:
+  // reuse it instead of taking it again.
+  const latestValues = useRef(values);
+  latestValues.current = values;
+  const [fromForm, setFromForm] = useState(false);
+  const reuseFormPhoto = Boolean(isStaff && studentPhotoUrl && studentId && purpose === 'ID_CARD' && needsPhoto);
+  useEffect(() => {
+    if (!reuseFormPhoto || !studentId || !studentPhotoUrl) return;
+    setAgreed(true);
+    setConsentReady(true);
+    const imageFields = schema.filter(
+      (f) => (f.type === 'image' || f.type === 'image_url') && !latestValues.current[f.key],
+    );
+    if (imageFields.length === 0) return;
+    let alive = true;
+    const keys = imageFields.map((f) => f.key);
+    setUploadingField(keys[0]);
+    (async () => {
+      try {
+        const [copy, preview] = await Promise.all([
+          api<{ file_key: string }>('/orders/customisation-from-student-photo/', {
+            method: 'POST',
+            body: JSON.stringify({ student_id: studentId, purpose: 'ID_CARD' }),
+          }),
+          fetchProtectedBlobUrl(studentPhotoUrl).catch(() => ''),
+        ]);
+        if (!alive) return;
+        const next = { ...latestValues.current };
+        for (const k of keys) next[k] = copy.file_key;
+        onChange(next);
+        if (preview) setPreviews((prev) => Object.fromEntries([...Object.entries(prev), ...keys.map((k) => [k, preview])]));
+        setFromForm(true);
+      } catch {
+        /* the teacher can still take the photo by hand */
+      } finally {
+        if (alive) setUploadingField(null);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reuseFormPhoto, studentId, studentPhotoUrl]);
 
   const saveConsent = async (nextKeep: boolean) => {
     if (!studentId || !purpose) return;
@@ -103,6 +152,7 @@ export function CustomisationForm({
 
     setUploadingField(field.key);
     setUploadError((prev) => ({ ...prev, [field.key]: '' }));
+    setFromForm(false);
 
     try {
       // 1. Client-side compression and resizing (target < 1 MB)
@@ -160,7 +210,13 @@ export function CustomisationForm({
         <b style={{ fontSize: '13px', color: '#17221f' }}>Customisation Details</b>
       </div>
 
-      {needsPhoto && (
+      {needsPhoto && reuseFormPhoto && (
+        <p className="photo-consent" style={{ margin: 0 }}>
+          Parent agreement for this child's photo is recorded on the student's form.
+        </p>
+      )}
+
+      {needsPhoto && !reuseFormPhoto && (
         <section className="photo-consent">
           <ListenButton text={t('photo.consent.listen')} />
           <p>{t('photo.consent.listen')}</p>
@@ -311,7 +367,7 @@ export function CustomisationForm({
                     fontWeight: 600,
                   }}
                 >
-                  <span>{isUploading ? 'Compressing & Uploading…' : currentVal ? 'Change photo' : 'Upload photo'}</span>
+                  <span>{isUploading ? 'Adding photo...' : currentVal ? 'Change photo' : 'Upload photo'}</span>
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
@@ -323,7 +379,7 @@ export function CustomisationForm({
 
                 {currentVal && !isUploading && (
                   <span style={{ fontSize: '11px', color: '#347052', fontWeight: 600 }}>
-                    Uploaded straight to storage
+                    {fromForm ? "Photo from the student's form" : 'Photo added'}
                   </span>
                 )}
               </div>

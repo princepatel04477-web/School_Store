@@ -30,6 +30,7 @@ from .storage import (
     generate_presigned_download,
     generate_presigned_upload,
     get_storage_mode,
+    put_object_bytes,
 )
 
 
@@ -105,6 +106,59 @@ class PresignedUploadUrlView(APIView):
             expires_in=300,
         )
         return Response(upload_payload)
+
+
+class StudentPhotoCustomisationView(APIView):
+    """
+    POST /api/orders/customisation-from-student-photo/
+    { "student_id": "...", "purpose": "ID_CARD" }
+
+    School staff reuse the ID card photo already on the student's form instead of
+    taking it again. The photo is copied (as a JPEG under 1 MB) into the same
+    private order storage a fresh upload would use, and the new file key returned.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        purpose = (request.data.get("purpose") or "ID_CARD").strip()
+        if purpose not in PhotoConsent.Purpose.values:
+            raise ValidationError({"purpose": "Choose NOTEBOOK or ID_CARD."})
+        try:
+            student = Student.objects.get(pk=request.data.get("student_id"))
+        except (Student.DoesNotExist, ValueError, TypeError, DjangoValidationError):
+            raise PermissionDenied(NOT_YOUR_CHILD)
+        if getattr(request.user, "role", "") not in ("TEACHER", "SCHOOL_ADMIN"):
+            raise PermissionDenied("Only school staff can reuse the photo from a student's form.")
+        if not caller_may_upload(request.user, student):
+            raise PermissionDenied(NOT_YOUR_CHILD)
+        if not student.photo or not student.photo_consent_at:
+            raise ValidationError({"photo": "This student has no ID card photo on their form yet."})
+
+        from io import BytesIO
+
+        from PIL import Image, ImageOps
+
+        try:
+            with student.photo.open("rb") as handle:
+                image = ImageOps.exif_transpose(Image.open(handle)).convert("RGB")
+        except (FileNotFoundError, OSError):
+            raise ValidationError({"photo": "The photo on the student's form could not be read. Take it again."})
+        image.thumbnail((1600, 1600))
+        data = b""
+        for quality in (88, 80, 70, 60):
+            buf = BytesIO()
+            image.save(buf, format="JPEG", quality=quality, optimize=True)
+            data = buf.getvalue()
+            if len(data) <= 1_000_000:
+                break
+
+        file_key = (
+            f"customisations/{time.strftime('%Y/%m/%d')}/"
+            f"{str(request.user.id)[:8]}_{uuid.uuid4().hex}.jpg"
+        )
+        put_object_bytes(file_key, data, "image/jpeg")
+        return Response({"file_key": file_key}, status=status.HTTP_201_CREATED)
 
 
 @csrf_exempt
