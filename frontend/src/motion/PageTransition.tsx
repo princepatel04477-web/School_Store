@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { scrollPageTo } from './SmoothScroll';
+import { isNativeApp } from '../native/nativePlatform';
 
 export interface PageTransitionProps {
   children: ReactNode;

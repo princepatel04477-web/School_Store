@@ -6,6 +6,7 @@ import { Shell } from '../App';
 import { ListenButton } from '../components/ListenButton';
 import { SelectionFlow } from '../components/SelectionFlow';
 import { Cart, Timeline, type CartItem } from '../components/Store';
+import { FitFeedbackPrompt } from '../components/orders/FitFeedbackPrompt';
 import { api, deleteChildPhotos, Order, Product, orderApi, type PaymentView } from '../api';
 import { checkingPayment, paymentRefusal, runOrderPayment } from '../services/orderPayment';
 import { settlePendingOrder } from '../services/placeOrder';
@@ -496,6 +497,12 @@ function Orders() {
               onCod={() => void act(o, 'cod')} />
 
             <Timeline order={o} />
+            <FitFeedbackPrompt
+              orderId={o.id}
+              orderStatus={o.status}
+              orderCreatedAt={o.created_at}
+              onFeedbackSubmitted={() => queryClient.invalidateQueries({ queryKey: ['orders'] })}
+            />
           </article>
         ))
       ) : (

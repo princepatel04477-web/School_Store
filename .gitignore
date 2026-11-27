@@ -44,6 +44,11 @@ deploy/backup.env
 deploy/*-log.txt
 deploy/*-result.txt
 frontend/dist-local/
+frontend/dist-app/
+dist-app/
+dist-apk/
+*.apk
+*.aab
 
 # Local tooling & brag
 .agents/
@@ -58,3 +63,14 @@ backend/.seeded
 # Cloudflare Wrangler: local secrets and local state
 .dev.vars
 .wrangler/
+
+# Android APK build outputs and logs
+dist-apk/
+apk-build.log
+npm-ci.log
+agy-apk*.log
+agy-apk*.txt
+keystore.properties
+*.jks
+*.keystore
+google-services.json

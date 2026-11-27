@@ -462,6 +462,7 @@ class StudentMeasurement(UUIDModel):
     class Source(models.TextChoices):
         CAMERA = "CAMERA", "Camera"
         MANUAL = "MANUAL", "Entered by hand"
+        ESTIMATE = "ESTIMATE", "Estimate"
 
     student = models.ForeignKey(
         Student,

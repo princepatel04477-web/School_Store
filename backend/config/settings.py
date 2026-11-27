@@ -52,9 +52,14 @@ if os.environ.get("RENDER_EXTERNAL_HOSTNAME") and ALLOWED_HOSTS != ["*"]:
     ALLOWED_HOSTS.append(os.environ["RENDER_EXTERNAL_HOSTNAME"])
 
 # Production: set CORS_ALLOWED_ORIGINS to the frontend origin(s), comma separated.
-# Unset (local dev) keeps the old allow-all behaviour.
-CORS_ALLOWED_ORIGINS = _env_list("CORS_ALLOWED_ORIGINS")
-CORS_ALLOW_ALL_ORIGINS = not CORS_ALLOWED_ORIGINS
+# Unset (local dev) keeps the old allow-all behaviour. Always allows https://localhost for the Android app.
+_cors_env = _env_list("CORS_ALLOWED_ORIGINS")
+CORS_ALLOWED_ORIGINS = list(dict.fromkeys([
+    "https://localhost",
+    "capacitor://localhost",
+    *_cors_env,
+])) if _cors_env else []
+CORS_ALLOW_ALL_ORIGINS = not _cors_env
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     "https://*.e2b.app",
@@ -62,6 +67,8 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:8000",
+    "https://localhost",
+    "capacitor://localhost",
     *CORS_ALLOWED_ORIGINS,
     *_env_list("DJANGO_CSRF_TRUSTED_ORIGINS"),
 ]
@@ -300,6 +307,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "orders.sweep_expired_reservations",
         "schedule": crontab(minute="*/5"),  # every 5 minutes
     },
+    "retrain-shoulder-model": {
+        "task": "catalog.retrain_shoulder_model",
+        "schedule": crontab(hour=3, minute=0, day_of_week=0),  # Sunday 03:00 IST
+    },
+    "send-post-delivery-fit-prompts": {
+        "task": "orders.send_post_delivery_fit_prompts",
+        "schedule": crontab(hour=10, minute=30),  # Daily 10:30 IST
+    },
 }
 
 # Django REST Framework & JWT Authentication
@@ -445,3 +460,22 @@ SMS_PROVIDER = os.environ.get("SMS_PROVIDER", "")  # "msg91", or "console" to on
 MSG91_AUTH_KEY = os.environ.get("MSG91_AUTH_KEY", "")
 MSG91_OTP_TEMPLATE_ID = os.environ.get("MSG91_OTP_TEMPLATE_ID", "")
 MSG91_ORDER_TEMPLATE_ID = os.environ.get("MSG91_ORDER_TEMPLATE_ID", "")
+
+# --------------------------------------------------------------------------- #
+# App versioning for native mobile updates
+# --------------------------------------------------------------------------- #
+APP_LATEST_VERSION = os.environ.get("APP_LATEST_VERSION", "1.0.0")
+APP_LATEST_VERSION_CODE = int(os.environ.get("APP_LATEST_VERSION_CODE", "1"))
+APP_MIN_SUPPORTED_VERSION = os.environ.get("APP_MIN_SUPPORTED_VERSION", "1.0.0")
+APP_MIN_SUPPORTED_CODE = int(os.environ.get("APP_MIN_SUPPORTED_CODE", "1"))
+PLAY_STORE_URL = os.environ.get(
+    "PLAY_STORE_URL",
+    "https://play.google.com/store/apps/details?id=com.colorbenz.schoolstore",
+)
+
+# --------------------------------------------------------------------------- #
+# Firebase Cloud Messaging (FCM HTTP v1) for mobile push notifications
+# --------------------------------------------------------------------------- #
+FCM_CREDENTIALS_FILE = os.environ.get("FCM_CREDENTIALS_FILE", "")
+
+

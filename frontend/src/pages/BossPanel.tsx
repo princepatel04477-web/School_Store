@@ -11,6 +11,7 @@ import {
 } from '../components/admin/charts';
 import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
 import { SizeChartManager } from '../components/admin/SizeChartManager';
+import { SizeAdviceAccuracyCard } from '../components/admin/SizeAdviceAccuracyCard';
 import { RetailersManager } from '../components/admin/retail/RetailersManager';
 import { SchoolRequestsReview } from '../components/admin/retail/SchoolRequestsReview';
 import { TeacherControlView } from '../components/admin/TeacherControlView';
@@ -769,6 +770,7 @@ function BossSizeChartsView() {
           ))}
         </select>
       </div>
+      <SizeAdviceAccuracyCard />
       <SizeChartImportCard key={scope} scope={scope} scopeName={scopeName} />
       <SizeChartManager key={`m-${scope}`} scope={scope} scopeName={scopeName} />
     </div>

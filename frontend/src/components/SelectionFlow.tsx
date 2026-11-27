@@ -1227,6 +1227,15 @@ export function SelectionFlow({
                   .filter((p) => p.variants.length > 1 && garmentKind(p.name))
                   .map((p) => ({ id: p.id, name: p.name }))}
                 className={studentProfile?.grade_name}
+                schoolId={studentProfile?.school_id}
+                gender={studentProfile?.gender || selectedProduct?.gender}
+                productId={selectedProduct?.id}
+                onSelectSize={(sizeLabel) => {
+                  const matched = selectedProduct?.variants.find((v) => v.size === sizeLabel);
+                  if (matched) {
+                    setSelectedVariantId(matched.id);
+                  }
+                }}
                 onSave={saveChildMeasurement}
               />
             )}

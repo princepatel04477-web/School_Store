@@ -13,6 +13,7 @@ import { useLang } from '../../i18n';
 import { classLabel } from '../../i18n/labels';
 import { formatMeasure } from '../../data/fit';
 import type { CartItem } from '../../store/storeState';
+import { useNetworkStatus } from '../../native/network';
 import './bagCheckout.css';
 
 /** Bag lines grouped by the child they are for (school + class), in the order added. */
@@ -34,6 +35,8 @@ export interface BagDrawerProps {
 export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
   const navigate = useNavigate();
   const { cart, updateQuantity, removeItem, undoRemove, lastRemoved, subtotalPaise } = useStoreState();
+  const network = useNetworkStatus();
+  const isOnline = network.connected;
   const { t } = useLang();
   const [showUndo, setShowUndo] = useState(false);
 
@@ -253,9 +256,20 @@ export function BagDrawer({ isOpen, onClose }: BagDrawerProps) {
               <span className="bag-subtotal-value">{formatINR(subtotalPaise)}</span>
             </div>
             <p className="bag-shipping-note">{t('bag.note')}</p>
-            <Button className="bag-checkout-btn" arrow onClick={handleCheckout}>
-              {t('bag.checkout', { total: formatINR(subtotalPaise) })}
-            </Button>
+            {isOnline ? (
+              <Button className="bag-checkout-btn" arrow onClick={handleCheckout}>
+                {t('bag.checkout', { total: formatINR(subtotalPaise) })}
+              </Button>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-primary bag-checkout-btn is-disabled"
+                disabled
+                title="Connect to the internet to place your order"
+              >
+                Connect to the internet to place your order
+              </button>
+            )}
             <button
               type="button"
               className="btn btn-text bag-continue-btn"

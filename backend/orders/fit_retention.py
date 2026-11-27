@@ -85,6 +85,7 @@ def _sample(item: OrderItem) -> SizingSample:
         chosen_size=item.chosen_size,
         final_size=exchanges[-1].to_size if exchanges else (item.chosen_size or item.variant.size),
         exchange_reason=reason,
+        fit_feedback=item.fit_feedback,
     )
 
 

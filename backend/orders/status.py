@@ -109,7 +109,7 @@ def apply_provider_payment(
     """
     from common.audit import log_audit_event
     from common.models import AuditLog
-    from .tasks import refresh_order_summary
+    from .tasks import refresh_order_summary, send_order_status_push
 
     if payment_entity is None:
         payment_entity = {}
@@ -279,6 +279,7 @@ def apply_provider_payment(
                         note="Payment received.",
                     )
                     transaction.on_commit(lambda o=order.id: refresh_order_summary.delay(str(o)))
+                    transaction.on_commit(lambda o=str(order.id), s=order.status: send_order_status_push.delay(o, s))
                 else:
                     order.save(update_fields=fields_to_update)
                     OrderStatusEvent.objects.create(
@@ -332,7 +333,7 @@ def change_order_status(queryset, new_status, user, note="") -> list:
     """
     from common.audit import log_audit_event
     from common.models import AuditLog
-    from .tasks import refresh_order_summary
+    from .tasks import refresh_order_summary, send_order_status_push
 
     with transaction.atomic():
         candidate_ids = list(
@@ -388,5 +389,6 @@ def change_order_status(queryset, new_status, user, note="") -> list:
 
         for order_id in ids:
             transaction.on_commit(lambda oid=order_id: refresh_order_summary.delay(str(oid)))
+            transaction.on_commit(lambda o=str(order_id), s=new_status: send_order_status_push.delay(o, s))
 
     return ids

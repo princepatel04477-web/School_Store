@@ -16,6 +16,7 @@ import {
 } from './measureBody';
 import { drawOverlay, type OverlayColours } from './overlay';
 import { measureDebug } from '../utils/measureDebug';
+import { isNativeApp, getRemoteMediaPipePath } from '../native/nativePlatform';
 import './measure.css';
 
 interface MeasureCaptureProps {
@@ -290,8 +291,10 @@ export function MeasureCapture({
         await video.play();
         if (video.videoWidth > 0 && video.videoHeight > 0) setAspect(video.videoWidth / video.videoHeight);
         const vision = await import('@mediapipe/tasks-vision');
-        const files = await vision.FilesetResolver.forVisionTasks('/mediapipe/wasm');
-        const base = { modelAssetPath: '/mediapipe/pose_landmarker_full.task' };
+        const wasmPath = isNativeApp() ? getRemoteMediaPipePath('/mediapipe/wasm') : '/mediapipe/wasm';
+        const modelPath = isNativeApp() ? getRemoteMediaPipePath('/mediapipe/pose_landmarker_full.task') : '/mediapipe/pose_landmarker_full.task';
+        const files = await vision.FilesetResolver.forVisionTasks(wasmPath);
+        const base = { modelAssetPath: modelPath };
         const shared = { runningMode: 'VIDEO' as const, numPoses: 1, outputSegmentationMasks: true };
         try {
           landmarker = await vision.PoseLandmarker.createFromOptions(files, {

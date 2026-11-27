@@ -1,0 +1,65 @@
+.offline-screen-root {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #F1F3F5;
+  color: #1F2A27;
+  padding: env(safe-area-inset-top, 24px) 24px env(safe-area-inset-bottom, 24px);
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.offline-card {
+  max-width: 340px;
+  width: 100%;
+}
+
+.offline-logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  border-radius: 20px;
+  background: #2F5D50;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: italic 700 40px Georgia, "Times New Roman", serif;
+}
+
+.offline-title {
+  font-size: 22px;
+  margin: 0 0 8px;
+  color: #1F2A27;
+}
+
+.offline-text {
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0 0 24px;
+  color: #4A5853;
+}
+
+.offline-retry-btn {
+  min-height: 48px;
+  min-width: 160px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 999px;
+  background: #2E8B57;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.offline-retry-btn:active {
+  opacity: 0.85;
+}
+
+.offline-retry-btn:disabled {
+  opacity: 0.6;
+}
