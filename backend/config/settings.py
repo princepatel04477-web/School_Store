@@ -293,6 +293,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "orders.purge_delivered_child_photos",
         "schedule": crontab(hour=2, minute=15),
     },
+    # Child photos uploaded for a bag that never became an order (3 days old).
+    "purge-unclaimed-child-photos": {
+        "task": "orders.purge_unclaimed_photos",
+        "schedule": crontab(hour=2, minute=25),
+    },
     # Rebuild the last 7 days of dashboard rollups from the orders, so late
     # cancellations and status changes never leave a chart out of date.
     "nightly-sales-recompute": {

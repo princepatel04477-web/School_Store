@@ -341,6 +341,37 @@ class CustomisationEndToEndTests(TestCase):
             self.assertTrue(self._file_exists("customisations/2026/10/fresh_print.jpg"))
             self.assertTrue(self._file_exists("customisations/2026/10/fresh_thumb.jpg"))
 
+    def test_unclaimed_photos_go_after_three_days_and_ordered_ones_stay(self):
+        import os
+
+        from orders.photo_files import purge_unclaimed_photos_now
+
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        ordered = "customisations/2026/11/ordered.jpg"
+        abandoned = "customisations/2026/11/abandoned.jpg"
+        recent = "customisations/2026/11/recent.jpg"
+        with override_settings(CUSTOMISATION_LOCAL_DIR=tmp):
+            for key in (ordered, abandoned, recent):
+                put_object_bytes(key, b"photo-bytes")
+            for key in (ordered, abandoned):
+                path = os.path.join(tmp, key.replace("/", os.sep))
+                old = (timezone.now() - timedelta(days=4)).timestamp()
+                os.utime(path, (old, old))
+            self._delivered_photo_order(
+                student=self.student,
+                variant=self.idcard_variant,
+                category=self.cat_idcards,
+                field="student_photo",
+                key=ordered,
+                days_ago=1,
+                order_number="ORD-IN-USE",
+            )
+            self.assertEqual(purge_unclaimed_photos_now(), 1)
+            self.assertTrue(self._file_exists(ordered))
+            self.assertFalse(self._file_exists(abandoned))
+            self.assertTrue(self._file_exists(recent))
+
     def test_parent_delete_removes_files_and_withdraws_consent(self):
         tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)

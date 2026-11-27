@@ -94,6 +94,25 @@ export function StudentForm({ student, defaults, schoolId, branchId, onSaved }: 
   const [consent, setConsent] = useState(Boolean(student?.photo_consent_at));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [confirmPhotoRemove, setConfirmPhotoRemove] = useState(false);
+  const [removingPhoto, setRemovingPhoto] = useState(false);
+
+  /** Deletes the saved photo and the parent agreement that went with it. */
+  const removeSavedPhoto = async () => {
+    if (!student) return;
+    setError('');
+    setRemovingPhoto(true);
+    try {
+      const saved = await sendForm<TeacherStudent>(`/students/${student.id}/photo/`, null, 'DELETE');
+      setConsent(false);
+      setConfirmPhotoRemove(false);
+      onSaved(saved);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not remove the photo. Check the internet and try again.');
+    } finally {
+      setRemovingPhoto(false);
+    }
+  };
 
   useEffect(() => () => {
     if (photoPreview) URL.revokeObjectURL(photoPreview);
@@ -175,7 +194,7 @@ export function StudentForm({ student, defaults, schoolId, branchId, onSaved }: 
     }
   };
 
-  const busy = saving || preparing;
+  const busy = saving || preparing || removingPhoto;
   const hasPhoto = Boolean(photoPreview || student?.photo_url);
 
   return (
@@ -225,6 +244,33 @@ export function StudentForm({ student, defaults, schoolId, branchId, onSaved }: 
         <p className="tp-note">
           Parent agreement recorded on {new Date(student.photo_consent_at).toLocaleDateString('en-IN')}.
         </p>
+      )}
+      {student?.photo_url && !photoBlob && (
+        !confirmPhotoRemove ? (
+          <button
+            type="button"
+            className="tp-link-btn tp-danger"
+            disabled={busy}
+            onClick={() => setConfirmPhotoRemove(true)}
+          >
+            Remove photo
+          </button>
+        ) : (
+          <div className="tp-confirm">
+            <p>Delete this ID card photo? The parent's agreement is cleared too. Orders already placed keep their copy.</p>
+            <div className="tp-row">
+              <button type="button" className="tp-btn" onClick={() => setConfirmPhotoRemove(false)}>Keep</button>
+              <button
+                type="button"
+                className="tp-btn tp-btn-danger"
+                disabled={removingPhoto}
+                onClick={() => void removeSavedPhoto()}
+              >
+                {removingPhoto ? 'Removing...' : 'Delete photo'}
+              </button>
+            </div>
+          </div>
+        )
       )}
 
       <label className="tp-field">
