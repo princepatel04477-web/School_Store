@@ -11,7 +11,7 @@ import './legal.css';
  * launch: these are a working draft, not legal advice.
  */
 
-const UPDATED = '25 November 2026';
+const UPDATED = '27 November 2026';
 
 function LegalPage({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -117,7 +117,8 @@ export function PrivacyPage() {
       <p>
         Order records are kept for 8 years because tax law requires it. The original photo and the print file are
         deleted 30 days after the order is marked delivered. The small preview is deleted then too, unless you
-        ticked "Keep a small copy for next year's ID card". The ID card photo on your child's record stays until
+        ticked "Keep a small copy for next year's ID card". A photo added for an order that is never placed is
+        deleted after 3 days. The ID card photo on your child's record stays until
         the school replaces or removes it, you delete it, or the student record is removed. You can delete every
         photo we hold for your child, including that one, and withdraw consent, from My children on your account. Student records are kept while the school is a
         partner and removed within 90 days of the school asking us to, or of the student leaving the school.

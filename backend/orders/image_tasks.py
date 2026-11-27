@@ -116,3 +116,12 @@ def purge_delivered_child_photos():
     """Delete original and print files a set number of days after delivery."""
     removed = purge_delivered_child_photos_now()
     return f"Removed {removed} child photo files"
+
+
+@shared_task(name="orders.purge_unclaimed_photos")
+def purge_unclaimed_photos():
+    """Delete child photos that never became part of an order (see photo_files)."""
+    from .photo_files import purge_unclaimed_photos_now
+
+    removed = purge_unclaimed_photos_now()
+    return f"Removed {removed} unclaimed child photo files"

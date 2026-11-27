@@ -7,7 +7,11 @@ from django.db.models import OuterRef, Prefetch, Subquery
 from django.utils import timezone
 
 from .models import Order, OrderItem, OrderStatusEvent, PhotoConsent
-from .storage import delete_object
+from .storage import delete_object, iter_stored_keys
+
+# A photo uploaded (or copied from a student's form) for a bag that never became an
+# order is deleted after this long. Long enough to finish an order started yesterday.
+UNCLAIMED_PHOTO_DAYS = 3
 
 _DERIVATIVE_SUFFIXES = ("_print", "_thumb", "_status", "_error", "_width", "_height", "_retention")
 
@@ -147,4 +151,38 @@ def purge_delivered_child_photos_now() -> int:
             if cache_key not in keep_cache:
                 keep_cache[cache_key] = live_keep_for_next_year(order.student_id, purpose)
             removed += purge_item_photos(item, keep_thumb=keep_cache[cache_key])
+    return removed
+
+
+def _stored_keys_in(value, found: set) -> None:
+    if isinstance(value, str):
+        if value.startswith("customisations/"):
+            found.add(value)
+    elif isinstance(value, dict):
+        for inner in value.values():
+            _stored_keys_in(inner, found)
+    elif isinstance(value, list):
+        for inner in value:
+            _stored_keys_in(inner, found)
+
+
+def purge_unclaimed_photos_now(now=None, days: int = UNCLAIMED_PHOTO_DAYS) -> int:
+    """
+    Delete stored child photos that no order item points at and that are older
+    than `days`: uploads for a bag that was never ordered, and copies made when a
+    teacher opened the ID card sheet but did not order. Returns how many went.
+    """
+    cutoff = (now or timezone.now()) - timedelta(days=days)
+    old_keys = [key for key, modified in iter_stored_keys("customisations/") if modified <= cutoff]
+    if not old_keys:
+        return 0
+    in_use: set[str] = set()
+    for data in (
+        OrderItem.objects.exclude(customisation_data={}).values_list("customisation_data", flat=True).iterator()
+    ):
+        _stored_keys_in(data, in_use)
+    removed = 0
+    for key in old_keys:
+        if key not in in_use and delete_object(key):
+            removed += 1
     return removed

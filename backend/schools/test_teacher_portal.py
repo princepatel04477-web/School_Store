@@ -119,6 +119,8 @@ class TeacherPortalTests(TestCase):
         shown = teacher.get(self.photo_url())
         self.assertEqual(shown.status_code, 200)
         self.assertEqual(shown["Content-Type"], "image/jpeg")
+        # Never kept in the browser cache of a shared school phone.
+        self.assertIn("no-store", shown["Cache-Control"])
         self.assertEqual(login(self.parent).get(self.photo_url()).status_code, 200)
         self.assertEqual(login(self.other_teacher).get(self.photo_url()).status_code, 404)
         self.assertEqual(APIClient().get(self.photo_url()).status_code, 401)
@@ -221,6 +223,18 @@ class TeacherPortalPolishTests(TestCase):
         self.child.refresh_from_db()
         self.assertFalse(self.child.active)
         self.assertEqual(teacher.get("/api/students/?class=1").data["count"], 0)
+
+    def test_removing_a_student_deletes_their_id_card_photo(self):
+        teacher = login(self.teacher)
+        teacher.post(f"/api/students/{self.child.id}/photo/", {"photo": jpeg(), "consent": "1"}, format="multipart")
+        self.child.refresh_from_db()
+        stored = self.child.photo.name
+        self.assertTrue(self.child.photo.storage.exists(stored))
+        self.assertEqual(teacher.delete(f"/api/students/{self.child.id}/").status_code, 204)
+        self.child.refresh_from_db()
+        self.assertFalse(self.child.photo)
+        self.assertIsNone(self.child.photo_consent_at)
+        self.assertFalse(self.child.photo.storage.exists(stored))
 
     def test_student_rows_carry_city_name(self):
         row = login(self.teacher).get(f"/api/students/{self.child.id}/").data

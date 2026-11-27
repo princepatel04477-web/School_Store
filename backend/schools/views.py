@@ -46,6 +46,16 @@ from .serializers import (
 from .tasks import commit_student_import, validate_student_import
 
 
+def _clear_student_photo(student) -> None:
+    """Delete the ID card photo file and the parent agreement that went with it."""
+    if student.photo:
+        student.photo.delete(save=False)
+    student.photo = ""
+    student.photo_consent_by = None
+    student.photo_consent_at = None
+    student.save(update_fields=["photo", "photo_consent_by", "photo_consent_at", "updated_at"])
+
+
 class StudentPagination(BoundedPageNumberPagination):
     """Requirement 1: student list is paginated at 50 rows per page."""
 
@@ -319,9 +329,12 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         if self.request.user.role == User.Role.PARENT:
             raise PermissionDenied("Parents cannot delete students. Contact your school to correct this.")
         # Soft delete: orders and photo agreements point at the student (PROTECT),
-        # so a hard delete fails for anyone who ever ordered.
+        # so a hard delete fails for anyone who ever ordered. The ID card photo is
+        # not needed once the child is off the list, so it goes now. Photos copied
+        # into orders follow the order's own delete-after-delivery rule.
         instance.active = False
         instance.save(update_fields=["active", "updated_at"])
+        _clear_student_photo(instance)
 
     @action(
         detail=True,
@@ -346,7 +359,8 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
                 raise NotFound("No photo yet.")
             content_type = mimetypes.guess_type(student.photo.name)[0] or "image/jpeg"
             response = FileResponse(handle, content_type=content_type)
-            response["Cache-Control"] = "private, max-age=86400"
+            # A child's photo must not stay in the browser cache of a shared school phone.
+            response["Cache-Control"] = "private, no-store, max-age=0"
             response["X-Content-Type-Options"] = "nosniff"
             return response
 
@@ -354,12 +368,7 @@ class StudentViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             raise PermissionDenied("Ask your school to change the ID card photo.")
 
         if request.method == "DELETE":
-            if student.photo:
-                student.photo.delete(save=False)
-            student.photo = ""
-            student.photo_consent_by = None
-            student.photo_consent_at = None
-            student.save(update_fields=["photo", "photo_consent_by", "photo_consent_at", "updated_at"])
+            _clear_student_photo(student)
             return Response(StudentSerializer(student, context={"request": request}).data)
 
         upload = request.FILES.get("photo")

@@ -323,6 +323,11 @@ function PageHead({ eyebrow, title, action }: { eyebrow: string; title: string; 
   );
 }
 
+/** "1 student", "3 students". */
+function countLabel(n: number, one: string, many = `${one}s`) {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
 function rosterQuery(cls: string, sec: string) {
   const p = new URLSearchParams();
   if (cls && cls !== 'All') p.set('class', cls);
@@ -424,7 +429,8 @@ function ClassesView() {
 
       {classes.length > 0 && (
         <p className="tp-progress">
-          {totals.students} students in {classes.length} classes, {totals.photos} with an ID card photo.
+          {countLabel(totals.students, 'student')} in {countLabel(classes.length, 'class', 'classes')},{' '}
+          {totals.photos} with an ID card photo.
         </p>
       )}
 
@@ -849,7 +855,7 @@ function StudentFormPage() {
           ) : (
             <div className="tp-confirm">
               <p>
-                Remove {student!.name}? They leave this class list. Their past orders stay.
+                Remove {student!.name}? They leave this class list and their ID card photo is deleted. Their past orders stay.
               </p>
               <div className="tp-row">
                 <button type="button" className="tp-btn" onClick={() => setConfirmRemove(false)}>Keep</button>
