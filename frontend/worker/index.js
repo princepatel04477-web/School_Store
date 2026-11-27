@@ -21,20 +21,18 @@ const OFFLINE_PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"
 h1{font-size:28px;margin:0 0 8px}p{margin:0;color:#55695d}</style></head>
 <body><main><h1>SchoolStore is offline</h1><p>The store server is not reachable right now. Please try again in a minute.</p></main></body></html>`;
 
+// Only the Android app shell, local dev and our own Workers may read API replies cross-origin.
+// Anyone can create a *.workers.dev or *.trycloudflare.com site, so those suffixes are not trusted.
+const CORS_ORIGINS = new Set(['https://localhost', 'capacitor://localhost', 'http://localhost:5173']);
+const OWN_WORKER_ORIGIN = /^https:\/\/[a-z0-9-]+\.aqualite\.workers\.dev$/;
+
+/** CORS headers for an allowed Origin, or null (then no CORS headers are added). */
 function getCorsHeaders(request) {
   const origin = request.headers.get('Origin') || '';
-  const allowed = [
-    'https://localhost',
-    'capacitor://localhost',
-    'http://localhost:5173',
-  ];
-  const isAllowed =
-    allowed.includes(origin) ||
-    origin.endsWith('.workers.dev') ||
-    origin.endsWith('.trycloudflare.com');
-  const allowOrigin = isAllowed ? origin : (origin || '*');
+  if (!CORS_ORIGINS.has(origin) && !OWN_WORKER_ORIGIN.test(origin)) return null;
   return {
-    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Origin': origin,
+    Vary: 'Origin',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers':
       request.headers.get('Access-Control-Request-Headers') ||
@@ -51,9 +49,8 @@ function offline(request) {
     'cache-control': 'no-store',
     'x-served-by': 'none',
   };
-  if (request) {
-    Object.assign(headers, getCorsHeaders(request));
-  }
+  const cors = request ? getCorsHeaders(request) : null;
+  if (cors) Object.assign(headers, cors);
   return new Response(OFFLINE_PAGE, {
     status: 503,
     headers,
@@ -88,10 +85,9 @@ async function forwardToShowcase(env, request, bodyBytes) {
 }
 
 function attachCors(res, request) {
-  const origin = request.headers.get('Origin');
-  if (!origin) return res;
-  const out = new Response(res.body, res);
   const cors = getCorsHeaders(request);
+  if (!cors) return res;
+  const out = new Response(res.body, res);
   for (const [k, v] of Object.entries(cors)) {
     out.headers.set(k, v);
   }
@@ -113,12 +109,10 @@ export default {
       return out;
     }
 
-    // Handle OPTIONS CORS preflight directly for API and server paths
-    if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        status: 204,
-        headers: getCorsHeaders(request),
-      });
+    // Answer CORS preflight for the app's own origins here; anything else goes on to Django as before.
+    const preflightCors = request.method === 'OPTIONS' ? getCorsHeaders(request) : null;
+    if (preflightCors) {
+      return new Response(null, { status: 204, headers: preflightCors });
     }
 
     // Retailer endpoints (/api/retail/...) live on Cloudflare Showcase (D1 + KV).
