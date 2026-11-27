@@ -289,3 +289,28 @@ class TeacherPortalPolishTests(TestCase):
         ok = APIClient()
         ok.credentials(HTTP_AUTHORIZATION=f"Bearer {fresh.data['access']}")
         self.assertEqual(ok.get("/api/classes/").status_code, 200)
+
+
+@override_settings(MEDIA_ROOT=MEDIA)
+class AllSchoolsTeacherTests(TestCase):
+    """A teacher given every school has no school of their own (PR #41 review)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        TeacherPortalTests.setUpTestData.__func__(cls)
+        cls.everywhere = User.objects.create_user(
+            username="tp_everywhere", password="x", role=User.Role.TEACHER, all_schools_access=True,
+        )
+
+    def test_can_open_fill_and_photograph_any_schools_student(self):
+        client = login(self.everywhere)
+        url = f"/api/students/{self.child.id}/"
+        self.assertEqual(client.get(url).status_code, 200)
+        res = client.patch(url, {"blood_group": "O+"}, format="json")
+        self.assertEqual(res.status_code, 200, res.data)
+        photo = client.post(f"{url}photo/", {"photo": jpeg(), "consent": "1"}, format="multipart")
+        self.assertEqual(photo.status_code, 200, photo.data)
+        self.assertEqual(client.get(f"{url}photo/").status_code, 200)
+
+    def test_branch_teacher_of_another_school_is_still_refused(self):
+        self.assertEqual(login(self.other_teacher).get(f"/api/students/{self.child.id}/").status_code, 404)

@@ -126,6 +126,10 @@ class RoleScopedPermission(permissions.BasePermission):
             return bool(user.city_id and obj_city == user.city_id)
 
         if user.role in ("SCHOOL_ADMIN", "TEACHER"):
+            # A teacher given every school has no school of their own; the scoped
+            # queryset already lets them reach any school's rows (apply_user_scope).
+            if user.role == "TEACHER" and getattr(user, "all_schools_access", False):
+                return True
             if not school_field:
                 return False
             obj_school = getattr(obj, school_field, None)
