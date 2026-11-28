@@ -63,6 +63,8 @@ Set-EnvLine $envFile 'SECURE_HSTS_SECONDS' '0'
 Push-Location $app
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput | Out-Null
+# Supabase catalogue API (supabase/store_api.sql): copy photo and class-name rules. No-op without Supabase.
+python manage.py sync_store_api 2>&1 | ForEach-Object { Log "sync_store_api: $_" }
 Pop-Location
 
 # ---- 2. (re)start web + worker ----
