@@ -9,7 +9,7 @@
 services:
   web:
     build:
-      context: ../..
+      context: .   # Coolify runs compose from the repository root
       dockerfile: deploy/coolify/Dockerfile
     restart: unless-stopped
     environment:
