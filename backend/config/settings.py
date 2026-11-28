@@ -359,6 +359,17 @@ SIMPLE_JWT = {
     "USER_ID_CLAIM": "user_id",
 }
 
+# Supabase Auth issues sign-in tokens (accounts/supabase_auth.py). Off unless the URL and the
+# service key are set; then password sign-ins get Supabase access tokens and Django accepts them.
+# SUPABASE_AUTH_URL: GoTrue through the Supabase gateway, e.g. http://<db-server>:8100/auth/v1
+SUPABASE_AUTH_URL = os.environ.get("SUPABASE_AUTH_URL", "")
+SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+# Must equal GOTRUE_JWT_ISSUER on the Supabase side.
+SUPABASE_AUTH_ISSUER = os.environ.get("SUPABASE_AUTH_ISSUER", SUPABASE_AUTH_URL)
+# Accounts sign in to Supabase as <user id>@<this domain>; .invalid can never receive mail.
+SUPABASE_AUTH_EMAIL_DOMAIN = os.environ.get("SUPABASE_AUTH_EMAIL_DOMAIN", "users.schoolstore.invalid")
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {

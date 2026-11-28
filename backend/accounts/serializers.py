@@ -349,14 +349,46 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         data = super().validate(attrs)
         data["user"] = UserSerializer(self.user).data
+        with_supabase_access(data, self.user, attrs.get("password") or "")
         return data
 
 
+def with_supabase_access(data: dict, user: User, password: str) -> None:
+    """Swap Django's access token for a Supabase Auth one (phase 2), keeping Django's refresh.
+
+    Django has already accepted the password. If Supabase is not set up or does not answer,
+    the Django access token stays, so signing in never depends on Supabase being up.
+    """
+    from . import supabase_auth
+
+    if not supabase_auth.enabled() or not password:
+        return
+    try:
+        session = supabase_auth.password_session(user, password)
+    except supabase_auth.SupabaseAuthError as err:
+        supabase_auth.logger.warning("Supabase sign-in failed for %s (%s); using a Django token", user.id, err)
+        return
+    supabase_auth.remember_session(RefreshToken(data["refresh"])["jti"], session["refresh_token"])
+    data["access"] = session["access_token"]
+
+
 class RevocationAwareTokenRefreshSerializer(TokenRefreshSerializer):
-    """A refresh token from before a pause or a new password cannot mint new tokens."""
+    """A refresh token from before a pause or a new password cannot mint new tokens.
+
+    A sign-in that got a Supabase access token keeps getting Supabase access tokens: the
+    Supabase refresh token for it is held on the server (accounts/supabase_auth.py).
+    """
 
     def validate(self, attrs):
+        from . import supabase_auth
+
         token = RefreshToken(attrs["refresh"])
         if is_revoked(token.payload.get("user_id"), token.payload.get("iat")):
             raise InvalidToken("This sign-in has ended. Please sign in again.")
-        return super().validate(attrs)
+        data = super().validate(attrs)
+        if supabase_auth.enabled():
+            new_jti = RefreshToken(data["refresh"])["jti"] if data.get("refresh") else None
+            access = supabase_auth.access_for_refresh(token["jti"], new_jti)
+            if access:
+                data["access"] = access
+        return data
