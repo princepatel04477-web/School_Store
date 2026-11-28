@@ -305,6 +305,9 @@
 .acct-col-main {
   flex: 999 1 560px;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .acct-col-side {
@@ -537,6 +540,15 @@
   background: #ffc582;
 }
 
+.acct-btn-saffron:active {
+  background: #f0a34b;
+}
+
+.acct-btn-saffron:focus-visible {
+  outline: 2px solid #0e5e3e;
+  outline-offset: 2px;
+}
+
 /* Expanded items list (ruled rows, no nested cards) */
 
 .acct-items-panel {
@@ -633,6 +645,18 @@
 .acct-skeleton--sm {
   height: 44px;
   border-radius: var(--radius-md);
+}
+
+.acct-school-skeleton {
+  height: 140px;
+}
+
+.acct-school-card {
+  background: #ffffff;
+}
+
+.acct-school-card .acct-state-body {
+  margin: 6px 0 0;
 }
 
 /* ---------- Saved sizes (warm card) ---------- */

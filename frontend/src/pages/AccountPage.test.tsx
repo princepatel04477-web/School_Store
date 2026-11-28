@@ -72,11 +72,20 @@ vi.mock('../auth', () => ({
   }),
 }));
 
+let mockSelection: {
+  schoolId: string;
+  schoolName: string;
+  cityId?: string;
+  cityName?: string;
+  gradeId?: string;
+  gradeName?: string;
+  gender?: 'boy' | 'girl' | null;
+} | null = null;
 const mockSetSelection = vi.fn();
 vi.mock('../store/storeState', () => ({
   useStoreState: () => ({
     cart: [],
-    selection: null,
+    selection: mockSelection,
     totalCount: 2,
     subtotalPaise: 0,
     setSelection: mockSetSelection,
@@ -277,5 +286,167 @@ describe('AccountPage', () => {
       expect(screen.getByText('मेरे ऑर्डर')).toBeTruthy();
     });
     expect(screen.getByText(/नमस्ते/)).toBeTruthy();
+  });
+
+  describe('Task K: new parent school card and redirect', () => {
+    beforeEach(() => {
+      mockSelection = null;
+      try {
+        sessionStorage.clear();
+      } catch {}
+      mockApi.mockImplementation(async (path: string) => {
+        if (path === '/orders/') return { next: null, previous: null, results: [] };
+        if (path === '/students/') return { results: [] };
+        return {};
+      });
+    });
+
+    it('new parent sees the card with the right link', async () => {
+      renderAccountPage();
+
+      const heading = await screen.findByRole('heading', { name: "Choose your child's school" });
+      expect(heading).toBeTruthy();
+      const schoolLink = screen.getByRole('link', { name: /Choose school/i });
+      expect(schoolLink.getAttribute('href')).toBe('/flow?step=1');
+    });
+
+    it('loading shows skeleton and no card', async () => {
+      mockApi.mockImplementation((path: string) => {
+        if (path === '/students/') return new Promise(() => {}); // never resolves
+        if (path === '/orders/') return Promise.resolve({ next: null, previous: null, results: [] });
+        return Promise.resolve({});
+      });
+
+      renderAccountPage();
+
+      expect(document.querySelector('.acct-school-skeleton')).toBeTruthy();
+      expect(screen.queryByText("Choose your child's school")).toBeNull();
+      expect(screen.queryByText(/No child added yet/i)).toBeNull();
+    });
+
+    it('failure shows Retry and no card', async () => {
+      mockApi.mockImplementation(async (path: string) => {
+        if (path === '/students/') throw new Error('Network error');
+        if (path === '/orders/') return { next: null, previous: null, results: [] };
+        return {};
+      });
+
+      renderAccountPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Check your internet and try again.').length).toBeGreaterThan(0);
+      });
+      expect(screen.getAllByRole('button', { name: 'Try again' }).length).toBeGreaterThan(0);
+      expect(screen.queryByText("Choose your child's school")).toBeNull();
+    });
+
+    it('parent with a child does not see it', async () => {
+      mockApi.mockImplementation(async (path: string) => {
+        if (path === '/students/') {
+          return {
+            results: [
+              {
+                id: 'child-1',
+                name: 'Kabir Patel',
+                active: true,
+                school: 'sch-1',
+                school_name: 'Delhi Public School',
+                grade_name: 'Class 4',
+              },
+            ],
+          };
+        }
+        if (path === '/orders/') return { next: null, previous: null, results: [] };
+        return {};
+      });
+
+      renderAccountPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Kabir Patel')).toBeTruthy();
+      });
+      expect(screen.queryByText("Choose your child's school")).toBeNull();
+    });
+
+    it('parent with a stored selection does not', async () => {
+      mockSelection = {
+        schoolId: 'sch-1',
+        schoolName: 'Delhi Public School',
+      };
+
+      renderAccountPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('No orders yet')).toBeTruthy();
+      });
+      expect(screen.queryByText("Choose your child's school")).toBeNull();
+    });
+
+    it('one time redirect happens after a fresh login and not on refresh and not twice', async () => {
+      sessionStorage.setItem('fresh_login', '1');
+
+      const { unmount } = renderAccountPage();
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith('/flow?step=1', { replace: true });
+      });
+      expect(sessionStorage.getItem('fresh_login')).toBeNull();
+
+      mockNavigate.mockClear();
+      unmount();
+
+      // Simulated refresh or returning without the fresh login flag
+      renderAccountPage();
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: "Choose your child's school" })).toBeTruthy();
+      });
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('blocked sessionStorage does not crash', async () => {
+      const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('SecurityError: storage blocked');
+      });
+
+      renderAccountPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: "Choose your child's school" })).toBeTruthy();
+      });
+
+      getItemSpy.mockRestore();
+    });
+
+    it('en, hi and gu render', async () => {
+      setLang('en');
+      const { unmount: uEn } = renderAccountPage();
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: "Choose your child's school" })).toBeTruthy();
+      });
+      uEn();
+
+      setLang('hi');
+      const { unmount: uHi } = renderAccountPage();
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'अपने बच्चे का स्कूल चुनें' })).toBeTruthy();
+      });
+      uHi();
+
+      setLang('gu');
+      const { unmount: uGu } = renderAccountPage();
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'તમારા બાળકની શાળા પસંદ કરો' })).toBeTruthy();
+      });
+      uGu();
+    });
+
+    it('no "Aarav" or other demo names in new parent view', async () => {
+      renderAccountPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: "Choose your child's school" })).toBeTruthy();
+      });
+      expect(screen.queryByText(/Aarav/i)).toBeNull();
+    });
   });
 });

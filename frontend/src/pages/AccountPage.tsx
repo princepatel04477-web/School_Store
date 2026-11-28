@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../auth';
@@ -272,6 +272,22 @@ export function AccountPage({ onOpenBag, onOpenLanguage }: AccountPageProps) {
   const [addChildOpen, setAddChildOpen] = useState(false);
   const [measureOpen, setMeasureOpen] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const freshLoginRef = useRef(false);
+
+  useEffect(() => {
+    try {
+      if (
+        sessionStorage.getItem('fresh_login') === '1' ||
+        sessionStorage.getItem('schoolstore_fresh_login') === '1'
+      ) {
+        freshLoginRef.current = true;
+        sessionStorage.removeItem('fresh_login');
+        sessionStorage.removeItem('schoolstore_fresh_login');
+      }
+    } catch {
+      freshLoginRef.current = false;
+    }
+  }, []);
 
   const locale = LOCALE_FOR_LANG[lang];
   const isSignedIn = Boolean(user);
@@ -297,6 +313,25 @@ export function AccountPage({ onOpenBag, onOpenLanguage }: AccountPageProps) {
   const activeChildren = (studentsQuery.data?.results ?? []).filter((c) => c.active);
   const primaryChild = activeChildren[0] ?? null;
   const serverMeasurementQuery = useLatestMeasurement(primaryChild?.id);
+
+  const isNewParent = Boolean(
+    isSignedIn &&
+      user?.role === 'PARENT' &&
+      studentsQuery.isSuccess &&
+      activeChildren.length === 0 &&
+      !selection?.schoolId
+  );
+
+  useEffect(() => {
+    if (authLoading || studentsQuery.isLoading) return;
+    if (!freshLoginRef.current) return;
+    if (isNewParent) {
+      freshLoginRef.current = false;
+      navigate('/flow?step=1', { replace: true });
+    } else if (studentsQuery.isSuccess || studentsQuery.isError) {
+      freshLoginRef.current = false;
+    }
+  }, [authLoading, studentsQuery.isLoading, studentsQuery.isSuccess, studentsQuery.isError, isNewParent, navigate]);
 
   const sessionFitKey = fitKey(selection?.schoolId, selection?.gradeName, selection?.gender);
   const sessionFitAnswer = getFit(sessionFitKey);
@@ -500,6 +535,41 @@ export function AccountPage({ onOpenBag, onOpenLanguage }: AccountPageProps) {
             <div className="acct-grid">
               {/* Left column: My orders */}
               <div className="acct-col-main">
+                {isSignedIn && user?.role === 'PARENT' && !selection?.schoolId && (
+                  <>
+                    {authLoading || studentsQuery.isLoading ? (
+                      <div className="acct-skeleton acct-school-skeleton" aria-busy="true" />
+                    ) : studentsQuery.isError ? (
+                      <div className="acct-error-box" role="alert">
+                        <div className="acct-error-row">
+                          <AlertCircle width={20} height={20} />
+                          <span>{t('common.checkInternet')}</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="acct-btn-outline"
+                          onClick={() => void studentsQuery.refetch()}
+                        >
+                          {t('common.tryAgain')}
+                        </button>
+                      </div>
+                    ) : activeChildren.length === 0 ? (
+                      <Reveal>
+                        <section className="acct-card acct-school-card" aria-labelledby="acct-school-heading">
+                          <h2 id="acct-school-heading" className="acct-card-title">
+                            {t('account.chooseSchoolTitle')}
+                          </h2>
+                          <p className="acct-state-body">{t('account.chooseSchoolBody')}</p>
+                          <Link to="/flow?step=1" className="acct-btn-saffron">
+                            {t('account.chooseSchoolBtn')}
+                            <ArrowRight width={18} height={18} strokeWidth={2} />
+                          </Link>
+                        </section>
+                      </Reveal>
+                    ) : null}
+                  </>
+                )}
+
                 <Reveal>
                   <section className="acct-card" aria-labelledby="acct-orders-heading">
                     <div className="acct-card-head">
@@ -647,6 +717,20 @@ export function AccountPage({ onOpenBag, onOpenLanguage }: AccountPageProps) {
                       </h2>
                       {studentsQuery.isLoading ? (
                         <div className="acct-skeleton acct-skeleton--short" aria-busy="true" />
+                      ) : studentsQuery.isError ? (
+                        <div className="acct-error-box" role="alert">
+                          <div className="acct-error-row">
+                            <AlertCircle width={20} height={20} />
+                            <span>{t('common.checkInternet')}</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="acct-btn-outline"
+                            onClick={() => void studentsQuery.refetch()}
+                          >
+                            {t('common.tryAgain')}
+                          </button>
+                        </div>
                       ) : activeChildren.length === 0 ? (
                         <p className="acct-state-body">{t('account.noChildren')}</p>
                       ) : (

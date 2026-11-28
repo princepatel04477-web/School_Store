@@ -37,6 +37,11 @@ export default function Login() {
     setError('');
     try {
       const signedIn = await signIn(login.trim(), password.trim());
+      if (signedIn.role === 'PARENT') {
+        try {
+          sessionStorage.setItem('fresh_login', '1');
+        } catch {}
+      }
       nav(homeFor(signedIn.role, signedIn.city));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Please try again');
@@ -166,6 +171,9 @@ export default function Login() {
           onClose={() => setSheetStep(null)}
           onDone={() => {
             setSheetStep(null);
+            try {
+              sessionStorage.setItem('fresh_login', '1');
+            } catch {}
             setFinished(true);
           }}
         />

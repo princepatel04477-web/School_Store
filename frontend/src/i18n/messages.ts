@@ -1374,9 +1374,9 @@ export const messages = {
   },
   'account.childrenTitle': { en: 'My children', gu: 'મારાં બાળકો', hi: 'मेरे बच्चे' },
   'account.noChildren': {
-    en: 'No child added yet. Add your child with the GR number, or just shop by school and class.',
-    gu: 'હજી કોઈ બાળક ઉમેર્યું નથી. GR નંબરથી બાળક ઉમેરો, અથવા શાળા અને ધોરણથી ખરીદી કરો.',
-    hi: 'अभी कोई बच्चा नहीं जोड़ा। GR नंबर से बच्चा जोड़ें, या स्कूल और कक्षा चुनकर खरीदें।',
+    en: 'No child added yet. Add your child with the GR number.',
+    gu: 'હજી કોઈ બાળક ઉમેર્યું નથી. GR નંબરથી બાળક ઉમેરો.',
+    hi: 'अभी कोई बच्चा नहीं जोड़ा। GR नंबर से बच्चा जोड़ें।',
   },
   'account.addChild': { en: 'Add my child', gu: 'બાળક ઉમેરો', hi: 'बच्चा जोड़ें' },
   'account.manageChildren': { en: 'Children and photos', gu: 'બાળકો અને ફોટા', hi: 'बच्चे और फ़ोटो' },
@@ -1396,6 +1396,21 @@ export const messages = {
     hi: 'आप मोबाइल OTP से लॉगिन करते हैं।',
   },
   'account.shopNav': { en: 'Shop', gu: 'ખરીદો', hi: 'खरीदें' },
+  'account.chooseSchoolTitle': {
+    en: "Choose your child's school",
+    gu: 'તમારા બાળકની શાળા પસંદ કરો',
+    hi: 'अपने बच्चे का स्कूल चुनें',
+  },
+  'account.chooseSchoolBody': {
+    en: 'Find uniforms, shoes, and books made for their school.',
+    gu: 'તેમની શાળા માટે બનાવેલ યુનિફોર્મ, શૂઝ અને પુસ્તકો મેળવો.',
+    hi: 'उनके स्कूल के लिए तैयार यूनिफ़ॉर्म, जूते और किताबें पाएँ।',
+  },
+  'account.chooseSchoolBtn': {
+    en: 'Choose school',
+    gu: 'શાળા પસંદ કરો',
+    hi: 'स्कूल चुनें',
+  },
 } satisfies Record<string, Entry>;
 
 export type MessageKey = keyof typeof messages;
