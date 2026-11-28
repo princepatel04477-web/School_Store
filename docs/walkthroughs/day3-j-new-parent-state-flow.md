@@ -157,16 +157,16 @@ All screenshots were captured using Playwright (`scripts/capture_day3_j_screensh
 
 | Scenario | Viewport | Screenshot Path | Description |
 |---|---|---|---|
-| **New Parent State Flow** | 390x844 | [day3-j-new-parent-state-390.png](file:///Users/parthghelani/Desktop/project/scholl33/ss_latest_work/docs/walkthroughs/screenshots/day3-j-new-parent-state-390.png) | New parent redirected from `/parent` to `/flow?step=1&state=`. Displays "Which state is your child's school in?" with state cards. No welcome modal. |
-| **New Parent State Flow** | 1280x800 | [day3-j-new-parent-state-desktop.png](file:///Users/parthghelani/Desktop/project/scholl33/ss_latest_work/docs/walkthroughs/screenshots/day3-j-new-parent-state-desktop.png) | Desktop view of the state selection screen. |
-| **Loading Skeleton** | 390x844 | [day3-j-loading-skeleton-390.png](file:///Users/parthghelani/Desktop/project/scholl33/ss_latest_work/docs/walkthroughs/screenshots/day3-j-loading-skeleton-390.png) | Parent dashboard while students request is in-flight. Skeleton shown in "My children" area without mock names. |
-| **Loading Skeleton** | 1280x800 | [day3-j-loading-skeleton-desktop.png](file:///Users/parthghelani/Desktop/project/scholl33/ss_latest_work/docs/walkthroughs/screenshots/day3-j-loading-skeleton-desktop.png) | Loading skeleton on desktop view. |
-| **Request Error & Retry** | 390x844 | [day3-j-error-retry-390.png](file:///Users/parthghelani/Desktop/project/scholl33/ss_latest_work/docs/walkthroughs/screenshots/day3-j-error-retry-390.png) | Error banner with "We could not load your orders. Check your internet and try again." and working "Retry" button. |
-| **Request Error & Retry** | 1280x800 | [day3-j-error-retry-desktop.png](file:///Users/parthghelani/Desktop/project/scholl33/ss_latest_work/docs/walkthroughs/screenshots/day3-j-error-retry-desktop.png) | Error banner and Retry button on desktop view. |
-| **Reduced Motion** | 390x844 | [day3-j-reduced-motion-390.png](file:///Users/parthghelani/Desktop/project/scholl33/ss_latest_work/docs/walkthroughs/screenshots/day3-j-reduced-motion-390.png) | Flow step under `prefers-reduced-motion: reduce`. Slides and staggers disabled. |
-| **Reduced Motion** | 1280x800 | [day3-j-reduced-motion-desktop.png](file:///Users/parthghelani/Desktop/project/scholl33/ss_latest_work/docs/walkthroughs/screenshots/day3-j-reduced-motion-desktop.png) | Desktop flow under reduced motion. |
-| **Title Collapse on Scroll** | 390x844 | [day3-j-title-collapsed-390.png](file:///Users/parthghelani/Desktop/project/scholl33/ss_latest_work/docs/walkthroughs/screenshots/day3-j-title-collapsed-390.png) | Title collapse into sticky top bar (`.flow-collapsed-bar.is-collapsed`) after scrolling past 48px. |
-| **Step Transition to City** | 390x844 | [day3-j-step-transition-city-390.png](file:///Users/parthghelani/Desktop/project/scholl33/ss_latest_work/docs/walkthroughs/screenshots/day3-j-step-transition-city-390.png) | City step after tapping a state tile, transitioning with push motion. |
+| **New Parent State Flow** | 390x844 | [day3-j-new-parent-state-390.png](screenshots/day3-j-new-parent-state-390.png) | New parent redirected from `/parent` to `/flow?step=1&state=`. Displays "Which state is your child's school in?" with state cards. No welcome modal. |
+| **New Parent State Flow** | 1280x800 | [day3-j-new-parent-state-desktop.png](screenshots/day3-j-new-parent-state-desktop.png) | Desktop view of the state selection screen. |
+| **Loading Skeleton** | 390x844 | [day3-j-loading-skeleton-390.png](screenshots/day3-j-loading-skeleton-390.png) | Parent dashboard while students request is in-flight. Skeleton shown in "My children" area without mock names. |
+| **Loading Skeleton** | 1280x800 | [day3-j-loading-skeleton-desktop.png](screenshots/day3-j-loading-skeleton-desktop.png) | Loading skeleton on desktop view. |
+| **Request Error & Retry** | 390x844 | [day3-j-error-retry-390.png](screenshots/day3-j-error-retry-390.png) | Error banner with "We could not load your orders. Check your internet and try again." and working "Retry" button. |
+| **Request Error & Retry** | 1280x800 | [day3-j-error-retry-desktop.png](screenshots/day3-j-error-retry-desktop.png) | Error banner and Retry button on desktop view. |
+| **Reduced Motion** | 390x844 | [day3-j-reduced-motion-390.png](screenshots/day3-j-reduced-motion-390.png) | Flow step under `prefers-reduced-motion: reduce`. Slides and staggers disabled. |
+| **Reduced Motion** | 1280x800 | [day3-j-reduced-motion-desktop.png](screenshots/day3-j-reduced-motion-desktop.png) | Desktop flow under reduced motion. |
+| **Title Collapse on Scroll** | 390x844 | [day3-j-title-collapsed-390.png](screenshots/day3-j-title-collapsed-390.png) | Title collapse into sticky top bar (`.flow-collapsed-bar.is-collapsed`) after scrolling past 48px. |
+| **Step Transition to City** | 390x844 | [day3-j-step-transition-city-390.png](screenshots/day3-j-step-transition-city-390.png) | City step after tapping a state tile, transitioning with push motion. |
 
 ### Visual Motion Verification Note
 - **Title Collapse**: Verified visually and functionally. Playwright scrolled the page by 180px, verified that `.flow-collapsed-bar.is-collapsed` became visible with the active step title, and captured `day3-j-title-collapsed-390.png`.
