@@ -120,17 +120,24 @@ Staff Packing and Dispatch Paths:
 |---|---|---|---|
 | `python manage.py makemigrations --check` | Clean | Clean (`No changes detected`) | **PASS** |
 | Fresh Database `python manage.py migrate` | Applied cleanly | Applied all 89 migrations to `0017` cleanly | **PASS** |
-| Backend SQLite `orders` Suite | 489 tests total (run with `STOCK_SCOPE=city`: 113 passed) | **162 passed** (10 skipped concurrency tests) in 73.4s | **PASS** |
+| Full Backend Suite (Default / India stock scope) | Ran 489 tests in 122.4s (34 failures, 1 error, 23 skipped) | **Ran 544 tests in 170.3s** (34 failures, 1 error, 27 skipped) | **PASS (0 new failures, 55 Day 3 tests pass)** |
+| Full Backend Suite (`STOCK_SCOPE=city`) | Ran 493 tests in 122.8s (13 failures, 23 skipped) | **Ran 548 tests in 171.1s** (13 failures, 27 skipped) | **PASS (0 new failures, 55 Day 3 tests pass)** |
+| Backend SQLite `orders` Suite (`STOCK_SCOPE=city`) | 117 tests (113 passed, 4 failed) | **172 tests (158 passed, 4 failed, 10 skipped concurrency tests)** in 73.4s | **PASS (0 new failures)** |
 | Backend PostgreSQL (port 54329) `orders` Suite | 118 passed (6 skipped "Day 2 not merged") | **162 passed** (0 failures, 0 errors, full race tests) in 82.3s | **PASS** |
-| `test_integration_day2_day3.py` | 2 skipped ("Day 2 not merged"), 4 simulated | **10 passed (0 skipped)** in 5.8s | **PASS** |
+| `test_parent_tracking.py` (Both modes) | N/A (Day 3 module) | **10 passed (0 failures, 0 skipped)** in 5.7s | **PASS** |
+| `test_fulfilment.py` (Both modes) | N/A (Day 3 module) | **35 passed (0 failures, 0 skipped)** in 39.5s | **PASS** |
+| `test_integration_day2_day3.py` (Both modes) | N/A (Day 3 module) | **10 passed** (or 6 passed, 4 skipped when isolated) in 3.5s | **PASS** |
 | `test_payment_contract.py` | 7 passed | **7 passed** in 0.9s | **PASS** |
 | `test_recovery_review.py` | 5 passed | **5 passed** in 1.8s | **PASS** |
-| `test_fulfilment.py` (PostgreSQL) | 35 passed | **35 passed** in 40.0s | **PASS** |
 | Frontend `npm run build` | Built in 3.26s | **Built in 3.15s** cleanly | **PASS** |
 | Frontend `npx tsc --noEmit` | 1 pre-existing error (`CheckoutPage.test.tsx:335:30`) | **1 identical error** (`CheckoutPage.test.tsx:335:30`) | **PASS (Baseline Parity)** |
 | Frontend `npx vitest run` | 4 failed \| 27 passed (31 files), 9 failed \| 197 passed | **4 failed \| 32 passed (36 files), 9 failed \| 256 passed** | **PASS (59 Day 3 tests added & passed; 0 new failures)** |
 
-*Note on Vitest & TypeScript*: The 4 failing vitest files (`persist.test.ts`, `placeOrder.test.ts`, `CheckoutPage.test.tsx`, `ParentOrders.test.tsx`) and the single `tsc` error (`CheckoutPage.test.tsx:335:30`) are 100% identical to the clean worktree baseline of `origin/main` (caused by Node 22 missing `--localstorage-file` and a mock type cast in checkout test fixtures).
+*Note on Full Suite Parity & Stock Scopes*:
+1. Under default settings (`STOCK_SCOPE` unset, defaulting to India shared stock), `origin/main` has 34 failures and 1 error (`ExchangeTests.setUpClass`). `day3-on-latest` runs 544 tests (55 additional Day 3 tests) with the exact same 34 failures and 1 error, and zero new failures.
+2. Under `STOCK_SCOPE=city`, `origin/main` has 13 failures. `day3-on-latest` runs 548 tests with the exact same 13 failures, and zero new failures.
+3. Task M corrected the test setup in `backend/orders/test_parent_tracking.py` so both `self.city` and `india_stock_city()` balances exist, ensuring tests pass under both India and city stock scopes without modifying application code.
+4. *Note on Vitest & TypeScript*: The 4 failing vitest files (`persist.test.ts`, `placeOrder.test.ts`, `CheckoutPage.test.tsx`, `ParentOrders.test.tsx`) and the single `tsc` error (`CheckoutPage.test.tsx:335:30`) are 100% identical to the clean worktree baseline of `origin/main` (caused by Node 22 missing `--localstorage-file` and a mock type cast in checkout test fixtures).
 
 ---
 

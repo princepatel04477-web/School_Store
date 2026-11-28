@@ -11,6 +11,7 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from catalog.models import Category, Product, ProductVariant
 from inventory.models import StockBalance
+from inventory.services import india_stock_city
 from orders.models import Order, OrderItem, OrderStatusEvent, Shipment
 from schools.models import City, School, Student
 
@@ -49,6 +50,7 @@ class ParentTrackingTestCase(TestCase):
         )
         self.variant = ProductVariant.objects.create(product=prod, sku="UNIFORM-5", size="M", school=self.school)
         StockBalance.objects.create(city=self.city, variant=self.variant, stock_quantity=50)
+        StockBalance.objects.create(city=india_stock_city(), variant=self.variant, stock_quantity=50)
 
         self.client_p1 = APIClient()
         self.client_p1.force_authenticate(user=self.parent_1)
