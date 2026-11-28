@@ -9,7 +9,9 @@
 services:
   web:
     build:
-      context: .   # Coolify runs compose from the repository root
+      # Relative to this file, so plain `docker compose -f deploy/coolify/docker-compose.yml` works too.
+      # In Coolify: Base Directory /deploy/coolify, Docker Compose Location /docker-compose.yml.
+      context: ../..
       dockerfile: deploy/coolify/Dockerfile
     restart: unless-stopped
     environment:
