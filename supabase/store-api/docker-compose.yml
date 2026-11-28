@@ -1,0 +1,33 @@
+# School Store catalogue API (phase 1). Separate from Supabase's own PostgREST:
+# only schema store_api, anonymous role store_web (execute on the catalogue functions only),
+# and every request must carry the Worker's x-store-edge secret (store_api.check_request).
+name: store-api
+services:
+  store-api:
+    image: postgrest/postgrest:v14.18
+    container_name: store-api
+    restart: unless-stopped
+    environment:
+      PGRST_DB_URI: ${PGRST_DB_URI}
+      PGRST_DB_SCHEMAS: store_api
+      PGRST_DB_ANON_ROLE: store_web
+      PGRST_DB_PRE_REQUEST: store_api.check_request
+      PGRST_DB_POOL: "5"
+      PGRST_DB_MAX_ROWS: "1000"
+      PGRST_OPENAPI_MODE: disabled
+      PGRST_SERVER_PORT: "3000"
+    ports:
+      - "127.0.0.1:8200:3000"
+    networks: [supabase_default]
+  store-api-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: store-api-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --metrics 0.0.0.0:20241 --url http://store-api:3000
+    ports:
+      - "127.0.0.1:20241:20241"
+    depends_on: [store-api]
+    networks: [supabase_default]
+networks:
+  supabase_default:
+    external: true

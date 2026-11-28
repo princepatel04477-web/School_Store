@@ -57,6 +57,9 @@ function offline(request) {
   });
 }
 
+// KV keys: "origin" = Django on the store server, "sb_origin" = the Supabase catalogue API on the database server.
+const ORIGIN_KEYS = { django: 'origin', supabase: 'sb_origin' };
+
 async function register(request, env) {
   if (request.method !== 'POST') return new Response('method not allowed', { status: 405 });
   const enc = new TextEncoder();
@@ -65,10 +68,142 @@ async function register(request, env) {
   if (!want.length || given.length !== want.length || !crypto.subtle.timingSafeEqual(given, want)) {
     return new Response('forbidden', { status: 403 });
   }
-  const { origin } = await request.json().catch(() => ({}));
+  const { origin, target = 'django' } = await request.json().catch(() => ({}));
   if (!ORIGIN_OK.test(origin || '')) return new Response('bad origin', { status: 400 });
-  await env.CONFIG.put('origin', origin);
-  return Response.json({ ok: true, origin });
+  const key = ORIGIN_KEYS[target];
+  if (!key) return new Response('bad target', { status: 400 });
+  await env.CONFIG.put(key, origin);
+  return Response.json({ ok: true, origin, target });
+}
+
+// ---- Phase 1 of the Supabase move: the public catalogue is answered by Supabase ----
+//
+// GET requests for schools, cities, branches, classes and products go to the store_api functions
+// (supabase/store_api.sql) through the database server's tunnel. Only well-formed requests are sent there,
+// and only a 200 answer is used: anything else (odd parameters, errors, Supabase down or slow)
+// goes to Django exactly as before. Set KV "sb_catalogue" to "off" to send everything to Django.
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const GENDER_WORDS = new Set(['boy', 'girl', 'male', 'female', 'm', 'f']);
+const SUPABASE_TIMEOUT_MS = 4000;
+
+function onlyKeys(params, allowed) {
+  for (const key of params.keys()) if (!allowed.includes(key)) return false;
+  return true;
+}
+
+/** Optional ?school=: absent or blank means every school; anything but a UUID goes to Django. */
+function schoolArg(params, args) {
+  const school = (params.get('school') || '').trim();
+  if (!school) return true;
+  if (!UUID_RE.test(school)) return false;
+  args.school = school;
+  return true;
+}
+
+/** Map one public catalogue request to {fn, args}, or null when Django should answer it. */
+function catalogueCall(url) {
+  const p = url.searchParams;
+  const path = url.pathname;
+  let m;
+  if (path === '/api/public/schools/') {
+    if (!onlyKeys(p, ['search'])) return null;
+    const search = (p.get('search') || '').trim();
+    return { fn: 'schools', args: search ? { search } : {} };
+  }
+  if (path === '/api/public/schools/delivered/' || path === '/api/public/schools/logos/') {
+    return p.toString() ? null : { fn: 'schools_delivered', args: {} };
+  }
+  if ((m = path.match(/^\/api\/public\/schools\/([^/]+)\/cities\/$/))) {
+    if (!UUID_RE.test(m[1]) || p.toString()) return null;
+    return { fn: 'school_cities', args: { school_id: m[1] } };
+  }
+  if (path === '/api/public/states/') {
+    const args = {};
+    if (!onlyKeys(p, ['school']) || !schoolArg(p, args)) return null;
+    return { fn: 'states', args };
+  }
+  if (path === '/api/public/cities/') {
+    const state = (p.get('state') || '').trim();
+    const args = { state };
+    if (!state || !onlyKeys(p, ['state', 'school']) || !schoolArg(p, args)) return null;
+    return { fn: 'cities', args };
+  }
+  if ((m = path.match(/^\/api\/public\/cities\/([^/]+)\/branches\/$/))) {
+    const args = { city_id: m[1], media_base: url.origin };
+    if (!UUID_RE.test(m[1]) || !onlyKeys(p, ['search', 'school']) || !schoolArg(p, args)) return null;
+    const search = (p.get('search') || '').trim();
+    if (search) args.search = search;
+    return { fn: 'city_branches', args };
+  }
+  if (path === '/api/public/grades/') {
+    return p.toString() ? null : { fn: 'grades', args: {} };
+  }
+  if (path === '/api/public/products/') {
+    // Later pages (?cursor=) stay on Django, which made the cursor.
+    if (!onlyKeys(p, ['school', 'class', 'grade', 'gender', 'city', 'category', 'product_type', 'page_size'])) return null;
+    const school = p.get('school') || '';
+    const grade = p.get('class') || p.get('grade') || '';
+    const gender = p.get('gender') || '';
+    const city = p.get('city') || '';
+    if (!UUID_RE.test(school) || !grade || !GENDER_WORDS.has(gender.trim().toLowerCase())) return null;
+    if (city && !UUID_RE.test(city)) return null;
+    const args = { school, grade, gender };
+    if (city) args.city = city;
+    if (p.get('category')) args.category = p.get('category');
+    if (p.get('product_type')) args.product_type = p.get('product_type');
+    if (p.has('page_size')) {
+      // DRF: a positive whole number, capped at 50; anything else means the default 25.
+      const raw = p.get('page_size');
+      const n = /^\d+$/.test(raw) ? parseInt(raw, 10) : 0;
+      args.page_size = String(n > 0 ? Math.min(n, 50) : 25);
+    }
+    return { fn: 'products', args };
+  }
+  return null;
+}
+
+/** DRF CursorPagination link for the page after `afterId` (same as Django's own next link). */
+function nextPageLink(url, afterId) {
+  const next = new URL(url.toString());
+  next.searchParams.set('cursor', btoa(`p=${afterId}`));
+  next.searchParams.sort();
+  return next.toString();
+}
+
+async function fromSupabase(request, env, url) {
+  if (request.method !== 'GET' || !env.STORE_EDGE_SECRET) return null;
+  const call = catalogueCall(url);
+  if (!call) return null;
+  const [origin, switchValue] = await Promise.all([
+    env.CONFIG.get('sb_origin', { cacheTtl: 60 }),
+    env.CONFIG.get('sb_catalogue', { cacheTtl: 60 }),
+  ]);
+  if (!origin || switchValue === 'off') return null;
+  try {
+    const rpc = new URL(`/rpc/${call.fn}`, origin);
+    for (const [k, v] of Object.entries(call.args)) rpc.searchParams.set(k, v);
+    const res = await fetch(rpc.toString(), {
+      headers: { 'x-store-edge': env.STORE_EDGE_SECRET, accept: 'application/json' },
+      signal: AbortSignal.timeout(SUPABASE_TIMEOUT_MS),
+    });
+    if (res.status !== 200) return null;
+    const answer = await res.json();
+    if (!answer || answer.status !== 200) return null;   // errors: let Django word them
+    let body = answer.body;
+    const headers = { 'content-type': 'application/json', 'x-served-by': 'supabase' };
+    if (call.fn === 'products') {
+      body = {
+        next: body.next_after ? nextPageLink(url, body.next_after) : null,
+        previous: null,
+        results: body.results,
+      };
+      headers['cache-control'] = 'no-store';
+    }
+    return attachCors(new Response(JSON.stringify(body), { status: 200, headers }), request);
+  } catch (_) {
+    return null;
+  }
 }
 
 async function forwardToShowcase(env, request, bodyBytes) {
@@ -120,6 +255,11 @@ export default {
     const isAuth = url.pathname === '/api/auth/token/' || url.pathname === '/api/auth/token/refresh/' || url.pathname === '/api/auth/me/';
     const isStoreTransaction = /^\/api\/(auth\/otp|orders|payments)(\/|$)/.test(url.pathname);
     const isPublicRetail = url.pathname.startsWith('/api/public/schools/') || url.pathname.startsWith('/api/public/mockups/');
+
+    if (url.pathname.startsWith('/api/public/')) {
+      const sb = await fromSupabase(request, env, url);
+      if (sb) return sb;
+    }
 
     const bodyBytes = ['POST', 'PUT', 'PATCH'].includes(request.method)
       ? await request.arrayBuffer()
