@@ -1,7 +1,7 @@
 Task M: fix two tests that fail under the default stock setting, and correct the Task L report
 
 Folder ss_latest_work, branch `day3-on-latest` (stop if anything else). HEAD is the Task L merge. One local commit. Never push or deploy. Python:
-/Users/parthghelani/Desktop/project/scholl33/ss_day3_work/backend/.venv/bin/python
+backend/.venv/bin/python
 
 PROBLEM
 `cd backend && USE_SQLITE=1 <python> manage.py test` (default settings, STOCK_SCOPE unset means "india") fails

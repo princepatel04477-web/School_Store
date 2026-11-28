@@ -6,7 +6,7 @@ backend/orders/status.py, payment_view.py, models.py, views.py, serializers.py, 
 ENVIRONMENT (wins over anything else)
 - Folder ss_latest_work, branch `day3-on-latest` (run `git branch --show-current`; stop if it is anything else). `origin/main` is already fetched (384af13). Run `git merge origin/main` (a merge, NOT a rebase,
   never rewrite existing commits). Finish with the merge commit. Never push, never deploy, never touch `main`. Do not read other branches.
-- Python: /Users/parthghelani/Desktop/project/scholl33/ss_day3_work/backend/.venv/bin/python . If main added Python dependencies, make a venv outside the repo and say so. Frontend: run `cd frontend && npm ci` after the merge.
+- Python: backend/.venv/bin/python . If main added Python dependencies, make a venv outside the repo and say so. Frontend: run `cd frontend && npm ci` after the merge.
 - Run each command in the foreground with a long timeout and report its real final line. Never claim a result you did not run. Do not commit .DS_Store.
 
 MERGE RULES
