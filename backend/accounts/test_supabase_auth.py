@@ -1,6 +1,7 @@
 """Phase 2: Supabase Auth issues access tokens; Django keeps checking passwords and sessions."""
 
 import json
+import secrets
 import time
 import uuid
 from unittest import mock
@@ -22,6 +23,11 @@ SB = dict(
     SUPABASE_SERVICE_ROLE_KEY="service",
     SUPABASE_AUTH_ISSUER=ISSUER,
 )
+
+# Made up for each run, so nothing in this file looks like a real credential.
+PW = secrets.token_urlsafe(12)
+NEW_PW = secrets.token_urlsafe(12)
+WRONG_PW = secrets.token_urlsafe(12)
 
 _PRIVATE = ec.generate_private_key(ec.SECP256R1())
 _KID = "test-key"
@@ -93,10 +99,10 @@ class SupabaseSignInTests(TestCase):
         patcher = mock.patch.object(supabase_auth, "_request", self.gotrue)
         patcher.start()
         self.addCleanup(patcher.stop)
-        self.user = User.objects.create_user(username="boss1", password="Right-pass-123", role=User.Role.BOSS)
+        self.user = User.objects.create_user(username="boss1", password=PW, role=User.Role.BOSS)
         self.client = APIClient()
 
-    def login(self, password="Right-pass-123", username="boss1"):
+    def login(self, password=PW, username="boss1"):
         return self.client.post("/api/auth/token/", {"username": username, "password": password}, format="json")
 
     def test_password_sign_in_returns_a_supabase_access_token_and_copies_the_password(self):
@@ -104,11 +110,11 @@ class SupabaseSignInTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(jwt.get_unverified_header(res.data["access"])["alg"], "ES256")
         self.assertEqual(jwt.get_unverified_header(res.data["refresh"])["alg"], "HS256")  # Django keeps the refresh
-        self.assertEqual(self.gotrue.users[str(self.user.id)]["password"], "Right-pass-123")
+        self.assertEqual(self.gotrue.users[str(self.user.id)]["password"], PW)
         self.assertEqual(res.data["user"]["username"], "boss1")
 
     def test_wrong_password_never_reaches_supabase(self):
-        res = self.login(password="wrong")
+        res = self.login(password=WRONG_PW)
         self.assertEqual(res.status_code, 401)
         self.assertFalse([c for c in self.gotrue.calls if "grant_type=password" in c[1]])
 
@@ -120,12 +126,12 @@ class SupabaseSignInTests(TestCase):
 
     def test_a_changed_django_password_is_carried_over_and_the_old_one_stops_working(self):
         self.login()
-        self.user.set_password("New-pass-456")
+        self.user.set_password(NEW_PW)
         self.user.save()
-        self.assertEqual(self.login(password="Right-pass-123").status_code, 401)  # Django refuses first
-        res = self.login(password="New-pass-456")
+        self.assertEqual(self.login(password=PW).status_code, 401)  # Django refuses first
+        res = self.login(password=NEW_PW)
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(self.gotrue.users[str(self.user.id)]["password"], "New-pass-456")
+        self.assertEqual(self.gotrue.users[str(self.user.id)]["password"], NEW_PW)
 
     def test_the_supabase_token_works_on_django_endpoints(self):
         access = self.login().data["access"]
@@ -167,7 +173,7 @@ class SupabaseTokenCheckTests(TestCase):
         patcher = mock.patch.object(supabase_auth, "_request", self.gotrue)
         patcher.start()
         self.addCleanup(patcher.stop)
-        self.user = User.objects.create_user(username="admin1", password="x-123456789", role=User.Role.ADMIN)
+        self.user = User.objects.create_user(username="admin1", password=PW, role=User.Role.ADMIN)
         self.client = APIClient()
 
     def me(self, token):
@@ -209,10 +215,10 @@ class SupabaseAccountSyncTests(TestCase):
         patcher = mock.patch.object(supabase_auth, "_request", self.gotrue)
         patcher.start()
         self.addCleanup(patcher.stop)
-        self.user = User.objects.create_user(username="t1", password="Teach-123456", role=User.Role.TEACHER)
+        self.user = User.objects.create_user(username="t1", password=PW, role=User.Role.TEACHER)
 
     def test_role_and_pause_reach_an_existing_supabase_account(self):
-        supabase_auth.sync_user(self.user, password="Teach-123456")
+        supabase_auth.sync_user(self.user, password=PW)
         with self.captureOnCommitCallbacks(execute=True):
             self.user.all_schools_access = True
             self.user.is_active = False
@@ -229,4 +235,4 @@ class SupabaseAccountSyncTests(TestCase):
 
     def test_new_supabase_accounts_get_a_random_password_when_none_is_given(self):
         supabase_auth.sync_user(self.user)
-        self.assertNotEqual(self.gotrue.users[str(self.user.id)]["password"], "Teach-123456")
+        self.assertNotEqual(self.gotrue.users[str(self.user.id)]["password"], PW)
