@@ -1,0 +1,76 @@
+# School Store TEST COPY on Coolify (the database server). Not the live store.
+#
+# web   Django + the React site (deploy/coolify/Dockerfile), on the test database store_staging
+# auth  its own Supabase Auth (GoTrue), keeping its accounts in store_staging's auth schema
+# redis cache and Celery broker for this copy only
+#
+# The database itself is the Supabase Postgres container ("db" on the supabase_default network).
+# Secrets are Coolify environment variables, never in git.
+services:
+  web:
+    build:
+      # Relative to this file, so plain `docker compose -f deploy/coolify/docker-compose.yml` works too.
+      # In Coolify: Base Directory /deploy/coolify, Docker Compose Location /docker-compose.yml.
+      context: ../..
+      dockerfile: deploy/coolify/Dockerfile
+    restart: unless-stopped
+    environment:
+      SERVICE_FQDN_WEB_8000: ""
+      DJANGO_DEBUG: "0"
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: redis://redis:6379
+      SECURE_SSL_REDIRECT: "0"
+      SECURE_HSTS_SECONDS: "0"
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${SITE_ORIGIN}
+      CORS_ALLOWED_ORIGINS: ${SITE_ORIGIN}
+      OTP_DEMO_MODE: "1"
+      SMS_PROVIDER: ""
+      CELERY_TASK_ALWAYS_EAGER: "1"
+      SUPABASE_AUTH_URL: http://auth:9999
+      SUPABASE_AUTH_ISSUER: ${AUTH_ISSUER}
+      SUPABASE_ANON_KEY: ${AUTH_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${AUTH_SERVICE_ROLE_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+      auth:
+        condition: service_started
+    networks: [default, supabase_default]
+
+  auth:
+    image: supabase/gotrue:v2.198.0
+    restart: unless-stopped
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: "9999"
+      API_EXTERNAL_URL: ${AUTH_ISSUER}
+      GOTRUE_SITE_URL: ${SITE_ORIGIN}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: ${AUTH_DATABASE_URL}
+      GOTRUE_DISABLE_SIGNUP: "true"
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: "3600"
+      GOTRUE_JWT_ISSUER: ${AUTH_ISSUER}
+      GOTRUE_JWT_SECRET: ${AUTH_JWT_SECRET}
+      GOTRUE_JWT_KEYS: ${AUTH_JWT_KEYS}
+    networks: [default, supabase_default]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+networks:
+  supabase_default:
+    external: true
