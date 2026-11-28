@@ -21,6 +21,7 @@ from .views import (
     TeacherSummaryView,
     PanelFilterOptionsView,
     PanelOrdersView,
+    PaymentsToCheckView,
     PanelSchoolsView,
     PanelStudentImportViewSet,
     PanelStudentViewSet,
@@ -36,6 +37,7 @@ router.register("exports", ExportJobViewSet, basename="panel-export")
 router.register("tailor-sheets", TailorSheetViewSet, basename="panel-tailor-sheet")
 
 urlpatterns = [
+    path("payments/needs-reconciliation/", PaymentsToCheckView.as_view(), name="payments-to-check"),
     path("dashboard/", DashboardView.as_view(), name="panel-dashboard"),
     path("commission/", CommissionView.as_view(), name="panel-commission"),
     path("schools/", PanelSchoolsView.as_view(), name="panel-schools"),

@@ -54,7 +54,7 @@ class PaymentMethodTests(TestCase):
         return StockBalance.objects.get(city_id=order.city_id, variant=self.variant).stock_quantity
 
     def _age(self, order):
-        Order.objects.filter(pk=order.pk).update(created_at=timezone.now() - timedelta(minutes=16))
+        Order.objects.filter(pk=order.pk).update(hold_expires_at=timezone.now() - timedelta(minutes=1))
 
     def test_cash_on_delivery_order_survives_the_unpaid_timer(self):
         data = self._place(payment_method="COD")

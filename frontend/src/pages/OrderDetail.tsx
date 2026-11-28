@@ -116,7 +116,8 @@ export function OrderDetail({
 }: {
   initialCopyStatus?: 'idle' | 'copied' | 'failed';
 } = {}) {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id?: string; orderId?: string }>();
+  const id = params.id || params.orderId;
   const navigate = useNavigate();
   const { t } = useLang();
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>(initialCopyStatus);

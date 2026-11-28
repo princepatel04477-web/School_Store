@@ -108,7 +108,7 @@ describe('Uniform Portal Frontend Tests', () => {
       </Routes>
     );
 
-    expect(screen.getByText('Redirected to /parent')).toBeTruthy();
+    expect(screen.getByText('Redirected to /account')).toBeTruthy();
   });
 
   it('/portal renders successfully for BOSS and displays navigation tabs', async () => {

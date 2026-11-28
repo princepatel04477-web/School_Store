@@ -125,3 +125,9 @@ export const Receipt = makeIcon('receipt', <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z
 export const Download = makeIcon('download', <path d="M12 4v11M7 10l5 5 5-5M4 20h16" />);
 export const Bell = makeIcon('bell', <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />);
 export const SignOut = makeIcon('sign-out', <path d="M10 4H4v16h6M14 8l4 4-4 4M8 12h10" />);
+export const Smartphone = makeIcon('smartphone', <path d="M7 3h10v18H7zM11 18h2" />);
+export const KeyIcon = makeIcon('key', <path d="M8 20a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM11.2 12.3L20 3.5M16.5 7l2.5 2.5M14 9.5l2 2" />);
+export const UserPlus = makeIcon(
+  'user-plus',
+  <path d="M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 21v-2a5 5 0 0 1 5-5h4M18 14v6M15 17h6" />
+);

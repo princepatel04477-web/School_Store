@@ -5,6 +5,7 @@ from .device_views import DeviceTokenDetailView, DeviceTokenView
 from .feedback_views import OrderItemFitFeedbackView
 from .upload_views import (
     PresignedUploadUrlView,
+    StudentPhotoCustomisationView,
     local_storage_download_view,
     local_storage_upload_view,
 )
@@ -20,6 +21,11 @@ fulfilment_router.register("fulfilment", FulfilmentViewSet, basename="fulfilment
 
 urlpatterns = [
     path("orders/customisation-upload-url/", PresignedUploadUrlView.as_view(), name="customisation-upload-url"),
+    path(
+        "orders/customisation-from-student-photo/",
+        StudentPhotoCustomisationView.as_view(),
+        name="customisation-from-student-photo",
+    ),
     path("orders/photo-consent/", PhotoConsentCreateView.as_view(), name="photo-consent-create"),
     path("orders/photo-consent/delete/", PhotoConsentDeleteView.as_view(), name="photo-consent-delete"),
     path("storage/local-upload/", local_storage_upload_view, name="local-storage-upload"),

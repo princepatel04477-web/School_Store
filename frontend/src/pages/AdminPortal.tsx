@@ -1,10 +1,11 @@
 import { Routes, Route, NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../auth';
-import { SchoolBuilding, Package, Receipt, ArrowRight, SignOut } from '../components/ui/icons';
+import { SchoolBuilding, Package, Receipt, ArrowRight, SignOut, Users } from '../components/ui/icons';
 import { UniformCatalogView } from '../components/admin/UniformCatalogView';
 import { SchoolManagerView } from '../components/admin/SchoolManagerView';
 import { CityAvailabilityView } from '../components/admin/CityAvailabilityView';
 import { CityPricingView } from '../components/admin/CityPricingView';
+import { TeacherControlView } from '../components/admin/TeacherControlView';
 import '../components/admin/portal.css';
 
 export default function AdminPortal() {
@@ -93,6 +94,14 @@ export default function AdminPortal() {
             <Receipt width={17} height={17} />
             <span>City Pricing & Overrides</span>
           </NavLink>
+
+          <NavLink
+            to="teachers"
+            className={({ isActive }) => `portal-nav-tab ${isActive ? 'active' : ''}`}
+          >
+            <Users width={17} height={17} />
+            <span>Teachers & ID Access</span>
+          </NavLink>
         </div>
       </nav>
 
@@ -105,6 +114,7 @@ export default function AdminPortal() {
           <Route path="stock" element={<CityAvailabilityView />} />
           <Route path="pricing" element={<CityPricingView />} />
           <Route path="prices" element={<CityPricingView />} />
+          <Route path="teachers" element={<TeacherControlView />} />
         </Routes>
       </main>
 

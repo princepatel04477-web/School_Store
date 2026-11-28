@@ -20,7 +20,7 @@ from common.cache_utils import (
     versioned_cache_key,
 )
 from common.pagination import BoundedCursorPagination
-from inventory.services import stock_flags
+from inventory.services import sales_stock_city, stock_flags
 from schools.models import School
 
 from .images import product_gallery, product_image, product_image_alt, product_thumbnail
@@ -60,7 +60,7 @@ class PublicSchoolListView(APIView):
                 pass
 
         qs = (
-            School.objects.filter(active=True)
+            School.objects.filter(active=True, is_public_store=True)
             .select_related("city")
             .prefetch_related(Prefetch("grades", queryset=Grade.objects.order_by("sort_order").only("id", "name")))
             .order_by("name")
@@ -157,7 +157,7 @@ class PublicSchoolCitiesView(APIView):
         except (TypeError, ValueError, AttributeError) as exc:
             raise ValidationError({"school": "Provide a valid school UUID."}) from exc
 
-        school = School.objects.filter(pk=school_uuid, active=True).only("id", "city_id").first()
+        school = School.objects.filter(pk=school_uuid, active=True, is_public_store=True).only("id", "city_id").first()
         if school is None:
             raise NotFound("School not found.")
 
@@ -219,7 +219,12 @@ def _cached(namespace: str, key: str, build):
 
 def _open_branches(request):
     """Open branches, limited to one school when the shop passes ?school=<uuid>."""
-    qs = SchoolBranch.objects.filter(active=True, school__active=True, city__active=True)
+    qs = SchoolBranch.objects.filter(
+        active=True,
+        school__active=True,
+        school__is_public_store=True,
+        city__active=True,
+    )
     school = (request.query_params.get("school") or "").strip()
     if school:
         try:
@@ -420,7 +425,7 @@ class PublicProductList(APIView):
         except (TypeError, ValueError, AttributeError) as exc:
             raise ValidationError({"school": "Provide a valid school UUID."}) from exc
 
-        school = School.objects.filter(pk=school_uuid, active=True).only("id", "city_id").first()
+        school = School.objects.filter(pk=school_uuid, active=True, is_public_store=True).only("id", "city_id").first()
         if school is None:
             raise ValidationError({"school": "School not found or inactive."})
 
@@ -587,7 +592,7 @@ class PublicProductList(APIView):
     @staticmethod
     def with_availability(data, city_id):
         variant_ids = [variant["id"] for product in data["results"] for variant in product["variants"]]
-        flags = stock_flags(city_id, variant_ids, missing=None)
+        flags = stock_flags(sales_stock_city(city_id), variant_ids, missing=None)
         results = [
             {
                 **product,

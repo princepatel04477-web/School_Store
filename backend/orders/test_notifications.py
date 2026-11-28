@@ -67,6 +67,7 @@ class PushNotificationTests(TestCase):
             subtotal=Decimal("300.00"),
             total=Decimal("300.00"),
             status=Order.Status.CONFIRMED,
+            payment_method=Order.PaymentMethod.CASH_ON_DELIVERY,
             fulfillment_type=fulfillment,
         )
         OrderItem.objects.create(

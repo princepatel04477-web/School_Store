@@ -24,6 +24,8 @@ const indexLabel = (i: number) => String(i + 1).padStart(2, '0');
 
 export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps) {
   const { user } = useAuth();
+  // Staff signed in on this phone see Sign in here, so a parent account is one tap away
+  const isParent = user?.role === 'PARENT';
   const { t } = useLang();
   const { totalCount, selection } = useStoreState();
 
@@ -184,8 +186,8 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
               <Search width={20} height={20} strokeWidth={1.5} />
             </button>
 
-            {user ? (
-              <Link to="/parent" className="action-account-btn" aria-label={t('nav.myAccount')}>
+            {isParent ? (
+              <Link to="/account" className="action-account-btn" aria-label={t('nav.myAccount')}>
                 <User width={20} height={20} strokeWidth={1.5} />
               </Link>
             ) : (
@@ -196,10 +198,10 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
 
             {/* A direct, always-visible profile entry for phone users. */}
             <Link
-              to={user ? '/parent' : '/login'}
+              to={user?.role === 'PARENT' ? '/account' : '/login'}
               className="mobile-profile-btn"
-              aria-label={user ? t('nav.myAccount') : t('nav.signIn')}
-              title={user ? t('nav.myAccount') : t('nav.signIn')}
+              aria-label={isParent ? t('nav.myAccount') : t('nav.signIn')}
+              title={isParent ? t('nav.myAccount') : t('nav.signIn')}
             >
               <User width={20} height={20} strokeWidth={1.5} />
             </Link>
@@ -291,8 +293,8 @@ export function Header({ onOpenBag, onOpenSearch, onOpenLanguage }: HeaderProps)
               <Link to="/help" className="sheet-secondary-item" onClick={closeMenu}>
                 {t('nav.help')}
               </Link>
-              {user ? (
-                <Link to="/parent" className="sheet-secondary-item" onClick={closeMenu}>
+              {isParent ? (
+                <Link to="/account" className="sheet-secondary-item" onClick={closeMenu}>
                   {t('nav.myAccount')}
                 </Link>
               ) : (

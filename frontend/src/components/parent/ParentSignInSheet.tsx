@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X } from '../ui/icons';
+import { KeyIcon, Smartphone, UserPlus, X } from '../ui/icons';
 import { ApiError, auth as authApi, parentChildren, type ParentChild } from '../../api';
 import { useLang, type MessageKey } from '../../i18n';
 import { classLabel as translateClass } from '../../i18n/labels';
@@ -9,7 +9,8 @@ import { SchoolCrest } from '../school/SchoolCrest';
 import { EASING } from '../../motion/motionConfig';
 import './parentSignIn.css';
 
-type Step = 'phone' | 'otp' | 'children' | 'find';
+export type SignInStep = 'choose' | 'phone' | 'otp' | 'password' | 'register' | 'children' | 'find';
+type Step = SignInStep;
 
 export interface ParentSignInSheetProps {
   open: boolean;
@@ -18,6 +19,10 @@ export interface ParentSignInSheetProps {
   onDone: (child: ParentChild | null) => void;
   /** School the parent picked in the shop, used to pre-select it in the find form. */
   schoolName?: string;
+  /** Skip the child-picker step after OTP verification (used on /account). */
+  skipChildPicker?: boolean;
+  /** Screen to open on. Defaults to the choice between OTP and a user ID. */
+  initialStep?: 'choose' | 'phone' | 'password' | 'register';
 }
 
 const RESEND_SECONDS = 30;
@@ -39,16 +44,51 @@ function sendError(err: unknown): MessageKey {
   return 'signin.sendFailed';
 }
 
+/** User IDs: small letters, numbers, dot and underscore, with at least one letter. */
+const USER_ID = /^(?=.*[a-z])[a-z0-9._]{4,30}$/;
+const MIN_PASSWORD = 6;
+
+/** The server's field errors on create account, in the parent's language. */
+function registerError(err: unknown): MessageKey {
+  if (!(err instanceof ApiError)) return 'err.offline';
+  if (err.status === 429) return 'signin.tooMany';
+  const field = (name: string) => {
+    const v = err.data[name];
+    return Array.isArray(v) ? String(v[0] ?? '') : typeof v === 'string' ? v : '';
+  };
+  if (field('phone')) return /exist/i.test(field('phone')) ? 'signin.phoneTaken' : 'co.err.mobile';
+  if (field('username')) return /taken|exist/i.test(field('username')) ? 'signin.idTaken' : 'signin.errUserId';
+  if (field('password')) return 'signin.errPassword';
+  return 'signin.createFailed';
+}
+
 /**
- * Parent sign-in in as few fields as possible:
+ * Parent sign-in. The first screen offers two ways in: a mobile number and OTP
+ * (the account is made on first use), or a user ID and password the parent
+ * picks. Returning parents can sign in with that user ID and password.
+ *
+ * After OTP: as few fields as possible:
  * mobile number -> OTP -> tap your child. Children come from the school's list
  * (no typing). Only when the school's list has no phone for this parent do we
  * ask for two things: GR number and date of birth.
  */
-export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentSignInSheetProps) {
-  const { user, signInWithOtp } = useAuth();
+export function ParentSignInSheet({
+  open,
+  onClose,
+  onDone,
+  schoolName,
+  skipChildPicker = false,
+  initialStep = 'choose',
+}: ParentSignInSheetProps) {
+  const { user, signIn, signUp, signInWithOtp } = useAuth();
   const { t } = useLang();
-  const [step, setStep] = useState<Step>('phone');
+  const [step, setStep] = useState<Step>(initialStep);
+  const [loginId, setLoginId] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [userId, setUserId] = useState('');
+  const [phoneTaken, setPhoneTaken] = useState(false);
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [testCode, setTestCode] = useState<string | null>(null);
@@ -66,10 +106,12 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
   useEffect(() => {
     if (!open) return;
     setError('');
+    setPhoneTaken(false);
     if (user?.role === 'PARENT') {
-      void loadChildren();
+      if (skipChildPicker) onDone(null);
+      else void loadChildren();
     } else {
-      setStep('phone');
+      setStep(initialStep);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -120,8 +162,8 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
     setBusy(true);
     setError('');
     try {
-      await signInWithOtp(digits, code);
-      await loadChildren();
+      const { user: signedIn } = await signInWithOtp(digits, code);
+      await afterSignIn(signedIn.role);
     } catch (err) {
       let message: MessageKey = 'err.offline';
       if (err instanceof ApiError) {
@@ -131,6 +173,77 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
       }
       setError(t(message));
       setOtp('');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** After any sign-in: parents go on to their child, anyone else is done. */
+  async function afterSignIn(role: string) {
+    if (skipChildPicker || role !== 'PARENT') {
+      onDone(null);
+      return;
+    }
+    await loadChildren();
+  }
+
+  function go(next: Step) {
+    setError('');
+    setPhoneTaken(false);
+    setShowPassword(false);
+    setStep(next);
+  }
+
+  async function submitPassword(e: FormEvent) {
+    e.preventDefault();
+    const id = loginId.trim();
+    if (!id || !password || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const signedIn = await signIn(id, password);
+      await afterSignIn(signedIn.role);
+    } catch (err) {
+      let message: MessageKey = 'err.offline';
+      if (err instanceof ApiError) {
+        if (err.status === 429) message = 'signin.tooMany';
+        else if (err.status === 400 || err.status === 401) message = 'signin.wrongPassword';
+        else message = 'signin.verifyFailed';
+      }
+      setError(t(message));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const userIdValid = USER_ID.test(userId);
+  const nameValid = fullName.trim().length >= 2;
+  const newPasswordValid = password.length >= MIN_PASSWORD;
+
+  async function submitRegister(e: FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    if (!nameValid) return setError(t('signin.errName'));
+    if (!phoneValid) return setError(t('co.err.mobile'));
+    if (!userIdValid) return setError(t('signin.errUserId'));
+    if (!newPasswordValid) return setError(t('signin.errPassword'));
+    setBusy(true);
+    setError('');
+    setPhoneTaken(false);
+    const [first, ...rest] = fullName.trim().split(/\s+/);
+    try {
+      const signedIn = await signUp({
+        phone: digits,
+        username: userId,
+        password,
+        first_name: first,
+        last_name: rest.join(' '),
+      });
+      await afterSignIn(signedIn.role);
+    } catch (err) {
+      const message = registerError(err);
+      setPhoneTaken(message === 'signin.phoneTaken');
+      setError(t(message));
     } finally {
       setBusy(false);
     }
@@ -190,7 +303,10 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
   const title = useMemo(
     () =>
       ({
-        phone: t('signin.title'),
+        choose: t('signin.chooseTitle'),
+        phone: t('signin.optOtp'),
+        password: t('signin.passwordTitle'),
+        register: t('signin.createTitle'),
         otp: t('signin.otpTitle'),
         children: children.length > 1 ? t('signin.whichChild') : t('signin.isThisChild'),
         find: t('signin.findTitle'),
@@ -228,6 +344,170 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
               </button>
             </div>
 
+            {step === 'choose' && (
+              <div className="psi-body">
+                <p className="psi-lead">{t('signin.chooseLead')}</p>
+                <button type="button" className="psi-choice" onClick={() => go('phone')}>
+                  <Smartphone width={28} height={28} strokeWidth={1.6} className="psi-choice-icon" />
+                  <span className="psi-choice-text">
+                    <strong>{t('signin.optOtp')}</strong>
+                    <span>{t('signin.optOtpHint')}</span>
+                  </span>
+                </button>
+                <button type="button" className="psi-choice" onClick={() => go('register')}>
+                  <UserPlus width={28} height={28} strokeWidth={1.6} className="psi-choice-icon" />
+                  <span className="psi-choice-text">
+                    <strong>{t('signin.optCreate')}</strong>
+                    <span>{t('signin.optCreateHint')}</span>
+                  </span>
+                </button>
+                <button type="button" className="psi-choice psi-choice-quiet" onClick={() => go('password')}>
+                  <KeyIcon width={24} height={24} strokeWidth={1.6} className="psi-choice-icon" />
+                  <span className="psi-choice-text">
+                    <strong>{t('signin.optPassword')}</strong>
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {step === 'password' && (
+              <form className="psi-body" onSubmit={submitPassword}>
+                <label className="psi-label" htmlFor="psi-login">
+                  {t('signin.idOrMobile')}
+                </label>
+                <input
+                  id="psi-login"
+                  className="psi-input"
+                  type="text"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  autoComplete="username"
+                  value={loginId}
+                  onChange={(e) => setLoginId(e.target.value)}
+                  autoFocus
+                />
+                <label className="psi-label" htmlFor="psi-password">
+                  {t('signin.password')}
+                </label>
+                <div className="psi-password">
+                  <input
+                    id="psi-password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <button type="button" className="psi-reveal" onClick={() => setShowPassword((v) => !v)}>
+                    {showPassword ? t('signin.hide') : t('signin.show')}
+                  </button>
+                </div>
+                {error && <p className="psi-error" role="alert">{error}</p>}
+                <button type="submit" className="btn btn-primary psi-cta" disabled={!loginId.trim() || !password || busy}>
+                  {busy ? t('signin.signingIn') : t('signin.signIn')}
+                </button>
+                <div className="psi-links">
+                  <button type="button" className="psi-link" onClick={() => go('phone')}>
+                    {t('signin.forgot')}
+                  </button>
+                  <button type="button" className="psi-link" onClick={() => go('register')}>
+                    {t('signin.noAccount')}
+                  </button>
+                  <button type="button" className="psi-link" onClick={() => go('choose')}>
+                    {t('signin.otherWays')}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {step === 'register' && (
+              <form className="psi-body" onSubmit={submitRegister} noValidate>
+                <p className="psi-lead">{t('signin.createLead')}</p>
+                <label className="psi-label" htmlFor="psi-name">
+                  {t('signin.name')}
+                </label>
+                <input
+                  id="psi-name"
+                  className="psi-input"
+                  type="text"
+                  autoComplete="name"
+                  autoCapitalize="words"
+                  maxLength={80}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  autoFocus
+                />
+                <label className="psi-label" htmlFor="psi-reg-phone">
+                  {t('co.mobile')}
+                </label>
+                <div className="psi-phone">
+                  <span className="psi-cc">+91</span>
+                  <input
+                    id="psi-reg-phone"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    placeholder="98200 11223"
+                    maxLength={14}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/[^\d ]/g, ''))}
+                  />
+                </div>
+                <label className="psi-label" htmlFor="psi-userid">
+                  {t('signin.userId')}
+                </label>
+                <input
+                  id="psi-userid"
+                  className="psi-input"
+                  type="text"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  autoComplete="username"
+                  maxLength={30}
+                  placeholder="e.g. ravi.patel"
+                  aria-describedby="psi-userid-hint"
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, ''))}
+                />
+                <p className="psi-hint" id="psi-userid-hint">{t('signin.userIdHint')}</p>
+                <label className="psi-label" htmlFor="psi-new-password">
+                  {t('signin.newPassword')}
+                </label>
+                <div className="psi-password">
+                  <input
+                    id="psi-new-password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    aria-describedby="psi-password-hint"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <button type="button" className="psi-reveal" onClick={() => setShowPassword((v) => !v)}>
+                    {showPassword ? t('signin.hide') : t('signin.show')}
+                  </button>
+                </div>
+                <p className="psi-hint" id="psi-password-hint">{t('signin.passwordHint')}</p>
+                {error && <p className="psi-error" role="alert">{error}</p>}
+                {phoneTaken && (
+                  <button type="button" className="btn btn-secondary psi-cta" onClick={() => go('phone')}>
+                    {t('signin.optOtp')}
+                  </button>
+                )}
+                <button type="submit" className="btn btn-primary psi-cta" disabled={busy}>
+                  {busy ? t('signin.creating') : t('signin.create')}
+                </button>
+                <div className="psi-links">
+                  <button type="button" className="psi-link" onClick={() => go('password')}>
+                    {t('signin.haveAccount')}
+                  </button>
+                  <button type="button" className="psi-link" onClick={() => go('choose')}>
+                    {t('signin.otherWays')}
+                  </button>
+                </div>
+              </form>
+            )}
+
             {step === 'phone' && (
               <form className="psi-body" onSubmit={sendOtp}>
                 <p className="psi-lead">{t('signin.lead')}</p>
@@ -252,6 +532,11 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
                 <button type="submit" className="btn btn-primary psi-cta" disabled={!phoneValid || busy}>
                   {busy ? t('signin.sending') : t('signin.send')}
                 </button>
+                <div className="psi-links">
+                  <button type="button" className="psi-link" onClick={() => go('choose')}>
+                    {t('signin.otherWays')}
+                  </button>
+                </div>
               </form>
             )}
 
@@ -259,7 +544,7 @@ export function ParentSignInSheet({ open, onClose, onDone, schoolName }: ParentS
               <div className="psi-body">
                 <p className="psi-lead">
                   {t('signin.sentTo', { mobile: `+91 ${digits.slice(0, 5)} ${digits.slice(5)}` })}{' '}
-                  <button type="button" className="psi-link" onClick={() => setStep('phone')}>
+                  <button type="button" className="psi-link" onClick={() => go('phone')}>
                     {t('nav.change')}
                   </button>
                 </p>

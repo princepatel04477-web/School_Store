@@ -140,7 +140,7 @@ export function AboutPage({ onOpenBag, onOpenLanguage }: AboutPageProps) {
 
           {/* Sign in, or the parent's own page once signed in (staff are sent to their panel). */}
           <Link
-            to={user ? '/parent' : '/login'}
+            to={user?.role === 'PARENT' ? '/account' : '/login'}
             className="about-bag-btn about-profile-btn"
             aria-label={user ? t('nav.myAccount') : t('nav.signIn')}
             title={user ? t('nav.myAccount') : t('nav.signIn')}

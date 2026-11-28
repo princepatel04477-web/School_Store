@@ -1,3 +1,5 @@
+from django.utils import timezone
+from .payment_view import HOLD_DURATION, payment_view
 import uuid
 from decimal import Decimal
 from typing import NamedTuple
@@ -6,14 +8,56 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.db.models.functions import Now
-from rest_framework import serializers
+from rest_framework import exceptions, serializers
 from rest_framework.exceptions import PermissionDenied
 
 from catalog.models import ProductVariant
 from inventory.models import StockBalance, StockMovement
+from inventory.services import sales_stock_city
 from schools.models import Student
 
-from .models import Order, OrderItem, OrderStatusEvent, Shipment
+from .models import (
+    Order,
+    OrderItem,
+    OrderStatusEvent,
+    PaymentAttempt,
+    PaymentReview,
+    Shipment,
+)
+
+
+class PaymentAttemptSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentAttempt
+        fields = (
+            "id",
+            "razorpay_payment_id",
+            "status",
+            "method",
+            "amount_paise",
+            "currency",
+            "error_code",
+            "error_reason",
+            "first_seen_at",
+            "updated_at",
+            "last_source",
+        )
+        read_only_fields = fields
+
+
+class PaymentReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentReview
+        fields = (
+            "id",
+            "order",
+            "payment_id",
+            "reason",
+            "created_at",
+            "resolved_at",
+            "notes",
+        )
+        read_only_fields = fields
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -193,6 +237,11 @@ class OrderListSerializer(serializers.ModelSerializer):
     city_name = serializers.CharField(source="city.name", read_only=True)
     tracking = serializers.SerializerMethodField()
 
+    payment_view = serializers.SerializerMethodField()
+
+    def get_payment_view(self, obj):
+        return payment_view(obj)
+
     class Meta:
         model = Order
         fields = (
@@ -205,6 +254,7 @@ class OrderListSerializer(serializers.ModelSerializer):
             "city_name",
             "placed_by_role",
             "status",
+            "payment_view",
             "payment_status",
             "fulfillment_type",
             "payment_method",
@@ -231,6 +281,7 @@ class ParentOrderDetailSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     status_events = ParentOrderStatusEventSerializer(many=True, read_only=True)
     tracking = serializers.SerializerMethodField()
+    payment_view = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -250,6 +301,7 @@ class ParentOrderDetailSerializer(serializers.ModelSerializer):
             "city",
             "city_name",
             "status",
+            "payment_view",
             "payment_status",
             "fulfillment_type",
             "payment_method",
@@ -267,6 +319,9 @@ class ParentOrderDetailSerializer(serializers.ModelSerializer):
     def get_tracking(self, obj):
         data = get_order_tracking(obj)
         return OrderTrackingSerializer(data).data
+
+    def get_payment_view(self, obj):
+        return payment_view(obj)
 
 
 class OrderDetailSerializer(serializers.ModelSerializer):
@@ -280,6 +335,14 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     status_events = OrderStatusEventSerializer(many=True, read_only=True)
     tracking = serializers.SerializerMethodField()
+    payment_attempts = PaymentAttemptSerializer(many=True, read_only=True)
+    payment_reviews = PaymentReviewSerializer(many=True, read_only=True)
+    last_attempt_failed = serializers.SerializerMethodField()
+
+    payment_view = serializers.SerializerMethodField()
+
+    def get_payment_view(self, obj):
+        return payment_view(obj)
 
     class Meta:
         model = Order
@@ -299,6 +362,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "city",
             "city_name",
             "status",
+            "payment_view",
             "payment_status",
             "fulfillment_type",
             "payment_method",
@@ -310,6 +374,9 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "items",
             "status_events",
             "tracking",
+            "payment_attempts",
+            "payment_reviews",
+            "last_attempt_failed",
             "created_at",
             "updated_at",
         )
@@ -318,6 +385,12 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     def get_tracking(self, obj):
         data = get_order_tracking(obj)
         return OrderTrackingSerializer(data).data
+
+    def get_last_attempt_failed(self, obj):
+        last = obj.payment_attempts.order_by("-first_seen_at").first()
+        if last and last.status == PaymentAttempt.Status.FAILED:
+            return last.error_reason or last.error_code or "Payment attempt failed"
+        return None
 
 
 class OrderFitInputSerializer(serializers.Serializer):
@@ -374,8 +447,137 @@ def _checked_fit(raw: dict, field: str) -> LineFit:
     return LineFit(check, source, edited, model_version)
 
 
+class PriceChanged(exceptions.APIException):
+    status_code = 409
+    default_detail = {"code": "price_changed"}
+    default_code = "price_changed"
+
+    def __init__(self, quote_data):
+        clean_quote = {k: v for k, v in quote_data.items() if not k.startswith("_")}
+        self.detail = {"code": "price_changed", "quote": clean_quote}
+
+
+def calculate_order_pricing_and_validate(student, items_data, user=None):
+    from catalog.catalogue import validate_product_match
+    from catalog.models import ProductCityPrice
+    from .payment import RazorpayGateway
+
+    city_id = student.city_id or student.school.city_id
+    stock_city_id = sales_stock_city(city_id)
+    variant_ids = sorted({item["variant"].id for item in items_data}, key=str)
+    variants = {
+        variant.id: variant
+        for variant in ProductVariant.objects.select_related(
+            "product", "product__category"
+        )
+        .prefetch_related("product__grades")
+        .filter(id__in=variant_ids)
+        .order_by("id")
+    }
+    if len(variants) != len(variant_ids):
+        raise serializers.ValidationError(
+            {"items": "One or more variants do not exist."}
+        )
+
+    for variant in variants.values():
+        if not variant.active:
+            raise serializers.ValidationError(
+                {"items": f"SKU {variant.sku} is not available."}
+            )
+        try:
+            validate_product_match(
+                product=variant.product,
+                school_id=student.school_id,
+                class_name_or_grade=student.grade or student.class_name,
+                gender=student.gender,
+            )
+        except serializers.ValidationError as err:
+            msg = err.detail[0] if isinstance(err.detail, list) else str(err.detail)
+            raise serializers.ValidationError({"items": msg})
+
+    quantities = {}
+    for item in items_data:
+        variant_id = item["variant"].id
+        quantities[variant_id] = quantities.get(variant_id, 0) + item["quantity"]
+        OrderCreateSerializer._validate_customisation(
+            variants[variant_id].product.customisation_schema,
+            item.get("customisation_data") or {},
+        )
+
+    balances = {
+        balance.variant_id: balance
+        for balance in StockBalance.objects.filter(
+            city_id=stock_city_id, variant_id__in=variant_ids
+        ).order_by("variant_id")
+    }
+    if len(balances) != len(variant_ids):
+        missing = [str(variant_id) for variant_id in variant_ids if variant_id not in balances]
+        raise serializers.ValidationError(
+            {"items": f"No stock balance is configured for this city's variant(s): {', '.join(missing)}."}
+        )
+
+    for variant_id in variant_ids:
+        if balances[variant_id].stock_quantity < quantities[variant_id]:
+            raise serializers.ValidationError(
+                {"items": f"Insufficient stock for SKU {variants[variant_id].sku} in this city."}
+            )
+
+    city_prices = {
+        cp.product_id: cp.selling_price
+        for cp in ProductCityPrice.objects.filter(
+            city_id=city_id,
+            active=True,
+            product_id__in=[v.product_id for v in variants.values()],
+        )
+    }
+
+    lines = []
+    subtotal = Decimal("0.00")
+    for item in items_data:
+        variant = variants[item["variant"].id]
+        quantity = item["quantity"]
+        unit_price = city_prices.get(variant.product_id, variant.product.selling_price)
+        line_total = unit_price * quantity
+        subtotal += line_total
+        lines.append({
+            "variant": str(variant.id),
+            "sku": variant.sku,
+            "name": variant.product.name,
+            "size": variant.size,
+            "quantity": quantity,
+            "unit_price": str(unit_price),
+            "line_total": str(line_total),
+        })
+
+    total = subtotal
+    total_paise = int(total * 100)
+
+    gateway = RazorpayGateway()
+    payment_methods = []
+    if gateway.is_usable():
+        payment_methods.append("ONLINE")
+    payment_methods.append("COD")
+
+    return {
+        "lines": lines,
+        "subtotal": str(subtotal),
+        "total": str(total),
+        "total_paise": total_paise,
+        "currency": "INR",
+        "payment_methods": payment_methods,
+        "reservation_minutes": 15,
+        "_variants": variants,
+        "_quantities": quantities,
+        "_city_prices": city_prices,
+        "_subtotal": subtotal,
+        "_total": total,
+        "_variant_ids": variant_ids,
+    }
+
+
 class OrderCreateSerializer(serializers.Serializer):
     idempotency_key = serializers.CharField(max_length=128, write_only=True)
+    expected_total_paise = serializers.IntegerField(required=False, allow_null=True, write_only=True)
     student = serializers.PrimaryKeyRelatedField(
         queryset=Student.objects.select_related("school", "school__city").all()
     )
@@ -402,6 +604,14 @@ class OrderCreateSerializer(serializers.Serializer):
                 )
             return student
         if user.role in ("SCHOOL_ADMIN", "TEACHER"):
+            if user.role == "TEACHER" and getattr(user, "all_schools_access", False):
+                return student
+            if user.role == "TEACHER" and getattr(user, "branch_id", None):
+                if student.branch_id != user.branch_id:
+                    raise PermissionDenied(
+                        "You can only place orders for students in your assigned branch."
+                    )
+                return student
             if student.school_id != user.school_id:
                 raise PermissionDenied(
                     "You can only place orders for students in your own school."
@@ -416,8 +626,16 @@ class OrderCreateSerializer(serializers.Serializer):
         raise PermissionDenied("Invalid role for placing orders.")
 
     def validate(self, attrs):
-        student = attrs["student"]
-        school = student.school
+        payment_method = attrs.get("payment_method", Order.PaymentMethod.ONLINE)
+        if payment_method == Order.PaymentMethod.ONLINE:
+            from django.conf import settings
+            from .payment import RazorpayGateway
+            if not RazorpayGateway().is_usable() and not getattr(settings, "DEBUG", False):
+                raise serializers.ValidationError({"payment_method": ["Online payment is currently unavailable."]})
+        return self.validate_order_details(attrs)
+
+    def validate_order_details(self, attrs):
+        school = attrs["student"].school
         fulfillment_type = attrs["fulfillment_type"]
         if (
             fulfillment_type == Order.FulfillmentType.HOME_DELIVERY
@@ -449,93 +667,26 @@ class OrderCreateSerializer(serializers.Serializer):
         fulfillment_type = validated_data["fulfillment_type"]
         idempotency_key = validated_data["idempotency_key"]
         city_id = student.city_id or student.school.city_id
+        stock_city_id = sales_stock_city(city_id)
 
         existing = Order.objects.filter(idempotency_key=idempotency_key).first()
         if existing:
             return self._existing_for_actor(existing, user)
 
-        variant_ids = sorted({item["variant"].id for item in items_data}, key=str)
-        variants = {
-            variant.id: variant
-            for variant in ProductVariant.objects.select_related(
-                "product", "product__category"
-            )
-            .prefetch_related("product__grades")
-            .filter(id__in=variant_ids)
-            .order_by("id")
-        }
-        if len(variants) != len(variant_ids):
-            raise serializers.ValidationError(
-                {"items": "One or more variants do not exist."}
-            )
+        quote = calculate_order_pricing_and_validate(student, items_data, user)
+        expected_total_paise = validated_data.get("expected_total_paise")
+        if expected_total_paise is not None and expected_total_paise != quote["total_paise"]:
+            raise PriceChanged(quote)
 
-        from catalog.catalogue import validate_product_match
-        for variant in variants.values():
-            if not variant.active:
-                raise serializers.ValidationError(
-                    {"items": f"SKU {variant.sku} is not available."}
-                )
-            try:
-                validate_product_match(
-                    product=variant.product,
-                    school_id=student.school_id,
-                    class_name_or_grade=student.grade or student.class_name,
-                    gender=student.gender,
-                )
-            except serializers.ValidationError as err:
-                msg = err.detail[0] if isinstance(err.detail, list) else str(err.detail)
-                raise serializers.ValidationError({"items": msg})
+        variants = quote["_variants"]
+        quantities = quote["_quantities"]
+        city_prices = quote["_city_prices"]
+        subtotal = quote["_subtotal"]
+        variant_ids = quote["_variant_ids"]
 
-        quantities = {}
-        for item in items_data:
-            variant_id = item["variant"].id
-            quantities[variant_id] = quantities.get(variant_id, 0) + item["quantity"]
-            self._validate_customisation(
-                variants[variant_id].product.customisation_schema,
-                item.get("customisation_data") or {},
-            )
-
-        # Stock is debited with an atomic conditional UPDATE further down, so
-        # no row locks are taken here. This read exists purely for friendly,
-        # itemised error messages before the order row is created.
-        balances = {
-            balance.variant_id: balance
-            for balance in StockBalance.objects.filter(
-                city_id=city_id, variant_id__in=variant_ids
-            ).order_by("variant_id")
-        }
-        # A retry may have waited behind the first request while it committed.
         existing = Order.objects.filter(idempotency_key=idempotency_key).first()
         if existing:
             return self._existing_for_actor(existing, user)
-
-        if len(balances) != len(variant_ids):
-            missing = [str(variant_id) for variant_id in variant_ids if variant_id not in balances]
-            raise serializers.ValidationError(
-                {"items": f"No stock balance is configured for this city's variant(s): {', '.join(missing)}."}
-            )
-
-        from catalog.models import ProductCityPrice
-        city_prices = {
-            cp.product_id: cp.selling_price
-            for cp in ProductCityPrice.objects.filter(
-                city_id=city_id,
-                active=True,
-                product_id__in=[v.product_id for v in variants.values()],
-            )
-        }
-
-        subtotal = Decimal("0.00")
-        for variant_id in variant_ids:
-            variant = variants[variant_id]
-            balance = balances[variant_id]
-            quantity = quantities[variant_id]
-            if balance.stock_quantity < quantity:
-                raise serializers.ValidationError(
-                    {"items": f"Insufficient stock for SKU {variant.sku} in this city."}
-                )
-            effective_price = city_prices.get(variant.product_id, variant.product.selling_price)
-            subtotal += effective_price * quantity
 
         order_number = f"ORD-{uuid.uuid4().hex[:16].upper()}"
         try:
@@ -550,9 +701,14 @@ class OrderCreateSerializer(serializers.Serializer):
                     student=student,
                     parent_id=student.parent_id or (user.id if user.role == "PARENT" else None),
                     school_id=student.school_id,
+                    branch_id=student.branch_id,
                     city_id=city_id,
                     fulfillment_type=fulfillment_type,
                     payment_method=validated_data["payment_method"],
+                    hold_expires_at=(
+                        timezone.now() + HOLD_DURATION
+                        if validated_data["payment_method"] == Order.PaymentMethod.ONLINE else None
+                    ),
                     status=Order.Status.PLACED,
                     payment_status=Order.PaymentStatus.PENDING,
                     subtotal=subtotal,
@@ -573,7 +729,7 @@ class OrderCreateSerializer(serializers.Serializer):
         for variant_id in variant_ids:
             quantity = quantities[variant_id]
             debited = StockBalance.objects.filter(
-                city_id=city_id,
+                city_id=stock_city_id,
                 variant_id=variant_id,
                 stock_quantity__gte=quantity,
             ).update(
@@ -584,7 +740,7 @@ class OrderCreateSerializer(serializers.Serializer):
                 raise serializers.ValidationError(
                     {
                         "items": f"Insufficient stock for SKU "
-                        f"{variants[variant_id].sku} in this city."
+                        f"{variants[variant_id].sku}."
                     }
                 )
 
@@ -617,7 +773,7 @@ class OrderCreateSerializer(serializers.Serializer):
             movements.append(
                 StockMovement(
                     variant=variant,
-                    city_id=city_id,
+                    city_id=stock_city_id,
                     school_id=order.school_id,
                     quantity_change=-quantity,
                     reason=StockMovement.Reason.ORDER_PLACED,
@@ -843,3 +999,31 @@ class OrderCreateSerializer(serializers.Serializer):
                     raise serializers.ValidationError(
                         {"customisation_data": f"Invalid type for {key}."}
                     )
+
+
+class OrderQuoteSerializer(serializers.Serializer):
+    student = serializers.PrimaryKeyRelatedField(
+        queryset=Student.objects.select_related("school", "school__city").all()
+    )
+    fulfillment_type = serializers.ChoiceField(
+        choices=Order.FulfillmentType.choices,
+        default=Order.FulfillmentType.HOME_DELIVERY,
+    )
+    payment_method = serializers.ChoiceField(
+        choices=Order.PaymentMethod.choices,
+        required=False,
+        default=Order.PaymentMethod.ONLINE,
+    )
+    delivery_details = serializers.JSONField(required=False, default=dict)
+    items = OrderCreateItemInputSerializer(many=True, allow_empty=False)
+    fit = OrderFitInputSerializer(required=False, allow_null=True)
+
+    validate_student = OrderCreateSerializer.validate_student
+    validate = OrderCreateSerializer.validate_order_details
+
+    def get_quote(self):
+        user = self.context["request"].user
+        student = self.validated_data["student"]
+        items_data = self.validated_data["items"]
+        quote = calculate_order_pricing_and_validate(student, items_data, user)
+        return {k: v for k, v in quote.items() if not k.startswith("_")}

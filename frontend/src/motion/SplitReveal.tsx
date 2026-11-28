@@ -30,9 +30,10 @@ const container: Variants = {
 /** Short headings get 50ms between words; long lines speed up so the last word lands within ~0.6s. */
 const staggerFor = (words: number) => Math.min(0.05, 0.6 / Math.max(words, 1));
 
+// Each word fades and rises a little. No clipping mask: masks cut Gujarati and Hindi vowel signs.
 const word: Variants = {
-  hidden: { y: '108%', rotate: 3 },
-  visible: { y: '0%', rotate: 0, transition: { duration: 0.7, ease: EASING } },
+  hidden: { opacity: 0, y: '0.35em' },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASING } },
 };
 
 /** Touch/small screens animate the whole heading as one element (opacity + translateY only, no rotate). */
@@ -132,7 +133,7 @@ export function SplitReveal({ children, as = 'h2', className = '', id, delay = 0
 
   // On touch/small screens animate the whole heading as ONE element (opacity + translateY only, no rotate)
   if (isMobile) {
-    const play = immediate ? { animate: 'visible' } : { whileInView: 'visible', viewport: { once: true, amount: 0.3 } };
+    const play = immediate ? { animate: 'visible' } : { whileInView: 'visible', viewport: { once: true, amount: 0.1 } };
     return (
       <MotionTag
         id={id}
@@ -149,7 +150,7 @@ export function SplitReveal({ children, as = 'h2', className = '', id, delay = 0
 
   const words = splitWords(children);
   const timing: Timing = { delay, stagger: staggerFor(words.filter((w) => w !== ' ').length) };
-  const play = immediate ? { animate: 'visible' } : { whileInView: 'visible', viewport: { once: true, amount: 0.5 } };
+  const play = immediate ? { animate: 'visible' } : { whileInView: 'visible', viewport: { once: true, amount: 0.1 } };
 
   return (
     <MotionTag id={id} className={`split-reveal ${className}`.trim()} aria-label={textOf(children)} initial="hidden" custom={timing} variants={container} {...play}>

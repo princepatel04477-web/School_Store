@@ -3,7 +3,7 @@ import { isNativeApp } from './native/nativePlatform';
 import { purgeSavedData } from './store/persist';
 
 export type Role='PARENT'|'TEACHER'|'SCHOOL_ADMIN'|'ADMIN'|'BOSS'|'RETAILER';
-export type User={id:string;username:string;role:Role;city?:string|null;city_name?:string|null;school?:{name:string}|string|null;school_name?:string|null;school_code?:string|null;phone?:string;email?:string;first_name?:string;last_name?:string;is_active?:boolean;created_at?:string};
+export type User={id:string;username:string;role:Role;city?:string|null;city_name?:string|null;city_state?:string|null;school?:{name:string}|string|null;school_name?:string|null;school_code?:string|null;branch?:string|null;branch_name?:string|null;all_schools_access?:boolean;issued_password?:string|null;phone?:string;email?:string;first_name?:string;last_name?:string;is_active?:boolean;created_at?:string};
 export type CustomisationField = {
   key: string;
   label: string;
@@ -58,9 +58,48 @@ export type OrderItemDetail = {
   customisation_display?: Record<string, unknown>;
 };
 
+export type OrderQuoteLine = {
+  variant: string;
+  sku: string;
+  name: string;
+  size: string;
+  quantity: number;
+  unit_price: string;
+  line_total: string;
+};
+
+export type OrderQuote = {
+  lines: OrderQuoteLine[];
+  subtotal: string;
+  total: string;
+  total_paise: number;
+  currency: 'INR';
+  payment_methods: ('COD' | 'ONLINE')[];
+  reservation_minutes: number;
+};
+
+export type PaymentView = {
+  state: 'PAID' | 'CHECKING' | 'NOT_PAID' | 'RELEASED' | 'REFUND_DUE' | 'COD_DUE' | 'PAID_DO_NOT_COLLECT';
+  amount_due_paise: number;
+  amount_paid_paise: number;
+  currency: 'INR';
+  hold_expires_at: string | null;
+  last_checked_at: string | null;
+  last_check_ok: boolean | null;
+  in_progress: boolean;
+  last_failure_reason: string | null;
+  can_pay_now: boolean;
+  can_switch_to_cod: boolean;
+  can_refresh: boolean;
+  receipt: { order_number: string; amount_paise: number; paid_at: string; method: string; payment_ref_last4: string } | null;
+};
+
+export type PaymentReconcileResponse = { checked: boolean; retry_after_seconds: number; payment_view: PaymentView };
+
 export type Order = {
   id: string;
   order_number: string;
+  student?: string;
   student_name: string;
   student_gr?: string;
   school_code?: string;
@@ -69,10 +108,12 @@ export type Order = {
   placed_by_role?: string;
   status: string;
   payment_status: string;
+  payment_method?: 'COD' | 'ONLINE' | string;
   fulfillment_type?: string;
-  payment_method?: string;
   subtotal?: string | number;
   total: number | string;
+  payment_view?: PaymentView;
+  razorpay_order_id?: string;
   tracking?: OrderTracking;
   created_at: string;
   status_events?: { status: string; timestamp: string }[];
@@ -196,7 +237,10 @@ export async function upload<T>(path:string, form:FormData):Promise<T>{
 
 /** DRF field errors look like {photo: ["..."]}: the first message, for display. */
 function firstFieldError(data:unknown):string|undefined{if(!data||typeof data!=='object') return undefined; for(const v of Object.values(data as Record<string,unknown>)){const m=Array.isArray(v)?v[0]:v; if(typeof m==='string'&&m) return m;} return undefined;}
-
+/** Fetch a protected image (e.g. a student's ID card photo) as a local object URL. */
+export async function fetchProtectedBlobUrl(path:string):Promise<string>{const get=(token:string|null)=>{const headers=new Headers(); if(token) headers.set('Authorization',`Bearer ${token}`); return fetch(toUrl(path),{headers});}; let res=await get(localStorage.getItem('access')); if(res.status===401&&localStorage.getItem('refresh')){try{res=await get(await refresh());}catch{/* session expired */}} if(!res.ok) throw new ApiError(`Photo not available (error ${res.status}).`,res.status,{}); return URL.createObjectURL(await res.blob());}
+/** Send a multipart form with any method (upload() is POST only). */
+export async function sendForm<T>(path:string, form:FormData|null, method:'POST'|'DELETE'='POST'):Promise<T>{const headers=new Headers(); const access=localStorage.getItem('access'); if(access) headers.set('Authorization',`Bearer ${access}`); const res=await fetch(toUrl(path),{method,headers,body:form??undefined}); if(!res.ok){const data=await res.json().catch(()=>({})); throw new ApiError(data.detail||firstFieldError(data)||(res.status===413?'The file is too large.':`Could not save (error ${res.status}).`),res.status,data);} return res.json();}
 /** Stream a protected file with the bearer token attached (no token in the URL). */
 export async function download(path:string, filename:string):Promise<void>{
   const headers=new Headers();
@@ -241,6 +285,28 @@ export const parentChildren={
   /** Every active school (public list) for the find-your-child form. */
   schools:()=>api<{id:string;name:string;code:string}[]>('/public/schools/'),
 };
+
+export type PaymentStartResponse = {
+  key_id: string;
+  razorpay_order_id: string;
+  amount_paise: number;
+  currency: 'INR';
+  store_order_number: string;
+  hold_expires_at: string;
+  prefill: { name: string; contact: string };
+};
+
+type VerifyPaymentResponse = { payment_view: PaymentView };
+type SwitchToCodResponse = { payment_method: 'COD'; payment_view: PaymentView };
+
+export const orderApi = {
+  quote: (body: unknown) => api<OrderQuote>('/orders/quote/', { method: 'POST', body: JSON.stringify(body) }),
+  payment: (orderId: string) => api<PaymentStartResponse>(`/orders/${orderId}/payment/`, { method: 'POST' }),
+  verifyPayment: (orderId: string, data: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) =>
+    api<VerifyPaymentResponse>(`/orders/${orderId}/verify-payment/`, { method: 'POST', body: JSON.stringify(data) }),
+  reconcilePayment: (orderId: string) => api<PaymentReconcileResponse>(`/orders/${orderId}/reconcile-payment/`, { method: 'POST' }),
+  switchToCod: (orderId: string) => api<SwitchToCodResponse>(`/orders/${orderId}/switch-to-cod/`, { method: 'POST' }),
+};
 export const queryKey={catalog:['catalog'],orders:['orders'],students:['students']};
 
 /** Request a presigned URL to upload a private file directly to object storage. */
@@ -273,6 +339,8 @@ export async function getUploadPresignedUrl(body: {
   filename?: string;
   student_id: string;
   purpose: PhotoPurpose;
+  /** School staff: confirms the parent agreed on the school's own form. */
+  school_consent?: boolean;
 }) {
   return api<{
     upload_url: string;
@@ -336,7 +404,7 @@ export type PanelOrderItem={
   has_customisation?:boolean;
   customisation_summary?:string;
 };
-export type PanelOrder={id:string;order_number:string;student:string;student_name:string;student_gr:string;student_class:string;student_section:string;items:PanelOrderItem[];item_count:number;units:number;amount:Money;status:string;payment_status:string;fulfillment_type:string;created_at:string;placed_by:string|null;placed_by_name:string;placed_by_role:string;placed_by_role_label:string};
+export type PanelOrder={id:string;order_number:string;student:string;student_name:string;student_gr:string;student_class:string;student_section:string;items:PanelOrderItem[];item_count:number;units:number;amount:Money;status:string;payment_view: PaymentView; payment_method: 'COD' | 'ONLINE'; needs_reconciliation: boolean; reconciliation_reasons: string[]; payment_status:string;fulfillment_type:string;created_at:string;placed_by:string|null;placed_by_name:string;placed_by_role:string;placed_by_role_label:string};
 export type PanelStudent={id:string;name:string;gr_number:string;class_name:string;section:string;gender:string;date_of_birth:string|null;school:string;school_name:string;school_code:string;parent:string|null;parent_name:string;parent_phone:string;approval_status:'PENDING'|'APPROVED';source:string;active:boolean;created_at:string};
 export type PanelTeacher={id:string;username:string;email:string;first_name:string;last_name:string;phone:string;role:Role;school:string;school_name:string;is_active:boolean;must_change_password:boolean;created_at:string;temporary_password?:string};
 export type ExportJob={id:string;job_type:'ORDERS'|'STUDENTS'|'TAILOR_SHEET';job_type_display:string;status:'QUEUED'|'RUNNING'|'READY'|'FAILED'|'EXPIRED';status_display:string;progress:number;school:string;school_code:string;requested_by_name:string|null;filters:Record<string,string>;filename:string;row_count:number;result:Record<string,unknown>;error_message:string;download_url:string|null;created_at:string;completed_at:string|null;expires_at:string|null};
@@ -515,6 +583,8 @@ export type CityOrderDetail={
   city:string;
   city_name:string;
   status:string;
+  payment_view: PaymentView;
+  payment_method: 'COD' | 'ONLINE';
   payment_status:string;
   fulfillment_type:string;
   subtotal:Money;
@@ -963,7 +1033,7 @@ export const portalApi = {
   products: (p: Record<string, string> = {}) => api<Page<PortalProduct>>(`/products/?${new URLSearchParams(p)}`),
   createProduct: (body: any) => api<PortalProduct>('/products/', { method: 'POST', body: JSON.stringify(body) }),
   updateProduct: (id: string, body: any) => api<PortalProduct>(`/products/${id}/`, { method: 'PATCH', body: JSON.stringify(body) }),
-  deleteProduct: (id: string) => api<void>(`/products/${id}/`, { method: 'DELETE' }),
+  deleteProduct: (id: string) => api<void>(`/products/${id}/?permanent=true`, { method: 'DELETE' }),
   uploadProductPhoto: (productId: string, file: File) => {
     const fd = new FormData();
     fd.append('photo', file);
@@ -977,10 +1047,39 @@ export const portalApi = {
   deleteVariant: (id: string) => api<void>(`/variants/${id}/`, { method: 'DELETE' }),
   categories: () => api<Page<PortalCategory>>('/categories/?page_size=50'),
   stockBalances: (p: Record<string, string> = {}) => api<Page<StockBalance>>(`/stock-balances/?${new URLSearchParams(p)}`),
-  addStockMovement: (body: { variant: string; quantity_change: number; reason: string; city?: string }) =>
+  receiveIndiaStock: (variants: string[], quantityPerSize: number) =>
+    api<StockMovement[]>('/stock-movements/bulk-receipt/', {
+      method: 'POST',
+      body: JSON.stringify({ variants, quantity_per_size: quantityPerSize }),
+    }),
+  addStockMovement: (body: { variant: string; quantity_change: number; reason: string; city?: string; scope?: 'india' }) =>
     api<StockMovement>('/stock-movements/', { method: 'POST', body: JSON.stringify(body) }),
   cityPrices: (p: Record<string, string> = {}) => api<Page<ProductCityPrice>>(`/city-prices/?${new URLSearchParams(p)}`),
   setCityPrice: (body: { product: string; city: string; selling_price: string; cost_price?: string }) =>
     api<ProductCityPrice>('/city-prices/', { method: 'POST', body: JSON.stringify(body) }),
   deleteCityPrice: (id: string) => api<void>(`/city-prices/${id}/`, { method: 'DELETE' }),
+  branches: (p: Record<string, string> = {}) =>
+    api<Page<{ id: string; school: string; school_name: string; city: string; city_name: string; city_state: string; name: string; display_name: string; address: string; pincode: string; phone: string; active: boolean }>>(
+      `/branches/?${new URLSearchParams({ page_size: '50', ...p })}`
+    ),
+};
+
+export const teacherAdmin = {
+  list: (p: Record<string, string> = {}) =>
+    api<Page<User>>(`/auth/users/?${new URLSearchParams({ role: 'TEACHER', page_size: '50', ...p })}`),
+  create: (body: {
+    first_name: string;
+    last_name?: string;
+    phone?: string;
+    school?: string | null;
+    branch?: string | null;
+    city?: string | null;
+    all_schools_access?: boolean;
+  }) => api<User>('/auth/users/create-teacher/', { method: 'POST', body: JSON.stringify(body) }),
+  regeneratePassword: (id: string) =>
+    api<{ id: string; username: string; issued_password: string }>(`/auth/users/${id}/regenerate-password/`, {
+      method: 'POST',
+    }),
+  toggleActive: (id: string, is_active: boolean) =>
+    api<User>(`/auth/users/${id}/`, { method: 'PATCH', body: JSON.stringify({ is_active }) }),
 };

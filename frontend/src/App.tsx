@@ -1,5 +1,7 @@
+import { ParentSignInSheet } from './components/parent/ParentSignInSheet';
+import { PaymentReturnNotice } from './components/PaymentReturnNotice';
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
-import { Navigate, Route, Routes, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, Route, Routes, Link, useLocation } from 'react-router-dom';
 import { useAuth } from './auth';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -31,6 +33,9 @@ const CheckoutPage = lazy(() =>
 );
 const AboutPage = lazy(() =>
   import('./pages/AboutPage').then((m) => ({ default: m.AboutPage }))
+);
+const AccountPage = lazy(() =>
+  import('./pages/AccountPage').then((m) => ({ default: m.AccountPage }))
 );
 const Login = lazy(() => import('./pages/Login'));
 const Parent = lazy(() => import('./pages/Parent'));
@@ -72,7 +77,7 @@ export const homeFor = (role?: string, cityId?: string | null) =>
   role === 'BOSS'
     ? '/boss'
     : role === 'PARENT'
-    ? '/parent'
+    ? '/account'
     : role === 'TEACHER'
     ? '/teacher'
     : role === 'ADMIN'
@@ -81,9 +86,14 @@ export const homeFor = (role?: string, cityId?: string | null) =>
     ? '/retailer'
     : '/school';
 
-function Guard({ children, roles }: { children: ReactNode; roles?: string[] }) {
+function Guard({ children, roles, parentOtp }: { children: ReactNode; roles?: string[]; parentOtp?: boolean }) {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
   if (loading) return <div className="splash">Loading your store…</div>;
+  if (!user && parentOtp) {
+    const goHome = () => navigate('/', { replace: true });
+    return <ParentSignInSheet open onClose={goHome} onDone={() => {}} />;
+  }
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to={homeFor(user.role, user.city)} replace />;
   return <>{children}</>;
@@ -104,10 +114,12 @@ export default function App() {
     location.pathname.startsWith('/teacher') ||
     location.pathname.startsWith('/retailer') ||
     location.pathname.startsWith('/portal') ||
+    location.pathname.startsWith('/parent') ||
     location.pathname.startsWith('/login');
 
   const isHome = location.pathname === '/';
   const isAbout = location.pathname === '/about';
+  const isAccount = location.pathname === '/account';
 
   // The whole store wears the emerald theme; a school's own colour stays on its crest
   // instead of re-tinting every page. Pass !isPortal here to bring school tints back.
@@ -197,8 +209,8 @@ export default function App() {
           />
         )}
 
-        {/* Global Header for the website (home and about have their own emerald headers; the app has its own bars) */}
-        {!isPortal && !isHome && !isAbout && !isNative && (
+        {/* Global Header for the website (home, about and account have their own emerald headers; the app has its own bars) */}
+        {!isPortal && !isHome && !isAbout && !isAccount && !isNative && (
           <Header
             onOpenBag={() => setBagOpen(true)}
             onOpenLanguage={() => setLangOpen(true)}
@@ -219,10 +231,13 @@ export default function App() {
               <Route
                 path="/"
                 element={
+                  <>
+                  <PaymentReturnNotice />
                   <HomePage
                     onOpenBag={() => setBagOpen(true)}
                     onOpenLanguage={() => setLangOpen(true)}
                   />
+                  </>
                 }
               />
               <Route
@@ -234,6 +249,15 @@ export default function App() {
                 element={<SelectionFlowPage onOpenBag={() => setBagOpen(true)} />}
               />
               <Route path="/checkout" element={<CheckoutPage />} />
+              <Route
+                path="/account"
+                element={
+                  <AccountPage
+                    onOpenBag={() => setBagOpen(true)}
+                    onOpenLanguage={() => setLangOpen(true)}
+                  />
+                }
+              />
 
               {/* Native App Main Tabs & Quick Navigation */}
               <Route path="/orders" element={<OrdersTab />} />
@@ -264,7 +288,7 @@ export default function App() {
               <Route path="/boss/*" element={<Guard roles={['BOSS']}><BossPanel /></Guard>} />
               <Route path="/city/*" element={<Guard roles={['ADMIN', 'BOSS']}><CityAdmin /></Guard>} />
               <Route path="/school/*" element={<Guard roles={['SCHOOL_ADMIN', 'ADMIN', 'BOSS']}><SchoolAdmin /></Guard>} />
-              <Route path="/parent/*" element={<Guard roles={['PARENT']}><Parent /></Guard>} />
+              <Route path="/parent/*" element={<Guard roles={['PARENT']} parentOtp><Parent /></Guard>} />
               <Route path="/teacher/*" element={<Guard roles={['TEACHER', 'SCHOOL_ADMIN']}><Teacher /></Guard>} />
               <Route path="/retailer/*" element={<Guard roles={['RETAILER']}><Retailer /></Guard>} />
               <Route path="/portal/*" element={<Guard roles={['BOSS', 'ADMIN']}><AdminPortal /></Guard>} />

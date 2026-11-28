@@ -1,0 +1,270 @@
+.school-admin {
+  --school-accent: #245c49;
+  --school-tint: #edf4ef;
+}
+
+.school-overview {
+  display: grid;
+  gap: 20px;
+  max-width: 1240px;
+  margin-inline: auto;
+}
+
+.school-overview-header,
+.school-report-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.school-overview-header {
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.school-overview-title,
+.school-quick-links,
+.school-report-controls,
+.school-metric-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.school-overview-title {
+  min-width: 0;
+}
+
+.school-overview-symbol {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--school-tint);
+  color: var(--school-accent);
+}
+
+.school-overview-title h1 {
+  margin: 0;
+  color: var(--navy);
+  font: 800 clamp(1.5rem, 2.5vw, 2.25rem)/1.15 var(--font-display);
+  overflow-wrap: anywhere;
+}
+
+.school-overview-title p {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.school-quick-links,
+.school-report-controls {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.school-quick-links a,
+.school-date-range summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+.school-quick-links a:hover,
+.school-date-range summary:hover {
+  background: var(--school-tint);
+}
+
+.school-approval {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 15px;
+  border: 1px solid #d6e5d9;
+  border-radius: var(--radius-md);
+  color: #205441;
+  background: var(--school-tint);
+  font-size: var(--text-sm);
+}
+
+.school-approval:hover {
+  background: #e0eee4;
+}
+
+.school-approval span {
+  flex: 1;
+}
+
+.school-approval svg {
+  flex: none;
+}
+
+.school-report-toolbar h2 {
+  margin: 0;
+  color: var(--navy);
+  font-size: var(--text-xl);
+}
+
+.school-range-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper-raised);
+}
+
+.school-range-presets button {
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.school-range-presets button:hover {
+  background: var(--school-tint);
+}
+
+.school-range-presets button[aria-pressed='true'] {
+  background: var(--school-accent);
+  color: white;
+}
+
+.school-date-range {
+  position: relative;
+}
+
+.school-date-range summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.school-date-range summary::-webkit-details-marker {
+  display: none;
+}
+
+.school-date-range summary::after {
+  content: '▾';
+}
+
+.school-date-fields {
+  position: absolute;
+  z-index: 6;
+  inset: calc(100% + 5px) 0 auto auto;
+  width: max-content;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper-raised);
+}
+
+.school-date-fields label {
+  display: grid;
+  gap: 4px;
+  font-size: var(--text-sm);
+}
+
+.school-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.school-overview .school-metric {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-height: 119px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper-raised);
+}
+
+.school-metric-label {
+  justify-content: space-between;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+.school-metric-label svg {
+  flex: none;
+  color: var(--school-accent);
+}
+
+.school-overview .school-metric > strong {
+  color: var(--navy);
+  font: 800 clamp(1.625rem, 3vw, 2.25rem)/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.school-overview .school-metric > small {
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+}
+
+.school-overview .school-metric.is-primary {
+  border-color: #d6e5d9;
+  background: var(--school-tint);
+}
+
+.school-overview > .card,
+.school-overview > .panel-grid,
+.school-overview .panel-grid > .card {
+  min-width: 0;
+  margin: 0;
+}
+
+.school-overview :is(a, button, summary):focus-visible {
+  outline: 2px solid var(--school-accent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+  .school-overview {
+    gap: 16px;
+  }
+
+  .school-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .school-metrics > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  .school-overview .school-metric {
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .school-date-fields {
+    position: static;
+    margin-top: 5px;
+  }
+}

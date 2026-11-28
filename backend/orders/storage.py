@@ -177,6 +177,27 @@ def put_object_bytes(file_key: str, data: bytes, content_type: str = "image/jpeg
         f.write(data)
 
 
+def iter_stored_keys(prefix: str = "customisations/"):
+    """Yield (file_key, last_modified as aware UTC datetime) for every stored photo under `prefix`."""
+    from datetime import datetime, timezone as dt_timezone
+
+    if get_storage_mode() == "s3":
+        bucket = getattr(settings, "CUSTOMISATION_STORAGE_BUCKET", "") or os.environ.get("AWS_STORAGE_BUCKET_NAME", "school-store-private")
+        paginator = get_s3_client().get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+            for obj in page.get("Contents", []):
+                yield obj["Key"], obj["LastModified"]
+        return
+
+    storage_dir = str(getattr(settings, "CUSTOMISATION_LOCAL_DIR", settings.MEDIA_ROOT / "customisations"))
+    start = os.path.join(storage_dir, prefix.replace("/", os.sep))
+    for folder, _dirs, files in os.walk(start):
+        for name in files:
+            path = os.path.join(folder, name)
+            key = os.path.relpath(path, storage_dir).replace(os.sep, "/")
+            yield key, datetime.fromtimestamp(os.path.getmtime(path), tz=dt_timezone.utc)
+
+
 def delete_object(file_key: str) -> bool:
     """Delete one stored photo. A missing file counts as already gone."""
     if not file_key or ".." in file_key or file_key.startswith(("/", "\\")):

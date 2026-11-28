@@ -39,6 +39,7 @@ SECRET_KEY = os.environ.get(
 )
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
+INDIA_STOCK = os.environ.get("STOCK_SCOPE", "india").lower() == "india"
 
 
 def _env_list(name):
@@ -235,6 +236,15 @@ CATALOG_THUMBNAIL_TEMPLATE = os.environ.get(
 )
 RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
+RAZORPAY_WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
+
+if "test" in sys.argv:
+    if not RAZORPAY_KEY_ID:
+        RAZORPAY_KEY_ID = "rzp_test_placeholder"
+    if not RAZORPAY_KEY_SECRET:
+        RAZORPAY_KEY_SECRET = "placeholder_secret"
+    if not RAZORPAY_WEBHOOK_SECRET:
+        RAZORPAY_WEBHOOK_SECRET = "placeholder_webhook_secret"
 
 if (
     "test" in sys.argv
@@ -283,11 +293,24 @@ CELERY_BEAT_SCHEDULE = {
         "task": "orders.purge_delivered_child_photos",
         "schedule": crontab(hour=2, minute=15),
     },
+    # Child photos uploaded for a bag that never became an order (3 days old).
+    "purge-unclaimed-child-photos": {
+        "task": "orders.purge_unclaimed_photos",
+        "schedule": crontab(hour=2, minute=25),
+    },
     # Rebuild the last 7 days of dashboard rollups from the orders, so late
     # cancellations and status changes never leave a chart out of date.
     "nightly-sales-recompute": {
         "task": "analytics.nightly_sales_recompute",
         "schedule": crontab(hour=2, minute=40),
+    },
+    "reprocess-payment-events": {
+        "task": "orders.reprocess_payment_events",
+        "schedule": crontab(minute="*"),  # every minute
+    },
+    "sweep-expired-reservations": {
+        "task": "orders.sweep_expired_reservations",
+        "schedule": crontab(minute="*/5"),  # every 5 minutes
     },
     "retrain-shoulder-model": {
         "task": "catalog.retrain_shoulder_model",
@@ -434,6 +457,10 @@ PHOTO_RETENTION_DAYS = int(os.environ.get("PHOTO_RETENTION_DAYS", "30"))
 # --------------------------------------------------------------------------- #
 # SMS (sign-in codes and order confirmations), see accounts/sms.py
 # --------------------------------------------------------------------------- #
+# Development only: with no SMS provider, parents still sign in or create an
+# account by mobile number. The code is shown on screen instead of sent by SMS,
+# so anyone can open any parent account. Turn it off before real launch.
+OTP_DEMO_MODE = os.environ.get("OTP_DEMO_MODE", "0") == "1"
 SMS_PROVIDER = os.environ.get("SMS_PROVIDER", "")  # "msg91", or "console" to only log
 MSG91_AUTH_KEY = os.environ.get("MSG91_AUTH_KEY", "")
 MSG91_OTP_TEMPLATE_ID = os.environ.get("MSG91_OTP_TEMPLATE_ID", "")

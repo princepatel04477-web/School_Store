@@ -792,3 +792,25 @@ class SchoolDeactivationCascadeTests(TestCase):
         self.school.save()
         shirt.refresh_from_db()
         self.assertFalse(shirt.active)
+
+    def test_permanent_product_delete_removes_inactive_listing_but_preserves_stock_records(self):
+        from inventory.models import StockBalance
+
+        retired = self._product(self.school, "CSC-RETIRED", active=False)
+        stocked = self._product(self.school, "CSC-STOCKED")
+        balance = StockBalance.objects.create(
+            city=self.school.city, variant=stocked.variants.get(), stock_quantity=2
+        )
+        client = self._client()
+
+        response = client.delete(f"/api/products/{retired.pk}/?permanent=true")
+        self.assertEqual(response.status_code, 204, response.content)
+        self.assertFalse(Product.objects.filter(pk=retired.pk).exists())
+        self.assertFalse(ProductVariant.objects.filter(product_id=retired.pk).exists())
+
+        response = client.delete(f"/api/products/{stocked.pk}/?permanent=true")
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn("preserve its history", response.data["detail"])
+        self.assertTrue(Product.objects.filter(pk=stocked.pk, active=True).exists())
+        balance.refresh_from_db()
+        self.assertEqual(balance.stock_quantity, 2)

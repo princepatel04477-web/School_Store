@@ -2,6 +2,7 @@ import uuid
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken
 from .models import User
+from .revocation import is_revoked
 
 
 class ZeroQueryJWTAuthentication(JWTAuthentication):
@@ -23,6 +24,9 @@ class ZeroQueryJWTAuthentication(JWTAuthentication):
         except (KeyError, ValueError) as exc:
             raise InvalidToken("Token contained no recognizable user identification") from exc
 
+        if is_revoked(user_id, validated_token.get("iat")):
+            raise InvalidToken("This sign-in has ended. Please sign in again.")
+
         role = validated_token.get("role")
         if not role:
             # Fallback if a token was minted without role claim
@@ -30,9 +34,11 @@ class ZeroQueryJWTAuthentication(JWTAuthentication):
 
         city_id_raw = validated_token.get("city_id")
         school_id_raw = validated_token.get("school_id")
+        branch_id_raw = validated_token.get("branch_id")
 
         city_id = uuid.UUID(str(city_id_raw)) if city_id_raw else None
         school_id = uuid.UUID(str(school_id_raw)) if school_id_raw else None
+        branch_id = uuid.UUID(str(branch_id_raw)) if branch_id_raw else None
 
         user = User(
             id=user_id,
@@ -40,6 +46,8 @@ class ZeroQueryJWTAuthentication(JWTAuthentication):
             role=role,
             city_id=city_id,
             school_id=school_id,
+            branch_id=branch_id,
+            all_schools_access=bool(validated_token.get("all_schools_access", False)),
             must_change_password=bool(validated_token.get("must_change_password", False)),
             is_active=True,
             is_staff=role in (User.Role.BOSS, User.Role.ADMIN),

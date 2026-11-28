@@ -1,17 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Truck } from '../components/ui/icons';
-import { Link, Navigate, Route, Routes } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { PaymentReturnNotice } from '../components/PaymentReturnNotice';
 import { Shell } from '../App';
 import { ListenButton } from '../components/ListenButton';
 import { SelectionFlow } from '../components/SelectionFlow';
 import { Cart, Timeline, getOrderStatusLabel, type CartItem } from '../components/Store';
 import { FitFeedbackPrompt } from '../components/orders/FitFeedbackPrompt';
-import { api, deleteChildPhotos, Order, Page, Product } from '../api';
+import { api, deleteChildPhotos, Order, Page, Product, orderApi, type PaymentView } from '../api';
 import { OrderCardsSkeleton, Skeleton } from '../components/ui/Skeleton';
 import { OrderDetail } from './OrderDetail';
+import { checkingPayment, paymentRefusal, runOrderPayment } from '../services/orderPayment';
+import { settlePendingOrder } from '../services/placeOrder';
+import { storeState, useStoreState } from '../store/storeState';
+import { formatINR } from '../utils/formatINR';
+import { PaymentStatus } from '../components/PaymentStatus';
 import { useLang } from '../i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useStoreState } from '../store/storeState';
 import '../components/photoConsent.css';
 import type { Fit } from '../data/fit';
 import { LIVE_CATEGORIES } from '../data/liveCategories';
@@ -30,10 +35,14 @@ interface StudentDetail {
 export default function Parent() {
   return (
     <Shell title="A little easier today.">
+      <PaymentReturnNotice />
       <Routes>
         <Route index element={<Dashboard />} />
         <Route path="orders" element={<Orders />} />
         <Route path="orders/:id" element={<OrderDetail />} />
+        <Route path="orders/:orderId" element={<OrderDetail />} />
+        <Route path="selection" element={<SelectionFlow />} />
+        <Route path="cart" element={<CartTab />} />
       </Routes>
     </Shell>
   );
@@ -182,9 +191,14 @@ function Dashboard() {
             ))}
           </div>
         ) : (
-          <div className="parent-empty-children">
-            <p>{t('parent.noChildren')}</p>
-            <small>{t('parent.noChildrenSub')}</small>
+          <div className="kids-empty">
+            <p>
+              No child added yet. Pick your school and class in the shop, or add your child with the GR number
+              when you check out.
+            </p>
+            <Link to="/" className="primary">
+              Shop for my child
+            </Link>
           </div>
         )}
       </div>
@@ -393,14 +407,105 @@ function Dashboard() {
 }
 
 export function Orders() {
-  const queryClient = useQueryClient();
   const { t } = useLang();
-  const { data, isLoading, isError, refetch } = useQuery({
+  const queryClient = useQueryClient();
+  const { data, isPending, isLoading, isError, refetch } = useQuery({
     queryKey: ['orders'],
-    queryFn: () => api<Page<Order>>('/orders/'),
+    queryFn: () => api<{ results: Order[] }>('/orders/'),
     refetchOnWindowFocus: true,
   });
-  const orders: Order[] = data?.results || (Array.isArray(data) ? (data as Order[]) : []);
+  const { hash } = useLocation();
+  const focusedId = hash.startsWith('#order-') ? hash.slice(7) : '';
+  const focused = useQuery({
+    queryKey: ['orders', focusedId],
+    queryFn: () => api<Order>(`/orders/${encodeURIComponent(focusedId)}/`),
+    enabled: Boolean(focusedId && data && !data.results.some(order => order.id === focusedId)),
+  });
+  const orders = useMemo(() => focused.data
+    ? [focused.data, ...(data?.results ?? []).filter(order => order.id !== focused.data?.id)]
+    : (data?.results ?? []), [data, focused.data]);
+  useEffect(() => {
+    if (focusedId) document.getElementById(`order-${focusedId}`)?.scrollIntoView();
+  }, [orders, focusedId]);
+  const [views, setViews] = useState<Record<string, PaymentView>>({});
+  const [cooldowns, setCooldowns] = useState<Record<string, number>>({});
+  const [busy, setBusy] = useState(false);
+  const active = useRef(false);
+  const autoChecked = useRef(new Set<string>());
+  const visiblePayment = (order: Order) => {
+    const latest = order.payment_view;
+    if (!latest) return { state: 'CHECKING', amount_due_paise: 0, amount_paid_paise: 0, currency: 'INR', hold_expires_at: null, last_checked_at: null, last_check_ok: null, in_progress: false, last_failure_reason: null, can_pay_now: false, can_switch_to_cod: false, can_refresh: false, receipt: null } as PaymentView;
+    const previous = views[order.id];
+    if (!previous || (latest.state !== 'CHECKING' && latest.state !== 'NOT_PAID')) return latest;
+    if (latest.last_checked_at && previous.last_checked_at &&
+        Date.parse(latest.last_checked_at) > Date.parse(previous.last_checked_at)) return latest;
+    return previous;
+  };
+  const update = (id: string, view: PaymentView) => setViews(previous => ({ ...previous, [id]: view }));
+  // A saved online order that is now paid, released or moved to cash no longer holds the bag.
+  useEffect(() => {
+    for (const order of orders) {
+      if (settlePendingOrder(order.id, visiblePayment(order))) storeState.clearCart();
+    }
+  });
+
+  async function refresh(order: Order) {
+    try {
+      const result = await orderApi.reconcilePayment(order.id);
+      update(order.id, result.payment_view);
+      const settled = result.payment_view.state;
+      if (settled !== (order.payment_view?.state) && settled !== 'CHECKING' && settled !== 'NOT_PAID') {
+        // A capture or release also moves the order's status and timeline: fetch them again.
+        void queryClient.invalidateQueries({ queryKey: ['orders'] });
+        void queryClient.invalidateQueries({ queryKey: ['payment-attention'] });
+      }
+      const until = Date.now() + result.retry_after_seconds * 1000;
+      setCooldowns(previous => ({ ...previous, [order.id]: until }));
+      window.setTimeout(() => setCooldowns(previous => previous[order.id] === until
+        ? { ...previous, [order.id]: 0 } : previous), result.retry_after_seconds * 1000);
+    } catch (error) {
+      update(order.id, paymentRefusal(error) ?? checkingPayment(order.payment_view ?? visiblePayment(order)));
+    }
+  }
+
+  useEffect(() => {
+    if (busy) return;
+    const pending = orders.filter(order =>
+      visiblePayment(order).state === 'CHECKING' && !autoChecked.current.has(order.id));
+    if (!pending.length || active.current) return;
+    active.current = true;
+    setBusy(true);
+    for (const order of pending) autoChecked.current.add(order.id);
+    void (async () => {
+      try {
+        // Render the original server state before checking its provider status.
+        for (const order of pending) await refresh(order);
+      } finally {
+        active.current = false;
+        setBusy(false);
+      }
+    })();
+  }, [orders, busy]);
+
+  async function act(order: Order, action: 'pay' | 'cod' | 'refresh') {
+    if (active.current) return;
+    active.current = true;
+    setBusy(true);
+    try {
+      if (action === 'refresh') await refresh(order);
+      if (action === 'pay') await runOrderPayment(order.id, view => update(order.id, view));
+      if (action === 'cod') update(order.id, (await orderApi.switchToCod(order.id)).payment_view);
+    } catch (error) {
+      update(order.id, paymentRefusal(error) ?? checkingPayment(visiblePayment(order)));
+    } finally {
+      if (action !== 'refresh') {
+        void queryClient.invalidateQueries({ queryKey: ['orders'] });
+        void queryClient.invalidateQueries({ queryKey: ['payment-attention'] });
+      }
+      active.current = false;
+      setBusy(false);
+    }
+  }
 
   return (
     <>
@@ -414,7 +519,7 @@ export function Orders() {
         </Link>
       </div>
 
-      {isLoading ? (
+      {isPending || isLoading ? (
         <OrderCardsSkeleton count={3} />
       ) : isError ? (
         <div
@@ -446,7 +551,7 @@ export function Orders() {
         </div>
       ) : orders.length ? (
         orders.map((o) => (
-          <article className="order-card" key={o.id}>
+          <article className="order-card" key={o.id} id={`order-${o.id}`}>
             <div className="section-row">
               <div>
                 <Link to={`/parent/orders/${o.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
@@ -459,8 +564,13 @@ export function Orders() {
               <span className="status">{getOrderStatusLabel(o, t)}</span>
             </div>
             <p>
-              {o.student_name} · <strong>₹{o.total}</strong>
+              {o.student_name} · <strong>{formatINR(Math.round(Number(o.total) * 100))}</strong>
             </p>
+            <PaymentStatus payment={visiblePayment(o)} orderNumber={o.order_number}
+              disabled={busy || Boolean(cooldowns[o.id])}
+              onRefresh={() => void act(o, 'refresh')} onPay={() => void act(o, 'pay')}
+              onCod={() => void act(o, 'cod')} />
+
             <Timeline order={o} />
             <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
               <Link
@@ -497,5 +607,20 @@ export function Orders() {
         </div>
       )}
     </>
+  );
+}
+
+function CartTab() {
+  const queryClient = useQueryClient();
+  const [items, setItems] = useState<CartItem[]>([]);
+  return (
+    <Cart
+      items={items}
+      onClear={() => setItems([])}
+      onRemoveItem={(id) => setItems((prev) => prev.filter((it) => it.id !== id))}
+      onSuccess={() => {
+        queryClient.invalidateQueries({ queryKey: ['orders'] });
+      }}
+    />
   );
 }

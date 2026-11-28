@@ -11,6 +11,8 @@ type C = {
   /** Parent sign-in with mobile number + OTP (creates the account on first use). */
   signInWithOtp: (phone: string, otp: string) => Promise<{ user: User; childrenLinked: number }>;
   signOut: () => void;
+  /** Clears tokens and local user state without forcing a /login redirect. */
+  clearSession: () => void;
 };
 
 const Context = createContext<C>({
@@ -20,6 +22,7 @@ const Context = createContext<C>({
   signUp: async () => { throw new Error('not ready'); },
   signInWithOtp: async () => { throw new Error('not ready'); },
   signOut: () => {},
+  clearSession: () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -67,6 +70,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { user: signedIn, childrenLinked: res.children_linked };
         },
         signOut: () => { logout(); },
+        clearSession: () => {
+          localStorage.removeItem('access');
+          localStorage.removeItem('refresh');
+          setUser(null);
+        },
       }}
     >
       {children}

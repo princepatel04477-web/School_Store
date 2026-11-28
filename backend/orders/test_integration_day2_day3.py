@@ -25,7 +25,8 @@ from accounts.models import User
 from catalog.models import Category, Product, ProductVariant
 from inventory.models import StockBalance, StockMovement
 from orders.fulfilment_gate import PackingDecision
-from orders.models import Order, OrderItem, OrderStatusEvent, Shipment, OrderPacking
+from orders.models import Order, OrderItem, OrderStatusEvent, Shipment, OrderPacking, PaymentAttempt
+from orders.payment import RazorpayGateway
 from schools.models import City, School, Student
 
 try:
@@ -135,6 +136,22 @@ class Day2Day3IntegrationTests(TestCase):
         )
         self.stock_balance.stock_quantity -= qty
         self.stock_balance.save(update_fields=["stock_quantity"])
+
+        if payment_method == "ONLINE" and payment_status_val == Order.PaymentStatus.PAID:
+            pay_id = f"pay_{order_number}"
+            order.razorpay_payment_id = pay_id
+            order.payment_checked_at = timezone.now()
+            order.payment_check_ok = True
+            order.save(update_fields=["razorpay_payment_id", "payment_checked_at", "payment_check_ok"])
+            PaymentAttempt.objects.create(
+                order=order,
+                razorpay_payment_id=pay_id,
+                status=PaymentAttempt.Status.CAPTURED,
+                amount_paise=int(order.total * 100),
+                currency="INR",
+                last_source=PaymentAttempt.Source.VERIFY,
+            )
+
         return order
 
     def _generate_signature(self, order_id: str, payment_id: str) -> str:
@@ -157,10 +174,19 @@ class Day2Day3IntegrationTests(TestCase):
         # Drive payment verification endpoint
         payment_id = "pay_test_123456"
         signature = self._generate_signature(order.razorpay_order_id, payment_id)
-        verify_resp = self.client_p1.post(
-            f"/api/orders/{order.id}/verify-payment/",
-            {"razorpay_order_id": order.razorpay_order_id, "razorpay_payment_id": payment_id, "razorpay_signature": signature},
-        )
+        fake_payment = {
+            "id": payment_id,
+            "order_id": order.razorpay_order_id,
+            "status": "captured",
+            "amount": int(order.total * 100),
+            "currency": "INR",
+            "method": "card",
+        }
+        with mock.patch.object(RazorpayGateway, "fetch_payment", return_value=fake_payment):
+            verify_resp = self.client_p1.post(
+                f"/api/orders/{order.id}/verify-payment/",
+                {"razorpay_order_id": order.razorpay_order_id, "razorpay_payment_id": payment_id, "razorpay_signature": signature},
+            )
         self.assertEqual(verify_resp.status_code, status.HTTP_200_OK)
 
         # Simulate browser closure: brand new APIClient, fresh token
@@ -212,9 +238,14 @@ class Day2Day3IntegrationTests(TestCase):
     @unittest.skipUnless(HAS_DAY2, "Day 2 not merged")
     def test_case_2_pending_payment_blocked_and_late_capture_refund_blocked(self):
         """Case 2: Pending online payment blocked from pack. Late capture awaiting refund blocked too."""
-        # Unverified online order
-        pending_order = self._create_order(self.parent_1, self.student_1, "ORD-INT-PENDING", status_val=Order.Status.PLACED)
-        self.client_staff.post(f"/api/fulfilment/{pending_order.id}/claim/")
+        # Unverified online order: claim is blocked by packing gate
+        pending_order = self._create_order(self.parent_1, self.student_1, "ORD-INT-PENDING", status_val=Order.Status.CONFIRMED)
+        claim_resp = self.client_staff.post(f"/api/fulfilment/{pending_order.id}/claim/")
+        self.assertEqual(claim_resp.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(claim_resp.data["code"], "PACKING_BLOCKED")
+
+        # Even if claim exists, packing itself is blocked by packing gate
+        OrderPacking.objects.create(order=pending_order, claimed_by=self.city_admin, claimed_at=timezone.now())
         item_ids = [str(it.id) for it in pending_order.items.all()]
         pack_resp = self.client_staff.post(
             f"/api/fulfilment/{pending_order.id}/pack/", {"confirmed_item_ids": item_ids}, format="json"

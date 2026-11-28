@@ -1,3 +1,4 @@
+import { PaymentsToCheck } from '../components/PaymentsToCheck';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { X, BarChart, Package, Receipt, SchoolBuilding, Ruler } from '../components/ui/icons';
 import { PanelShell, type PanelNavItem } from '../components/admin/PanelShell';
@@ -551,6 +552,7 @@ function VariantMovementHistoryModal({
  * 3. Orders View (Requirement 3, 4, 7: Filters, Polling every 30s, Cursor Pagination, Bulk status, Detail view)
  * ------------------------------------------------------------------ */
 function CityOrdersView() {
+  const [showPayments, setShowPayments] = useState(false);
   const queryClient = useQueryClient();
   const [selectedSchool, setSelectedSchool] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
@@ -636,6 +638,8 @@ function CityOrdersView() {
 
   return (
     <div>
+      <PaymentsToCheck school={selectedSchool || undefined} open={showPayments} onToggle={() => setShowPayments(value => !value)} />
+      {!showPayments && <>
       <div className="page-head">
         <div>
           <div className="eyebrow">ORDERS &amp; FULFILLMENT</div>
@@ -774,7 +778,8 @@ function CityOrdersView() {
                         <span className={`badge s-${o.status.toLowerCase()}`}>{o.status}</span>
                       </td>
                       <td>
-                        <span className={`badge s-${o.payment_status.toLowerCase()}`}>{o.payment_status}</span>
+                        <span className={`badge s-${o.payment_status.toLowerCase()}`}>{o.payment_view.state.replace(/_/g, ' ')}</span>
+                        <small className="gr">{o.payment_method}</small>
                       </td>
                       <td className="r mono"><b>{money(o.total)}</b></td>
                       <td className="r actions">
@@ -825,6 +830,7 @@ function CityOrdersView() {
           }}
         />
       )}
+      </>}
     </div>
   );
 }
@@ -838,8 +844,8 @@ function BulkStatusUpdateModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [newStatus, setNewStatus] = useState<string>('CANCELLED');
-  const [note, setNote] = useState<string>('Cancelled by admin');
+  const [newStatus, setNewStatus] = useState<string>('DISPATCHED');
+  const [note, setNote] = useState<string>('Dispatched from city fulfillment center');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const mutation = useMutation({
@@ -872,6 +878,10 @@ function BulkStatusUpdateModal({
           <label>
             <span>Target Status:</span>
             <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
+              <option value="PROCESSING">Processing</option>
+              <option value="PACKED">Packed</option>
+              <option value="DISPATCHED">Dispatched</option>
+              <option value="DELIVERED">Delivered</option>
               <option value="CANCELLED">Cancelled</option>
             </select>
           </label>
@@ -914,6 +924,10 @@ function OrderDetailModal({
 
   const nextStatusMap: Record<string, string> = {
     PLACED: 'CONFIRMED',
+    CONFIRMED: 'PROCESSING',
+    PROCESSING: 'PACKED',
+    PACKED: 'DISPATCHED',
+    DISPATCHED: 'DELIVERED',
   };
 
   const advanceMutation = useMutation({

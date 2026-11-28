@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "build:app": "tsc -b && vite build --mode app --outDir dist-app",
+    "build": "tsc -p tsconfig.build.json && vite build",
+    "build:app": "tsc -p tsconfig.build.json && vite build --mode app --outDir dist-app",
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
     "bump": "node ../scripts/bump-version.js"
