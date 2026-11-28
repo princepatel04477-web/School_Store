@@ -2,9 +2,10 @@ import { PaymentsToCheck } from '../components/PaymentsToCheck';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { X, BarChart, Package, Receipt, SchoolBuilding, Ruler } from '../components/ui/icons';
 import { PanelShell, type PanelNavItem } from '../components/admin/PanelShell';
-import { Route, Routes } from 'react-router-dom';
+import { Link, Route, Routes } from 'react-router-dom';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../auth';
+import { FulfilmentQueue } from '../components/admin/FulfilmentQueue';
 import { SizeChartImportCard } from '../components/admin/SizeChartImportCard';
 import { SizeChartManager } from '../components/admin/SizeChartManager';
 import { CHART_COLORS, ChartSkeleton, KpiSkeleton, LIVE, LiveStamp, OrdersStrip, RankList, TrendChart, longDate } from '../components/admin/charts';
@@ -24,6 +25,7 @@ const NAV: PanelNavItem[] = [
   { to: '', label: 'Daily Sales', icon: BarChart, end: true },
   { to: 'inventory', label: 'Inventory & Stock', icon: Package },
   { to: 'orders', label: 'Orders', icon: Receipt },
+  { to: 'packing', label: 'Packing', icon: Package },
   { to: 'schools', label: 'Schools', icon: SchoolBuilding },
   { to: 'size-charts', label: 'Size Charts', icon: Ruler },
   { to: '/portal', label: 'Uniform Portal', icon: Package },
@@ -38,6 +40,7 @@ export default function CityAdmin() {
         <Route index element={<CityDailySalesViewComponent />} />
         <Route path="inventory" element={<CityInventoryView />} />
         <Route path="orders" element={<CityOrdersView />} />
+        <Route path="packing" element={<FulfilmentQueue />} />
         <Route path="schools" element={<CitySchoolsView />} />
         <Route path="size-charts" element={<CitySizeChartsView />} />
       </Routes>
@@ -978,6 +981,16 @@ function OrderDetailModal({
               >
                 {advanceMutation.isPending ? 'Updating…' : `Mark as ${nextStatus} →`}
               </button>
+            )}
+            {['CONFIRMED', 'PROCESSING', 'PACKED', 'DISPATCHED'].includes(order.status) && (
+              <Link
+                to="/city/packing"
+                className="btn btn-secondary secondary"
+                style={{ width: 'auto' }}
+                onClick={onClose}
+              >
+                Open in Packing →
+              </Link>
             )}
             </div>
           </div>

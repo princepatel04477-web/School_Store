@@ -5,6 +5,10 @@ import { useQuery } from '@tanstack/react-query';
 import { api, Product, Order, PaymentView, CustomisationField } from '../api';
 import { CustomisationForm, photoPurposeForCategory } from './CustomisationForm';
 import { fitPayload, formatMeasure, type Fit } from '../data/fit';
+import { useLang, type MessageKey } from '../i18n';
+import { siteConfig } from '../siteConfig';
+import { openExternalUrl } from '../native/externalLinks';
+import { isNativeApp } from '../native/nativePlatform';
 import { runOrderPayment } from '../services/orderPayment';
 
 const demo: Product[] = [
@@ -564,24 +568,232 @@ export function Cart({
   );
 }
 
-export function Timeline({ order }: { order: Order }) {
-  const steps = ['PLACED', 'CONFIRMED', 'PACKED', 'DISPATCHED', 'DELIVERED'];
+function formatStepDate(isoString?: string | null): string {
+  if (!isoString) return '-';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return '-';
+  }
+}
+
+export function getOrderStatusLabel(order: Order, t: (key: MessageKey) => string): string {
+  const isPickup = order.fulfillment_type === 'SCHOOL_PICKUP';
+  switch (order.status) {
+    case 'CANCELLED':
+      return t('status.cancelled');
+    case 'RETURNED':
+      return t('status.returned');
+    case 'PLACED':
+    case 'PENDING':
+      return t('timeline.step.placed');
+    case 'CONFIRMED':
+    case 'PROCESSING':
+      return t('timeline.step.confirmed');
+    case 'PACKED':
+      return t('timeline.step.packed');
+    case 'DISPATCHED':
+    case 'SHIPPED':
+      return isPickup ? t('timeline.step.ready') : t('timeline.step.dispatched');
+    case 'DELIVERED':
+      return isPickup ? t('timeline.step.collected') : t('timeline.step.delivered');
+    default:
+      return order.status;
+  }
+}
+
+export function OrderTrackingBlock({ order }: { order: Order }) {
+  const { t } = useLang();
+  const [copied, setCopied] = useState(false);
+
+  const isHomeDelivery = order.fulfillment_type !== 'SCHOOL_PICKUP';
+  const consignmentNumber = order.tracking?.consignment_number;
+  const isDispatched = ['DISPATCHED', 'SHIPPED', 'DELIVERED'].includes(order.status);
+
+  if (!isHomeDelivery || !consignmentNumber || !isDispatched) {
+    return null;
+  }
+
+  const handleCopy = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(consignmentNumber);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = consignmentNumber;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    }
+  };
+
+  const handleTrackClick = (e: React.MouseEvent) => {
+    if (siteConfig.indiaPostTrackingUrl) {
+      if (isNativeApp()) {
+        e.preventDefault();
+        openExternalUrl(siteConfig.indiaPostTrackingUrl);
+      }
+    }
+  };
+
   return (
-    <div className="timeline">
-      {steps.map((s, i) => {
-        const orderIdx = steps.indexOf(order.status);
-        const isCurrent = order.status === s;
-        const isDone = orderIdx >= i;
-        return (
-          <div className={(isCurrent ? 'current ' : '') + (isDone ? 'done' : '')} key={s}>
-            <span>{i + 1}</span>
-            <div>
-              <b>{s[0] + s.slice(1).toLowerCase()}</b>
-              <small>{isCurrent ? 'In progress' : ' '}</small>
-            </div>
-          </div>
-        );
-      })}
+    <div className="tracking-block" data-testid="tracking-block">
+      <div className="tracking-label">
+        {t('tracking.indiaPostLabel')}
+      </div>
+      <div className="tracking-row">
+        <span className="tracking-consignment">
+          {consignmentNumber}
+        </span>
+        <button
+          type="button"
+          className="tracking-copy-btn"
+          onClick={handleCopy}
+          aria-label={copied ? t('tracking.copied') : t('tracking.copy')}
+        >
+          {copied ? t('tracking.copied') : t('tracking.copy')}
+        </button>
+        <span aria-live="polite" className="sr-only">
+          {copied ? t('tracking.copied') : ''}
+        </span>
+        {Boolean(siteConfig.indiaPostTrackingUrl) && (
+          <a
+            href={siteConfig.indiaPostTrackingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={handleTrackClick}
+            className="tracking-track-link"
+          >
+            {t('tracking.trackOnIndiaPost')}
+          </a>
+        )}
+      </div>
     </div>
+  );
+}
+
+export function Timeline({ order, hideTrackingBlock }: { order: Order; hideTrackingBlock?: boolean }) {
+  const { t } = useLang();
+  const isPickup = order.fulfillment_type === 'SCHOOL_PICKUP';
+
+  // Handle cancelled or returned orders: no step bar, one line with date & message
+  if (order.status === 'CANCELLED' || order.status === 'RETURNED') {
+    const cancelEvent = (order.tracking?.steps || []).find((s) => s.key === order.status);
+    const eventDate = formatStepDate(cancelEvent ? cancelEvent.at : order.created_at);
+
+    let message: string;
+    if (order.status === 'CANCELLED') {
+      message = order.payment_status !== 'PAID'
+        ? t('timeline.cancelled.unpaid')
+        : t('timeline.cancelled.paid');
+    } else {
+      message = t('timeline.returned');
+    }
+
+    return (
+      <div className="timeline-status-row" data-testid="timeline-cancelled" style={{ paddingTop: '12px', borderTop: '1px solid var(--line)', fontSize: '13px', color: 'var(--ink)' }}>
+        <span className="timeline-status-date" style={{ color: 'var(--muted)', marginRight: '6px' }}>{eventDate}</span>: <span>{message}</span>
+      </div>
+    );
+  }
+
+  type StepDef = {
+    key: string;
+    labelKey: MessageKey;
+    eventKeys: string[];
+  };
+
+  const steps: StepDef[] = [
+    { key: 'PLACED', labelKey: 'timeline.step.placed', eventKeys: ['PLACED', 'PENDING'] },
+    { key: 'CONFIRMED', labelKey: 'timeline.step.confirmed', eventKeys: ['CONFIRMED', 'PROCESSING'] },
+    { key: 'PACKED', labelKey: 'timeline.step.packed', eventKeys: ['PACKED'] },
+    {
+      key: 'DISPATCHED',
+      labelKey: isPickup ? 'timeline.step.ready' : 'timeline.step.dispatched',
+      eventKeys: ['DISPATCHED', 'SHIPPED'],
+    },
+    {
+      key: 'DELIVERED',
+      labelKey: isPickup ? 'timeline.step.collected' : 'timeline.step.delivered',
+      eventKeys: ['DELIVERED'],
+    },
+  ];
+
+  // Map order status to active step index
+  let currentIdx = 0;
+  if (order.status === 'PLACED' || order.status === 'PENDING') {
+    currentIdx = 0;
+  } else if (order.status === 'CONFIRMED' || order.status === 'PROCESSING') {
+    currentIdx = 1;
+  } else if (order.status === 'PACKED') {
+    currentIdx = 2;
+  } else if (order.status === 'DISPATCHED' || order.status === 'SHIPPED') {
+    currentIdx = 3;
+  } else if (order.status === 'DELIVERED') {
+    currentIdx = 4;
+  }
+
+  return (
+    <>
+      <ol className="timeline">
+        {steps.map((step, i) => {
+          const isCurrent = currentIdx === i;
+          const isDone = currentIdx >= i;
+
+          // Find date from tracking.steps
+          let stepDateIso: string | null = null;
+          const trackingSteps = order.tracking?.steps || [];
+          for (const evKey of step.eventKeys) {
+            const ev = trackingSteps.find((s) => s.key === evKey);
+            if (ev?.at) {
+              stepDateIso = ev.at;
+              break;
+            }
+          }
+
+          // Fallbacks for dates if not in tracking.steps
+          if (!stepDateIso && i === 0 && order.created_at) {
+            stepDateIso = order.created_at;
+          } else if (!stepDateIso && step.key === 'DISPATCHED' && order.tracking?.dispatched_at) {
+            stepDateIso = order.tracking.dispatched_at;
+          } else if (!stepDateIso && step.key === 'DELIVERED' && order.tracking?.delivered_at) {
+            stepDateIso = order.tracking.delivered_at;
+          }
+
+          const dateStr = formatStepDate(stepDateIso);
+
+          return (
+            <li
+              key={step.key}
+              className={(isCurrent ? 'current ' : '') + (isDone ? 'done' : '')}
+              aria-current={isCurrent ? 'step' : undefined}
+            >
+              <span>{i + 1}</span>
+              <div>
+                <b>{t(step.labelKey)}</b>
+                <small className="step-date">{isDone ? dateStr : '-'}</small>
+                {isCurrent && <small className="step-current">{t('timeline.inProgress')}</small>}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      {!hideTrackingBlock && <OrderTrackingBlock order={order} />}
+    </>
   );
 }

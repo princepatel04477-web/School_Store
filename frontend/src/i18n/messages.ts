@@ -1305,7 +1305,126 @@ export const messages = {
   'foot.message': { en: 'Send a message', gu: 'મેસેજ મોકલો', hi: 'मैसेज भेजें' },
   'foot.email': { en: 'Email', gu: 'ઈમેલ', hi: 'ईमेल' },
 
-  // ---------- parent account (/account) ----------
+  // ---------- Day 3 Task B: order tracking & timeline ----------
+  'timeline.step.placed': { en: 'Placed', gu: 'ઓર્ડર થયો', hi: 'ऑर्डर हुआ' },
+  'timeline.step.confirmed': { en: 'Confirmed', gu: 'કન્ફર્મ થયો', hi: 'पुष्टि हुई' },
+  'timeline.step.packed': { en: 'Packed', gu: 'પેક થયો', hi: 'पैक हुआ' },
+  'timeline.step.dispatched': { en: 'Sent by India Post', gu: 'ઇન્ડિયા પોસ્ટ દ્વારા મોકલાયું', hi: 'इंडिया पोस्ट द्वारा भेजा गया' },
+  'timeline.step.ready': { en: 'Ready at school', gu: 'શાળાએ તૈયાર છે', hi: 'स्कूल में तैयार है' },
+  'timeline.step.delivered': { en: 'Delivered', gu: 'પહોંચી ગયું', hi: 'पहुँचा दिया गया' },
+  'timeline.step.collected': { en: 'Collected', gu: 'લઈ ગયા', hi: 'प्राप्त किया' },
+  'timeline.inProgress': { en: 'In progress', gu: 'પ્રગતિમાં છે', hi: 'प्रगति पर है' },
+  'timeline.cancelled.unpaid': {
+    en: 'Payment was not completed, so this order was cancelled.',
+    gu: 'ચુકવણી પૂરી ન થઈ, તેથી આ ઓર્ડર રદ કરવામાં આવ્યો.',
+    hi: 'भुगतान पूरा नहीं हुआ, इसलिए यह ऑर्डर रद्द कर दिया गया।',
+  },
+  'timeline.cancelled.paid': {
+    en: 'This order was cancelled.',
+    gu: 'આ ઓર્ડર રદ કરવામાં આવ્યો છે.',
+    hi: 'यह ऑर्डर रद्द कर दिया गया है।',
+  },
+  'timeline.returned': {
+    en: 'This order was returned.',
+    gu: 'આ ઓર્ડર પરત કરવામાં આવ્યો છે.',
+    hi: 'यह ऑर्डर वापस कर दिया गया है।',
+  },
+  'tracking.indiaPostLabel': {
+    en: 'India Post tracking number',
+    gu: 'ઇન્ડિયા પોસ્ટ ટ્રેકિંગ નંબર',
+    hi: 'इंडिया पोस्ट ट्रैकिंग नंबर',
+  },
+  'tracking.copy': { en: 'Copy', gu: 'કૉપિ કરો', hi: 'कॉपी करें' },
+  'tracking.copied': { en: 'Copied', gu: 'કૉપિ થઈ ગયું', hi: 'कॉपी हो गया' },
+  'tracking.trackOnIndiaPost': {
+    en: 'Track on India Post',
+    gu: 'ઇન્ડિયા પોસ્ટ પર ટ્રેક કરો',
+    hi: 'इंडिया पोस्ट पर ट्रैक करें',
+  },
+  'orders.loadError': {
+    en: 'We could not load your orders.',
+    gu: 'તમારા ઓર્ડર ખૂલ્યા નહીં.',
+    hi: 'आपके ऑर्डर नहीं खुल पाए।',
+  },
+  'orders.retry': { en: 'Retry', gu: 'ફરી પ્રયત્ન કરો', hi: 'फिर से कोशिश करें' },
+  'status.cancelled': { en: 'Cancelled', gu: 'રદ થયેલ', hi: 'रद्द' },
+  'status.returned': { en: 'Returned', gu: 'પરત થયેલ', hi: 'वापस' },
+
+  // ---------- Day 3 Task E: parent order detail ----------
+  'orderDetail.title': { en: 'Order details', gu: 'ઓર્ડર વિગતો', hi: 'ऑर्डर विवरण' },
+  'orderDetail.back': { en: 'Back to orders', gu: 'ઓર્ડર પર પાછા જાઓ', hi: 'ऑर्डर पर वापस जाएँ' },
+  'orderDetail.placedOn': { en: 'Placed on {date}', gu: '{date} ના રોજ ઓર્ડર કર્યો', hi: '{date} को ऑर्डर किया गया' },
+  'orderDetail.itemsBought': { en: 'Items bought', gu: 'ખરીદેલી વસ્તુઓ', hi: 'ख़रीदा गया सामान' },
+  'orderDetail.size': { en: 'Size: {size}', gu: 'સાઈઝ: {size}', hi: 'साइज़: {size}' },
+  'orderDetail.qty': { en: 'Qty: {qty}', gu: 'જથ્થો: {qty}', hi: 'मात्रा: {qty}' },
+  'orderDetail.personalisation': { en: 'Personalisation: {details}', gu: 'પર્સનલાઇઝેશન: {details}', hi: 'पर्सनलाइज़ेशन: {details}' },
+  'orderDetail.payment': { en: 'Payment', gu: 'ચુકવણી', hi: 'भुगतान' },
+  'orderDetail.paymentMethod': { en: 'Payment method', gu: 'ચુકવણીની પદ્ધતિ', hi: 'भुगतान का तरीका' },
+  'orderDetail.paymentMethod.online': { en: 'Online', gu: 'ઓનલાઇન', hi: 'ऑनलाइन' },
+  'orderDetail.paymentMethod.cod': { en: 'Cash on delivery', gu: 'કેશ ઓન ડિલિવરી', hi: 'कैश ऑन डिलीवरी' },
+  'orderDetail.paymentStatus.paid': { en: 'Paid', gu: 'ચૂકવેલ', hi: 'भुगतान हो गया' },
+  'orderDetail.paymentStatus.pending': { en: 'Pending', gu: 'બાકી', hi: 'लंबित' },
+  'orderDetail.paymentStatus.failed': { en: 'Failed', gu: 'નિષ્ફળ', hi: 'विफल' },
+  'orderDetail.paymentStatus.refunded': { en: 'Refunded', gu: 'રિફંડ મળેલ', hi: 'वापस किया गया' },
+  'orderDetail.payOnDelivery': { en: 'Pay on delivery', gu: 'ડિલિવરી સમયે ચુકવણી', hi: 'डिलीवरी पर भुगतान' },
+  'orderDetail.payOnDeliveryDue': {
+    en: 'Pay on delivery: ₹{amount} due',
+    gu: 'ડિલિવરી સમયે ચુકવણી: ₹{amount} બાકી',
+    hi: 'डिलीवरी पर भुगतान: ₹{amount} बाकी',
+  },
+  'orderDetail.delivery': { en: 'Delivery', gu: 'ડિલિવરી', hi: 'डिलीवरी' },
+  'orderDetail.latestStoreEvent': { en: 'Latest update: {event} ({time})', gu: 'તાજેતરનું અપડેટ: {event} ({time})', hi: 'नवीनतम अपडेट: {event} ({time})' },
+  'orderDetail.markedDelivered': {
+    en: 'Marked delivered by the store',
+    gu: 'સ્ટોર દ્વારા પહોંચેલ તરીકે ચિહ્નિત',
+    hi: 'स्टोर द्वारा डिलीवर चिह्नित किया गया',
+  },
+  'orderDetail.dispatched': { en: 'Dispatched', gu: 'મોકલાયેલ', hi: 'भेज दिया गया' },
+  'orderDetail.articleNumberLabel': {
+    en: 'India Post article number',
+    gu: 'ઇન્ડિયા પોસ્ટ આર્ટિકલ નંબર',
+    hi: 'इंडिया पोस्ट आर्टिकल नंबर',
+  },
+  'orderDetail.indiaPostHint': {
+    en: 'Copy the number, then paste it on the India Post page.',
+    gu: 'નંબર કૉપિ કરો, પછી ઇન્ડિયા પોસ્ટ પેજ પર પેસ્ટ કરો.',
+    hi: 'नंबर कॉपी करें, फिर इंडिया पोस्ट पेज पर पेस्ट करें।',
+  },
+  'orderDetail.noTrackingRecorded': {
+    en: 'Handed over to India Post. The tracking number was not recorded for this order.',
+    gu: 'ઇન્ડિયા પોસ્ટને સોંપવામાં આવ્યું. આ ઓર્ડર માટે ટ્રેકિંગ નંબર નોંધાયેલ નથી.',
+    hi: 'इंडिया पोस्ट को सौंप दिया गया। इस ऑर्डर के लिए ट्रैकिंग नंबर दर्ज नहीं किया गया था।',
+  },
+  'orderDetail.pickupAt': { en: 'Pickup at {school}', gu: '{school} ખાતેથી પિકઅપ', hi: '{school} पर पिकअप' },
+  'orderDetail.readyAtSchool': { en: 'Ready at school', gu: 'શાળાએ તૈયાર છે', hi: 'स्कूल में तैयार है' },
+  'orderDetail.loadError': {
+    en: 'We could not load your order details.',
+    gu: 'તમારી ઓર્ડર વિગતો ખૂલી નહીં.',
+    hi: 'आपके ऑर्डर का विवरण नहीं खुल पाया।',
+  },
+  'orderDetail.viewDetails': { en: 'View details', gu: 'વિગતો જુઓ', hi: 'विवरण देखें' },
+  'orderDetail.copyFailed': {
+    en: 'Could not copy. Press and hold the number to copy it.',
+    gu: 'કૉપિ થઈ શક્યું નહીં. નંબર દબાવી રાખીને કૉપિ કરો.',
+    hi: 'कॉपी नहीं हो सका। नंबर को दबाकर रखें और कॉपी करें।',
+  },
+  'tracking.copyFailed': {
+    en: 'Could not copy. Press and hold the number to copy it.',
+    gu: 'કૉપિ થઈ શક્યું નહીં. નંબર દબાવી રાખીને કૉપિ કરો.',
+    hi: 'कॉपी नहीं हो सका। नंबर को दबाकर रखें और कॉपी करें।',
+  },
+  'parent.noChildren': {
+    en: 'No children added yet.',
+    gu: 'હજુ સુધી કોઈ બાળક ઉમેરાયું નથી.',
+    hi: 'अभी कोई बच्चा नहीं जोड़ा गया है।',
+  },
+  'parent.noChildrenSub': {
+    en: 'Choose your school to browse uniform essentials, or ask your school to link your child’s record.',
+    gu: 'યુનિફોર્મ જોવા માટે તમારી શાળા પસંદ કરો, અથવા શાળાને તમારા બાળકનો રેકોર્ડ જોડવા કહો.',
+    hi: 'यूनिफ़ॉर्म देखने के लिए अपना स्कूल चुनें, या स्कूल से अपने बच्चे का रिकॉर्ड जोड़ने को कहें।',
+  },
+
+// ---------- parent account (/account) ----------
   'account.signedIn': { en: 'Signed in', gu: 'લોગિન થયેલ', hi: 'लॉगिन किया हुआ' },
   'account.namaste': { en: 'Namaste', gu: 'નમસ્તે', hi: 'नमस्ते' },
   'account.subtitle': {

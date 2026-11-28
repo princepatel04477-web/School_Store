@@ -13,26 +13,39 @@ export interface StaggerProps {
   children: ReactNode;
   staggerDelay?: number;
   className?: string;
+  maxAnimated?: number;
 }
 
 export const staggerContainerVariants = {
   hidden: {},
-  visible: (staggerDelay = 0.06) => ({
+  visible: (staggerDelay = 0.02) => ({
     transition: {
       staggerChildren: staggerDelay,
     },
   }),
 };
 
+const IOS_EASE = [0.32, 0.72, 0, 1] as const;
+
 export const staggerChildVariants = {
-  hidden: { opacity: 0, y: 36, scale: 0.97 },
+  hidden: { opacity: 0, y: 12 },
   visible: {
     opacity: 1,
     y: 0,
-    scale: 1,
     transition: {
-      duration: 0.7,
-      ease: EASING,
+      duration: 0.24,
+      ease: IOS_EASE,
+    },
+  },
+};
+
+export const immediateChildVariants = {
+  hidden: { opacity: 1, y: 0 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0,
     },
   },
 };
@@ -68,32 +81,14 @@ export const curtainVariants = {
   },
 };
 
-export function Stagger({ children, staggerDelay = 0.06, className = '' }: StaggerProps) {
+export function Stagger({ children, staggerDelay = 0.02, className = '', maxAnimated = 8 }: StaggerProps) {
   const shouldReduceMotion = useReducedMotion();
-  // "Appear when on screen" fires once. Items added after that (a list refilled with
-  // other choices, a search cleared) would stay at opacity 0, so once the list has
-  // been seen it simply stays shown and new items come in with it.
   const [seen, setSeen] = useState(false);
   const reveal = seen
     ? ({ animate: 'visible' } as const)
     : ({ whileInView: 'visible', viewport: IN_VIEW, onViewportEnter: () => setSeen(true) } as const);
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(max-width: 767.98px)').matches;
-  });
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(max-width: 767.98px)');
-    const update = () => setIsMobile(mq.matches);
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, []);
-
-  // Same wrapper boxes with reduced motion, so layout rules that target them still apply.
-  // Phones show the list at once: a scroll-triggered fade left blank gaps while the
-  // parent scrolled, and product cards took a second or more to appear.
-  if (shouldReduceMotion || isMobile) {
+  if (shouldReduceMotion) {
     return (
       <div className={className}>
         {Children.map(children, (child) =>
@@ -103,8 +98,6 @@ export function Stagger({ children, staggerDelay = 0.06, className = '' }: Stagg
     );
   }
 
-  // Each child gets a real wrapper box (.stagger-item). A display:contents wrapper has
-  // no box, so its opacity and movement never showed and the cards just appeared.
   const count = Children.toArray(children).filter(isValidElement).length;
   return (
     <motion.div
@@ -114,10 +107,11 @@ export function Stagger({ children, staggerDelay = 0.06, className = '' }: Stagg
       variants={staggerContainerVariants}
       className={className}
     >
-      {Children.map(children, (child) => {
+      {Children.map(children, (child, index) => {
         if (!isValidElement(child)) return child;
+        const animateThis = maxAnimated !== undefined ? index < maxAnimated : true;
         return (
-          <motion.div variants={staggerChildVariants} className="stagger-item">
+          <motion.div variants={animateThis ? staggerChildVariants : immediateChildVariants} className="stagger-item">
             {child}
           </motion.div>
         );

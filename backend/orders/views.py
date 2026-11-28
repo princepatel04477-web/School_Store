@@ -1,9 +1,10 @@
 import json
 from django.db import transaction
+from django.db.models import Exists, Prefetch
+from django.utils import timezone
 from rest_framework import status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from common.pagination import BoundedCursorPagination
@@ -12,14 +13,13 @@ from common.scoping import ScopedQuerysetMixin
 from .models import Order, OrderStatusEvent, PaymentAttempt
 from .payment import RazorpayGateway
 from .payment_view import MINIMUM_HOLD, check_provider, matching_captures, payment_view, reconcile_order
-from django.utils import timezone
-from django.db.models import Exists
 from .status import apply_provider_payment, can_transition_order, change_order_status
 from .serializers import (
     OrderCreateSerializer,
     OrderDetailSerializer,
     OrderListSerializer,
     OrderQuoteSerializer,
+    ParentOrderDetailSerializer,
 )
 
 
@@ -53,16 +53,37 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         if self.action == "list":
-            qs = qs.prefetch_related("payment_attempts")
+            qs = qs.select_related("shipment").prefetch_related(
+                "payment_attempts",
+                Prefetch(
+                    "status_events",
+                    queryset=OrderStatusEvent.objects.only("order_id", "status", "timestamp").order_by("timestamp"),
+                ),
+            )
             if self.request.query_params.get("payment_attention") == "1":
                 qs = qs.filter(
                     parent_id=self.request.user.pk, payment_method=Order.PaymentMethod.ONLINE,
                 ).exclude(status=Order.Status.CANCELLED).exclude(Exists(matching_captures()))
-        if self.action == "retrieve":
-            qs = qs.prefetch_related("items__variant__product", "status_events", "payment_attempts", "payment_reviews")
+        elif self.action == "retrieve":
+            if getattr(self.request.user, "role", None) == "PARENT":
+                qs = qs.select_related("shipment").prefetch_related(
+                    "items__variant__product",
+                    Prefetch(
+                        "status_events",
+                        queryset=OrderStatusEvent.objects.only("order_id", "status", "timestamp").order_by("timestamp"),
+                    ),
+                )
+            else:
+                qs = qs.select_related("shipment").prefetch_related(
+                    "items__variant__product",
+                    "status_events",
+                    "payment_attempts",
+                    "payment_reviews",
+                )
 
         status_param = self.request.query_params.get("status")
-        school_param = self.request.query_param = self.request.query_params.get("school")
+        school_param = self.request.query_params.get("school")
+        branch_param = self.request.query_params.get("branch")
         city_param = self.request.query_params.get("city")
         student_param = self.request.query_params.get("student")
         date_from = self.request.query_params.get("date_from")
@@ -73,7 +94,6 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             qs = qs.filter(status=status_param)
         if school_param:
             qs = qs.filter(school_id=school_param)
-        branch_param = self.request.query_params.get("branch")
         if branch_param:
             qs = qs.filter(branch_id=branch_param)
         if city_param:
@@ -92,6 +112,8 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         if self.action == "create":
             return OrderCreateSerializer
         if self.action == "retrieve":
+            if getattr(self.request.user, "role", None) == "PARENT":
+                return ParentOrderDetailSerializer
             return OrderDetailSerializer
         return OrderListSerializer
 
@@ -109,13 +131,23 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
         order = serializer.save()
         order = (
             Order.objects.select_related(
-                "student", "school", "city", "placed_by", "payer"
+                "student", "school", "city", "placed_by", "payer", "shipment"
             )
-            .prefetch_related("items__variant__product", "status_events", "payment_attempts", "payment_reviews")
+            .prefetch_related(
+                "items__variant__product",
+                "status_events",
+                "payment_attempts",
+                "payment_reviews",
+            )
             .get(pk=order.pk)
         )
+        detail_class = (
+            ParentOrderDetailSerializer
+            if getattr(request.user, "role", None) == "PARENT"
+            else OrderDetailSerializer
+        )
         return Response(
-            OrderDetailSerializer(order).data,
+            detail_class(order).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -220,7 +252,12 @@ class OrderViewSet(ScopedQuerysetMixin, viewsets.ModelViewSet):
             changed_by=request.user,
         )
         order.refresh_from_db()
-        data = OrderDetailSerializer(order).data
+        detail_class = (
+            ParentOrderDetailSerializer
+            if getattr(request.user, "role", None) == "PARENT"
+            else OrderDetailSerializer
+        )
+        data = detail_class(order).data
         if order.payment_status == Order.PaymentStatus.PAID:
             data["status"] = "paid"
         elif attempt and attempt.status == PaymentAttempt.Status.AUTHORIZED:

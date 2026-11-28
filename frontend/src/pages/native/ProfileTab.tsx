@@ -11,6 +11,7 @@ import { checkAppVersion, INSTALLED_APP_VERSION, type VersionCheckResult } from 
 import { openExternalUrl } from '../../native/externalLinks';
 import { haptic } from '../../native/haptics';
 import { updateOrderNotificationPreference } from '../../native/push';
+import { storeState } from '../../store/storeState';
 import './nativePages.css';
 
 interface UserWithNotifications {
@@ -342,7 +343,12 @@ export function ProfileTab() {
       <ParentSignInSheet
         open={showSignIn}
         onClose={() => setShowSignIn(false)}
-        onDone={() => setShowSignIn(false)}
+        onDone={(child) => {
+          setShowSignIn(false);
+          if (!child && !storeState.getSelection()) {
+            navigate('/flow?step=1');
+          }
+        }}
       />
     </div>
   );

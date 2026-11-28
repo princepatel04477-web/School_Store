@@ -272,8 +272,8 @@ else:
     }
 
 # Celery Background Job Runner (Rule P5)
-CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", f"{REDIS_URL}/0")
-CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", f"{REDIS_URL}/2")
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "memory://" if "test" in sys.argv else f"{REDIS_URL}/0")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "cache+memory://" if "test" in sys.argv else f"{REDIS_URL}/2")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -482,5 +482,11 @@ PLAY_STORE_URL = os.environ.get(
 # Firebase Cloud Messaging (FCM HTTP v1) for mobile push notifications
 # --------------------------------------------------------------------------- #
 FCM_CREDENTIALS_FILE = os.environ.get("FCM_CREDENTIALS_FILE", "")
+
+# --------------------------------------------------------------------------- #
+# Day 3 Fulfilment packing fixture (dev only: "allow" or a blocked code)
+# --------------------------------------------------------------------------- #
+FULFILMENT_PACKING_FIXTURE = os.environ.get("FULFILMENT_PACKING_FIXTURE", "")
+
 
 

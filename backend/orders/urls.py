@@ -9,11 +9,15 @@ from .upload_views import (
     local_storage_download_view,
     local_storage_upload_view,
 )
+from .fulfilment_views import FulfilmentViewSet
 from .views import OrderViewSet
 from .webhooks import razorpay_webhook
 
 router = DefaultRouter()
 router.register("orders", OrderViewSet, basename="order")
+
+fulfilment_router = DefaultRouter()
+fulfilment_router.register("fulfilment", FulfilmentViewSet, basename="fulfilment")
 
 urlpatterns = [
     path("orders/customisation-upload-url/", PresignedUploadUrlView.as_view(), name="customisation-upload-url"),
@@ -32,6 +36,7 @@ urlpatterns = [
         name="order-item-fit-feedback",
     ),
     path("", include(router.urls)),
+    path("", include(fulfilment_router.urls)),
     path("devices/", DeviceTokenView.as_view(), name="device-token-create"),
     path("devices/<path:token>/", DeviceTokenDetailView.as_view(), name="device-token-detail"),
     path("payments/razorpay/webhook/", razorpay_webhook, name="razorpay-webhook"),

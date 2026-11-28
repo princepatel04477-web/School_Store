@@ -6,11 +6,14 @@ from .models import (
     Order,
     OrderItem,
     OrderItemExchange,
+    OrderPacking,
     OrderStatusEvent,
     PaymentAttempt,
     PaymentEvent,
     PaymentReview,
     PhotoConsent,
+    Shipment,
+    ShipmentCorrection,
 )
 from .status import can_transition_order
 
@@ -59,6 +62,20 @@ class OrderStatusEventInline(admin.TabularInline):
     readonly_fields = ("id", "timestamp")
 
 
+class OrderPackingInline(admin.StackedInline):
+    model = OrderPacking
+    extra = 0
+    raw_id_fields = ("claimed_by", "packed_by", "issue_reported_by")
+    readonly_fields = ("id", "claimed_at", "packed_at", "issue_reported_at")
+
+
+class ShipmentInline(admin.StackedInline):
+    model = Shipment
+    extra = 0
+    raw_id_fields = ("created_by",)
+    readonly_fields = ("id", "created_at")
+
+
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = (
@@ -94,7 +111,14 @@ class OrderAdmin(admin.ModelAdmin):
     raw_id_fields = ("placed_by", "payer", "student", "school", "branch", "city")
     list_select_related = ("student", "school", "branch", "city", "placed_by", "payer")
     show_full_result_count = False
-    inlines = [OrderItemInline, OrderStatusEventInline, PaymentAttemptInline, PaymentReviewInline]
+    inlines = [
+        OrderItemInline,
+        OrderStatusEventInline,
+        OrderPackingInline,
+        ShipmentInline,
+        PaymentAttemptInline,
+        PaymentReviewInline,
+    ]
 
     def save_model(self, request, obj, form, change):
         if change and "status" in form.changed_data:
@@ -321,3 +345,21 @@ class OrderStatusEventAdmin(admin.ModelAdmin):
     raw_id_fields = ("order", "changed_by")
     list_select_related = ("order", "changed_by")
     show_full_result_count = False
+
+
+class ShipmentCorrectionInline(admin.TabularInline):
+    model = ShipmentCorrection
+    extra = 0
+    raw_id_fields = ("changed_by",)
+    readonly_fields = ("id", "previous_number", "new_number", "changed_at")
+
+
+@admin.register(Shipment)
+class ShipmentAdmin(admin.ModelAdmin):
+    list_display = ("consignment_number", "article_key", "carrier", "order", "booked_at", "created_by", "created_at")
+    search_fields = ("consignment_number", "article_key", "order__order_number")
+    readonly_fields = ("id", "article_key", "created_at")
+    raw_id_fields = ("order", "created_by")
+    list_select_related = ("order", "created_by")
+    show_full_result_count = False
+    inlines = [ShipmentCorrectionInline]

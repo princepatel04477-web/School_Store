@@ -149,7 +149,8 @@ class Command(BaseCommand):
                 id, order_id, variant_id, category_id,
                 quantity, unit_price_snapshot, unit_cost_snapshot, customisation_data,
                 fit_source, fit_shoulder_edited, recommended_size, recommended_alt_size,
-                recommendation_status, chosen_size
+                recommendation_status, chosen_size,
+                fit_model_version, fit_feedback
             ) FROM STDIN
         """
 
@@ -239,6 +240,8 @@ class Command(BaseCommand):
                             # No measurement or size suggestion on these orders.
                             "",
                             False,
+                            "",
+                            "",
                             "",
                             "",
                             "",

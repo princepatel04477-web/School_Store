@@ -33,6 +33,31 @@ export type Product={
   customisation_schema?:CustomisationField[] | {fields?: CustomisationField[]};
   variants:{id:string;size:string;stock_status:StockStatus|null}[];
 };
+export type OrderTrackingStep = {
+  key: string;
+  at: string;
+};
+
+export type OrderTracking = {
+  carrier: 'INDIA_POST' | null;
+  consignment_number: string | null;
+  dispatched_at: string | null;
+  delivered_at: string | null;
+  steps: OrderTrackingStep[];
+};
+
+export type OrderItemDetail = {
+  id: string;
+  product_name: string;
+  variant_sku?: string;
+  variant_size?: string;
+  size?: string;
+  quantity: number;
+  unit_price_snapshot: string | number;
+  customisation_data?: Record<string, unknown>;
+  customisation_display?: Record<string, unknown>;
+};
+
 export type OrderQuoteLine = {
   variant: string;
   sku: string;
@@ -76,15 +101,23 @@ export type Order = {
   order_number: string;
   student?: string;
   student_name: string;
+  student_gr?: string;
+  school_code?: string;
+  school_name?: string;
+  city_name?: string;
+  placed_by_role?: string;
   status: string;
   payment_status: string;
   payment_method?: 'COD' | 'ONLINE';
   fulfillment_type?: string;
+  subtotal?: string | number;
   total: number | string;
-  created_at: string;
   payment_view: PaymentView;
   razorpay_order_id?: string;
+  tracking?: OrderTracking;
+  created_at: string;
   status_events?: { status: string; timestamp: string }[];
+  items?: OrderItemDetail[];
 };
 const API=import.meta.env.VITE_API_URL||'/api';
 
@@ -605,6 +638,117 @@ export const cityAdmin={
   users:(p:Record<string,string>={})=>api<Page<User>>(`/accounts/users/?${new URLSearchParams(p)}`),
   createSchoolAdmin:(body:{username:string;password:string;school:string;email?:string;first_name?:string;last_name?:string;phone?:string})=>api<User>('/accounts/users/',{method:'POST',body:JSON.stringify(body)}),
   resetPassword:(userId:string,password:string)=>api<{detail:string}>(`/accounts/users/${userId}/reset-password/`,{method:'POST',body:JSON.stringify({password})}),
+  fulfilmentQueue:(p:Record<string,string>={})=>api<Page<FulfilmentQueueOrder>>(`/fulfilment/queue/?${new URLSearchParams(p)}`),
+  packingList:(id:string)=>api<PackingListResponse>(`/fulfilment/${id}/packing-list/`),
+  claimOrder:(id:string)=>api<ClaimResult>(`/fulfilment/${id}/claim/`,{method:'POST'}),
+  releaseClaim:(id:string)=>api<ReleaseResult>(`/fulfilment/${id}/release/`,{method:'POST'}),
+  reportIssue:(id:string,note:string)=>api<IssueResult>(`/fulfilment/${id}/issue/`,{method:'POST',body:JSON.stringify({note})}),
+  clearIssue:(id:string)=>api<ClearIssueResult>(`/fulfilment/${id}/issue/clear/`,{method:'POST'}),
+  packOrder:(id:string,confirmed_item_ids:string[],note?:string)=>api<PackSingleResult>(`/fulfilment/${id}/pack/`,{method:'POST',body:JSON.stringify({confirmed_item_ids,note})}),
+  dispatch:(id:string,article_number:string,receipt_confirmed:boolean,booked_at?:string)=>api<FulfilmentDispatchResult>(`/fulfilment/${id}/dispatch/`,{method:'POST',body:JSON.stringify({article_number,receipt_confirmed,booked_at})}),
+  correctArticleNumber:(id:string,article_number:string,reason?:string)=>api<CorrectArticleNumberResult>(`/fulfilment/${id}/correct-article-number/`,{method:'POST',body:JSON.stringify({article_number,reason})}),
+  readyForPickup:(order_ids:string[])=>api<FulfilmentActionBatchResult>('/fulfilment/ready-for-pickup/',{method:'POST',body:JSON.stringify({order_ids})}),
+  markDelivered:(order_ids:string[])=>api<FulfilmentActionBatchResult>('/fulfilment/delivered/',{method:'POST',body:JSON.stringify({order_ids})}),
+};
+
+export type FulfilmentQueueOrder = {
+  id: string;
+  order_number: string;
+  school_name: string;
+  school_code: string;
+  student_name: string;
+  student_gr: string;
+  fulfillment_type: 'HOME_DELIVERY' | 'SCHOOL_PICKUP';
+  payment_status: string;
+  payment_method: string;
+  status: string;
+  items_count: number;
+  total: Money;
+  created_at: string;
+  can_pack: boolean | null;
+  blocked_reason: string | null;
+  blocked_message: string | null;
+  claimed_by_name: string | null;
+  claimed_by_me: boolean;
+  claimed_at: string | null;
+  packed_by_name: string | null;
+  packed_at: string | null;
+  issue_note: string;
+  consignment_number: string | null;
+  dispatched_at: string | null;
+};
+
+export type PackingListItem = {
+  id: string;
+  product_name: string;
+  sku: string;
+  size: string;
+  quantity: number;
+  multiple: boolean;
+  personalisation: Record<string, unknown>;
+};
+
+export type PackingListResponse = {
+  order_id: string;
+  order_number: string;
+  status: string;
+  is_claimed_by_me: boolean;
+  claimed_by_name: string | null;
+  issue_note: string;
+  lines: PackingListItem[];
+};
+
+export type ClaimResult = {
+  changed: boolean;
+  order_id: string;
+  claimed_by: string;
+  claimed_by_name: string;
+  claimed_at: string;
+};
+
+export type ReleaseResult = {
+  released: boolean;
+  order_id: string;
+};
+
+export type IssueResult = {
+  issue_reported: boolean;
+  order_id: string;
+  note: string;
+};
+
+export type ClearIssueResult = {
+  issue_cleared: boolean;
+  order_id: string;
+};
+
+export type PackSingleResult = {
+  changed: boolean;
+  order_id: string;
+};
+
+export type CorrectArticleNumberResult = {
+  changed: boolean;
+  order_id: string;
+  consignment_number: string;
+};
+
+export type FulfilmentPackResult = {
+  packed_ids: string[];
+  blocked: { order_id: string; reason: string; message: string }[];
+  skipped_ids?: string[];
+};
+
+export type FulfilmentDispatchResult = {
+  order_id: string;
+  consignment_number: string;
+  carrier: string;
+  booked_at: string;
+};
+
+export type FulfilmentActionBatchResult = {
+  updated_ids: string[];
+  skipped_ids?: string[];
 };
 
 /* ------------------------------------------------------------------ *

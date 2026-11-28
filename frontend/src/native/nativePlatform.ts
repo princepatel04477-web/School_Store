@@ -17,3 +17,15 @@ export const REMOTE_ASSET_BASE = 'https://school-store.aqualite.workers.dev';
 export function getRemoteMediaPipePath(relativePath: string): string {
   return `${REMOTE_ASSET_BASE}${relativePath}`;
 }
+
+/**
+ * Returns the public website origin for shared links.
+ * In the native app (Capacitor), window.location.origin is https://localhost,
+ * so we must return REMOTE_ASSET_BASE instead of localhost.
+ */
+export function getShareOrigin(): string {
+  if (isNativeApp() || typeof window === 'undefined' || !window.location?.origin) {
+    return REMOTE_ASSET_BASE;
+  }
+  return window.location.origin;
+}

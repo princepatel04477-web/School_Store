@@ -1,16 +1,18 @@
-import { PaymentReturnNotice } from '../components/PaymentReturnNotice';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check } from '../components/ui/icons';
-import { Link, Route, Routes, useLocation } from 'react-router-dom';
+import { Check, Truck } from '../components/ui/icons';
+import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { PaymentReturnNotice } from '../components/PaymentReturnNotice';
 import { Shell } from '../App';
 import { ListenButton } from '../components/ListenButton';
 import { SelectionFlow } from '../components/SelectionFlow';
-import { Cart, Timeline, type CartItem } from '../components/Store';
+import { Cart, Timeline, getOrderStatusLabel, type CartItem } from '../components/Store';
 import { FitFeedbackPrompt } from '../components/orders/FitFeedbackPrompt';
-import { api, deleteChildPhotos, Order, Product, orderApi, type PaymentView } from '../api';
+import { api, deleteChildPhotos, Order, Page, Product, orderApi, type PaymentView } from '../api';
+import { OrderCardsSkeleton, Skeleton } from '../components/ui/Skeleton';
+import { OrderDetail } from './OrderDetail';
 import { checkingPayment, paymentRefusal, runOrderPayment } from '../services/orderPayment';
 import { settlePendingOrder } from '../services/placeOrder';
-import { storeState } from '../store/storeState';
+import { storeState, useStoreState } from '../store/storeState';
 import { formatINR } from '../utils/formatINR';
 import { PaymentStatus } from '../components/PaymentStatus';
 import { useLang } from '../i18n';
@@ -30,13 +32,16 @@ interface StudentDetail {
   school_name?: string;
 }
 
-
 export default function Parent() {
   return (
     <Shell title="A little easier today.">
       <Routes>
         <Route index element={<Dashboard />} />
         <Route path="orders" element={<Orders />} />
+        <Route path="orders/:id" element={<OrderDetail />} />
+        <Route path="orders/:orderId" element={<OrderDetail />} />
+        <Route path="selection" element={<SelectionFlow />} />
+        <Route path="cart" element={<CartTab />} />
       </Routes>
     </Shell>
   );
@@ -45,11 +50,12 @@ export default function Parent() {
 function Dashboard() {
   const queryClient = useQueryClient();
   const { t } = useLang();
+  const { selection } = useStoreState();
   const [confirmPhotoDelete, setConfirmPhotoDelete] = useState(false);
   const [photoDeleteState, setPhotoDeleteState] = useState<'idle' | 'working' | 'done' | 'error'>('idle');
-  const { data: studentsData } = useQuery({
+  const { data: studentsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['parent-students'],
-    queryFn: () => api<{ results: any[] }>('/students/').catch(() => null),
+    queryFn: () => api<{ results: any[] }>('/students/'),
   });
 
   const kids: StudentDetail[] =
@@ -66,10 +72,50 @@ function Dashboard() {
         }))
       : [];
 
-  const [selectedId, setSelectedId] = useState<string>('');
-  const selected: StudentDetail | undefined = kids.find((k) => k.id === selectedId) || kids[0];
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const effectiveSelectedId = selectedId ?? (kids[0]?.id ?? null);
+  const selected = kids.find((k) => k.id === effectiveSelectedId) || kids[0] || null;
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [activeCategory, setActiveCategory] = useState<'PT Uniform' | 'Uniform' | 'School Shoes' | 'Uniform Accessories' | 'Stationery' | 'ID Cards'>('Uniform');
+
+  if (isLoading) {
+    return (
+      <div className="parent-loading-skeleton" role="status" aria-label="Loading your dashboard">
+        <Skeleton className="parent-welcome-skeleton" height="180px" borderRadius={6} />
+        <div className="student-picker">
+          <div className="section-row">
+            <h2>My children</h2>
+          </div>
+          <div className="kids-skeleton-grid">
+            <Skeleton className="kid-card-skeleton" height="64px" borderRadius={6} />
+            <Skeleton className="kid-card-skeleton" height="64px" borderRadius={6} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="parent-error-state" role="alert">
+        <p className="error-title">{t('orders.loadError')}</p>
+        <p className="error-subtitle">{t('common.checkInternet')}</p>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => refetch()}
+        >
+          {t('orders.retry')}
+        </button>
+      </div>
+    );
+  }
+
+  // Zero children and no stored selection: redirect to flow step 1
+  if (kids.length === 0 && !selection) {
+    return <Navigate to="/flow?step=1" replace />;
+  }
 
   const handleAddItem = (item: { product: Product; variantId: string; customisationData: Record<string, any>; measurement?: Fit }) => {
     setCartItems((prev) => [
@@ -90,7 +136,7 @@ function Dashboard() {
     setCartItems((prev) => prev.filter((it) => it.id !== id));
   };
 
-  const rawStudent = studentsData?.results?.find((s: any) => s.id === selectedId);
+  const rawStudent = selected ? studentsData?.results?.find((s: any) => s.id === selected.id) : null;
   const studentProfile = rawStudent
     ? {
         id: rawStudent.id,
@@ -102,8 +148,6 @@ function Dashboard() {
         gender: rawStudent.gender,
       }
     : null;
-
-  const [activeCategory, setActiveCategory] = useState<'PT Uniform' | 'Uniform' | 'School Shoes' | 'Uniform Accessories' | 'Stationery' | 'ID Cards'>('Uniform');
 
   return (
     <>
@@ -123,7 +167,29 @@ function Dashboard() {
         <div className="section-row">
           <h2>My children</h2>
         </div>
-        {studentsData && kids.length === 0 && (
+        {kids.length > 0 ? (
+          <div className="kids">
+            {kids.map((k) => (
+              <button
+                onClick={() => {
+                  setSelectedId(k.id);
+                  setCartItems([]);
+                  setConfirmPhotoDelete(false);
+                  setPhotoDeleteState('idle');
+                }}
+                className={selected?.id === k.id ? 'kid selected' : 'kid'}
+                key={k.id}
+              >
+                <span className="kid-avatar">{k.name[0]}</span>
+                <span>
+                  <b>{k.name}</b>
+                  <small>{k.grade_name ? `Grade ${k.grade_name}` : `Class ${k.class_name}`} {k.section ? `${k.section} · ` : ' · '}{k.school_name}</small>
+                </span>
+                <span className="radio">{selected?.id === k.id ? <Check width={14} height={14} strokeWidth={2.5} /> : null}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
           <div className="kids-empty">
             <p>
               No child added yet. Pick your school and class in the shop, or add your child with the GR number
@@ -134,27 +200,6 @@ function Dashboard() {
             </Link>
           </div>
         )}
-        <div className="kids">
-          {kids.map((k) => (
-            <button
-              onClick={() => {
-                setSelectedId(k.id);
-                setCartItems([]);
-                setConfirmPhotoDelete(false);
-                setPhotoDeleteState('idle');
-              }}
-              className={selected?.id === k.id ? 'kid selected' : 'kid'}
-              key={k.id}
-            >
-              <span className="kid-avatar">{k.name[0]}</span>
-              <span>
-                <b>{k.name}</b>
-                <small>{k.grade_name ? `Grade ${k.grade_name}` : `Class ${k.class_name}`} {k.section ? `${k.section} · ` : ' · '}{k.school_name}</small>
-              </span>
-              <span className="radio">{selected?.id === k.id ? <Check width={14} height={14} strokeWidth={2.5} /> : null}</span>
-            </button>
-          ))}
-        </div>
       </div>
 
       {selected && (
@@ -336,7 +381,7 @@ function Dashboard() {
       </div>
 
       <SelectionFlow
-        key={selected?.id}
+        key={selected?.id || 'none'}
         category={activeCategory}
         studentProfile={studentProfile}
         cartItemCount={cartItems.length}
@@ -361,12 +406,13 @@ function Dashboard() {
   );
 }
 
-function Orders() {
+export function Orders() {
   const { t } = useLang();
   const queryClient = useQueryClient();
-  const { data, isPending, isError } = useQuery({
+  const { data, isPending, isLoading, isError, refetch } = useQuery({
     queryKey: ['orders'],
     queryFn: () => api<{ results: Order[] }>('/orders/'),
+    refetchOnWindowFocus: true,
   });
   const { hash } = useLocation();
   const focusedId = hash.startsWith('#order-') ? hash.slice(7) : '';
@@ -388,6 +434,7 @@ function Orders() {
   const autoChecked = useRef(new Set<string>());
   const visiblePayment = (order: Order) => {
     const latest = order.payment_view;
+    if (!latest) return { state: 'CHECKING', amount_due_paise: 0, amount_paid_paise: 0, currency: 'INR', hold_expires_at: null, last_checked_at: null, last_check_ok: null, in_progress: false, last_failure_reason: null, can_pay_now: false, can_switch_to_cod: false, can_refresh: false, receipt: null } as PaymentView;
     const previous = views[order.id];
     if (!previous || (latest.state !== 'CHECKING' && latest.state !== 'NOT_PAID')) return latest;
     if (latest.last_checked_at && previous.last_checked_at &&
@@ -407,7 +454,7 @@ function Orders() {
       const result = await orderApi.reconcilePayment(order.id);
       update(order.id, result.payment_view);
       const settled = result.payment_view.state;
-      if (settled !== order.payment_view.state && settled !== 'CHECKING' && settled !== 'NOT_PAID') {
+      if (settled !== (order.payment_view?.state) && settled !== 'CHECKING' && settled !== 'NOT_PAID') {
         // A capture or release also moves the order's status and timeline: fetch them again.
         void queryClient.invalidateQueries({ queryKey: ['orders'] });
         void queryClient.invalidateQueries({ queryKey: ['payment-attention'] });
@@ -417,14 +464,14 @@ function Orders() {
       window.setTimeout(() => setCooldowns(previous => previous[order.id] === until
         ? { ...previous, [order.id]: 0 } : previous), result.retry_after_seconds * 1000);
     } catch (error) {
-      update(order.id, paymentRefusal(error) ?? checkingPayment(order.payment_view));
+      update(order.id, paymentRefusal(error) ?? checkingPayment(order.payment_view ?? visiblePayment(order)));
     }
   }
 
   useEffect(() => {
     if (busy) return;
     const pending = orders.filter(order =>
-      order.payment_view.state === 'CHECKING' && !autoChecked.current.has(order.id));
+      visiblePayment(order).state === 'CHECKING' && !autoChecked.current.has(order.id));
     if (!pending.length || active.current) return;
     active.current = true;
     setBusy(true);
@@ -467,26 +514,54 @@ function Orders() {
           <span className="eyebrow">YOUR PURCHASES</span>
           <h2>My orders</h2>
         </div>
-        <Link className="text-button" to="/parent">
+        <Link className="text-button" to="/parent" style={{ minHeight: '44px', display: 'inline-flex', alignItems: 'center' }}>
           Shop again
         </Link>
       </div>
 
-      {isPending ? (
-        <div className="checkout-skeleton payment-orders-skeleton" aria-busy="true" />
+      {isPending || isLoading ? (
+        <OrderCardsSkeleton count={3} />
       ) : isError ? (
-        <p role="alert">{t('recovery.ordersError')}</p>
+        <div
+          className="orders-error-state"
+          role="alert"
+          style={{
+            padding: '32px 20px',
+            textAlign: 'center',
+            background: 'var(--paper-raised)',
+            border: '1px solid var(--line)',
+            borderRadius: 'var(--radius-lg, 6px)',
+            marginTop: '20px',
+          }}
+        >
+          <p style={{ color: 'var(--ink)', fontWeight: 600, fontSize: '15px', marginBottom: '8px' }}>
+            {t('orders.loadError')}
+          </p>
+          <p style={{ color: 'var(--muted)', fontSize: '13px', marginBottom: '16px' }}>
+            {t('common.checkInternet')}
+          </p>
+          <button
+            type="button"
+            className="primary"
+            onClick={() => refetch()}
+            style={{ minHeight: '44px', minWidth: '88px', padding: '10px 20px' }}
+          >
+            {t('orders.retry')}
+          </button>
+        </div>
       ) : orders.length ? (
         orders.map((o) => (
           <article className="order-card" key={o.id} id={`order-${o.id}`}>
             <div className="section-row">
               <div>
-                <b>{o.order_number}</b>
+                <Link to={`/parent/orders/${o.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                  <b>{o.order_number}</b>
+                </Link>
                 <small>
                   {new Date(o.created_at).toLocaleDateString('en-IN')}
                 </small>
               </div>
-              <span className="status">{o.status}</span>
+              <span className="status">{getOrderStatusLabel(o, t)}</span>
             </div>
             <p>
               {o.student_name} · <strong>{formatINR(Math.round(Number(o.total) * 100))}</strong>
@@ -497,6 +572,22 @@ function Orders() {
               onCod={() => void act(o, 'cod')} />
 
             <Timeline order={o} />
+            <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+              <Link
+                to={`/parent/orders/${o.id}`}
+                className="secondary"
+                style={{
+                  minHeight: '44px',
+                  width: 'auto',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '8px 16px',
+                  borderRadius: 'var(--radius-md, 4px)',
+                }}
+              >
+                {t('orderDetail.viewDetails')} →
+              </Link>
+            </div>
             <FitFeedbackPrompt
               orderId={o.id}
               orderStatus={o.status}
@@ -507,14 +598,29 @@ function Orders() {
         ))
       ) : (
         <div className="empty">
-          <span>⌁</span>
+          <Truck width={40} height={40} strokeWidth={1.5} />
           <h3>No orders yet</h3>
           <p>Your orders and live delivery timeline will appear here.</p>
-          <Link className="primary" to="/parent">
+          <Link className="primary" to="/parent" style={{ minHeight: '44px', display: 'inline-flex', alignItems: 'center' }}>
             Browse catalogue
           </Link>
         </div>
       )}
     </>
+  );
+}
+
+function CartTab() {
+  const queryClient = useQueryClient();
+  const [items, setItems] = useState<CartItem[]>([]);
+  return (
+    <Cart
+      items={items}
+      onClear={() => setItems([])}
+      onRemoveItem={(id) => setItems((prev) => prev.filter((it) => it.id !== id))}
+      onSuccess={() => {
+        queryClient.invalidateQueries({ queryKey: ['orders'] });
+      }}
+    />
   );
 }
