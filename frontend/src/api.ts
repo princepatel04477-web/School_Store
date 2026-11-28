@@ -108,11 +108,11 @@ export type Order = {
   placed_by_role?: string;
   status: string;
   payment_status: string;
-  payment_method?: 'COD' | 'ONLINE' | string;
+  payment_method?: 'COD' | 'ONLINE';
   fulfillment_type?: string;
   subtotal?: string | number;
   total: number | string;
-  payment_view?: PaymentView;
+  payment_view: PaymentView;
   razorpay_order_id?: string;
   tracking?: OrderTracking;
   created_at: string;

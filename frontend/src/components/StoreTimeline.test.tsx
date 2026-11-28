@@ -3,8 +3,24 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 import { Timeline, OrderTrackingBlock, getOrderStatusLabel } from './Store';
 import { setLang, translate } from '../i18n';
-import type { Order } from '../api';
+import type { Order, PaymentView } from '../api';
 import { siteConfig } from '../siteConfig';
+
+const dummyPaymentView: PaymentView = {
+  state: 'PAID',
+  amount_due_paise: 0,
+  amount_paid_paise: 50000,
+  currency: 'INR',
+  hold_expires_at: null,
+  last_checked_at: null,
+  last_check_ok: true,
+  in_progress: false,
+  last_failure_reason: null,
+  can_pay_now: false,
+  can_switch_to_cod: false,
+  can_refresh: false,
+  receipt: null,
+};
 
 describe('Timeline component tests', () => {
   beforeEach(() => {
@@ -26,6 +42,7 @@ describe('Timeline component tests', () => {
         fulfillment_type: 'HOME_DELIVERY',
         total: 500,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
         tracking: {
           carrier: null,
           consignment_number: null,
@@ -57,6 +74,7 @@ describe('Timeline component tests', () => {
         fulfillment_type: 'HOME_DELIVERY',
         total: 500,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
         tracking: {
           carrier: null,
           consignment_number: null,
@@ -85,6 +103,7 @@ describe('Timeline component tests', () => {
         fulfillment_type: 'HOME_DELIVERY',
         total: 500,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
         tracking: {
           carrier: null,
           consignment_number: null,
@@ -112,6 +131,7 @@ describe('Timeline component tests', () => {
         fulfillment_type: 'HOME_DELIVERY',
         total: 500,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
         tracking: {
           carrier: 'INDIA_POST',
           consignment_number: 'EE123456785IN',
@@ -145,6 +165,7 @@ describe('Timeline component tests', () => {
         fulfillment_type: 'HOME_DELIVERY',
         total: 500,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
         tracking: {
           carrier: 'INDIA_POST',
           consignment_number: 'EE123456785IN',
@@ -177,6 +198,7 @@ describe('Timeline component tests', () => {
         fulfillment_type: 'SCHOOL_PICKUP',
         total: 300,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
         tracking: {
           carrier: null,
           consignment_number: null,
@@ -229,6 +251,7 @@ describe('Timeline component tests', () => {
         fulfillment_type: 'HOME_DELIVERY',
         total: 450,
         created_at: '2026-11-20T09:00:00Z',
+        payment_view: dummyPaymentView,
         tracking: {
           carrier: null,
           consignment_number: null,
@@ -262,6 +285,7 @@ describe('Timeline component tests', () => {
         fulfillment_type: 'HOME_DELIVERY',
         total: 500,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
         tracking: {
           carrier: null,
           consignment_number: null,
@@ -287,6 +311,7 @@ describe('Timeline component tests', () => {
         fulfillment_type: 'HOME_DELIVERY',
         total: 500,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
         tracking: {
           carrier: null,
           consignment_number: null,
@@ -312,6 +337,7 @@ describe('Timeline component tests', () => {
         fulfillment_type: 'HOME_DELIVERY',
         total: 500,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
         tracking: {
           carrier: null,
           consignment_number: null,
@@ -338,6 +364,7 @@ describe('Timeline component tests', () => {
         payment_status: 'PENDING',
         total: 200,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
       };
       const html = renderToString(<Timeline order={order} />);
       expect(html).toMatch(/<li[^>]*class="[^"]*current[^"]*done[^"]*"[^>]*aria-current="step"[^>]*><span>1<\/span><div><b>Placed<\/b>/);
@@ -353,6 +380,7 @@ describe('Timeline component tests', () => {
         fulfillment_type: 'HOME_DELIVERY',
         total: 200,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
         tracking: {
           carrier: 'INDIA_POST',
           consignment_number: 'EE123456785IN',
@@ -378,6 +406,7 @@ describe('Timeline component tests', () => {
         fulfillment_type: 'HOME_DELIVERY',
         total: 500,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
       };
 
       const html = renderToString(<Timeline order={order} />);
@@ -400,6 +429,7 @@ describe('Timeline component tests', () => {
         fulfillment_type: 'HOME_DELIVERY',
         total: 500,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
       };
 
       const html = renderToString(<Timeline order={order} />);
@@ -423,6 +453,7 @@ describe('Timeline component tests', () => {
         fulfillment_type: 'HOME_DELIVERY',
         total: 100,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
       };
       expect(getOrderStatusLabel(orderHome, (k) => translate('en', k))).toBe('Sent by India Post');
       expect(getOrderStatusLabel(orderHome, (k) => translate('gu', k))).toBe('ઇન્ડિયા પોસ્ટ દ્વારા મોકલાયું');

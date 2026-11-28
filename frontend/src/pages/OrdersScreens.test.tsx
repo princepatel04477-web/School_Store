@@ -11,6 +11,22 @@ import { setLang } from '../i18n';
 
 let mockUseQueryError = false;
 
+const dummyPaymentView: apiModule.PaymentView = {
+  state: 'PAID',
+  amount_due_paise: 0,
+  amount_paid_paise: 50000,
+  currency: 'INR',
+  hold_expires_at: null,
+  last_checked_at: null,
+  last_check_ok: true,
+  in_progress: false,
+  last_failure_reason: null,
+  can_pay_now: false,
+  can_switch_to_cod: false,
+  can_refresh: false,
+  receipt: null,
+};
+
 // Mock @tanstack/react-query useQuery to allow simulating error state
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<{ useQuery: (options: unknown) => unknown }>('@tanstack/react-query');
@@ -138,6 +154,7 @@ describe('Orders Screens (Web & Native)', () => {
         fulfillment_type: 'HOME_DELIVERY',
         total: 1200,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
         tracking: {
           carrier: 'INDIA_POST',
           consignment_number: 'EE123456785IN',
@@ -181,6 +198,7 @@ describe('Orders Screens (Web & Native)', () => {
         fulfillment_type: 'HOME_DELIVERY',
         total: 1200,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
         tracking: {
           carrier: 'INDIA_POST',
           consignment_number: 'EE123456785IN',
@@ -272,6 +290,7 @@ describe('Orders Screens (Web & Native)', () => {
         fulfillment_type: 'HOME_DELIVERY',
         total: 950,
         created_at: '2026-11-20T10:00:00Z',
+        payment_view: dummyPaymentView,
         tracking: {
           carrier: 'INDIA_POST',
           consignment_number: 'EE123456785IN',

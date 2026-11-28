@@ -59,7 +59,16 @@ class ParentTrackingTestCase(TestCase):
         self.client_staff = APIClient()
         self.client_staff.force_authenticate(user=self.staff_admin)
 
-    def _create_order(self, parent, student, order_number, status=Order.Status.PLACED, fulfillment_type=Order.FulfillmentType.HOME_DELIVERY):
+    def _create_order(
+        self,
+        parent,
+        student,
+        order_number,
+        status=Order.Status.PLACED,
+        fulfillment_type=Order.FulfillmentType.HOME_DELIVERY,
+        razorpay_order_id=None,
+        razorpay_payment_id=None,
+    ):
         order = Order.objects.create(
             order_number=order_number,
             city=self.city,
@@ -73,8 +82,8 @@ class ParentTrackingTestCase(TestCase):
             fulfillment_type=fulfillment_type,
             subtotal=Decimal("600.00"),
             total=Decimal("600.00"),
-            razorpay_order_id="order_rzp_12345",
-            razorpay_payment_id="pay_rzp_67890",
+            razorpay_order_id=razorpay_order_id or f"order_{order_number}",
+            razorpay_payment_id=razorpay_payment_id or f"pay_{order_number}",
         )
         OrderItem.objects.create(
             order=order,
@@ -167,7 +176,14 @@ class ParentTrackingTestCase(TestCase):
             self.assertNotIn("note", ev)
 
     def test_staff_detail_keeps_staff_fields_and_razorpay_ids(self):
-        order = self._create_order(self.parent_1, self.student_1, "ORD-TRK-003", status=Order.Status.CONFIRMED)
+        order = self._create_order(
+            self.parent_1,
+            self.student_1,
+            "ORD-TRK-003",
+            status=Order.Status.CONFIRMED,
+            razorpay_order_id="order_rzp_12345",
+            razorpay_payment_id="pay_rzp_67890",
+        )
 
         resp = self.client_staff.get(f"/api/orders/{order.id}/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
@@ -338,8 +354,8 @@ class ParentTrackingTestCase(TestCase):
             timestamp=timezone.now(),
         )
 
-        # Measure queries for 1 order
-        with self.assertNumQueries(2):
+        # Measure queries for 1 order (orders + status_events + payment_attempts)
+        with self.assertNumQueries(3):
             resp1 = self.client_p1.get("/api/orders/?page_size=50")
             self.assertEqual(resp1.status_code, status.HTTP_200_OK)
             self.assertEqual(len(resp1.data["results"]), 1)
@@ -364,8 +380,8 @@ class ParentTrackingTestCase(TestCase):
                 pass
 
         # Total 30 orders now. With page_size=50, all 30 orders are fetched in one page.
-        # Query count must remain exactly 2 (orders query + prefetched status_events query)!
-        with self.assertNumQueries(2):
+        # Query count must remain constant (orders query + prefetched status_events and payment_attempts)!
+        with self.assertNumQueries(3):
             resp30 = self.client_p1.get("/api/orders/?page_size=50")
             self.assertEqual(resp30.status_code, status.HTTP_200_OK)
             self.assertEqual(len(resp30.data["results"]), 30)

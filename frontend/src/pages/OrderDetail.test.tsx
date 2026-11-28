@@ -12,6 +12,22 @@ import { messages } from '../i18n/messages';
 
 let mockUseQueryError = false;
 
+const dummyPaymentView: apiModule.PaymentView = {
+  state: 'PAID',
+  amount_due_paise: 0,
+  amount_paid_paise: 50000,
+  currency: 'INR',
+  hold_expires_at: null,
+  last_checked_at: null,
+  last_check_ok: true,
+  in_progress: false,
+  last_failure_reason: null,
+  can_pay_now: false,
+  can_switch_to_cod: false,
+  can_refresh: false,
+  receipt: null,
+};
+
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<{ useQuery: (options: unknown) => unknown }>('@tanstack/react-query');
   return {
@@ -111,6 +127,7 @@ describe('OrderDetail Component', () => {
       payment_method: 'ONLINE',
       total: '1200.00',
       created_at: '2025-01-15T10:00:00Z',
+      payment_view: dummyPaymentView,
       items: [
         {
           id: 'item-1',
@@ -144,6 +161,7 @@ describe('OrderDetail Component', () => {
       payment_method: 'ONLINE',
       total: '650.00',
       created_at: '2026-11-20T10:00:00Z',
+      payment_view: dummyPaymentView,
       items: [
         {
           id: 'item-2',
@@ -199,6 +217,7 @@ describe('OrderDetail Component', () => {
       payment_method: 'ONLINE',
       total: '500.00',
       created_at: '2025-01-10T10:00:00Z',
+      payment_view: dummyPaymentView,
       items: [
         {
           id: 'item-1',
@@ -239,6 +258,7 @@ describe('OrderDetail Component', () => {
       payment_method: 'ONLINE',
       total: '400.00',
       created_at: '2026-11-20T10:00:00Z',
+      payment_view: dummyPaymentView,
       items: [
         {
           id: 'item-1',
@@ -284,6 +304,7 @@ describe('OrderDetail Component', () => {
       payment_method: 'ONLINE',
       total: '800.00',
       created_at: '2026-11-19T10:00:00Z',
+      payment_view: dummyPaymentView,
       items: [
         {
           id: 'item-1',
@@ -326,6 +347,7 @@ describe('OrderDetail Component', () => {
       payment_method: 'COD',
       total: '950.00',
       created_at: '2026-11-20T10:00:00Z',
+      payment_view: dummyPaymentView,
       items: [
         {
           id: 'item-1',
@@ -365,6 +387,7 @@ describe('OrderDetail Component', () => {
       payment_method: 'ONLINE',
       total: '500.00',
       created_at: '2026-11-20T10:00:00Z',
+      payment_view: dummyPaymentView,
       items: [
         {
           id: 'item-1',
@@ -424,6 +447,7 @@ describe('OrderDetail Component', () => {
       payment_method: 'ONLINE',
       total: '650.00',
       created_at: '2026-11-20T10:00:00Z',
+      payment_view: dummyPaymentView,
       items: [
         {
           id: 'item-1',

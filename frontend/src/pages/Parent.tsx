@@ -35,7 +35,6 @@ interface StudentDetail {
 export default function Parent() {
   return (
     <Shell title="A little easier today.">
-      <PaymentReturnNotice />
       <Routes>
         <Route index element={<Dashboard />} />
         <Route path="orders" element={<Orders />} />
@@ -361,6 +360,7 @@ function Dashboard() {
         </section>
       )}
 
+      <PaymentReturnNotice />
       {/* Category Tabs: Step-by-step Selection flow applies to Uniform, Shoes, Accessories */}
       <div className="section-row" style={{ marginTop: '2rem' }}>
         <div>
